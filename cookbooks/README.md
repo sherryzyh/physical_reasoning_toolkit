@@ -1,0 +1,259 @@
+# PhysKit Cookbooks
+
+A collection of practical examples and tutorials for using PhysKit.
+
+## 🚀 Quick Start
+
+### Prerequisites
+- PhysKit packages installed (`physkit_datasets`, `physkit_annotation`)
+- OpenAI API key set (for annotation cookbooks)
+- Dataset files available in your data directory
+
+### Basic Usage
+```bash
+# Load and explore datasets
+python 01_load_dataset.py ugphysics
+python 01_load_dataset.py phybench
+python 01_load_dataset.py physreason
+
+
+# Run annotation workflows
+python 02_automated_annotation.py
+python 03_supervised_annotation.py
+```
+
+## 📚 Available Cookbooks
+
+### 1. **Dataset Loading & Exploration** (`01_load_dataset.py`)
+**Purpose**: Load, explore, and test any PhysKit dataset
+
+**Features**:
+- ✅ **Flexible**: Test any dataset by name (ugphysics, phybench, physreason, etc.)
+- ✅ **Configurable**: Customize variant, split, sample size, and data directory
+- ✅ **Comprehensive**: Shows dataset info, structure, sample problems, and statistics
+- ✅ **Debug-friendly**: Detailed error messages and debugging output
+
+**Usage Examples**:
+```bash
+# Test UGPhysics dataset (default)
+python 01_load_dataset.py
+
+# Test specific dataset
+python 01_load_dataset.py phybench
+
+# Test with custom parameters
+python 01_load_dataset.py ugphysics --variant full --split test --sample-size 5
+
+# Test with custom data directory
+python 01_load_dataset.py physreason --data-dir ~/my_data
+```
+
+**Command Line Options**:
+- `dataset_name`: Name of dataset to test (default: ugphysics)
+- `--data-dir`: Data directory path (default: auto-detect)
+- `--variant`: Dataset variant (default: full)
+- `--split`: Dataset split (default: test)
+- `--sample-size`: Number of problems to sample (default: all)
+
+**Output**:
+- Dataset information and statistics
+- Sample problem structures
+- Different loading options demonstration
+- Saved files in `showcase_output/dataset_exploration/`
+
+### 2. **Automated Annotation Workflow** (`02_automated_annotation.py`)
+**Purpose**: Run unsupervised LLM-based annotation on physics problems
+
+**Features**:
+- Uses OpenAI GPT models for automated domain annotation
+- Configurable sample sizes (default: 5 problems)
+- Saves results to `showcase_output/automated_annotation/`
+- No human intervention required
+
+**Usage**:
+```bash
+python 02_automated_annotation.py
+```
+
+**Prerequisites**:
+- `OPENAI_API_KEY` environment variable set
+- UGPhysics dataset available
+
+### 3. **Supervised Annotation Workflow** (`03_supervised_annotation.py`)
+**Purpose**: Run human-in-the-loop annotation workflow with quality control
+
+**Features**:
+- Automated domain annotation with LLM
+- Quality assessment and human review simulation
+- Revision capabilities for improved annotations
+- Comprehensive statistics and success rate tracking
+- Saves results to `showcase_output/supervised_annotation/`
+
+**Usage**:
+```bash
+python 03_supervised_annotation.py
+```
+
+**Prerequisites**:
+- `OPENAI_API_KEY` environment variable set
+- UGPhysics dataset available
+
+**Note**: This is a showcase demonstration. Human approval and correction counts simulate review scenarios for demonstration purposes.
+
+## 📥 Download Datasets
+
+Before running the cookbooks, you need to download the required datasets. PhysKit currently supports three main datasets:
+
+### **Supported Datasets**
+- **UGPhysics**: Undergraduate physics problems across 13 domains
+- **SeePhys**: Visual physics problems with images
+- **PHYBench**: Physics benchmark dataset
+
+### **Dataset Structure**
+Your datasets should be organized as follows:
+
+```
+~/data/                          # Your dataset root directory
+├── ugphysics/                   # UGPhysics dataset
+│   ├── AtomicPhysics/
+│   │   ├── en.jsonl            # English problems
+│   │   └── zh.jsonl            # Chinese problems
+│   ├── ClassicalMechanics/
+│   │   ├── en.jsonl
+│   │   └── zh.jsonl
+│   ├── QuantumMechanics/
+│   │   ├── en.jsonl
+│   │   └── zh.jsonl
+│   └── ...                     # 10 more domains
+├── SeePhys/                     # SeePhys dataset
+│   ├── physreason_format/      # Converted to PhysReason format
+│   │   ├── 1900.json
+│   │   ├── 1901.json
+│   │   └── ...                 # 2000+ problem files
+│   ├── images/                 # Problem images
+│   ├── seephys_train.csv      # Training data
+│   └── seephys_train_mini.csv # Mini training data
+└── PHYBench/                   # PHYBench dataset
+    ├── PHYBench-fullques_v1.json
+    ├── PHYBench-onlyques_v1.json
+    └── PHYBench-questions_v1.json
+```
+
+### **Download Instructions**
+
+#### **Option 1: Manual Download (Recommended)**
+1. **UGPhysics**: Download from [Hugging Face Dataset](https://huggingface.co/datasets/UGPhysics/ugphysics)
+2. **SeePhys**: Download from [SeePhys repository](https://github.com/AI4Phys/SeePhys?tab=readme-ov-file)
+3. **PHYBench**: Download from [Hugging Face Dataset](https://huggingface.co/datasets/Eureka-Lab/PHYBench)
+
+#### **Option 2: Custom Data Directory**
+If you want to use a different directory structure:
+```bash
+# Set custom data directory when running cookbooks
+python 01_load_dataset.py ugphysics --data-dir /path/to/your/datasets
+```
+
+### **Verification**
+After downloading, verify your datasets:
+```bash
+# Test dataset loading
+python 01_load_dataset.py ugphysics
+python 01_load_dataset.py seephys
+python 01_load_dataset.py phybench
+```
+
+## 🔧 Setup & Configuration
+
+### Environment Setup
+```bash
+# Set OpenAI API key
+export OPENAI_API_KEY="your-api-key-here"
+
+# Or create .env file
+echo "OPENAI_API_KEY=your-api-key-here" > .env
+```
+
+### Quick Environment Check
+```bash
+# Run the setup script to check your environment
+python setup_cookbooks.py
+```
+
+This will verify:
+- Python version compatibility
+- Required PhysKit packages
+- OpenAI API key configuration
+- Dataset availability
+
+### Data Directory Structure
+```
+../data/
+├── ugphysics/           # UGPhysics dataset
+│   ├── mini/
+│   │   ├── AtomicPhysics/
+│   │   │   └── en.jsonl
+│   │   └── ...
+│   └── full/
+├── phybench/            # PHYBench dataset
+├── physreason/          # PhysReason dataset
+└── ...                  # Other datasets
+```
+
+### Custom Data Paths
+```bash
+# Use custom data directory
+python 01_load_dataset.py ugphysics --data-dir /path/to/your/data
+
+# Test different variants
+python 01_load_dataset.py ugphysics --variant full
+
+# Test different splits
+python 01_load_dataset.py phybench --split validation
+```
+
+## 🚨 Troubleshooting
+
+### Common Issues
+
+**1. Dataset Not Found**
+```bash
+❌ Dataset 'unknown_dataset' not found!
+Available datasets: ugphysics, phybench, seephys
+```
+**Solution**: Use one of the available dataset names
+
+**2. Data Directory Not Found**
+```bash
+❌ Data directory not found: ../data
+```
+**Solution 1**: (recommended) Download datasets using the instructions in the [Download Datasets](#-download-datasets) section above
+**Solution 2**: Create a "data/" folder under your home directory and create sub-folders with dataset names
+**Solution 3**: Set correct data directory with `--data-dir` flag
+
+**3. OpenAI API Key Missing**
+```bash
+❌ OPENAI_API_KEY environment variable not set
+```
+**Solution**: Set `OPENAI_API_KEY` environment variable or create an `.env` file
+
+
+## 📁 Showcase Output Structure
+
+```
+showcase_output/
+├── dataset_exploration/
+│   ├── ugphysics_summary.txt
+│   ├── ugphysics_sample_problems.json
+│   ├── phybench_summary.txt
+│   └── ...
+├── automated_annotation/
+│   ├── domain_annotations/
+│   └── annotation_statistics.json
+└── supervised_annotation/
+    ├── domain_annotation_step/
+    └── supervised_anno_statistics.json
+```
+
+---
+
+**Happy cooking with PhysKit! 🧪⚡**

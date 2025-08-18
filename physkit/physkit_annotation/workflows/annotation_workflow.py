@@ -19,7 +19,7 @@ from ..full_physics_annotation import FullPhysicsAnnotation
 from ..annotators import (
     DomainAnnotator, TheoremAnnotator, VariableAnnotator, FinalAnswerAnnotator
 )
-from physkit_datasets.base import PhysicalDataset
+from physkit.models import PhysicalDataset
 
 
 class AnnotationWorkflow:
@@ -69,33 +69,21 @@ class AnnotationWorkflow:
             "end_time": None
         }
     
+
     def _setup_logging(self):
         """Setup logging configuration."""
-        log_file = self.output_dir / "annotation_workflow.log"
-        logging.basicConfig(
-            level=logging.INFO,
-            format='%(asctime)s - %(levelname)s - %(message)s',
-            handlers=[
-                logging.FileHandler(log_file),
-                logging.StreamHandler()
-            ]
-        )
+        # Use existing logger if already configured, otherwise create a basic one
         self.logger = logging.getLogger(__name__)
     
-    def annotate_dataset(self, dataset: PhysicalDataset, 
-                        max_problems: Optional[int] = None,
-                        domain_filter: Optional[str] = None) -> List[FullPhysicsAnnotation]:
-        """
-        Annotate problems from any PhysicalDataset using the annotation pipeline.
-        
-        Args:
-            dataset: PhysicalDataset instance to annotate
-            max_problems: Maximum number of problems to process (None for all)
-            domain_filter: Filter problems by specific domain (None for all domains)
-            
-        Returns:
-            List of complete annotation results
-        """
+    def run(
+        self,
+        dataset: PhysicalDataset,
+        max_problems: Optional[int] = None,
+        domain_filter: Optional[str] = None,
+        start_from: int = 0,
+        auto_save: bool = True,
+        progress_callback: Optional[callable] = None
+    ) -> Dict[str, Any]:
         self.logger.info(f"Starting annotation workflow")
         self.logger.info(f"Dataset: {dataset.__class__.__name__}")
         self.logger.info(f"Dataset size: {len(dataset)} problems")
@@ -189,8 +177,9 @@ class AnnotationWorkflow:
         # Save final statistics
         self._save_statistics()
         
-        self.logger.info(f"Annotation workflow completed. Processed {len(results)} problems")
-        return results
+        # workflow summary
+        summary = self.get_workflow_status()
+        return summary
     
     def _save_annotation_results(self, results: List[FullPhysicsAnnotation]):
         """Save annotation results to files."""

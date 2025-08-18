@@ -16,7 +16,7 @@ from ..revision.domain_revisor import DomainRevisor
 
 from ..annotators.domain import DomainAnnotator, DomainAnnotation
 from ..full_physics_annotation import FullPhysicsAnnotation
-from physkit_datasets.base import PhysicalDataset
+from physkit.models import PhysicalDataset
 
 
 class SupervisedAnnotationWorkflow:

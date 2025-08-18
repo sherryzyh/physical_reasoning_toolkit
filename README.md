@@ -7,13 +7,67 @@ A comprehensive toolkit for physical reasoning, annotation, and dataset manageme
 ### **Prerequisites**
 - **Python 3.12 or higher** (required)
 - **Virtual environment** (recommended)
+- **Datasets**
+
+### **Download Datasets**
+
+Before installing PhysKit, you need to download the required datasets. PhysKit currently supports three main datasets:
+
+#### **Supported Datasets**
+- **UGPhysics**: Undergraduate physics problems across 13 domains (Atomic Physics, Classical Mechanics, Quantum Mechanics, etc.)
+- **SeePhys**: Visual physics problems with images and converted PhysReason format
+- **PHYBench**: Physics benchmark dataset with multiple question formats
+
+#### **Dataset Structure**
+Your datasets should be organized as follows:
+
+```
+~/data/                          # Your dataset root directory
+├── ugphysics/                   # UGPhysics dataset
+│   ├── AtomicPhysics/
+│   │   ├── en.jsonl            # English problems
+│   │   └── zh.jsonl            # Chinese problems
+│   ├── ClassicalMechanics/
+│   │   ├── en.jsonl
+│   │   └── zh.jsonl
+│   ├── QuantumMechanics/
+│   │   ├── en.jsonl
+│   │   └── zh.jsonl
+│   └── ...                     # 10 more domains
+├── SeePhys/                     # SeePhys dataset
+│   ├── physreason_format/      # Converted to PhysReason format
+│   │   ├── 1900.json
+│   │   ├── 1901.json
+│   │   └── ...                 # 2000+ problem files
+│   ├── images/                 # Problem images
+│   ├── seephys_train.csv      # Training data
+│   └── seephys_train_mini.csv # Mini training data
+└── PHYBench/                   # PHYBench dataset
+    ├── PHYBench-fullques_v1.json
+    ├── PHYBench-onlyques_v1.json
+    └── PHYBench-questions_v1.json
+```
+
+#### **Download Instructions**
+
+**Option 1: Manual Download (Recommended)**
+1. **UGPhysics**: Download from [Hugging Face Dataset](https://huggingface.co/datasets/UGPhysics/ugphysics)
+2. **SeePhys**: Download from [SeePhys repository](https://github.com/AI4Phys/SeePhys?tab=readme-ov-file)
+3. **PHYBench**: Download from [Hugging Face Dataset](https://huggingface.co/datasets/Eureka-Lab/PHYBench)
+
+**Option 2: Custom Data Directory**
+If you want to use a different directory structure, you can specify it when using PhysKit:
+```bash
+# Example: Set custom data directory
+export PHYSKIT_DATA_DIR="/path/to/your/datasets"
+```
 
 ### **Installation**
 
 #### **Option 1: Development Installation (Recommended for Contributors)**
 ```bash
 # Clone the repository
-git clone <your-repo-url>
+git clone https://github.com/sherryzyh/physical_reasoning_toolkit.git
 cd physical_reasoning_toolkit
 
 # Create and activate virtual environment
@@ -28,13 +82,13 @@ python3 setup.py develop
 python3 -c "import physkit; print('✅ PhysKit installed successfully!')"
 ```
 
-#### **Option 2: Standard Installation**
+#### **Option 2: Standard Installation [NOT SUPPORTED YET]**
 ```bash
 cd physical_reasoning_toolkit/physkit
 python3 setup.py install
 ```
 
-#### **Option 3: Using pip**
+#### **Option 3: Using pip [NOT RECOMMENDED]**
 ```bash
 cd physical_reasoning_toolkit/physkit
 pip install -e .
@@ -65,13 +119,12 @@ The installation will automatically install all required dependencies:
 ### **Test Core Functionality**
 ```bash
 # Navigate to cookbooks
-cd ../physkit_cookbooks
+cd ../cookbooks
 
-# Test core functionality
-python3 06_testing_core_functionality.py
-
-# Test comprehensive demo
-python3 03_comprehensive_demo.py
+# Test dataset loading (make sure datasets are downloaded first)
+python3 01_load_dataset.py ugphysics
+python3 01_load_dataset.py seephys
+python3 01_load_dataset.py phybench
 ```
 
 ### **Test Individual Packages**
@@ -197,7 +250,8 @@ physical_reasoning_toolkit/
 │   ├── physkit_evaluation/    # Evaluation metrics
 │   ├── setup.py               # Installation script
 │   └── requirements.txt       # Dependencies
-├── physkit_cookbooks/         # Examples and tutorials
+├── cookbooks/                  # Examples and tutorials
+├── download_datasets/          # Dataset download scripts
 └── README.md                  # This file
 ```
 

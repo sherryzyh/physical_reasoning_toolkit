@@ -155,8 +155,7 @@ class UGPhysicsLoader(BaseDatasetLoader):
             raise ValueError(f"Unsupported variant: {variant}. Supported variants: 'full'")
         
         # Get available domains
-        domains = self._get_domains(data_dir)
-        print(f"🔍 Found domains: {domains}")
+        domains = self._get_domains(data_dir, language)
         
         if not domains:
             print(f"❌ No valid domains found in: {data_dir}")
@@ -236,7 +235,11 @@ class UGPhysicsLoader(BaseDatasetLoader):
             split=split,
         )
     
-    def _get_domains(self, data_dir: Union[str, Path]) -> List[str]:
+    def _get_domains(
+        self,
+        data_dir: Union[str, Path],
+        language: str = "en"
+    ) -> List[str]:
         """Get list of available domains in the dataset."""
         data_dir = Path(data_dir)
         if not data_dir.exists():
@@ -247,7 +250,6 @@ class UGPhysicsLoader(BaseDatasetLoader):
         
         # Get all subdirectories
         all_dirs = [d for d in data_dir.iterdir() if d.is_dir()]
-        print(f"📁 All subdirectories found: {[d.name for d in all_dirs]}")
         
         # Get subdirectories that represent domains
         domains = [d.name for d in all_dirs]
@@ -261,16 +263,13 @@ class UGPhysicsLoader(BaseDatasetLoader):
         ]
         
         found_domains = [d for d in domains if d in valid_domains]
-        print(f"✅ Valid domains found: {found_domains}")
         
         # Check if any domain files exist
         for domain in found_domains:
             domain_dir = data_dir / domain
             jsonl_file = domain_dir / "en.jsonl"
-            if jsonl_file.exists():
-                print(f"✅ Domain {domain}: en.jsonl found")
-            else:
-                print(f"⚠️  Domain {domain}: en.jsonl not found")
+            if not jsonl_file.exists():
+                print(f"⚠️  Domain {domain}: {language}.jsonl not found")
         
         return found_domains
     
