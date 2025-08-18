@@ -6,6 +6,7 @@ ensuring consistent field handling and standardization across different datasets
 using simple field mapping dictionaries.
 """
 
+import os
 from abc import ABC, abstractmethod
 from typing import Dict, List, Any, Union, Optional
 from pathlib import Path
@@ -305,3 +306,44 @@ class BaseDatasetLoader(ABC):
         
         # Default to open-ended
         return "OE"
+    
+    @staticmethod
+    def resolve_data_dir(
+        data_dir: Union[str, Path, None] = None,
+        default_subdir: str = None
+    ) -> Path:
+        """
+        Resolve data directory with support for PHYSKIT_DATA_DIR environment variable.
+        
+        Args:
+            data_dir: Explicitly provided data directory path
+            default_subdir: Default subdirectory to append (e.g., 'ugphysics', 'seephys')
+            
+        Returns:
+            Resolved Path object pointing to the data directory
+            
+        Priority order:
+        1. Explicitly provided data_dir (highest priority)
+        2. PHYSKIT_DATA_DIR environment variable + default_subdir
+        3. ~/data + default_subdir (default fallback)
+        """
+        # If data_dir is explicitly provided, use it
+        if data_dir is not None:
+            resolved_dir = Path(data_dir)
+            if not resolved_dir.is_absolute():
+                resolved_dir = resolved_dir.resolve()
+            return resolved_dir
+        
+        # Check for PHYSKIT_DATA_DIR environment variable
+        physkit_data_dir = os.getenv("PHYSKIT_DATA_DIR")
+        if physkit_data_dir:
+            base_dir = Path(physkit_data_dir)
+            if default_subdir:
+                return base_dir / default_subdir
+            return base_dir
+        
+        # Fallback to ~/data
+        home_data_dir = Path.home() / "data"
+        if default_subdir:
+            return home_data_dir / default_subdir
+        return home_data_dir
