@@ -143,7 +143,8 @@ def main():
             pprint.pprint(problem.to_dict())
         
         # 8. Save dataset information to showcase output
-        output_dir = Path("showcase_output/dataset_exploration")
+        root_dir = os.path.dirname(os.path.dirname(__file__))
+        output_dir = Path(root_dir) / "showcase_output" / "dataset_exploration"
         output_dir.mkdir(parents=True, exist_ok=True)
         
         # Save dataset summary
