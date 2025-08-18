@@ -67,10 +67,8 @@ class PHYBenchLoader(BaseDatasetLoader):
         Returns:
             PhysicalDataset containing PHYBench problems
         """
-        if data_dir is None:
-            data_dir = Path.home() / "data" / "PHYBench"
-        else:
-            data_dir = Path(data_dir)
+        # Resolve data directory with environment variable support
+        data_dir = self.resolve_data_dir(data_dir, "PHYBench")
         
         if not data_dir.exists():
             raise FileNotFoundError(f"Data directory not found: {data_dir}")

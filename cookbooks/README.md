@@ -100,6 +100,25 @@ python 03_supervised_annotation.py
 
 **Note**: This is a showcase demonstration. Human approval and correction counts simulate review scenarios for demonstration purposes.
 
+### 4. **Environment Variables Demo** (`04_environment_variables_demo.py`)
+**Purpose**: Demonstrate how to use the `PHYSKIT_DATA_DIR` environment variable
+
+**Features**:
+- Shows how to customize dataset locations
+- Demonstrates environment variable priority
+- Examples of different setup methods
+- Centralized dataset management
+- Live testing of environment variable functionality
+
+**Usage**:
+```bash
+python 04_environment_variables_demo.py
+```
+
+**Prerequisites**:
+- physkit_datasets package installed
+- Datasets downloaded to your preferred location
+
 ## 📥 Download Datasets
 
 Before running the cookbooks, you need to download the required datasets. PhysKit currently supports three main datasets:

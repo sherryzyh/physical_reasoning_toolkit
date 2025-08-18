@@ -135,18 +135,9 @@ class UGPhysicsLoader(BaseDatasetLoader):
         if split != "test":
             raise ValueError("UGPhysics dataset only supports 'test' split")
         
-        # Set default data directory if none provided
-        if data_dir is None:
-            data_dir = Path.home() / "data" / "ugphysics"
-            print(f"🔍 Using default data directory: {data_dir}")
-        else:
-            data_dir = Path(data_dir)
-            print(f"🔍 Using provided data directory: {data_dir}")
-        
-        # Check if data_dir is a relative path and resolve it
-        if not data_dir.is_absolute():
-            data_dir = data_dir.resolve()
-            print(f"🔍 Resolved data directory: {data_dir}")
+        # Resolve data directory with environment variable support
+        data_dir = self.resolve_data_dir(data_dir, "ugphysics")
+        print(f"🔍 Using data directory: {data_dir}")
         
         if not data_dir.exists():
             raise FileNotFoundError(f"Data directory not found: {data_dir}")
