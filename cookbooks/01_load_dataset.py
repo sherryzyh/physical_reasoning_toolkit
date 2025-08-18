@@ -19,10 +19,7 @@ Usage:
 Examples:
     python 01_load_dataset.py ugphysics
     python 01_load_dataset.py phybench
-    python 01_load_dataset.py physreason
     python 01_load_dataset.py seephys
-    python 01_load_dataset.py mmlu_pro
-    python 01_load_dataset.py phyx
 """
 
 import os
@@ -100,84 +97,41 @@ def main():
         print(f"  Total problems: {dataset_info.get('total_problems', 'N/A')}")
         print(f"  Domains: {dataset_info.get('domains', [])}")
         print(f"  Languages: {dataset_info.get('languages', [])}")
+        
+        # Show additional loader information
+        loader_info = DatasetHub.get_loader_info(args.dataset_name)
+        print(f"  Loader class: {loader_info.get('loader_class', 'N/A')}")
+        print(f"  Loader module: {loader_info.get('loader_module', 'N/A')}")
+        
     except Exception as e:
         print(f"  Error getting info: {e}")
     
-    # 3. Load the requested dataset
+    # 3. Load the requested dataset using the unified DatasetHub interface
     print(f"\n📖 Loading {args.dataset_name.upper()} Dataset:")
     print("-" * 50)
     
     print(f"🔍 Loading {args.dataset_name} dataset ({args.variant} variant)...")
     try:
-        # Load the dataset using the correct method
-        # For physkit_datasets, we need to create the loader directly
-        try:
-            # Try to import the specific loader
-            loader_module = __import__(f"physkit_datasets.loaders.{args.dataset_name}", fromlist=[f"{args.dataset_name.title()}Loader"])
+        # Use the unified DatasetHub.load() method
+        load_kwargs = {
+            "dataset_name": args.dataset_name,
+            "sample_size": args.sample_size
+        }
+        
+        # Add data_dir if specified
+        if args.data_dir:
+            load_kwargs["data_dir"] = args.data_dir
             
-            # Handle different naming conventions for loader classes
-            possible_class_names = [
-                f"{args.dataset_name.title()}Loader",  # e.g., UgphysicsLoader
-                f"{args.dataset_name.upper()}Loader",  # e.g., UGPHYSICSLoader
-                f"{args.dataset_name.capitalize()}Loader",  # e.g., UgphysicsLoader
-                f"{args.dataset_name}Loader",  # e.g., ugphysicsLoader
-            ]
+        # Add split and variant as kwargs
+        if args.split:
+            load_kwargs["split"] = args.split
+        if args.variant:
+            load_kwargs["variant"] = args.variant
             
-            # Special cases for known datasets
-            if args.dataset_name == "ugphysics":
-                possible_class_names.insert(0, "UGPhysicsLoader")  # Correct name
-            elif args.dataset_name == "phybench":
-                possible_class_names.insert(0, "PHYBenchLoader")
-            elif args.dataset_name == "seephys":
-                possible_class_names.insert(0, "SeePhysLoader")
-            # elif args.dataset_name == "physreason":
-            #     possible_class_names.insert(0, "PhysReasonLoader")
-            # elif args.dataset_name == "mmlu_pro":
-            #     possible_class_names.insert(0, "MMLUProLoader")
-            # elif args.dataset_name == "phyx":
-            #     possible_class_names.insert(0, "PhyXLoader")
-            
-            # Try to find the loader class
-            loader_class = None
-            for class_name in possible_class_names:
-                try:
-                    loader_class = getattr(loader_module, class_name)
-                    print(f"✅ Found loader class: {class_name}")
-                    break
-                except AttributeError:
-                    continue
-            
-            if loader_class is None:
-                # List available classes in the module for debugging
-                available_classes = [attr for attr in dir(loader_module) if attr.endswith('Loader')]
-                print(f"❌ Could not find loader class for dataset: {args.dataset_name}")
-                print(f"Available classes in module: {available_classes}")
-                print("This dataset might not have a loader implemented yet.")
-                return
-                
-            loader = loader_class()
-            
-            # Prepare load arguments
-            load_kwargs = {
-                "variant": args.variant,
-                "split": args.split
-            }
-            
-            # Add data_dir if specified
-            if args.data_dir:
-                load_kwargs["data_dir"] = args.data_dir
-                
-            # Add sample_size if specified
-            if args.sample_size:
-                load_kwargs["sample_size"] = args.sample_size
-                
-            print(f"🔍 Loading dataset with parameters: {load_kwargs}")
-            dataset = loader.load(**load_kwargs)
-        except ImportError as e:
-            print(f"❌ Could not import loader for dataset: {args.dataset_name}")
-            print(f"Error: {e}")
-            print("This dataset might not have a loader implemented yet.")
-            return
+        print(f"🔍 Loading dataset with parameters: {load_kwargs}")
+        dataset = DatasetHub.load(
+            **load_kwargs
+        )
         
         print(f"✅ Successfully loaded {len(dataset)} problems")
         
@@ -187,7 +141,6 @@ def main():
         
         for i, problem in enumerate(dataset[:1]):  # Show first problem
             pprint.pprint(problem.to_dict())
-        
         
         # 8. Save dataset information to showcase output
         output_dir = Path("showcase_output/dataset_exploration")

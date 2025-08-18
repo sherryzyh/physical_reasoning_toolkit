@@ -7,7 +7,11 @@ This module provides a clean, simple interface for loading physical reasoning da
 from typing import Dict, Any, List, Type, Optional, Union
 from pathlib import Path
 from physkit_datasets.loaders.base_loader import BaseDatasetLoader
-from physkit_datasets.loaders import PHYBenchLoader, SeePhysLoader, UGPhysicsLoader
+from physkit_datasets.loaders import (
+    PHYBenchLoader, 
+    SeePhysLoader, 
+    UGPhysicsLoader
+)
 from physkit.models import PhysicalDataset
 
 
@@ -24,6 +28,9 @@ class DatasetHub:
         
         # With options
         dataset = DatasetHub.load("ugphysics", split="test", sample_size=100)
+        
+        # With variant
+        dataset = DatasetHub.load("ugphysics", variant="mini", split="test")
         
         # List available datasets
         print(DatasetHub.list_available())
@@ -66,8 +73,7 @@ class DatasetHub:
     def load(
         cls,
         dataset_name: str,
-        data_dir: Union[str, Path] = "/Users/yinghuan/data",
-        split: str = "test",
+        data_dir: Union[str, Path, None] = None,
         sample_size: Optional[int] = None,
         **kwargs
     ) -> PhysicalDataset:
@@ -76,10 +82,9 @@ class DatasetHub:
         
         Args:
             dataset_name: Name of the dataset ('ugphysics', 'phybench', 'seephys', etc.)
-            data_dir: Path to the data directory
-            split: Dataset split ('test', 'train', 'val')
+            data_dir: Path to the data directory (None = auto-detect)
             sample_size: Number of problems to load (None = all)
-            **kwargs: Additional arguments for the specific loader
+            **kwargs: Additional arguments for the specific loader (e.g., split, variant, etc.)
             
         Returns:
             PhysicalDataset: Loaded dataset
@@ -98,12 +103,25 @@ class DatasetHub:
             
             >>> # Load specific split
             >>> dataset = DatasetHub.load("ugphysics", split="test")
+            
+            >>> # Load with variant
+            >>> dataset = DatasetHub.load("ugphysics", variant="mini", split="test")
         """
         # Get the appropriate loader
         loader = cls._get_loader(dataset_name)
         
+        # Prepare load arguments
+        load_kwargs = {
+            "sample_size": sample_size,
+            **kwargs
+        }
+        
+        # Add data_dir if specified
+        if data_dir is not None:
+            load_kwargs['data_dir'] = data_dir
+        
         # Load the dataset
-        dataset = loader.load(data_dir, split=split, sample_size=sample_size, **kwargs)
+        dataset = loader.load(**load_kwargs)
         
         return dataset
     
@@ -119,8 +137,15 @@ class DatasetHub:
         """Get information about a specific dataset."""
         loader = cls._get_loader(dataset_name)
         return loader.get_info()
-
-
-__all__ = [
-    "DatasetHub"
-]
+    
+    @classmethod
+    def get_loader_info(cls, dataset_name: str) -> Dict[str, Any]:
+        """Get detailed information about a dataset loader including supported parameters."""
+        loader = cls._get_loader(dataset_name)
+        info = loader.get_info()
+        
+        # Add loader class information
+        info['loader_class'] = loader.__class__.__name__
+        info['loader_module'] = loader.__class__.__module__
+        
+        return info
