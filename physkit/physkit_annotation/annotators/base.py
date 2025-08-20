@@ -6,7 +6,7 @@ import os
 from abc import ABC, abstractmethod
 from typing import Any
 
-from ..llm import LLMClient
+from ...physkit.llm import LLMClient
 
 
 class BaseAnnotator(ABC):

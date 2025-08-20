@@ -90,6 +90,10 @@ class BaseDatasetLoader(ABC):
             else:
                 metadata[field] = value
         
+        # Normalize problem_id field to string if present
+        if "problem_id" in metadata:
+            metadata["problem_id"] = str(metadata["problem_id"])
+        
         # Normalize language field if present
         if "language" in metadata:
             metadata["language"] = self._normalize_language(metadata["language"])

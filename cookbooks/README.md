@@ -5,8 +5,8 @@ A collection of practical examples and tutorials for using PhysKit.
 ## 🚀 Quick Start
 
 ### Prerequisites
-- PhysKit packages installed (`physkit_datasets`, `physkit_annotation`)
-- OpenAI API key set (for annotation cookbooks)
+- PhysKit packages installed (`physkit_datasets`, `physkit_annotation`, `physkit_evaluation`)
+- OpenAI API key set (for annotation and evaluation cookbooks)
 - Dataset files available in your data directory
 
 ### Basic Usage
@@ -20,6 +20,9 @@ python 01_load_dataset.py physreason
 # Run annotation workflows
 python 02_automated_annotation.py
 python 03_supervised_annotation.py
+
+# Test enhanced evaluation toolkit (18 comprehensive test scenarios)
+python 05_evaluation_demo.py
 ```
 
 ## 📚 Available Cookbooks
@@ -98,26 +101,67 @@ python 03_supervised_annotation.py
 - `OPENAI_API_KEY` environment variable set
 - UGPhysics dataset available
 
-**Note**: This is a showcase demonstration. Human approval and correction counts simulate review scenarios for demonstration purposes.
-
 ### 4. **Environment Variables Demo** (`04_environment_variables_demo.py`)
-**Purpose**: Demonstrate how to use the `PHYSKIT_DATA_DIR` environment variable
+**Purpose**: Demonstrate environment variable configuration and priority
 
 **Features**:
-- Shows how to customize dataset locations
+- Shows how to configure PhysKit with environment variables
 - Demonstrates environment variable priority
-- Examples of different setup methods
-- Centralized dataset management
-- Live testing of environment variable functionality
+- Configures API keys and settings
+- Saves configuration examples
 
 **Usage**:
 ```bash
 python 04_environment_variables_demo.py
 ```
 
+### 5. **Enhanced Evaluation Toolkit Demo** (`05_evaluation_demo.py`)
+**Purpose**: Comprehensive demonstration of PhysKit's advanced evaluation capabilities across different answer types
+
+**Features**:
+- ✅ **Multi-type comparison**: Symbolic expressions, numerical values, and textual descriptions
+- ✅ **Advanced symbolic parsing**: Handles complex LaTeX, equations vs expressions, mathematical equivalence
+- ✅ **Smart numerical comparison**: Significant figure-based comparison, unit conversions, special cases (infinity, NaN, zero)
+- ✅ **Semantic textual analysis**: LLM-powered comparison for different phrasings and explanations
+- ✅ **Comprehensive test scenarios**: 18 diverse physics problems covering various edge cases
+- ✅ **Detailed analysis**: Per-type accuracy breakdown, comparison method details, error analysis
+
+**Test Scenarios**:
+- **Symbolic (5 problems)**: Complex velocity functions, Newton's laws, Einstein's E=mc², integral equations
+- **Numerical (8 problems)**: Unit conversions (km/h ↔ m/s, °F ↔ °C, g ↔ kg), significant figures, special values
+- **Textual (5 problems)**: Physics explanations with different phrasings and terminology
+
+**Usage**:
+```bash
+python 05_evaluation_demo.py
+```
+
 **Prerequisites**:
-- physkit_datasets package installed
-- Datasets downloaded to your preferred location
+- `physkit_evaluation` package installed
+- `physkit` package installed
+- OpenAI API access for LLM-based comparisons
+
+**Sample Output**:
+```
+🎯 Key Features Demonstrated:
+  • Symbolic: Handles equations vs expressions, complex LaTeX parsing
+  • Numerical: Unit conversions, significant figures, special cases (inf, NaN)
+  • Textual: Semantic similarity using LLM comparison
+  • Comprehensive error handling and detailed comparison results
+
+📈 Accuracy Breakdown by Answer Type
+Symbolic:   80.00% (4/5)
+Numerical:  75.00% (6/8)  
+Textual:    100.00% (5/5)
+```
+
+**Advanced Capabilities Showcased**:
+- **LaTeX Processing**: PhyBench preprocessing with `posify`, `time_simplify`, equation parsing
+- **Unit Intelligence**: Dimensional analysis, automatic conversion factors, compatibility checking
+- **Significant Figures**: Precision-aware comparison without fixed tolerance
+- **LLM Integration**: GPT-4o for semantic comparison of units and explanations
+
+
 
 ## 📥 Download Datasets
 
@@ -255,6 +299,12 @@ Available datasets: ugphysics, phybench, seephys
 ```
 **Solution**: Set `OPENAI_API_KEY` environment variable or create an `.env` file
 
+**4. Evaluation Toolkit Import Error**
+```bash
+ModuleNotFoundError: No module named 'physkit_evaluation'
+```
+**Solution**: Ensure the `physkit_evaluation` package is properly installed and the import paths are correctly configured
+
 
 ## 📁 Showcase Output Structure
 
@@ -268,9 +318,14 @@ showcase_output/
 ├── automated_annotation/
 │   ├── domain_annotations/
 │   └── annotation_statistics.json
-└── supervised_annotation/
-    ├── domain_annotation_step/
-    └── supervised_anno_statistics.json
+├── supervised_annotation/
+│   ├── domain_annotation_step/
+│   └── supervised_anno_statistics.json
+└── evaluation_results/
+    ├── symbolic_comparison_details.json
+    ├── numerical_comparison_details.json
+    ├── textual_comparison_details.json
+    └── comprehensive_evaluation_report.txt
 ```
 
 ---

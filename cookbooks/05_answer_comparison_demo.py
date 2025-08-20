@@ -1,0 +1,377 @@
+#!/usr/bin/env python3
+"""
+Cookbook 5: Enhanced Evaluation Toolkit Demo
+
+This cookbook demonstrates comprehensive answer comparison capabilities:
+1. Symbolic expressions with different formats (equations vs expressions)
+2. Numerical values with various units and significant figures
+3. Textual descriptions with semantic comparison
+4. Edge cases and special scenarios
+"""
+
+import os
+import sys
+
+# Add the physkit to the path
+sys.path.append(os.path.join(os.path.dirname(__file__), "..", "physkit"))
+
+from physkit_evaluation.metrics import AccuracyMetric
+from physkit.definitions.answer_types import SymbolicAnswer, NumericalAnswer, TextualAnswer, AnswerType
+
+
+def main():
+    """Run the enhanced evaluation demo."""
+    print("🚀 Enhanced PhysKit Evaluation Toolkit Demo")
+    print("=" * 60)
+    print("This cookbook demonstrates comprehensive comparison scenarios:")
+    print("• Symbolic: Equations vs expressions, complex LaTeX")
+    print("• Numerical: Unit conversions, significant figures, special cases")
+    print("• Textual: Semantic similarity using LLM")
+    print()
+    
+    # Create comprehensive test cases
+    predictions = [
+        # Symbolic comparisons - different scenarios
+        SymbolicAnswer(
+            value="v(t) = \\frac{k}{c-b}e^{-b t} - \\frac{g}{c} + \\left(-\\frac{k}{c-b}+\\frac{g}{c}\\right)e^{-c t}",
+            answer_type=AnswerType.SYMBOLIC,
+            metadata={"id": "sym_001"}
+        ),
+        SymbolicAnswer(
+            value="F = ma",
+            answer_type=AnswerType.SYMBOLIC,
+            metadata={"id": "sym_002"}
+        ),
+        SymbolicAnswer(
+            value="\\frac{g}{c}\\left(\\mathrm{e}^{-c t} - 1\\right) + \\frac{k}{c-b}\\left(\\mathrm{e}^{-b t} - \\mathrm{e}^{-c t}\\right)",
+            answer_type=AnswerType.SYMBOLIC,
+            metadata={"id": "sym_003"}
+        ),
+        SymbolicAnswer(
+            value="E = mc^2",
+            answer_type=AnswerType.SYMBOLIC,
+            metadata={"id": "sym_004"}
+        ),
+        SymbolicAnswer(
+            value="\\int_0^t v(\\tau) d\\tau = x(t)",
+            answer_type=AnswerType.SYMBOLIC,
+            metadata={"id": "sym_005"}
+        ),
+        
+        # Numerical comparisons - various scenarios
+        NumericalAnswer(
+            value=9.81,
+            units="m/s²",
+            answer_type=AnswerType.NUMERICAL,
+            metadata={"id": "num_001"}
+        ),
+        NumericalAnswer(
+            value=35.316,
+            units="km/h",
+            answer_type=AnswerType.NUMERICAL,
+            metadata={"id": "num_002"}
+        ),
+        NumericalAnswer(
+            value=3.14159,
+            units="rad",
+            answer_type=AnswerType.NUMERICAL,
+            metadata={"id": "num_003"}
+        ),
+        NumericalAnswer(
+            value=1000.0,
+            units="g",
+            answer_type=AnswerType.NUMERICAL,
+            metadata={"id": "num_004"}
+        ),
+        NumericalAnswer(
+            value=float('inf'),
+            units="m/s",
+            answer_type=AnswerType.NUMERICAL,
+            metadata={"id": "num_005"}
+        ),
+        NumericalAnswer(
+            value=float('nan'),
+            units="kg",
+            answer_type=AnswerType.NUMERICAL,
+            metadata={"id": "num_006"}
+        ),
+        NumericalAnswer(
+            value=0.0,
+            units="N",
+            answer_type=AnswerType.NUMERICAL,
+            metadata={"id": "num_007"}
+        ),
+        NumericalAnswer(
+            value=212.0,
+            units="°F",
+            answer_type=AnswerType.NUMERICAL,
+            metadata={"id": "num_008"}
+        ),
+        
+        # Textual comparisons - different phrasings
+        TextualAnswer(
+            value="The object accelerates downward due to the force of gravity acting on it.",
+            answer_type=AnswerType.TEXTUAL,
+            metadata={"id": "txt_001"}
+        ),
+        TextualAnswer(
+            value="Gravity causes the object to accelerate downward.",
+            answer_type=AnswerType.TEXTUAL,
+            metadata={"id": "txt_002"}
+        ),
+        TextualAnswer(
+            value="When a force is applied to an object, it accelerates according to F = ma.",
+            answer_type=AnswerType.TEXTUAL,
+            metadata={"id": "txt_003"}
+        ),
+        TextualAnswer(
+            value="Newton's second law states that acceleration equals force divided by mass.",
+            answer_type=AnswerType.TEXTUAL,
+            metadata={"id": "txt_004"}
+        ),
+        TextualAnswer(
+            value="The object falls faster and faster because of Earth's gravitational pull.",
+            answer_type=AnswerType.TEXTUAL,
+            metadata={"id": "txt_005"}
+        ),
+    ]
+    
+    ground_truths = [
+        # Symbolic ground truths
+        SymbolicAnswer(
+            value="\\boxed{\\frac{g}{c}\\left(\\mathrm{e}^{-c t} - 1\\right) + \\frac{k}{c-b}\\left(\\mathrm{e}^{-b t} - \\mathrm{e}^{-c t}\\right)}",
+            answer_type=AnswerType.SYMBOLIC,
+            metadata={"id": "sym_001"}
+        ),
+        SymbolicAnswer(
+            value="F = m \\cdot a",
+            answer_type=AnswerType.SYMBOLIC,
+            metadata={"id": "sym_002"}
+        ),
+        SymbolicAnswer(
+            value="\\frac{g}{c}\\left(\\mathrm{e}^{-c t} - 1\\right) + \\frac{k}{c-b}\\left(\\mathrm{e}^{-b t} - \\mathrm{e}^{-c t}\\right)",
+            answer_type=AnswerType.SYMBOLIC,
+            metadata={"id": "sym_003"}
+        ),
+        SymbolicAnswer(
+            value="E = m c^2",
+            answer_type=AnswerType.SYMBOLIC,
+            metadata={"id": "sym_004"}
+        ),
+        SymbolicAnswer(
+            value="\\int_0^t v(\\tau) d\\tau = x(t)",
+            answer_type=AnswerType.SYMBOLIC,
+            metadata={"id": "sym_005"}
+        ),
+        
+        # Numerical ground truths
+        NumericalAnswer(
+            value=9.80665,
+            units="m/s²",
+            answer_type=AnswerType.NUMERICAL,
+            metadata={"id": "num_001"}
+        ),
+        NumericalAnswer(
+            value=9.81,
+            units="m/s",
+            answer_type=AnswerType.NUMERICAL,
+            metadata={"id": "num_002"}
+        ),
+        NumericalAnswer(
+            value=3.14159,
+            units="rad",
+            answer_type=AnswerType.NUMERICAL,
+            metadata={"id": "num_003"}
+        ),
+        NumericalAnswer(
+            value=1.0,
+            units="kg",
+            answer_type=AnswerType.NUMERICAL,
+            metadata={"id": "num_004"}
+        ),
+        NumericalAnswer(
+            value=float('inf'),
+            units="m/s",
+            answer_type=AnswerType.NUMERICAL,
+            metadata={"id": "num_005"}
+        ),
+        NumericalAnswer(
+            value=float('nan'),
+            units="kg",
+            answer_type=AnswerType.NUMERICAL,
+            metadata={"id": "num_006"}
+        ),
+        NumericalAnswer(
+            value=0.0,
+            units="N",
+            answer_type=AnswerType.NUMERICAL,
+            metadata={"id": "num_007"}
+        ),
+        NumericalAnswer(
+            value=100.0,
+            units="°C",
+            answer_type=AnswerType.NUMERICAL,
+            metadata={"id": "num_008"}
+        ),
+        
+        # Textual ground truths
+        TextualAnswer(
+            value="Gravity causes the object to accelerate downward.",
+            answer_type=AnswerType.TEXTUAL,
+            metadata={"id": "txt_001"}
+        ),
+        TextualAnswer(
+            value="Gravity causes the object to accelerate downward.",
+            answer_type=AnswerType.TEXTUAL,
+            metadata={"id": "txt_002"}
+        ),
+        TextualAnswer(
+            value="Newton's second law states that acceleration equals force divided by mass.",
+            answer_type=AnswerType.TEXTUAL,
+            metadata={"id": "txt_003"}
+        ),
+        TextualAnswer(
+            value="Newton's second law states that acceleration equals force divided by mass.",
+            answer_type=AnswerType.TEXTUAL,
+            metadata={"id": "txt_004"}
+        ),
+        TextualAnswer(
+            value="The object accelerates downward due to the force of gravity acting on it.",
+            answer_type=AnswerType.TEXTUAL,
+            metadata={"id": "txt_005"}
+        ),
+    ]
+    
+    print("📋 Enhanced Problem Set Overview")
+    print("-" * 50)
+    print("Symbolic Problems (5):")
+    print("  • Complex velocity function (different formats)")
+    print("  • Newton's second law (equation vs expression)")
+    print("  • Velocity function (expression vs expression)")
+    print("  • Einstein's mass-energy relation")
+    print("  • Integral equation")
+    print()
+    print("Numerical Problems (8):")
+    print("  • Gravitational acceleration (significant figures)")
+    print("  • Speed conversion (km/h vs m/s)")
+    print("  • Angle values (radians)")
+    print("  • Mass conversion (g vs kg)")
+    print("  • Infinity comparison")
+    print("  • NaN comparison")
+    print("  • Zero comparison")
+    print("  • Temperature conversion (°F vs °C)")
+    print()
+    print("Textual Problems (5):")
+    print("  • Gravity explanation (different phrasings)")
+    print("  • Newton's law (different phrasings)")
+    print("  • Falling object (different phrasings)")
+    print()
+    
+    # Run evaluation
+    metric = AccuracyMetric()
+    result = metric.compute(predictions, ground_truths, return_details=True)
+    
+    # Display results
+    print("📊 Overall Results")
+    print("-" * 50)
+    print(f"Overall Accuracy: {result['accuracy']:.2%}")
+    print(f"Correct Answers: {result['correct_samples']}/{result['total_samples']}")
+    print()
+    
+    # Group results by type
+    symbolic_results = []
+    numerical_results = []
+    textual_results = []
+    
+    for detail in result['details']:
+        # Extract ID from metadata if available, otherwise use index
+        pred_id = detail.get('sample_index', 0)
+        pred = predictions[pred_id]
+        
+        if pred.answer_type == AnswerType.SYMBOLIC:
+            symbolic_results.append(detail)
+        elif pred.answer_type == AnswerType.NUMERICAL:
+            numerical_results.append(detail)
+        else:
+            textual_results.append(detail)
+    
+    # Display detailed results by type
+    print("🔍 Symbolic Comparison Results")
+    print("-" * 50)
+    for detail in symbolic_results:
+        pred_id = detail.get('sample_index', 0)
+        pred = predictions[pred_id]
+        gt_id = detail.get('sample_index', 0)
+        gt = ground_truths[gt_id]
+        status = "✓" if detail['is_correct'] else "✗"
+        print(f"{status} {pred.metadata['id']}: {detail['is_correct']}")
+        if not detail['is_correct'] and 'comparison_details' in detail:
+            comp_details = detail['comparison_details']
+            if 'sympy_eq1' in comp_details and 'sympy_eq2' in comp_details:
+                print(f"    Pred: {comp_details['sympy_eq1']}")
+                print(f"    GT:   {comp_details['sympy_eq2']}")
+                if 'zero_exp' in comp_details:
+                    print(f"    Diff: {comp_details['zero_exp']}")
+        print()
+    
+    print("🔢 Numerical Comparison Results")
+    print("-" * 50)
+    for detail in numerical_results:
+        pred_id = detail.get('sample_index', 0)
+        pred = predictions[pred_id]
+        gt_id = detail.get('sample_index', 0)
+        gt = ground_truths[gt_id]
+        status = "✓" if detail['is_correct'] else "✗"
+        print(f"{status} {pred.metadata['id']}: {detail['is_correct']}")
+        if 'comparison_details' in detail:
+            comp_details = detail['comparison_details']
+            if 'method' in comp_details:
+                print(f"    Method: {comp_details['method']}")
+            if 'explanation' in comp_details:
+                exp = comp_details['explanation']
+                if isinstance(exp, dict) and 'method' in exp:
+                    print(f"    Comparison: {exp['method']}")
+                    if exp['method'] == 'significant_figures_comparison':
+                        print(f"    Sig Figs: {exp.get('comparison_significant_figures', 'N/A')}")
+                        print(f"    Rounded: {exp.get('rounded_value1', 'N/A')} vs {exp.get('rounded_value2', 'N/A')}")
+        print()
+    
+    print("📝 Textual Comparison Results")
+    print("-" * 50)
+    for detail in textual_results:
+        pred_id = detail.get('sample_index', 0)
+        pred = predictions[pred_id]
+        gt_id = detail.get('sample_index', 0)
+        gt = ground_truths[gt_id]
+        status = "✓" if detail['is_correct'] else "✗"
+        print(f"{status} {pred.metadata['id']}: {detail['is_correct']}")
+        if 'comparison_details' in detail:
+            comp_details = detail['comparison_details']
+            if 'method' in comp_details:
+                print(f"    Method: {comp_details['method']}")
+        print()
+    
+    # Summary by type
+    print("📈 Accuracy Breakdown by Answer Type")
+    print("-" * 50)
+    
+    symbolic_accuracy = sum(1 for r in symbolic_results if r['is_correct']) / len(symbolic_results) if symbolic_results else 0
+    numerical_accuracy = sum(1 for r in numerical_results if r['is_correct']) / len(numerical_results) if numerical_results else 0
+    textual_accuracy = sum(1 for r in textual_results if r['is_correct']) / len(textual_results) if textual_results else 0
+    
+    print(f"Symbolic:   {symbolic_accuracy:.2%} ({sum(1 for r in symbolic_results if r['is_correct'])}/{len(symbolic_results)})")
+    print(f"Numerical:  {numerical_accuracy:.2%} ({sum(1 for r in numerical_results if r['is_correct'])}/{len(numerical_results)})")
+    print(f"Textual:    {textual_accuracy:.2%} ({sum(1 for r in textual_results if r['is_correct'])}/{len(textual_results)})")
+    print()
+    
+    print("✅ Enhanced Evaluation Toolkit Demo Completed Successfully!")
+    print()
+    print("🎯 Key Features Demonstrated:")
+    print("  • Symbolic: Handles equations vs expressions, complex LaTeX parsing")
+    print("  • Numerical: Unit conversions, significant figures, special cases (inf, NaN)")
+    print("  • Textual: Semantic similarity using LLM comparison")
+    print("  • Comprehensive error handling and detailed comparison results")
+
+
+if __name__ == "__main__":
+    main()

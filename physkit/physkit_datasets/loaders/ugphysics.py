@@ -56,6 +56,7 @@ class UGPhysicsLoader(BaseDatasetLoader):
             Dictionary mapping UGPhysics field names to standard field names
         """
         return {
+            "index": "problem_id",      # Map "index" to "problem_id"
             "problem": "question",      # Map "problem" to "question"
             "solution": "solution",     # Map "solution" to "solution"
             "domain": "domain",         # Map "domain" to "domain"
@@ -68,17 +69,6 @@ class UGPhysicsLoader(BaseDatasetLoader):
         # Set domain from the domain name
         metadata['domain'] = domain_name
         
-        # problem_id - create from domain, language, and index
-        domain = metadata.get('domain')
-        language = metadata.get('language', 'en')
-        index = metadata.get('index')
-        
-        # problem_id
-        if domain and index:
-            problem_id = f"{domain}_{language}_{index}"
-            metadata['problem_id'] = problem_id
-            metadata.pop('index', None)
-
         # difficulty
         metadata['difficulty'] = "undergraduate"
 

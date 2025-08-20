@@ -10,7 +10,7 @@ from typing import Dict, Any, Optional
 from .base_assessor import BaseAssessor, AssessmentResult
 from ..annotators.domain import DomainAnnotation
 from physkit.models import PhysicsDomain
-from ..llm import LLMClient
+from ...physkit.llm import LLMClient
 
 
 class DomainAssessor(BaseAssessor):
