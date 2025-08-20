@@ -13,13 +13,13 @@ import time
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Union, Iterator
 from datetime import datetime
-import logging
 
 from ..full_physics_annotation import FullPhysicsAnnotation
 from ..annotators import (
     DomainAnnotator, TheoremAnnotator, VariableAnnotator, FinalAnswerAnnotator
 )
 from physkit_core.models import PhysicalDataset
+from physkit_core import PhysKitLogger
 
 
 class AnnotationWorkflow:
@@ -54,7 +54,7 @@ class AnnotationWorkflow:
         self.model = model
         
         # Setup logging
-        self._setup_logging()
+        self.logger = PhysKitLogger.get_logger(__name__)
         
         # Statistics
         self.stats = {
@@ -68,12 +68,6 @@ class AnnotationWorkflow:
             "start_time": None,
             "end_time": None
         }
-    
-
-    def _setup_logging(self):
-        """Setup logging configuration."""
-        # Use existing logger if already configured, otherwise create a basic one
-        self.logger = logging.getLogger(__name__)
     
     def run(
         self,

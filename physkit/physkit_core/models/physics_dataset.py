@@ -3,6 +3,7 @@ from pathlib import Path
 import json
 
 from .physics_problem import PhysicsProblem
+from ..logging_config import PhysKitLogger
 
 
 class PhysicalDataset:
@@ -54,7 +55,7 @@ class PhysicalDataset:
                 problem_id = problem.problem_id
                 if problem_id in self._problem_id_index:
                     # Handle duplicate problem_ids by keeping track of the first occurrence
-                    print(f"Warning: Duplicate problem_id '{problem_id}' found. Using first occurrence.")
+                    PhysKitLogger.get_logger(__name__).warning(f"Duplicate problem_id '{problem_id}' found. Using first occurrence.")
                 else:
                     self._problem_id_index[problem_id] = i
             else:

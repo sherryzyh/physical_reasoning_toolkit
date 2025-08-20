@@ -9,11 +9,17 @@ from typing import Dict, Any, Union, List, Optional
 
 from .base_loader import BaseDatasetLoader
 from physkit_core.models import PhysicalDataset
+from physkit_core import PhysKitLogger
 
 
 class SeePhysLoader(BaseDatasetLoader):
     """Loader for SeePhys dataset."""
     
+    def __init__(self):
+        """Initialize the SeePhys loader with a logger."""
+        super().__init__()
+        self.logger = PhysKitLogger.get_logger(__name__)
+
     @property
     def name(self) -> str:
         return "seephys"
@@ -62,7 +68,7 @@ class SeePhysLoader(BaseDatasetLoader):
         # Set default data directory if none provided
         # Resolve data directory with environment variable support
         data_dir = self.resolve_data_dir(data_dir, "SeePhys")
-        print(f"🔍 Using data directory: {data_dir}")
+        self.logger.info(f"Using data directory: {data_dir}")
         
         if not data_dir.exists():
             raise FileNotFoundError(f"Data directory not found: {data_dir}")
@@ -106,7 +112,7 @@ class SeePhysLoader(BaseDatasetLoader):
         
         for _, row in df.iterrows():
             problem_data = row.to_dict()
-            metadata = self.intiailize_metadata(problem_data)
+            metadata = self.initialize_metadata(problem_data)
             metadata = self._process_metadata(metadata)
             
             problem = self.create_physics_problem(
