@@ -9,7 +9,7 @@ from typing import Dict, List, Any
 
 
 from .base import BaseAnnotator
-from physkit.models import PhysicsDomain
+from physkit_core.models import PhysicsDomain
 
 
 @dataclass

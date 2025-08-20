@@ -2,7 +2,7 @@ from typing import Dict, Any, List, Optional, Union, Iterator
 from pathlib import Path
 import json
 
-from physkit.models import PhysicsProblem
+from .physics_problem import PhysicsProblem
 
 
 class PhysicalDataset:

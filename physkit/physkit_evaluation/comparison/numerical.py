@@ -10,8 +10,8 @@ from typing import Any, Dict, Optional, Tuple
 
 
 from .base import BaseComparator
-from physkit.definitions.answer_types import Answer, NumericalAnswer
-from physkit.llm import LLMClient
+from physkit_core.definitions.answer_types import Answer, NumericalAnswer
+from physkit_core.llm import LLMClient
 
 class NumericalComparator(BaseComparator):
     """Comparator for numerical values with significant figure support."""

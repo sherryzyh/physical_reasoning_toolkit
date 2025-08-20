@@ -8,7 +8,7 @@ answers using latex2sympy2_extended for robust LaTeX parsing.
 import re
 from typing import Any, Dict, Optional
 import sympy as sp
-from physkit.definitions.answer_types import Answer, SymbolicAnswer
+from physkit_core.definitions.answer_types import Answer, SymbolicAnswer
 from .base import BaseComparator
 
 from ..utils.phybench_latex_pre_process import master_convert, time_simplify

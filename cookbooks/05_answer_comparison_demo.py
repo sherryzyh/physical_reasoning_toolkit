@@ -16,7 +16,7 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "physkit"))
 
 from physkit_evaluation.metrics import AccuracyMetric
-from physkit.definitions.answer_types import SymbolicAnswer, NumericalAnswer, TextualAnswer, AnswerType
+from physkit_core.definitions.answer_types import SymbolicAnswer, NumericalAnswer, TextualAnswer, AnswerType
 
 
 def main():

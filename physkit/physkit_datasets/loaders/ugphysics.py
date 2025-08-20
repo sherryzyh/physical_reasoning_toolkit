@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Dict, List, Any, Union, Optional
 import random # Added for per_domain sampling
 
-from physkit.models import PhysicsDomain, PhysicalDataset
+from physkit_core.models import PhysicsDomain, PhysicalDataset
 from physkit_datasets.loaders.base_loader import BaseDatasetLoader
 
 

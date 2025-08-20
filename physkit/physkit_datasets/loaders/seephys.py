@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Dict, Any, Union, List, Optional
 
 from .base_loader import BaseDatasetLoader
-from physkit.models import PhysicalDataset
+from physkit_core.models import PhysicalDataset
 
 
 class SeePhysLoader(BaseDatasetLoader):

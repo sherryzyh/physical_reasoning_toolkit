@@ -9,7 +9,7 @@ from typing import Dict, Any, Optional
 from .base_revisor import BaseRevisor, RevisionResult
 from ..annotators.domain import DomainAnnotation
 from ..assessment.base_assessor import AssessmentResult
-from physkit.models import PhysicsDomain
+from physkit_core.models import PhysicsDomain
 
 
 class DomainRevisor(BaseRevisor):

@@ -6,7 +6,7 @@ selects and uses the appropriate comparator based on answer types.
 """
 
 from typing import Any, Dict
-from physkit.definitions.answer_types import Answer, AnswerType
+from physkit_core.definitions.answer_types import Answer, AnswerType
 from .symbolic import SymbolicComparator
 from .numerical import NumericalComparator
 from .textual import TextualComparator

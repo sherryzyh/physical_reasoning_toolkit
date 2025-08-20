@@ -11,7 +11,7 @@ from abc import ABC, abstractmethod
 from typing import Dict, List, Any, Union, Optional
 from pathlib import Path
 
-from physkit.models import PhysicsProblem, PhysicalDataset
+from physkit_core.models import PhysicsProblem, PhysicalDataset
 
 
 CORE_FIELDS = [

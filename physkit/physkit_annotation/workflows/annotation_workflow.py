@@ -19,7 +19,7 @@ from ..full_physics_annotation import FullPhysicsAnnotation
 from ..annotators import (
     DomainAnnotator, TheoremAnnotator, VariableAnnotator, FinalAnswerAnnotator
 )
-from physkit.models import PhysicalDataset
+from physkit_core.models import PhysicalDataset
 
 
 class AnnotationWorkflow:
