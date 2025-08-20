@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Any, Union
 from datetime import datetime
 
-from .physics_domain import PhysicsDomain
+from ..definitions.physics_domain import PhysicsDomain
 
 
 @dataclass

@@ -75,9 +75,6 @@ class PhysicalDataset:
         Raises:
             KeyError: If no problem with the given problem_id is found
         """
-        if problem_id not in self._problem_id_index:
-            raise KeyError(f"No problem found with problem_id: {problem_id}")
-        
         problem_index = self._problem_id_index[problem_id]
         return self._problems[problem_index]
     
