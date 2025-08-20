@@ -96,12 +96,14 @@ class PhysKitLogger:
         env_log_file = os.getenv("PHYSKIT_LOG_FILE")
         if env_log_file:
             log_path = Path(env_log_file)
-            cls.setup_global_config(log_file=log_path)
+            # Add file handler directly instead of calling setup_global_config
+            cls._add_file_handler_to_all(log_path)
         
         # Check for PHYSKIT_LOG_CONSOLE environment variable
         env_console = os.getenv("PHYSKIT_LOG_CONSOLE", "true").lower()
         if env_console == "false":
-            cls.setup_global_config(console_output=False)
+            # Disable console output directly instead of calling setup_global_config
+            cls._disable_console_output()
     
     @classmethod
     def get_logger(cls, name: str = None) -> logging.Logger:
@@ -143,6 +145,22 @@ class PhysKitLogger:
         # Set level if not already set
         if logger.level == logging.NOTSET:
             logger.setLevel(cls._default_level)
+        
+        # Add handlers from root logger if this logger has none
+        if not logger.handlers:
+            root_logger = logging.getLogger("physkit")
+            for handler in root_logger.handlers:
+                # Create a copy of the handler to avoid sharing
+                if isinstance(handler, logging.FileHandler):
+                    new_handler = logging.FileHandler(handler.baseFilename)
+                    new_handler.setLevel(handler.level)
+                    new_handler.setFormatter(handler.formatter)
+                    logger.addHandler(new_handler)
+                elif isinstance(handler, logging.StreamHandler):
+                    new_handler = logging.StreamHandler(handler.stream)
+                    new_handler.setLevel(handler.level)
+                    new_handler.setFormatter(handler.formatter)
+                    logger.addHandler(new_handler)
         
         # Store logger
         cls._loggers[name] = logger
@@ -195,6 +213,63 @@ class PhysKitLogger:
             file_handler.setLevel(level)
             file_handler.setFormatter(formatter)
             root_logger.addHandler(file_handler)
+    
+    @classmethod
+    def _add_file_handler_to_all(cls, log_file: Path) -> None:
+        """Add a file handler to all existing loggers without recursion."""
+        if not log_file.parent.exists():
+            log_file.parent.mkdir(parents=True, exist_ok=True)
+        
+        formatter = logging.Formatter(cls._default_format, cls._default_date_format)
+        
+        for logger_name, logger in cls._loggers.items():
+            # Check if logger already has a file handler
+            has_file_handler = any(
+                isinstance(handler, logging.FileHandler) 
+                for handler in logger.handlers
+            )
+            
+            if not has_file_handler:
+                file_handler = logging.FileHandler(log_file)
+                file_handler.setLevel(cls._default_level)
+                file_handler.setFormatter(formatter)
+                logger.addHandler(file_handler)
+        
+        # Also add to root logger
+        root_logger = logging.getLogger("physkit")
+        has_file_handler = any(
+            isinstance(handler, logging.FileHandler) 
+            for handler in root_logger.handlers
+        )
+        
+        if not has_file_handler:
+            file_handler = logging.FileHandler(log_file)
+            file_handler.setLevel(cls._default_level)
+            file_handler.setFormatter(formatter)
+            root_logger.addHandler(file_handler)
+    
+    @classmethod
+    def _disable_console_output(cls) -> None:
+        """Disable console output for all loggers without recursion."""
+        for logger_name, logger in cls._loggers.items():
+            # Remove console handlers
+            console_handlers = [
+                handler for handler in logger.handlers 
+                if isinstance(handler, logging.StreamHandler) and 
+                handler.stream == sys.stdout
+            ]
+            for handler in console_handlers:
+                logger.removeHandler(handler)
+        
+        # Also remove from root logger
+        root_logger = logging.getLogger("physkit")
+        console_handlers = [
+            handler for handler in root_logger.handlers 
+            if isinstance(handler, logging.StreamHandler) and 
+            handler.stream == sys.stdout
+        ]
+        for handler in console_handlers:
+            root_logger.removeHandler(handler)
 
 
 
