@@ -1,57 +1,339 @@
 """
-Main answer comparator that routes to appropriate comparison strategies.
+Smart answer comparator that routes to appropriate comparison strategies.
 
-This module provides the main AnswerComparator class that automatically
-selects and uses the appropriate comparator based on answer types.
+This module provides the main SmartAnswerComparator class that automatically
+selects and uses the appropriate comparator based on answer types with
+enhanced error handling, validation, and debugging capabilities.
 """
 
-from typing import Any, Dict
-from physkit_core.definitions.answer_types import Answer, AnswerType
+from typing import Any, Dict, List, Optional
+from physkit_core.definitions.answer_types import Answer, AnswerType, TextualAnswer
 from .symbolic import SymbolicComparator
 from .numerical import NumericalComparator
 from .textual import TextualComparator
+from .option import OptionComparator
 
 
-class AnswerComparator:
-    """Main comparator that routes to appropriate comparison strategy."""
+class SmartAnswerComparator:
+    """
+    Enhanced comparator with intelligent routing, validation, and debugging.
+    
+    Features:
+    - Automatic comparator selection based on answer types
+    - Enhanced error handling with detailed diagnostics
+    - Validation using can_compare() safety checks
+    - Support for debugging and introspection
+    - Fallback mechanisms for edge cases
+    """
     
     def __init__(self):
+        """
+        Initialize the smart answer comparator.
+        
+        Always uses fallback mode with automatic TextualAnswer conversion
+        for cross-type comparisons.
+        """
+        # Primary comparators mapped by answer type
         self.comparators = {
             AnswerType.SYMBOLIC: SymbolicComparator(),
             AnswerType.NUMERICAL: NumericalComparator(),
             AnswerType.TEXTUAL: TextualComparator(),
+            AnswerType.OPTION: OptionComparator(),
         }
+        
+        # Textual comparator for fallback cross-type comparisons
+        self.textual_comparator = TextualComparator()
     
     def compare(self, answer1: Answer, answer2: Answer) -> Dict[str, Any]:
         """
-        Automatically select and use the appropriate comparator.
+        Intelligently compare two answers with enhanced error handling.
         
         Args:
             answer1: First answer to compare
             answer2: Second answer to compare
             
         Returns:
-            Comparison results from the appropriate comparator
+            Comparison results with enhanced diagnostics
         """
-        # Check if answer types match
-        if answer1.answer_type != answer2.answer_type:
+        # Input validation
+        validation_result = self._validate_inputs(answer1, answer2)
+        if not validation_result["valid"]:
             return {
                 "is_equal": False,
                 "details": {
-                    "error": "Answer types do not match",
-                    "type1": answer1.answer_type.value,
-                    "type2": answer2.answer_type.value
+                    "error": "Input validation failed",
+                    "validation_details": validation_result,
+                    "comparator_used": None
                 }
             }
         
-        # Get appropriate comparator
-        comparator = self.comparators.get(answer1.answer_type)
-        if comparator is None:
+        # Try primary routing first (same type comparison)
+        primary_result = self._try_primary_comparison(answer1, answer2)
+        if primary_result["success"]:
+            return primary_result["result"]
+        
+        # Try fallback routing with TextualAnswer conversion
+        fallback_result = self._try_fallback_comparison(answer1, answer2)
+        if fallback_result["success"]:
+            return fallback_result["result"]
+        
+        # All attempts failed
+        return self._create_failure_result(answer1, answer2, primary_result, fallback_result)
+    
+    def _validate_inputs(self, answer1: Answer, answer2: Answer) -> Dict[str, Any]:
+        """Validate input answers."""
+        errors = []
+        
+        if answer1 is None:
+            errors.append("answer1 is None")
+        if answer2 is None:
+            errors.append("answer2 is None")
+            
+        if not errors:
+            # Check if answers have required attributes
+            for i, answer in enumerate([answer1, answer2], 1):
+                if not hasattr(answer, 'answer_type'):
+                    errors.append(f"answer{i} missing answer_type attribute")
+                if not hasattr(answer, 'value'):
+                    errors.append(f"answer{i} missing value attribute")
+        
+        return {
+            "valid": len(errors) == 0,
+            "errors": errors,
+            "answer1_type": getattr(answer1, 'answer_type', None),
+            "answer2_type": getattr(answer2, 'answer_type', None)
+        }
+    
+    def _try_primary_comparison(self, answer1: Answer, answer2: Answer) -> Dict[str, Any]:
+        """Try primary type-based routing (same type comparison)."""
+        try:
+            # Check if answer types match
+            if answer1.answer_type != answer2.answer_type:
+                return {
+                    "success": False,
+                    "error": "type_mismatch",
+                    "details": {
+                        "error": "Answer types do not match - will try fallback",
+                        "type1": answer1.answer_type.value,
+                        "type2": answer2.answer_type.value,
+                        "suggestion": "Fallback will convert both to TextualAnswer for comparison"
+                    }
+                }
+            
+            # Get appropriate comparator
+            comparator = self.comparators.get(answer1.answer_type)
+            if comparator is None:
+                return {
+                    "success": False,
+                    "error": "no_comparator",
+                    "details": {
+                        "error": f"No comparator available for {answer1.answer_type.value}",
+                        "available_types": [t.value for t in self.comparators.keys()],
+                        "suggestion": "Fallback will convert to TextualAnswer for comparison"
+                    }
+                }
+            
+            # Validate with can_compare
+            if not comparator.can_compare(answer1, answer2):
+                return {
+                    "success": False,
+                    "error": "validation_failed",
+                    "details": {
+                        "error": f"Comparator validation failed for {answer1.answer_type.value}",
+                        "comparator": comparator.__class__.__name__,
+                        "reason": "can_compare() returned False",
+                        "suggestion": "Fallback will convert to TextualAnswer for comparison"
+                    }
+                }
+            
+            # Perform comparison
+            result = comparator.compare(answer1, answer2)
+            
+            # Enhance result with metadata
+            if "details" not in result:
+                result["details"] = {}
+            result["details"].update({
+                "comparator_used": comparator.__class__.__name__,
+                "routing_method": "primary",
+                "answer_types": {
+                    "answer1": answer1.answer_type.value,
+                    "answer2": answer2.answer_type.value
+                }
+            })
+            
+            return {"success": True, "result": result}
+            
+        except Exception as e:
             return {
-                "is_equal": False,
+                "success": False,
+                "error": "exception",
                 "details": {
-                    "error": f"No comparator available for {answer1.answer_type.value}"
+                    "error": f"Exception during primary comparison: {str(e)}",
+                    "exception_type": type(e).__name__,
+                    "comparator": comparator.__class__.__name__ if 'comparator' in locals() else None
                 }
             }
+    
+    def _try_fallback_comparison(self, answer1: Answer, answer2: Answer) -> Dict[str, Any]:
+        """Try fallback routing by converting both answers to TextualAnswer."""
+        try:
+            # Convert both answers to TextualAnswer for cross-type comparison
+            textual_answer1 = self._convert_to_textual_answer(answer1)
+            textual_answer2 = self._convert_to_textual_answer(answer2)
+            
+            # Use TextualComparator for the converted answers
+            result = self.textual_comparator.compare(textual_answer1, textual_answer2)
+            
+            # Enhance result with fallback metadata
+            if "details" not in result:
+                result["details"] = {}
+            result["details"].update({
+                "comparator_used": "TextualComparator",
+                "routing_method": "fallback",
+                "fallback_conversion": {
+                    "answer1_original_type": answer1.answer_type.value,
+                    "answer2_original_type": answer2.answer_type.value,
+                    "converted_to": "TextualAnswer",
+                    "conversion_method": "automatic_fallback"
+                },
+                "warning": "Used fallback routing with TextualAnswer conversion",
+                "answer_types": {
+                    "answer1": answer1.answer_type.value,
+                    "answer2": answer2.answer_type.value
+                }
+            })
+            
+            return {"success": True, "result": result}
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "error": "fallback_exception",
+                "details": {
+                    "error": f"Exception during fallback comparison: {str(e)}",
+                    "exception_type": type(e).__name__,
+                    "fallback_method": "TextualAnswer conversion"
+                }
+            }
+    
+    def _convert_to_textual_answer(self, answer: Answer) -> TextualAnswer:
+        """
+        Convert any answer type to TextualAnswer for fallback comparison.
         
-        return comparator.compare(answer1, answer2)
+        Args:
+            answer: Answer to convert
+            
+        Returns:
+            TextualAnswer with the converted content
+        """
+        # Extract the value as a string representation
+        if hasattr(answer, 'value'):
+            value_str = str(answer.value)
+        else:
+            value_str = str(answer)
+        
+        # Create TextualAnswer with metadata about the conversion
+        metadata = {
+            "original_type": answer.answer_type.value,
+            "converted_from": answer.__class__.__name__,
+            "conversion_method": "fallback_textual_conversion"
+        }
+        
+        # Preserve original metadata if available
+        if hasattr(answer, 'metadata') and answer.metadata:
+            metadata.update(answer.metadata)
+        
+        return TextualAnswer(
+            value=value_str,
+            metadata=metadata
+        )
+    
+    def _create_failure_result(self, answer1: Answer, answer2: Answer, 
+                             primary_result: Dict[str, Any], 
+                             fallback_result: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Create comprehensive failure result."""
+        return {
+            "is_equal": False,
+            "details": {
+                "error": "All comparison attempts failed",
+                "primary_failure": primary_result,
+                "fallback_failure": fallback_result,
+                "answer_info": {
+                    "answer1": {
+                        "type": getattr(answer1, 'answer_type', 'unknown'),
+                        "value_preview": str(getattr(answer1, 'value', 'N/A'))[:50] + "..." 
+                                       if len(str(getattr(answer1, 'value', ''))) > 50 
+                                       else str(getattr(answer1, 'value', 'N/A'))
+                    },
+                    "answer2": {
+                        "type": getattr(answer2, 'answer_type', 'unknown'),
+                        "value_preview": str(getattr(answer2, 'value', 'N/A'))[:50] + "..." 
+                                       if len(str(getattr(answer2, 'value', ''))) > 50 
+                                       else str(getattr(answer2, 'value', 'N/A'))
+                    }
+                },
+                "suggestions": [
+                    "Check if answer types are correct",
+                    "Verify answer formats are valid",
+                    "Try enabling fallback mode",
+                    "Use specific comparator directly"
+                ]
+            }
+        }
+    
+    def get_available_comparators(self) -> List[str]:
+        """Get list of available comparator names."""
+        return [comp.__class__.__name__ for comp in self.comparators.values()]
+    
+    def get_supported_types(self) -> List[str]:
+        """Get list of supported answer types."""
+        return [t.value for t in self.comparators.keys()]
+    
+    def diagnose(self, answer1: Answer, answer2: Answer) -> Dict[str, Any]:
+        """
+        Diagnose why comparison might fail without actually comparing.
+        
+        Returns detailed analysis of compatibility.
+        """
+        diagnosis = {
+            "input_validation": self._validate_inputs(answer1, answer2),
+            "type_compatibility": {},
+            "comparator_compatibility": {},
+            "recommendations": []
+        }
+        
+        if diagnosis["input_validation"]["valid"]:
+            # Check type compatibility
+            types_match = answer1.answer_type == answer2.answer_type
+            diagnosis["type_compatibility"] = {
+                "types_match": types_match,
+                "answer1_type": answer1.answer_type.value,
+                "answer2_type": answer2.answer_type.value,
+                "fallback_available": True
+            }
+            
+            # Check each comparator's compatibility
+            for answer_type, comparator in self.comparators.items():
+                can_compare = False
+                try:
+                    can_compare = comparator.can_compare(answer1, answer2)
+                except Exception as e:
+                    can_compare = f"Error: {e}"
+                
+                diagnosis["comparator_compatibility"][answer_type.value] = {
+                    "can_compare": can_compare,
+                    "comparator_class": comparator.__class__.__name__
+                }
+            
+            # Generate recommendations
+            if types_match:
+                if answer1.answer_type in self.comparators:
+                    diagnosis["recommendations"].append("✅ Direct comparison should work")
+                else:
+                    diagnosis["recommendations"].append("❌ No comparator for this type")
+            else:
+                diagnosis["recommendations"].append("🔄 Types don't match - will use fallback with TextualAnswer conversion")
+                
+            diagnosis["recommendations"].append("🔄 Fallback mode always enabled - converts to TextualAnswer for cross-type comparison")
+        
+        return diagnosis

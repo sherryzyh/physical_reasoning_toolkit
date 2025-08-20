@@ -40,16 +40,16 @@ class PhysicsProblem:
     def __post_init__(self):
         """Validate problem after initialization."""
         # Validate problem type
-        if self.problem_type and self.problem_type not in ["MC", "OE"]:
+        if self.problem_type and self.problem_type not in ["MC", "OE", "MultipleMC"]:
             raise ValueError(f"Invalid problem type: {self.problem_type}")
         
-        # Validate multiple choice problems
-        if self.problem_type == "MC":
-            if not self.options:
-                raise ValueError("Multiple choice problems must have options")
-            if self.correct_option is not None:
-                if not (0 <= self.correct_option < len(self.options)):
-                    raise ValueError(f"Correct option index {self.correct_option} out of range")
+        # # Validate multiple choice problems
+        # if self.problem_type == "MC":
+        #     if not self.options:
+        #         raise ValueError("Multiple choice problems must have options")
+        #     if self.correct_option is not None:
+        #         if not (0 <= self.correct_option < len(self.options)):
+        #             raise ValueError(f"Correct option index {self.correct_option} out of range")
         
         # Validate answer type for open-ended problems
         # if self.problem_type == "OE" and self.answer_type not in ["Numerical", "Symbolic", "Textual"]:

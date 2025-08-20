@@ -7,7 +7,7 @@ answers against ground truth answers using appropriate comparison strategies.
 
 from typing import List, Dict, Any, Union, Optional
 from physkit_core.definitions.answer_types import Answer, AnswerType
-from ..comparison import AnswerComparator
+from ..comparison import SmartAnswerComparator
 from .base import BaseMetric
 
 
@@ -19,7 +19,7 @@ class AccuracyMetric(BaseMetric):
     and calculates accuracy based on the comparison results.
     """
     
-    def __init__(self, comparator: Optional[AnswerComparator] = None):
+    def __init__(self, comparator: Optional[SmartAnswerComparator] = None):
         """
         Initialize the accuracy metric.
         
@@ -31,7 +31,7 @@ class AccuracyMetric(BaseMetric):
             "Accuracy",
             "Measures the proportion of correct predictions"
         )
-        self.comparator = comparator or AnswerComparator()
+        self.comparator = comparator or SmartAnswerComparator()
     
     def compute(
         self,

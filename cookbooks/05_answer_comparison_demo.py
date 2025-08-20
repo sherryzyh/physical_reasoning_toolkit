@@ -16,7 +16,7 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "physkit"))
 
 from physkit_evaluation.metrics import AccuracyMetric
-from physkit_core.definitions.answer_types import SymbolicAnswer, NumericalAnswer, TextualAnswer, AnswerType
+from physkit_core.definitions.answer_types import SymbolicAnswer, NumericalAnswer, TextualAnswer, OptionAnswer, AnswerType
 
 
 def main():
@@ -134,6 +134,43 @@ def main():
             answer_type=AnswerType.TEXTUAL,
             metadata={"id": "txt_005"}
         ),
+        
+        # Option comparisons - multiple choice scenarios
+        OptionAnswer(
+            value="B",
+            answer_type=AnswerType.OPTION,
+            metadata={"id": "opt_001"}
+        ),
+        OptionAnswer(
+            value="A",
+            answer_type=AnswerType.OPTION,
+            metadata={"id": "opt_002"}
+        ),
+        OptionAnswer(
+            value="ABC",
+            answer_type=AnswerType.OPTION,
+            metadata={"id": "opt_003"}
+        ),
+        OptionAnswer(
+            value="cab",
+            answer_type=AnswerType.OPTION,
+            metadata={"id": "opt_004"}
+        ),
+        OptionAnswer(
+            value="B, A",
+            answer_type=AnswerType.OPTION,
+            metadata={"id": "opt_005"}
+        ),
+        OptionAnswer(
+            value="A;B",
+            answer_type=AnswerType.OPTION,
+            metadata={"id": "opt_006"}
+        ),
+        OptionAnswer(
+            value="",
+            answer_type=AnswerType.OPTION,
+            metadata={"id": "opt_007"}
+        ),
     ]
     
     ground_truths = [
@@ -240,6 +277,43 @@ def main():
             answer_type=AnswerType.TEXTUAL,
             metadata={"id": "txt_005"}
         ),
+        
+        # Option ground truths
+        OptionAnswer(
+            value="B",
+            answer_type=AnswerType.OPTION,
+            metadata={"id": "opt_001"}
+        ),
+        OptionAnswer(
+            value="A",
+            answer_type=AnswerType.OPTION,
+            metadata={"id": "opt_002"}
+        ),
+        OptionAnswer(
+            value="ABC",
+            answer_type=AnswerType.OPTION,
+            metadata={"id": "opt_003"}
+        ),
+        OptionAnswer(
+            value="ABC",
+            answer_type=AnswerType.OPTION,
+            metadata={"id": "opt_004"}
+        ),
+        OptionAnswer(
+            value="A, B",
+            answer_type=AnswerType.OPTION,
+            metadata={"id": "opt_005"}
+        ),
+        OptionAnswer(
+            value="A;B",
+            answer_type=AnswerType.OPTION,
+            metadata={"id": "opt_006"}
+        ),
+        OptionAnswer(
+            value="",
+            answer_type=AnswerType.OPTION,
+            metadata={"id": "opt_007"}
+        ),
     ]
     
     print("📋 Enhanced Problem Set Overview")
@@ -266,6 +340,15 @@ def main():
     print("  • Newton's law (different phrasings)")
     print("  • Falling object (different phrasings)")
     print()
+    print("Option Problems (7):")
+    print("  • Single choice (B vs B)")
+    print("  • Single choice (A vs A)")
+    print("  • Multiple choice (ABC vs ABC)")
+    print("  • Case-insensitive (cab vs ABC)")
+    print("  • Order-independent (B, A vs A, B)")
+    print("  • Different separators (A;B vs A;B)")
+    print("  • Empty answers")
+    print()
     
     # Run evaluation
     metric = AccuracyMetric()
@@ -282,6 +365,7 @@ def main():
     symbolic_results = []
     numerical_results = []
     textual_results = []
+    option_results = []
     
     for detail in result['details']:
         # Extract ID from metadata if available, otherwise use index
@@ -292,6 +376,8 @@ def main():
             symbolic_results.append(detail)
         elif pred.answer_type == AnswerType.NUMERICAL:
             numerical_results.append(detail)
+        elif pred.answer_type == AnswerType.OPTION:
+            option_results.append(detail)
         else:
             textual_results.append(detail)
     
@@ -351,6 +437,25 @@ def main():
                 print(f"    Method: {comp_details['method']}")
         print()
     
+    print("🔘 Option Comparison Results")
+    print("-" * 50)
+    for detail in option_results:
+        pred_id = detail.get('sample_index', 0)
+        pred = predictions[pred_id]
+        gt_id = detail.get('sample_index', 0)
+        gt = ground_truths[gt_id]
+        status = "✓" if detail['is_correct'] else "✗"
+        print(f"{status} {pred.metadata['id']}: {detail['is_correct']}")
+        if 'comparison_details' in detail:
+            comp_details = detail['comparison_details']
+            if 'comparison_method' in comp_details:
+                print(f"    Method: {comp_details['comparison_method']}")
+            if 'is_multiple_choice' in comp_details:
+                print(f"    Multiple Choice: {comp_details['is_multiple_choice']}")
+            if 'normalized_answer1' in comp_details and 'normalized_answer2' in comp_details:
+                print(f"    Normalized: {comp_details['normalized_answer1']} vs {comp_details['normalized_answer2']}")
+        print()
+    
     # Summary by type
     print("📈 Accuracy Breakdown by Answer Type")
     print("-" * 50)
@@ -358,10 +463,12 @@ def main():
     symbolic_accuracy = sum(1 for r in symbolic_results if r['is_correct']) / len(symbolic_results) if symbolic_results else 0
     numerical_accuracy = sum(1 for r in numerical_results if r['is_correct']) / len(numerical_results) if numerical_results else 0
     textual_accuracy = sum(1 for r in textual_results if r['is_correct']) / len(textual_results) if textual_results else 0
+    option_accuracy = sum(1 for r in option_results if r['is_correct']) / len(option_results) if option_results else 0
     
     print(f"Symbolic:   {symbolic_accuracy:.2%} ({sum(1 for r in symbolic_results if r['is_correct'])}/{len(symbolic_results)})")
     print(f"Numerical:  {numerical_accuracy:.2%} ({sum(1 for r in numerical_results if r['is_correct'])}/{len(numerical_results)})")
     print(f"Textual:    {textual_accuracy:.2%} ({sum(1 for r in textual_results if r['is_correct'])}/{len(textual_results)})")
+    print(f"Option:     {option_accuracy:.2%} ({sum(1 for r in option_results if r['is_correct'])}/{len(option_results)})")
     print()
     
     print("✅ Enhanced Evaluation Toolkit Demo Completed Successfully!")
@@ -370,6 +477,7 @@ def main():
     print("  • Symbolic: Handles equations vs expressions, complex LaTeX parsing")
     print("  • Numerical: Unit conversions, significant figures, special cases (inf, NaN)")
     print("  • Textual: Semantic similarity using LLM comparison")
+    print("  • Option: Case-insensitive, order-independent multiple choice comparison")
     print("  • Comprehensive error handling and detailed comparison results")
 
 
