@@ -2,7 +2,7 @@ import os
 from openai import OpenAI
 from dotenv import load_dotenv
 import google.generativeai as genai
-import logging
+from .logging_config import PhysKitLogger
 
 class LLMClient:
     def __init__(self, model: str, logger=None):
@@ -10,7 +10,7 @@ class LLMClient:
         self.model = model
         self.client = None
         self.provider = None
-        self.logger = logger
+        self.logger = logger if logger else PhysKitLogger.get_logger(__name__)
         
     def chat(self, messages):
         raise NotImplementedError("Subclasses must implement .chat()")

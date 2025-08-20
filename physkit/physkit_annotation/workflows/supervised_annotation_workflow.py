@@ -7,7 +7,6 @@ import time
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Union, Iterator
 from datetime import datetime
-import logging
 from collections import Counter
 
 
@@ -17,6 +16,7 @@ from ..revision.domain_revisor import DomainRevisor
 from ..annotators.domain import DomainAnnotator, DomainAnnotation
 from ..full_physics_annotation import FullPhysicsAnnotation
 from physkit_core.models import PhysicalDataset
+from physkit_core import PhysKitLogger
 
 
 class SupervisedAnnotationWorkflow:
@@ -101,8 +101,7 @@ class SupervisedAnnotationWorkflow:
     
     def _setup_logging(self):
         """Setup logging configuration."""
-        # Use existing logger if already configured, otherwise create a basic one
-        self.logger = logging.getLogger(__name__)
+        self.logger = PhysKitLogger.get_logger(__name__)
     
     def run(
         self,

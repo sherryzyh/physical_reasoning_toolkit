@@ -10,9 +10,14 @@ from physkit_datasets.loaders.base_loader import BaseDatasetLoader
 from physkit_datasets.loaders import (
     PHYBenchLoader, 
     SeePhysLoader, 
-    UGPhysicsLoader
+    UGPhysicsLoader,
+    JEEBenchLoader,
+    SciBenchLoader,
+    TPBenchLoader,
+    PhysReasonLoader
 )
 from physkit_core.models import PhysicalDataset
+from physkit_core import PhysKitLogger
 
 
 class DatasetHub:
@@ -44,6 +49,7 @@ class DatasetHub:
     
     # Class-level registry of dataset loaders
     _loaders: Dict[str, Type[BaseDatasetLoader]] = {}
+    _logger = PhysKitLogger.get_logger(__name__)
     
     @classmethod
     def _register_default_loaders(cls):
@@ -51,6 +57,10 @@ class DatasetHub:
         cls.register("phybench", PHYBenchLoader)
         cls.register("seephys", SeePhysLoader)
         cls.register("ugphysics", UGPhysicsLoader)
+        cls.register("jeebench", JEEBenchLoader)
+        cls.register("scibench", SciBenchLoader)
+        cls.register("tpbench", TPBenchLoader)
+        cls.register("physreason", PhysReasonLoader)
     
     @classmethod
     def register(cls, name: str, loader_class: Type[BaseDatasetLoader]):

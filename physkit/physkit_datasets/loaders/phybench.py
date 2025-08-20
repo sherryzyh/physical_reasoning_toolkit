@@ -83,8 +83,10 @@ class PHYBenchLoader(BaseDatasetLoader):
         elif variant == "fullques":
             # Try both possible locations for fullques variant
             json_file = data_dir / "PHYBench-fullques_v1.json"
+        elif variant == "onlyques":
+            json_file = data_dir / "PHYBench-onlyques_v1.json"
         else:
-            raise ValueError(f"Unknown variant: {variant}. Choose 'full' or 'fullques'")
+            raise ValueError(f"Unknown variant: {variant}. Choose 'full' or 'fullques' or 'onlyques'")
         
         if not json_file.exists():
             raise FileNotFoundError(f"PHYBench file not found: {json_file}")
@@ -100,7 +102,7 @@ class PHYBenchLoader(BaseDatasetLoader):
             
         
         for _, problem_data in enumerate(data):
-            metadata = self.intiailize_metadata(problem_data)
+            metadata = self.initialize_metadata(problem_data)
             
             problem = self.create_physics_problem(
                 metadata=metadata,

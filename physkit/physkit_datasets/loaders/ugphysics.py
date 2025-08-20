@@ -9,13 +9,18 @@ import json
 from pathlib import Path
 from typing import Dict, List, Any, Union, Optional
 import random # Added for per_domain sampling
-
 from physkit_core.models import PhysicsDomain, PhysicalDataset
 from physkit_datasets.loaders.base_loader import BaseDatasetLoader
+from physkit_core import PhysKitLogger
 
 
 class UGPhysicsLoader(BaseDatasetLoader):
     """Loader for UGPhysics dataset."""
+
+    def __init__(self):
+        """Initialize the UGPhysics loader with a logger."""
+        super().__init__()
+        self.logger = PhysKitLogger.get_logger(__name__)
 
     @property
     def name(self) -> str:
@@ -127,7 +132,7 @@ class UGPhysicsLoader(BaseDatasetLoader):
         
         # Resolve data directory with environment variable support
         data_dir = self.resolve_data_dir(data_dir, "ugphysics")
-        print(f"🔍 Using data directory: {data_dir}")
+        self.logger.info(f"Using data directory: {data_dir}")
         
         if not data_dir.exists():
             raise FileNotFoundError(f"Data directory not found: {data_dir}")
@@ -139,15 +144,15 @@ class UGPhysicsLoader(BaseDatasetLoader):
         domains = self._get_domains(data_dir, language)
         
         if not domains:
-            print(f"❌ No valid domains found in: {data_dir}")
-            print(f"📁 Directory contents: {[d.name for d in data_dir.iterdir() if d.is_dir()]}")
-            print(f"💡 Expected structure:")
-            print(f"   {data_dir}/")
-            print(f"   ├── AtomicPhysics/")
-            print(f"   │   └── en.jsonl")
-            print(f"   ├── ClassicalMechanics/")
-            print(f"   │   └── en.jsonl")
-            print(f"   └── ... (other domains)")
+            self.logger.error(f"No valid domains found in: {data_dir}")
+            self.logger.error(f"Directory contents: {[d.name for d in data_dir.iterdir() if d.is_dir()]}")
+            self.logger.error(f"Expected structure:")
+            self.logger.error(f"   {data_dir}/")
+            self.logger.error(f"   ├── AtomicPhysics/")
+            self.logger.error(f"   │   └── en.jsonl")
+            self.logger.error(f"   ├── ClassicalMechanics/")
+            self.logger.error(f"   │   └── en.jsonl")
+            self.logger.error(f"   └── ... (other domains)")
             return PhysicalDataset([], self.get_info(), split=split)
         
         problems = []
@@ -158,7 +163,7 @@ class UGPhysicsLoader(BaseDatasetLoader):
             domain_file = data_dir / domain_name / f"{language}.jsonl"
             
             if not domain_file.exists():
-                print(f"Domain file not found: {domain_file}")
+                self.logger.warning(f"Domain file not found: {domain_file}")
                 continue
             
             domain_problems[domain_name] = []  # Initialize domain problems list
@@ -170,7 +175,7 @@ class UGPhysicsLoader(BaseDatasetLoader):
                             try:
                                 data = json.loads(line)
                                 
-                                metadata = self.intiailize_metadata(data)
+                                metadata = self.initialize_metadata(data)
                                 metadata = self._process_metadata(metadata, domain_name)
                                 
                                 # Create the physics problem using base class method
@@ -181,13 +186,13 @@ class UGPhysicsLoader(BaseDatasetLoader):
                                 domain_problems[domain_name].append(problem)
                                 
                             except json.JSONDecodeError as e:
-                                print(f"Error parsing JSON in {domain_file}:{line_num}: {e}")
+                                self.logger.error(f"Error parsing JSON in {domain_file}:{line_num}: {e}")
                                 continue
                             except Exception as e:
-                                print(f"Error loading problem from {domain_file}:{line_num}: {e}")
+                                self.logger.error(f"Error loading problem from {domain_file}:{line_num}: {e}")
                                 continue
             except Exception as e:
-                print(f"Error loading domain {domain_name}: {e}")
+                self.logger.error(f"Error loading domain {domain_name}: {e}")
                 continue
         
         # Apply per_domain sampling if requested
@@ -224,10 +229,10 @@ class UGPhysicsLoader(BaseDatasetLoader):
         """Get list of available domains in the dataset."""
         data_dir = Path(data_dir)
         if not data_dir.exists():
-            print(f"❌ Data directory does not exist: {data_dir}")
+            self.logger.error(f"Data directory does not exist: {data_dir}")
             return []
         
-        print(f"🔍 Scanning directory: {data_dir}")
+        self.logger.info(f"Scanning directory: {data_dir}")
         
         # Get all subdirectories
         all_dirs = [d for d in data_dir.iterdir() if d.is_dir()]
@@ -250,7 +255,7 @@ class UGPhysicsLoader(BaseDatasetLoader):
             domain_dir = data_dir / domain
             jsonl_file = domain_dir / "en.jsonl"
             if not jsonl_file.exists():
-                print(f"⚠️  Domain {domain}: {language}.jsonl not found")
+                self.logger.warning(f"Domain {domain}: {language}.jsonl not found")
         
         return found_domains
     

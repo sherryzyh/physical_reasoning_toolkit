@@ -102,6 +102,7 @@ class MyDatasetLoader(BaseDatasetLoader):
 - **PHYBench**: Physics benchmark dataset
 - **PhysReason**: Physics reasoning problems
 - **PhyX**: Multilingual physics problems
+- **JEEBench**: Challenging problems from IIT JEE-Advanced examination across Physics, Chemistry, and Mathematics
 
 ## Usage
 
@@ -117,6 +118,40 @@ for problem in dataset.problems:
     print(f"Problem {problem.problem_id}: {problem.question}")
     print(f"Answer: {problem.answer}")
     print(f"Domain: {problem.domain}")
+```
+
+## Dataset Details
+
+### JEEBench
+
+JEEBench is a challenging benchmark dataset containing 515 problems from the highly competitive IIT JEE-Advanced examination. The dataset tests deep domain knowledge and long-horizon reasoning across Physics, Chemistry, and Mathematics.
+
+**Features:**
+- 515 curated problems from IIT JEE-Advanced exam
+- Subjects: Physics (phy), Chemistry (chem), Mathematics (math)
+- Question types: MCQ, MCQ(multiple), Integer, Numeric
+- LaTeX-formatted questions and mathematical expressions
+- Requires advanced problem-solving abilities
+
+**Citation:**
+```bibtex
+@inproceedings{arora-etal-2023-llms,
+    title = "Have {LLM}s Advanced Enough? A Challenging Problem Solving Benchmark For Large Language Models",
+    author = "Arora, Daman  and
+      Singh, Himanshu  and
+      {Mausam}",
+    editor = "Bouamor, Houda  and
+      Pino, Juan  and
+      Bali, Kalika",
+    booktitle = "Proceedings of the 2023 Conference on Empirical Methods in Natural Language Processing",
+    month = dec,
+    year = "2023",
+    address = "Singapore",
+    publisher = "Association for Computational Linguistics",
+    url = "https://aclanthology.org/2023.emnlp-main.468",
+    doi = "10.18653/v1/2023.emnlp-main.468",
+    pages = "7527--7543",
+}
 ```
 
 ## Adding New Datasets

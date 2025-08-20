@@ -15,14 +15,14 @@ from physkit_core.models import PhysicsProblem, PhysicalDataset
 
 
 CORE_FIELDS = [
-    "question",
-    "problem_id",
-    "answer",
-    "solution",
-    "problem_type",
-    "domain",
-    "language",
-    "answer_type",
+    "question",     # question text
+    "problem_id",   # problem identifier
+    "answer",       # answer text
+    "solution",     # solution text
+    "problem_type", # problem type in OE, MC, MMC, etc.
+    "domain",       # domain in physics
+    "language",     # language
+    "answer_type",  # answer type in symbolic, numerical, or textual
 ]
 
 
@@ -72,7 +72,7 @@ class BaseDatasetLoader(ABC):
         """
         pass
     
-    def intiailize_metadata(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def initialize_metadata(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Map dataset fields to standard PhysKit fields using field_mapping.
         
