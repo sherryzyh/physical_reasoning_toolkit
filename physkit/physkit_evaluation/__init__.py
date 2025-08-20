@@ -9,7 +9,7 @@ __version__ = "0.1.0"
 __author__ = "Physical Reasoning Team"
 
 from .metrics import AccuracyMetric
-from .comparison import BaseComparator, SymbolicComparator, NumericalComparator, TextualComparator, AnswerComparator
+from .comparison import BaseComparator, SymbolicComparator, NumericalComparator, TextualComparator, SmartAnswerComparator
 
 __all__ = [
     "AccuracyMetric",
@@ -17,5 +17,5 @@ __all__ = [
     "SymbolicComparator",
     "NumericalComparator",
     "TextualComparator",
-    "AnswerComparator",
+    "SmartAnswerComparator",
 ]

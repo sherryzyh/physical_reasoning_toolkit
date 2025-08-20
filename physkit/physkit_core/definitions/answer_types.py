@@ -16,6 +16,7 @@ class AnswerType(Enum):
     SYMBOLIC = "symbolic"
     NUMERICAL = "numerical"
     TEXTUAL = "textual"
+    OPTION = "option"
 
 
 @dataclass
@@ -72,5 +73,14 @@ class TextualAnswer(BaseAnswer):
         return isinstance(self.value, str) and len(self.value.strip()) > 0
 
 
+@dataclass
+class OptionAnswer(BaseAnswer):
+    """Represents a multiple choice answer."""
+    value: str
+    answer_type: AnswerType = AnswerType.OPTION
+    
+    def validate(self) -> bool:
+        """Validate that the value is a valid option."""
+        return isinstance(self.value, str) and len(self.value.strip()) > 0
 # Type alias for any answer type
-Answer = Union[SymbolicAnswer, NumericalAnswer, TextualAnswer]
+Answer = Union[SymbolicAnswer, NumericalAnswer, TextualAnswer, OptionAnswer]

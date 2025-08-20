@@ -9,12 +9,14 @@ from .base import BaseComparator
 from .symbolic import SymbolicComparator
 from .numerical import NumericalComparator
 from .textual import TextualComparator
-from .answer_comparator import AnswerComparator
+from .option import OptionComparator
+from .answer_comparator import SmartAnswerComparator
 
 __all__ = [
     "BaseComparator",
     "SymbolicComparator", 
     "NumericalComparator",
     "TextualComparator",
-    "AnswerComparator",
+    "OptionComparator",
+    "SmartAnswerComparator",
 ]
