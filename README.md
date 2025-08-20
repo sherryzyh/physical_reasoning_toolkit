@@ -269,22 +269,18 @@ pytest tests/
 3. **Update documentation**: Add examples and update README files
 4. **Maintain compatibility**: Ensure changes don't break existing functionality
 
-## 📄 **License & Citation**
-
-### **License**
-This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## 🎉 **Getting Started Checklist**
 
-- [ ] ✅ Clone repository
-- [ ] ✅ Set up Python 3.12+ environment
-- [ ] ✅ Install toolkit (`python3 setup.py develop`)
-- [ ] ✅ Verify installation (import tests)
-- [ ] ✅ Set up external data directory (`export PHYSKIT_DATA_DIR=~/data`)
-- [ ] ✅ Download datasets (see cookbooks for instructions)
-- [ ] ✅ Run cookbook examples
-- [ ] ✅ Explore available datasets
-- [ ] ✅ Start building your physics reasoning system!
+- [x] ✅ Clone repository
+- [x] ✅ Set up Python 3.12+ environment
+- [x] ✅ Install toolkit (`python3 setup.py develop`)
+- [x] ✅ Verify installation (import tests)
+- [x] ✅ Set up external data directory (`export PHYSKIT_DATA_DIR=~/data`)
+- [x] ✅ Download datasets (see cookbooks for instructions)
+- [x] ✅ Run cookbook examples
+- [x] ✅ Explore available datasets
+- [x] ✅ Start building your physics reasoning system!
 
 ---
 
