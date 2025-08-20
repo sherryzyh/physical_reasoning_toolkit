@@ -1,7 +1,7 @@
 """
 Physical annotation package for physics problems using LLMs.
 """
-from physkit.models import PhysicsDomain
+from physkit_core.models import PhysicsDomain
 
 from .annotators.domain import DomainAnnotation
 from .annotators.theorem import TheoremAnnotation

@@ -12,7 +12,7 @@ from physkit_datasets.loaders import (
     SeePhysLoader, 
     UGPhysicsLoader
 )
-from physkit.models import PhysicalDataset
+from physkit_core.models import PhysicalDataset
 
 
 class DatasetHub:

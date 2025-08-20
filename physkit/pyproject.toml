@@ -58,8 +58,7 @@ Documentation = "https://physkit.readthedocs.io"
 Repository = "https://github.com/physkit/physkit"
 Issues = "https://github.com/physkit/physkit/issues"
 
-[project.scripts]
-physkit = "physkit.cli:main"
+
 
 [tool.setuptools.packages.find]
 where = ["."]

@@ -8,7 +8,7 @@ import random
 from typing import Dict, Any, Optional, Union, List
 
 from .base_loader import BaseDatasetLoader
-from physkit.models import PhysicalDataset
+from physkit_core.models import PhysicalDataset
 
 
 class PHYBenchLoader(BaseDatasetLoader):

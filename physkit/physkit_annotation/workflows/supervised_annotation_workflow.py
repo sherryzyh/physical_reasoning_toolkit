@@ -16,7 +16,7 @@ from ..revision.domain_revisor import DomainRevisor
 
 from ..annotators.domain import DomainAnnotator, DomainAnnotation
 from ..full_physics_annotation import FullPhysicsAnnotation
-from physkit.models import PhysicalDataset
+from physkit_core.models import PhysicalDataset
 
 
 class SupervisedAnnotationWorkflow:
@@ -326,7 +326,7 @@ class SupervisedAnnotationWorkflow:
         Returns:
             A new DomainAnnotation instance with the revised domain
         """
-        from physkit.models import PhysicsDomain
+        from physkit_core.models import PhysicsDomain
         
         # Get the revised domain string
         revised_domain_str = revision_result.revised_annotation
@@ -620,7 +620,7 @@ class SupervisedAnnotationWorkflow:
                 return None
             
             # Create DomainAnnotation instance from the data
-            from physkit.models import PhysicsDomain
+            from physkit_core.models import PhysicsDomain
             
             # Map the domain string to enum
             domain_enum = None
@@ -673,7 +673,7 @@ class SupervisedAnnotationWorkflow:
                         continue
                     
                     # Create DomainAnnotation instance from the data
-                    from physkit.models import PhysicsDomain
+                    from physkit_core.models import PhysicsDomain
                     
                     # Map the domain string to enum
                     domain_enum = None

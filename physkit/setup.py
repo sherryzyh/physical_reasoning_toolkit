@@ -64,9 +64,5 @@ setup(
     package_data={
         "": ["*.txt", "*.md", "*.rst"],
     },
-    entry_points={
-        "console_scripts": [
-            "physkit=physkit.cli:main",
-        ],
-    },
+
 )

@@ -9,8 +9,8 @@ import json
 from typing import Dict, Any, Optional
 from .base_assessor import BaseAssessor, AssessmentResult
 from ..annotators.domain import DomainAnnotation
-from physkit.models import PhysicsDomain
-from ...physkit.llm import LLMClient
+from physkit_core.models import PhysicsDomain
+from ...physkit_core.llm import LLMClient
 
 
 class DomainAssessor(BaseAssessor):

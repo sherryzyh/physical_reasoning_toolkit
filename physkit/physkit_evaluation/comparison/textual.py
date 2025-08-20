@@ -8,8 +8,8 @@ using semantic similarity and fuzzy matching techniques.
 from typing import Any, Dict
 
 from .base import BaseComparator
-from physkit.definitions.answer_types import Answer, TextualAnswer
-from physkit.llm import LLMClient
+from physkit_core.definitions.answer_types import Answer, TextualAnswer
+from physkit_core.llm import LLMClient
 
 
 class TextualComparator(BaseComparator):
