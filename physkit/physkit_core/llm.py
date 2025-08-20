@@ -105,11 +105,8 @@ class GeminiModel(LLMClient):
     def __init__(self, model: str, logger=None):
         super().__init__(model, logger)
         load_dotenv()
-        api_key = os.environ.get("GEMINI_API_KEY")
-        if not api_key:
-            raise ValueError("GEMINI_API_KEY environment variable not set.")
-        
-        genai.configure(api_key=api_key)
+        # Google Generative AI automatically uses GOOGLE_API_KEY environment variable
+        genai.configure()
         self.provider = "google"
         # The client is just a reference to the `genai` module or can be kept as None
         # since we will create the model instance within the chat method.
