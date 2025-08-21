@@ -7,10 +7,12 @@ using simple field mapping dictionaries.
 """
 
 import os
+import re
 from abc import ABC, abstractmethod
 from typing import Dict, List, Any, Union, Optional
 from pathlib import Path
 
+from physkit_core.definitions.answer_types import Answer, NumericalAnswer, SymbolicAnswer, TextualAnswer, OptionAnswer, AnswerType
 from physkit_core.models import PhysicsProblem, PhysicalDataset
 
 
@@ -26,6 +28,98 @@ CORE_FIELDS = [
 ]
 
 
+
+
+def detect_answer_type(value: str) -> AnswerType:
+    """
+    Intelligently detect answer type from a string value.
+    
+    Strategy:
+    1. Try to parse as pure number first
+    2. Check for mathematical expression patterns
+    3. Fall back to textual if unclear
+    """
+    value = str(value).strip()
+    
+    # remove \\boxed{} that wraps the value if present
+    value = re.sub(r'\\boxed\{([^}]+)\}', r'\1', value)
+    
+    # remove $$ that wraps the value if present
+    value = re.sub(r'\$\$(.*?)\$\$', r'\1', value)
+    value = re.sub(r'\$([^$]+)\$', r'\1', value)
+    
+    # Step 1: Check if it's a pure number (including scientific notation)
+    if is_pure_number(value):
+        return AnswerType.NUMERICAL
+    
+    # Step 2: Check if it's a mathematical expression
+    if is_mathematical_expression(value):
+        return AnswerType.SYMBOLIC
+    
+    # Step 3: Default to textual
+    return AnswerType.TEXTUAL
+
+def is_pure_number(value: str) -> bool:
+    """Check if value represents a single concrete number."""
+    # Remove common number formatting
+    cleaned = value.replace(',', '').replace(' ', '')
+    
+    # Handle scientific notation (e.g., "1.23e-4", "2.5E+6")
+    if 'e' in cleaned.lower():
+        try:
+            float(cleaned)
+            return True
+        except ValueError:
+            return False
+    
+    # Handle fractions (e.g., "3/4", "1/2")
+    if '/' in cleaned and cleaned.count('/') == 1:
+        try:
+            parts = cleaned.split('/')
+            if len(parts) == 2 and all(is_pure_number(p) for p in parts):
+                return True
+        except:
+            pass
+    
+    # Handle decimals and integers
+    try:
+        float(cleaned)
+        return True
+    except ValueError:
+        return False
+
+
+
+def is_mathematical_expression(value: str) -> bool:
+    """Check if value represents a mathematical expression."""
+    # Must contain mathematical operators or symbols
+    math_indicators = [
+        # Operators
+        '+', '-', '*', '/', '=', '^', '**', '√', 'sqrt',
+        # Variables (single letters, often with subscripts)
+        re.search(r'\b[a-zA-Z]\b', value),  # Single letter variables
+        re.search(r'[a-zA-Z]_[a-zA-Z0-9]', value),  # Subscripts
+        # Functions
+        re.search(r'\b(sin|cos|tan|log|ln|exp|sqrt)\s*\(', value, re.IGNORECASE),
+        # LaTeX indicators
+        '$', '\\', '\\[', '\\]', '\\(', '\\)',
+        # Mathematical symbols
+        'π', '∞', '±', '≤', '≥', '≠', '≈'
+    ]
+    
+    # Check if any math indicators are present
+    has_math = any(
+        indicator in value if isinstance(indicator, str) else indicator
+        for indicator in math_indicators
+    )
+    
+    # Additional validation: should not be just a single number
+    if has_math and not is_pure_number(value):
+        return True
+    
+    return False
+
+    
 class BaseDatasetLoader(ABC):
     """
     Base class for all dataset loaders in PhysKit.
@@ -97,6 +191,8 @@ class BaseDatasetLoader(ABC):
         # Normalize language field if present
         if "language" in metadata:
             metadata["language"] = self._normalize_language(metadata["language"])
+        
+
         
         return metadata
     
@@ -246,6 +342,46 @@ class BaseDatasetLoader(ABC):
                 missing.append(field)
         
         return missing
+
+    def _create_answer_from_raw(
+        self,
+        metadata: Dict[str, Any],
+    ) -> Answer:
+        answer = metadata.get("answer")
+        answer_type = metadata.get("answer_type", "")
+        problem_type = metadata.get("problem_type", "")
+        
+        if "MC" in problem_type:
+            return OptionAnswer(value=answer)
+        
+        if not answer_type:
+            answer_type = detect_answer_type(answer)
+            
+        if answer_type == "numerical":
+            if isinstance(answer, dict):
+                value = answer.get("value")
+                unit = answer.get("unit", "")
+            else:
+                value = answer
+                unit = ""
+            
+            # remove \\boxed{} that wraps the value if present
+            value = re.sub(r'\\boxed\{([^}]+)\}', r'\1', value)
+            
+            # remove $$ that wraps the value if present
+            value = re.sub(r'\$\$(.*?)\$\$', r'\1', value)
+            value = re.sub(r'\$([^$]+)\$', r'\1', value)
+            
+            return NumericalAnswer(value=value, unit=unit)
+        elif answer_type == "symbolic":
+            return SymbolicAnswer(value=answer)
+        elif answer_type == "textual":
+            return TextualAnswer(value=answer)
+        elif answer_type == "option":
+            return OptionAnswer(value=answer)
+        else:
+            # fallback to textual
+            return TextualAnswer(value=answer)
     
     def create_physics_problem(
         self, 
@@ -265,12 +401,16 @@ class BaseDatasetLoader(ABC):
         # Extract core fields from metadata
         problem_id = metadata.get("problem_id")
         question = metadata.get("question")
-        answer = metadata.get("answer")
-        answer_type = metadata.get("answer_type")
         solution = metadata.get("solution")
         problem_type = metadata.get("problem_type", "OE")
         domain = metadata.get("domain")
         language = metadata.get("language")
+        
+        # Create Answer object from answer
+        answer_obj = self._create_answer_from_raw(metadata)
+        metadata.pop("answer", None)
+        metadata.pop("answer_type", None)
+        metadata.pop("unit", None)
         
         # collect all other fields as additional fields
         additional_fields = {
@@ -278,16 +418,16 @@ class BaseDatasetLoader(ABC):
             if k not in CORE_FIELDS
         }
         
+        
         # Create the problem
         problem = PhysicsProblem(
             problem_id=problem_id,
             question=question,
-            answer=answer,
+            answer=answer_obj,
             solution=solution,
             domain=domain,
             language=language,
             problem_type=problem_type,
-            answer_type=answer_type,
             additional_fields=additional_fields,
         )
         

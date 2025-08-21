@@ -78,16 +78,17 @@ class UGPhysicsLoader(BaseDatasetLoader):
         metadata['difficulty'] = "undergraduate"
 
 
-        # answer type and answer        
+        # answer type and answer
         answer_type = metadata.get('answer_type')
         if "NV" in answer_type:
             metadata['answer_type'] = 'numerical'
             answer_value = metadata.get('answers')
             answer_unit = metadata.get('unit')
-            metadata['answer'] = {
+            answer = {
                 "value": answer_value,
-                "unit": answer_unit
+                "unit": answer_unit,
             }
+            metadata['answer'] = answer
         elif "EX" in answer_type:
             metadata['answer_type'] = 'symbolic'
             metadata['answer'] = metadata.get('answers')

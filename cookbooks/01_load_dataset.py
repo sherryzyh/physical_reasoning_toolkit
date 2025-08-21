@@ -167,11 +167,10 @@ def main():
         for i, problem in enumerate(dataset[:5]):  # Save first 5 problems
             try:
                 problem_dict = {
-                    "index": i,
                     "problem_id": problem['problem_id'],
                     "domain": str(problem.get('domain', 'N/A')),  # Convert to string to avoid serialization issues
                     "question": problem['question'],
-                    "answer": problem.get('answer', None),
+                    "answer": problem.get('answer', '').to_dict() if hasattr(problem.get('answer', ''), 'to_dict') else problem.get('answer', ''),
                     "solution": problem.get('solution', None),
                     "all_fields": {k: str(v) if hasattr(v, '__dict__') else v for k, v in problem.items()}
                 }
