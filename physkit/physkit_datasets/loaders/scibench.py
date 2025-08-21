@@ -191,7 +191,7 @@ class SciBenchLoader(BaseDatasetLoader):
                 pass
 
         # Numerical answer (when answer_latex and answer_number are the same)
-        if answer_number and answer_number.strip() != "" and answer_latex.strip() == answer_number.strip():
+        if answer_number and answer_number.strip() != "" and answer_latex and answer_latex.strip() != "" and answer_latex.strip() == answer_number.strip():
             return answer_number, "numerical", actual_unit
         
         # Symbolic answer (if answer_latex contains mathematical expressions)
@@ -251,7 +251,13 @@ class SciBenchLoader(BaseDatasetLoader):
         """Load and parse a JSON file."""
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
-                return json.load(f)
+                data = json.load(f)
+                if not isinstance(data, list):
+                    raise ValueError(f"Expected data to be a list, got {type(data)}: {data}")
+                for item in data:
+                    if not isinstance(item, dict):
+                        raise ValueError(f"Expected item to be a dict, got {type(item)}: {item}")
+                return data
         except Exception as e:
             self.logger.warning(f"Could not load {file_path}: {e}")
             return []
@@ -326,10 +332,13 @@ class SciBenchLoader(BaseDatasetLoader):
         # Set the processed values
         metadata['answer'] = answer_value
         metadata['answer_type'] = answer_type
-        
-        # Add unit to additional fields if present
-        if extracted_unit:
-            metadata['unit'] = extracted_unit
+        if answer_type == "numerical" and extracted_unit:
+            metadata['answer'] = {
+                "value": answer_value,
+                "unit": extracted_unit
+            }
+        else:
+            metadata['answer'] = answer_value
         
         # Set problem type
         metadata['problem_type'] = "OE"

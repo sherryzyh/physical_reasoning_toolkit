@@ -14,6 +14,7 @@ from physkit_datasets.loaders.base_loader import BaseDatasetLoader
 from physkit_core import PhysKitLogger
 
 
+# TODO: add support for handling multiple sub-questions
 class PhysReasonLoader(BaseDatasetLoader):
     """Loader for PhysReason dataset with support for full and mini variants."""
 
@@ -204,29 +205,8 @@ class PhysReasonLoader(BaseDatasetLoader):
         
         metadata['question'] = question_text
         
-        # Extract solution from explanation steps
-        explanation_steps = metadata.get('explanation_steps', {})
-        solution_parts = []
-        
-        for sub_q_key, steps in explanation_steps.items():
-            if isinstance(steps, dict):
-                for step_key, step_content in steps.items():
-                    if isinstance(step_content, str):
-                        solution_parts.append(f"{step_key}: {step_content}")
-        
-        if solution_parts:
-            metadata['solution'] = "\n".join(solution_parts)
-        else:
-            metadata['solution'] = "Step-by-step solution available in explanation_steps"
-        
-        # Set answer type
-        metadata['answer_type'] = 'textual'
-        
         # Set problem type
         metadata['problem_type'] = 'OE'
-        
-        # Set domain (default to OTHER since PhysReason doesn't specify domains)
-        metadata['domain'] = PhysicsDomain.OTHER
         
         # Set language
         metadata['language'] = 'en'

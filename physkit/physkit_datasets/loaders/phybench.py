@@ -48,6 +48,15 @@ class PHYBenchLoader(BaseDatasetLoader):
             "solution": "solution"
         }
     
+    def _process_metadata(
+        self,
+        metadata: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Process metadata to create standardized problem fields."""
+
+        metadata['answer_type'] = "symbolic" # according to the paper
+        return metadata
+        
     def load(
         self,
         data_dir: Union[str, Path, None] = None,
@@ -103,6 +112,7 @@ class PHYBenchLoader(BaseDatasetLoader):
         
         for _, problem_data in enumerate(data):
             metadata = self.initialize_metadata(problem_data)
+            metadata = self._process_metadata(metadata)
             
             problem = self.create_physics_problem(
                 metadata=metadata,

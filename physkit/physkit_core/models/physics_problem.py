@@ -12,6 +12,7 @@ from typing import Dict, List, Optional, Any, Union
 from datetime import datetime
 
 from ..definitions.physics_domain import PhysicsDomain
+from ..definitions.answer_types import Answer
 
 
 @dataclass
@@ -21,14 +22,13 @@ class PhysicsProblem:
     question: str
     
     # Optional core fields
-    answer: Optional[Union[str, Dict[str, Any]]] = None
+    answer: Optional[Answer] = None
     solution: Optional[str] = None
     domain: Optional[Union[str, PhysicsDomain]] = None
     language: str = "en"
     
     # Problem type and configuration
     problem_type: Optional[str] = None  # "MC" for multiple choice, "OE" for open-ended
-    answer_type: str = "Textual"  # For open-ended problems: "Numerical", "Symbolic", "Textual"
     
     # Multiple choice specific fields
     options: Optional[List[str]] = None
@@ -43,18 +43,6 @@ class PhysicsProblem:
         if self.problem_type and self.problem_type not in ["MC", "OE", "MultipleMC"]:
             raise ValueError(f"Invalid problem type: {self.problem_type}")
         
-        # # Validate multiple choice problems
-        # if self.problem_type == "MC":
-        #     if not self.options:
-        #         raise ValueError("Multiple choice problems must have options")
-        #     if self.correct_option is not None:
-        #         if not (0 <= self.correct_option < len(self.options)):
-        #             raise ValueError(f"Correct option index {self.correct_option} out of range")
-        
-        # Validate answer type for open-ended problems
-        # if self.problem_type == "OE" and self.answer_type not in ["Numerical", "Symbolic", "Textual"]:
-        #     raise ValueError(f"Invalid answer type: {self.answer_type}")
-        
         # Convert domain to enum if it's a string
         if isinstance(self.domain, str):
             try:
@@ -62,7 +50,8 @@ class PhysicsProblem:
             except ValueError:
                 # Keep as string if not a valid enum value
                 pass
-    
+        
+
     # ============================================================================
     # Core PhysicsProblem Methods
     # ============================================================================
@@ -84,19 +73,6 @@ class PhysicsProblem:
     def is_open_ended(self) -> bool:
         """Check if this is an open-ended problem."""
         return self.problem_type == "OE"
-    
-    def get_correct_answer(self) -> Optional[str]:
-        """Get the correct answer for multiple choice problems."""
-        if self.is_multiple_choice() and self.correct_option is not None:
-            return self.options[self.correct_option]
-        return self.answer
-    
-    def validate_answer(self, user_answer: str) -> bool:
-        """Validate a user's answer against the correct answer."""
-        correct = self.get_correct_answer()
-        if correct is None:
-            return False
-        return user_answer.strip().lower() == correct.strip().lower()
     
     # ============================================================================
     # Dataset Compatibility Methods
@@ -136,7 +112,7 @@ class PhysicsProblem:
         
         # Core fields
         core_fields = ['question', 'problem_id', 'answer', 'solution', 'domain', 
-                      'language', 'problem_type', 'options', 'correct_option', 'answer_type']
+                      'language', 'problem_type', 'options', 'correct_option']
         fields.extend(core_fields)
         
         # Additional fields
@@ -174,14 +150,13 @@ class PhysicsProblem:
         result = {
             'question': self.question,
             'problem_id': self.problem_id,
-            'answer': self.answer,
+            'answer': self.answer.to_dict(),
             'solution': self.solution,
             'domain': self.domain.value if isinstance(self.domain, PhysicsDomain) else self.domain,
             'language': self.language,
             'problem_type': self.problem_type,
             'options': self.options,
             'correct_option': self.correct_option,
-            'answer_type': self.answer_type,
         }
         
         # Add additional fields if present
@@ -233,6 +208,14 @@ class PhysicsProblem:
     def copy(self) -> 'PhysicsProblem':
         """Create a copy of the problem."""
         return PhysicsProblem.from_dict(self.to_dict())
+    
+    def display(self) -> str:
+        """Display the problem."""
+        display_str = f"PhysicsProblem(id={self.problem_id}, domain={self.get_domain_name()}, type={self.problem_type})\n"
+        display_str += f"\nQuestion:\n{self.question}\n"
+        display_str += f"\nAnswer:\n{self.answer}\n"
+        display_str += f"\nSolution:\n{self.solution}" if self.solution else ""
+        return display_str
     
     def __repr__(self) -> str:
         """String representation of the problem."""
