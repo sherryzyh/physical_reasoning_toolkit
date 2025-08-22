@@ -37,10 +37,12 @@ class PhysicalDataset:
         """Get the number of problems in the dataset."""
         return len(self._problems)
     
-    def __getitem__(self, idx: Union[int, slice]) -> Union[PhysicsProblem, List[PhysicsProblem]]:
-        """Get problem(s) by index."""
+    def __getitem__(self, idx: Union[int, slice]) -> Union[PhysicsProblem, 'PhysicalDataset']:
+        """Get problem(s) by index or slice."""
         if isinstance(idx, slice):
-            return [self._problems[i] for i in range(*idx.indices(len(self._problems)))]
+            # Return a new PhysicalDataset with sliced problems
+            sliced_problems = [self._problems[i] for i in range(*idx.indices(len(self._problems)))]
+            return PhysicalDataset(sliced_problems, self._info, self._split)
         return self._problems[idx]
     
     def __iter__(self) -> Iterator[PhysicsProblem]:
@@ -55,13 +57,20 @@ class PhysicalDataset:
                 problem_id = problem.problem_id
                 if problem_id in self._problem_id_index:
                     # Handle duplicate problem_ids by keeping track of the first occurrence
-                    PhysKitLogger.get_logger(__name__).warning(f"Duplicate problem_id '{problem_id}' found. Using first occurrence.")
+                    dataset_name = self._info.get('name', 'unknown_dataset')
+                    PhysKitLogger.get_logger(__name__).warning(f"Dataset '{dataset_name}': Duplicate problem_id '{problem_id}' found. Using first occurrence.")
                 else:
                     self._problem_id_index[problem_id] = i
             else:
                 # For problems without problem_id, use fallback
                 fallback_id = f'problem_{i}'
+                dataset_name = self._info.get('name', 'unknown_dataset')
+                PhysKitLogger.get_logger(__name__).warning(f"Dataset '{dataset_name}': Problem at index {i} has no problem_id, using fallback '{fallback_id}'")
                 self._problem_id_index[fallback_id] = i
+    
+    def get_all_ids(self) -> List[str]:
+        """Get all problem_ids in the dataset."""
+        return list(self._problem_id_index.keys())
     
     def get_by_id(self, problem_id: str) -> PhysicsProblem:
         """
@@ -119,6 +128,48 @@ class PhysicalDataset:
         """
         selected_problems = [self._problems[i] for i in indices if 0 <= i < len(self._problems)]
         return PhysicalDataset(selected_problems, self._info, self._split)
+    
+    def take(self, n: int) -> 'PhysicalDataset':
+        """
+        Take the first N problems from the dataset.
+        
+        Args:
+            n: Number of problems to take
+            
+        Returns:
+            New PhysicalDataset with the first N problems
+        """
+        if n <= 0:
+            return PhysicalDataset([], self._info, self._split)
+        n = min(n, len(self._problems))
+        return PhysicalDataset(self._problems[:n], self._info, self._split)
+    
+    def head(self, n: int = 5) -> 'PhysicalDataset':
+        """
+        Get the first N problems (similar to pandas head).
+        
+        Args:
+            n: Number of problems to get (default: 5)
+            
+        Returns:
+            New PhysicalDataset with the first N problems
+        """
+        return self.take(n)
+    
+    def tail(self, n: int = 5) -> 'PhysicalDataset':
+        """
+        Get the last N problems (similar to pandas tail).
+        
+        Args:
+            n: Number of problems to get (default: 5)
+            
+        Returns:
+            New PhysicalDataset with the last N problems
+        """
+        if n <= 0:
+            return PhysicalDataset([], self._info, self._split)
+        n = min(n, len(self._problems))
+        return PhysicalDataset(self._problems[-n:], self._info, self._split)
     
     def map(self, map_func) -> List[Any]:
         """

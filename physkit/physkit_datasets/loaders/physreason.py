@@ -35,9 +35,6 @@ class PhysReasonLoader(BaseDatasetLoader):
         return {
             "name": self.name,
             "description": self.description,
-            "repository_url": "https://github.com/AI4Phys/PhysReason",
-            "license": "Research use",
-            "homepage": "https://github.com/AI4Phys/PhysReason",
             "languages": ["en"],
             "variants": ["full", "mini"],
             "splits": ["test"],
@@ -49,8 +46,46 @@ class PhysReasonLoader(BaseDatasetLoader):
 
     @property
     def field_mapping(self) -> Dict[str, str]:
-        """No field mapping needed for PhysReason - use original field names."""
+        """No field mapping needed for PhysReason"""
         return {}
+
+    def _process_metadata(self, metadata: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Process metadata to create standardized problem fields."""
+        difficulty = metadata.get('difficulty', '')
+        problem_type = 'OE'
+        language = 'en'
+        
+        # Extract question text from the complex structure
+        question_structure = metadata.get('question_structure', {})
+        
+        # Combine context and sub-questions into a single question
+        context = question_structure.get('context', '')
+        num_sub_questions = len(question_structure) - 1
+        
+        metadata_of_questions = []
+        
+        explanation_steps = metadata.get('explanation_steps', {})
+        image_captions = metadata.get('image_captions', '')
+        
+        for i in range(num_sub_questions):  # Support up to 9 sub-questions
+            sub_q_key = f'sub_question_{i+1}'
+            if sub_q_key in question_structure:
+                question = context + "\n\n" + question_structure[sub_q_key]
+                answer = metadata['answer'][i]
+                steps = explanation_steps.get(sub_q_key, {})
+                
+                metadata_of_questions.append({
+                    'problem_id': metadata['problem_id'] + f'_{i+1}',
+                    'question': question,
+                    'answer': answer,
+                    'difficulty': difficulty,
+                    'problem_type': problem_type,
+                    'language': language,
+                    'solution': steps,
+                    'image_captions': image_captions
+                })
+        
+        return metadata_of_questions
 
     def load(
         self,
@@ -75,7 +110,7 @@ class PhysReasonLoader(BaseDatasetLoader):
         """
         # Resolve data directory with environment variable support
         data_dir = self.resolve_data_dir(data_dir, "PhysReason")
-        self.logger.info(f"Using data directory: {data_dir}")
+        self.logger.debug(f"Using data directory: {data_dir}")
 
         if not data_dir.exists():
             raise FileNotFoundError(f"Data directory not found: {data_dir}")
@@ -94,14 +129,14 @@ class PhysReasonLoader(BaseDatasetLoader):
         if not variant_dir.exists():
             raise FileNotFoundError(f"Variant directory not found: {variant_dir}")
 
-        self.logger.info(f"Loading {variant} variant from: {variant_dir}")
+        self.logger.debug(f"Loading {variant} variant from: {variant_dir}")
 
         # Load all problems from the variant directory
         all_problems = []
         
         # Get all problem directories
         problem_dirs = [d for d in variant_dir.iterdir() if d.is_dir()]
-        self.logger.info(f"Found {len(problem_dirs)} problem directories")
+        self.logger.debug(f"Found {len(problem_dirs)} problem directories")
 
         # Process each problem directory
         for problem_dir in problem_dirs:
@@ -118,21 +153,22 @@ class PhysReasonLoader(BaseDatasetLoader):
             import random
             random.seed(42)  # For reproducible sampling
             all_problems = random.sample(all_problems, sample_size)
-            self.logger.info(f"Sampled {sample_size} problems from {len(all_problems)} total")
+            self.logger.debug(f"Sampled {sample_size} problems from {len(all_problems)} total")
 
         # Create PhysicsProblem objects
         physics_problems = []
         for problem_data in all_problems:
             try:
                 metadata = self.initialize_metadata(problem_data)
-                metadata = self._process_metadata(metadata)
-                physics_problem = self.create_physics_problem(metadata)
-                physics_problems.append(physics_problem)
+                metadata_of_questions = self._process_metadata(metadata)
+                for question_metadata in metadata_of_questions:
+                    physics_problem = self.create_physics_problem(question_metadata)
+                    physics_problems.append(physics_problem)
             except Exception as e:
                 self.logger.warning(f"Could not create problem from {problem_data.get('problem_id', 'unknown')}: {e}")
                 continue
 
-        self.logger.info(f"Successfully created {len(physics_problems)} PhysicsProblem objects")
+        self.logger.debug(f"Successfully created {len(physics_problems)} PhysicsProblem objects")
 
         # Create PhysicalDataset
         dataset = PhysicalDataset(
@@ -145,6 +181,9 @@ class PhysReasonLoader(BaseDatasetLoader):
                 "source_directory": str(variant_dir)
             }
         )
+
+        # Log final loading result
+        self.logger.info(f"Successfully loaded {len(physics_problems)} problems from PhysReason dataset")
 
         return dataset
 
@@ -176,39 +215,3 @@ class PhysReasonLoader(BaseDatasetLoader):
         except Exception as e:
             self.logger.error(f"Error loading problem from {problem_file}: {e}")
             return None
-
-    def _process_metadata(self, metadata: Dict[str, Any]) -> Dict[str, Any]:
-        """Process metadata to create standardized problem fields."""
-        # Extract question text from the complex structure
-        question_structure = metadata.get('question_structure', {})
-        
-        # Combine context and sub-questions into a single question
-        context = question_structure.get('context', '')
-        sub_questions = []
-        
-        for i in range(1, 10):  # Support up to 9 sub-questions
-            sub_q_key = f'sub_question_{i}'
-            if sub_q_key in question_structure:
-                sub_questions.append(question_structure[sub_q_key])
-            else:
-                break
-        
-        # Create combined question text
-        if context and sub_questions:
-            question_text = context + "\n\n" + "\n".join(sub_questions)
-        elif context:
-            question_text = context
-        elif sub_questions:
-            question_text = "\n".join(sub_questions)
-        else:
-            question_text = "Physics problem"
-        
-        metadata['question'] = question_text
-        
-        # Set problem type
-        metadata['problem_type'] = 'OE'
-        
-        # Set language
-        metadata['language'] = 'en'
-        
-        return metadata

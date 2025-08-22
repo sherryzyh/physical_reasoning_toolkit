@@ -39,7 +39,11 @@ class TPBenchLoader(BaseDatasetLoader):
             "name": self.name,
             "description": self.description,
             "domains": [
-                "QM", "Cosmology", "Stat Mech", "Classical Mechanics", "HET"
+                "quantum_mechanics",
+                "high_energy_theory",
+                "statistical_mechanics",
+                "classical_mechanics",
+                "cosmology"
             ],
             "languages": ["en"],
             "variants": ["full"],
@@ -62,15 +66,29 @@ class TPBenchLoader(BaseDatasetLoader):
             "problem_id": "problem_id",      # Map "problem_id" to "problem_id"
             "problem": "question",           # Map "problem" to "question"
             "solution": "solution",          # Map "solution" to "solution"
-            "domain": "domain",              # Map "domain" to "domain"
             "difficulty_level": "difficulty", # Map "difficulty_level" to "difficulty"
+            "domain": "domain",               # Map "domain" to "domain"
             "answer": "answer",              # Map "answer" to "answer"
         }
     
+    @property
+    def DOMAIN_MAPPING(self) -> Dict[str, str]:
+        """Mapping of domain abbreviations to full domain names."""
+        return {
+            "QM": PhysicsDomain.QUANTUM_MECHANICS,
+            "HET": PhysicsDomain.HIGH_ENERGY_THEORY,
+            "Stat Mech": PhysicsDomain.STATISTICAL_MECHANICS,
+            "Classical Mechanics": PhysicsDomain.CLASSICAL_MECHANICS,
+            "Cosmology": PhysicsDomain.COSMOLOGY
+        }
+        
     def _process_metadata(self, metadata: Dict[str, Any]):
         """Process metadata to create standardized problem fields."""
         # Set answer type to symbolic
         metadata['answer_type'] = 'symbolic'
+        domain = metadata.get('domain')
+        if domain:
+            metadata['domain'] = self.DOMAIN_MAPPING.get(domain, PhysicsDomain.OTHER)
         
         return metadata
     
@@ -101,15 +119,15 @@ class TPBenchLoader(BaseDatasetLoader):
         Raises:
             ValueError: If unsupported split or language is requested
         """
-        if split != "test":
-            raise ValueError("TPBench dataset only supports 'test' split")
+        if split != "public":
+            raise ValueError("TPBench dataset only supports 'public' split")
         
         if language != "en":
             raise ValueError("TPBench dataset only supports 'en' language")
         
         # Resolve data directory with environment variable support
         data_dir = self.resolve_data_dir(data_dir, "TPBench")
-        self.logger.info(f"Using data directory: {data_dir}")
+        self.logger.debug(f"Using data directory: {data_dir}")
         
         if not data_dir.exists():
             raise FileNotFoundError(f"Data directory not found: {data_dir}")
@@ -128,21 +146,25 @@ class TPBenchLoader(BaseDatasetLoader):
         # Try loading from parquet file
         if parquet_file.exists():
             try:
-                self.logger.info(f"Loading from parquet file: {parquet_file}")
-                df = pd.read_parquet(parquet_file)
+                self.logger.debug(f"Loading from parquet file: {parquet_file}")
+                df = pd.read_parquet(parquet_file, engine='pyarrow')
                 problems = self._load_from_dataframe(df, domain_problems, domain_counts)
             except Exception as e:
                 self.logger.error(f"Error loading from parquet: {e}")
-                self.logger.info("Falling back to JSON file...")
-                problems = self._load_from_json(json_file, domain_problems, domain_counts)
+                self.logger.debug("Falling back to JSON file...")
+                try:
+                    problems = self._load_from_json(json_file, domain_problems, domain_counts)
+                except Exception as json_e:
+                    self.logger.error(f"Error loading from JSON fallback: {json_e}")
+                    # If both parquet and JSON fail, raise the original parquet error
+                    raise RuntimeError(f"Failed to load TPBench dataset. Parquet error: {e}. JSON fallback error: {json_e}")
         else:
             # Fall back to JSON file
-            self.logger.info(f"Loading from JSON file: {json_file}")
+            self.logger.debug(f"Loading from JSON file: {json_file}")
             problems = self._load_from_json(json_file, domain_problems, domain_counts)
         
         if not problems:
-            self.logger.error(f"No problems loaded from: {data_dir}")
-            return PhysicalDataset([], self.get_info(), split=split)
+            raise RuntimeError(f"No problems loaded from: {data_dir}. Check if data files exist and are valid.")
         
         # Apply per_domain sampling if requested
         if per_domain is not None:
@@ -151,22 +173,25 @@ class TPBenchLoader(BaseDatasetLoader):
                     domain_problems[domain_name] = random.sample(domain_problem_list, per_domain)
         
         # Collect all problems and count by domain
-        problems = []
+        all_problems = []
         for domain_name, domain_problem_list in domain_problems.items():
-            problems.extend(domain_problem_list)
+            all_problems.extend(domain_problem_list)
             domain_counts[domain_name] = len(domain_problem_list)
         
         # Apply overall sample_size sampling if requested
-        if sample_size is not None and sample_size < len(problems):
-            problems = random.sample(problems, sample_size)
+        if sample_size is not None and sample_size < len(all_problems):
+            all_problems = random.sample(all_problems, sample_size)
         
         # Create dataset info
         info = self.get_info()
-        info["total_problems"] = len(problems)
+        info["total_problems"] = len(all_problems)
         info["problems_by_domain"] = {str(domain): count for domain, count in domain_counts.items()}
         
+        # Log final loading result
+        self.logger.info(f"Successfully loaded {len(all_problems)} problems from TPBench dataset")
+        
         return PhysicalDataset(
-            problems,
+            all_problems,
             info,
             split=split,
         )
@@ -174,6 +199,9 @@ class TPBenchLoader(BaseDatasetLoader):
     def _load_from_dataframe(self, df: pd.DataFrame, domain_problems: Dict, domain_counts: Dict) -> List:
         """Load problems from pandas DataFrame."""
         problems = []
+        
+        if df.empty:
+            raise ValueError("DataFrame is empty")
         
         for _, row in df.iterrows():
             try:
@@ -199,6 +227,9 @@ class TPBenchLoader(BaseDatasetLoader):
                 self.logger.error(f"Error loading problem from DataFrame row: {e}")
                 continue
         
+        if not problems:
+            raise RuntimeError("No problems could be loaded from DataFrame")
+        
         return problems
     
     def _load_from_json(self, json_file: Path, domain_problems: Dict, domain_counts: Dict) -> List:
@@ -206,12 +237,14 @@ class TPBenchLoader(BaseDatasetLoader):
         problems = []
         
         if not json_file.exists():
-            self.logger.error(f"JSON file not found: {json_file}")
-            return problems
+            raise FileNotFoundError(f"JSON file not found: {json_file}")
         
         try:
             with open(json_file, 'r', encoding='utf-8') as f:
                 data_list = json.load(f)
+            
+            if not data_list:
+                raise ValueError(f"JSON file is empty: {json_file}")
             
             for data in data_list:
                 try:
@@ -233,9 +266,11 @@ class TPBenchLoader(BaseDatasetLoader):
                 except Exception as e:
                     self.logger.error(f"Error loading problem from JSON: {e}")
                     continue
-                    
         except Exception as e:
-            self.logger.error(f"Error loading JSON file: {e}")
+            raise RuntimeError(f"Failed to load JSON file {json_file}: {e}")
+        
+        if not problems:
+            raise RuntimeError("No problems could be loaded from JSON file")
         
         return problems
     

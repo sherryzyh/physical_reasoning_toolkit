@@ -6,7 +6,7 @@ selects and uses the appropriate comparator based on answer types with
 enhanced error handling, validation, and debugging capabilities.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 from physkit_core.definitions.answer_types import Answer, AnswerType, TextualAnswer
 from .symbolic import SymbolicComparator
 from .numerical import NumericalComparator
@@ -44,17 +44,24 @@ class SmartAnswerComparator:
         # Textual comparator for fallback cross-type comparisons
         self.textual_comparator = TextualComparator()
     
-    def compare(self, answer1: Answer, answer2: Answer) -> Dict[str, Any]:
+    def compare(
+        self,
+        answer1: Union[Answer, str],
+        answer2: Union[Answer, str],
+    ) -> Dict[str, Any]:
         """
         Intelligently compare two answers with enhanced error handling.
         
         Args:
-            answer1: First answer to compare
-            answer2: Second answer to compare
+            answer1: First answer to compare (Answer instance or string)
+            answer2: Second answer to compare (Answer instance or string)
             
         Returns:
             Comparison results with enhanced diagnostics
         """
+        # Smart type conversion: if one is Answer and other is string, convert string to TextualAnswer
+        answer1, answer2 = self._smart_type_conversion(answer1, answer2)
+        
         # Input validation
         validation_result = self._validate_inputs(answer1, answer2)
         if not validation_result["valid"]:
@@ -80,7 +87,60 @@ class SmartAnswerComparator:
         # All attempts failed
         return self._create_failure_result(answer1, answer2, primary_result, fallback_result)
     
-    def _validate_inputs(self, answer1: Answer, answer2: Answer) -> Dict[str, Any]:
+    def _smart_type_conversion(self, answer1: Union[Answer, str], answer2: Union[Answer, str]) -> tuple[Answer, Answer]:
+        """
+        Intelligently convert mixed types to ensure both are Answer instances.
+        
+        If one input is an Answer instance and the other is a string, convert the string
+        to a TextualAnswer object for seamless comparison.
+        
+        Args:
+            answer1: First answer (Answer instance or string)
+            answer2: Second answer (Answer instance or string)
+            
+        Returns:
+            Tuple of (answer1, answer2) where both are Answer instances
+        """
+        # Check if we have mixed types
+        is_answer1 = isinstance(answer1, Answer)
+        is_answer2 = isinstance(answer2, Answer)
+        
+        if is_answer1 and not is_answer2:
+            # answer1 is Answer, answer2 is string - convert answer2 to TextualAnswer
+            answer2 = self._string_to_textual_answer(answer2)
+        elif not is_answer1 and is_answer2:
+            # answer1 is string, answer2 is Answer - convert answer1 to TextualAnswer
+            answer1 = self._string_to_textual_answer(answer1)
+        elif not is_answer1 and not is_answer2:
+            # Both are strings - convert both to TextualAnswer
+            answer1 = self._string_to_textual_answer(answer1)
+            answer2 = self._string_to_textual_answer(answer2)
+        # If both are already Answer instances, no conversion needed
+        
+        return answer1, answer2
+    
+    def _string_to_textual_answer(self, string_value: str) -> TextualAnswer:
+        """
+        Convert a string to a TextualAnswer object.
+        
+        Args:
+            string_value: String to convert
+            
+        Returns:
+            TextualAnswer object with the string value
+        """
+        metadata = {
+            "original_input_type": "string",
+            "conversion_method": "automatic_string_to_textual",
+            "source": "SmartAnswerComparator._string_to_textual_answer"
+        }
+        
+        return TextualAnswer(
+            value=str(string_value),
+            metadata=metadata
+        )
+    
+    def _validate_inputs(self, answer1: Union[Answer, str], answer2: Union[Answer, str]) -> Dict[str, Any]:
         """Validate input answers."""
         errors = []
         
@@ -100,11 +160,11 @@ class SmartAnswerComparator:
         return {
             "valid": len(errors) == 0,
             "errors": errors,
-            "answer1_type": getattr(answer1, 'answer_type', None),
-            "answer2_type": getattr(answer2, 'answer_type', None)
+            "answer1_type": getattr(answer1, 'answer_type', None) if hasattr(answer1, 'answer_type') else type(answer1).__name__,
+            "answer2_type": getattr(answer2, 'answer_type', None) if hasattr(answer2, 'answer_type') else type(answer2).__name__
         }
     
-    def _try_primary_comparison(self, answer1: Answer, answer2: Answer) -> Dict[str, Any]:
+    def _try_primary_comparison(self, answer1: Union[Answer, str], answer2: Union[Answer, str]) -> Dict[str, Any]:
         """Try primary type-based routing (same type comparison)."""
         try:
             # Check if answer types match
@@ -174,7 +234,7 @@ class SmartAnswerComparator:
                 }
             }
     
-    def _try_fallback_comparison(self, answer1: Answer, answer2: Answer) -> Dict[str, Any]:
+    def _try_fallback_comparison(self, answer1: Union[Answer, str], answer2: Union[Answer, str]) -> Dict[str, Any]:
         """Try fallback routing by converting both answers to TextualAnswer."""
         try:
             # Convert both answers to TextualAnswer for cross-type comparison
@@ -216,16 +276,20 @@ class SmartAnswerComparator:
                 }
             }
     
-    def _convert_to_textual_answer(self, answer: Answer) -> TextualAnswer:
+    def _convert_to_textual_answer(self, answer: Union[Answer, str]) -> TextualAnswer:
         """
-        Convert any answer type to TextualAnswer for fallback comparison.
+        Convert any answer type or string to TextualAnswer for fallback comparison.
         
         Args:
-            answer: Answer to convert
+            answer: Answer to convert (Answer instance or string)
             
         Returns:
             TextualAnswer with the converted content
         """
+        # Handle string input
+        if isinstance(answer, str):
+            return self._string_to_textual_answer(answer)
+        
         # Extract the value as a string representation
         if hasattr(answer, 'value'):
             value_str = str(answer.value)
@@ -248,7 +312,7 @@ class SmartAnswerComparator:
             metadata=metadata
         )
     
-    def _create_failure_result(self, answer1: Answer, answer2: Answer, 
+    def _create_failure_result(self, answer1: Union[Answer, str], answer2: Union[Answer, str], 
                              primary_result: Dict[str, Any], 
                              fallback_result: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Create comprehensive failure result."""
@@ -289,18 +353,36 @@ class SmartAnswerComparator:
         """Get list of supported answer types."""
         return [t.value for t in self.comparators.keys()]
     
-    def diagnose(self, answer1: Answer, answer2: Answer) -> Dict[str, Any]:
+    def diagnose(self, answer1: Union[Answer, str], answer2: Union[Answer, str]) -> Dict[str, Any]:
         """
         Diagnose why comparison might fail without actually comparing.
         
         Returns detailed analysis of compatibility.
         """
+        # Smart type conversion for diagnosis
+        answer1, answer2 = self._smart_type_conversion(answer1, answer2)
+        
         diagnosis = {
             "input_validation": self._validate_inputs(answer1, answer2),
             "type_compatibility": {},
             "comparator_compatibility": {},
-            "recommendations": []
+            "recommendations": [],
+            "smart_conversion_applied": False
         }
+        
+        # Check if smart conversion was applied
+        if isinstance(answer1, TextualAnswer) and answer1.metadata.get("conversion_method") == "automatic_string_to_textual":
+            diagnosis["smart_conversion_applied"] = True
+            diagnosis["conversion_details"] = {
+                "answer1_converted": True,
+                "original_type": "string"
+            }
+        if isinstance(answer2, TextualAnswer) and answer2.metadata.get("conversion_method") == "automatic_string_to_textual":
+            diagnosis["smart_conversion_applied"] = True
+            if "conversion_details" not in diagnosis:
+                diagnosis["conversion_details"] = {}
+            diagnosis["conversion_details"]["answer2_converted"] = True
+            diagnosis["conversion_details"]["original_type"] = "string"
         
         if diagnosis["input_validation"]["valid"]:
             # Check type compatibility
@@ -335,5 +417,6 @@ class SmartAnswerComparator:
                 diagnosis["recommendations"].append("🔄 Types don't match - will use fallback with TextualAnswer conversion")
                 
             diagnosis["recommendations"].append("🔄 Fallback mode always enabled - converts to TextualAnswer for cross-type comparison")
+            diagnosis["recommendations"].append("🧠 Smart type conversion automatically handles mixed Answer/string inputs")
         
         return diagnosis

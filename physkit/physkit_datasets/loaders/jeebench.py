@@ -126,7 +126,7 @@ class JEEBenchLoader(BaseDatasetLoader):
         
         # Resolve data directory with environment variable support
         data_dir = self.resolve_data_dir(data_dir, "JEEBench")
-        self.logger.info(f"Using data directory: {data_dir}")
+        self.logger.debug(f"Using data directory: {data_dir}")
         
         if not data_dir.exists():
             raise FileNotFoundError(f"Data directory not found: {data_dir}")
@@ -172,6 +172,9 @@ class JEEBenchLoader(BaseDatasetLoader):
         info = self.get_info()
         info["total_problems"] = len(problems)
         
+        # Log final loading result
+        self.logger.info(f"Successfully loaded {len(problems)} problems from JEEBench dataset")
+        
         return PhysicalDataset(
             problems,
             info,
@@ -191,7 +194,7 @@ class JEEBenchLoader(BaseDatasetLoader):
             if subject not in ["phy", "chem", "math"]:
                 raise ValueError(f"Invalid subject: {subject}. Must be one of: phy, chem, math")
             filtered_data = [p for p in filtered_data if p.get("subject") == subject]
-            self.logger.info(f"Filtered to {len(filtered_data)} problems in subject: {subject}")
+            self.logger.debug(f"Filtered to {len(filtered_data)} problems in subject: {subject}")
         
         return filtered_data
     

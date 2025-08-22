@@ -35,31 +35,31 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "..", "physkit"))
 # Import the dataset loading functionality
 from physkit_datasets import DatasetHub
 
-def main():
+
+def arg_parser():
     """Main function demonstrating dataset loading and exploration."""
     
     # Parse command line arguments
     parser = argparse.ArgumentParser(description="Load and explore PhysKit datasets")
     parser.add_argument("dataset_name", nargs="?", default="ugphysics", 
                        help="Name of the dataset to load (default: ugphysics)")
-    parser.add_argument("--data-dir", default=None, 
-                       help="Data directory path (default: auto-detect)")
     parser.add_argument("--variant", default="full", 
                        help="Dataset variant (default: full)")
     parser.add_argument("--split", default="test", 
                        help="Dataset split (default: test)")
     parser.add_argument("--sample-size", type=int, default=None,
                        help="Number of problems to sample (default: all)")
-    
+    parser.add_argument("--test-all", action="store_true", default=False,
+                       help="Test all datasets")
     args = parser.parse_args()
-    
+    return args
+
+
+def detailed_log_of_loading(args):
+
     print("🚀 PhysKit Dataset Loading Cookbook")
     print("=" * 50)
     print(f"📊 Testing dataset: {args.dataset_name}")
-    if args.data_dir:
-        print(f"📁 Data directory: {args.data_dir}")
-    else:
-        print(f"📁 Data directory: auto-detect (will use default)")
     print(f"🔧 Variant: {args.variant}")
     print(f"✂️  Split: {args.split}")
     if args.sample_size:
@@ -209,6 +209,63 @@ def main():
         if other_dataset != args.dataset_name:
             print(f"    python 01_load_dataset.py {other_dataset}")
 
+
+def iterate_all_datasets(args):
+    """Test all available datasets with minimal logging and error reporting only."""
+    print("🧪 Testing all available datasets...")
+    
+    available_datasets = DatasetHub.list_available()
+    print(f"Found {len(available_datasets)} datasets to test")
+    
+    results = {"success": [], "failed": []}
+    
+    for dataset_name in available_datasets:
+        try:
+            # Test basic info retrieval
+            dataset_info = DatasetHub.get_info(dataset_name)
+            
+            # Test dataset loading with minimal sample
+            dataset = DatasetHub.load(
+                dataset_name=dataset_name,
+                variant="full" if "full" in dataset_info.get("variants", []) else dataset_info.get("variants", [""])[0],
+                split="test" if "test" in dataset_info.get("splits", []) else dataset_info.get("splits")[0],
+                sample_size=1  # Only load 1 problem to test functionality
+            )
+            
+            # Test basic dataset operations
+            problem_count = len(dataset)
+            first_problem = dataset[0] if problem_count > 0 else None
+            
+            # Test problem access and basic fields
+            if first_problem:
+                # Test basic field access
+                _ = first_problem.get('problem_id', '')
+                _ = first_problem.get('question', '')
+                _ = first_problem.get('domain', '')
+            
+            results["success"].append(dataset_name)
+            
+        except Exception as e:
+            results["failed"].append((dataset_name, str(e)))
+    
+    # Print results summary
+    print(f"\n✅ Successfully tested: {len(results['success'])} datasets")
+    if results["failed"]:
+        print(f"❌ Failed to test: {len(results['failed'])} datasets")
+        print("\nErrors:")
+        for dataset_name, error in results["failed"]:
+            print(f"  {dataset_name}: {error}")
+    
+    return results
+        
+
+def main():
+    args = arg_parser()
+    
+    if args.test_all:
+        iterate_all_datasets(args)
+    else:
+        detailed_log_of_loading(args)
 
 if __name__ == "__main__":
     main()

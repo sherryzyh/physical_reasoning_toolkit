@@ -32,7 +32,7 @@ class BaseAnswer(ABC):
     
     def __str__(self) -> str:
         """String representation of the answer."""
-        return f"{self.answer_type.value}: {self.value}"
+        return str(self.value)
     
     def __repr__(self) -> str:
         """Detailed string representation for debugging."""
@@ -99,7 +99,9 @@ class NumericalAnswer(BaseAnswer):
         """Validate that the value is a valid number."""
         return isinstance(self.value, (int, float)) and not isinstance(self.value, bool)
     
-
+    def __str__(self) -> str:
+        """String representation of the answer."""
+        return f"{self.value} {self.unit}" if self.unit else str(self.value)
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary including unit information."""

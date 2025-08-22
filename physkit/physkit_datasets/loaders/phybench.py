@@ -7,7 +7,9 @@ from pathlib import Path
 import random
 from typing import Dict, Any, Optional, Union, List
 
+
 from .base_loader import BaseDatasetLoader
+from physkit_core.definitions.physics_domain import PhysicsDomain
 from physkit_core.models import PhysicalDataset
 
 
@@ -26,16 +28,21 @@ class PHYBenchLoader(BaseDatasetLoader):
         return {
             "name": self.name,
             "description": "PHYBench: A comprehensive physics benchmark dataset with problems across various physics domains",
-            "citation": "arXiv:2504.16074",
+            "citation": "PHYBench: A Comprehensive Physics Benchmark Dataset",
             "paper_url": "https://arxiv.org/pdf/2504.16074",
-            "license": "Research use",
-            "domains": [],
+            "domains": [
+                "mechanics",
+                "electricity",
+                "thermodynamics",
+                "modern_physics",
+                "optics",
+                "advanced_physics"
+            ],
             "languages": ["en"],
-            "variants": ["full", "fullques"],
+            "variants": ["full", "fullques", "onlyques"],
             "splits": ["test"],
             "problem_types": ["OE"],
             "total_problems": "500",
-            "source": "PHYBench-fullques_v1_dict.json"
         }
     
     @property
@@ -48,6 +55,18 @@ class PHYBenchLoader(BaseDatasetLoader):
             "solution": "solution"
         }
     
+    @property
+    def DOMAIN_MAPPING(self) -> Dict[str, str]:
+        """Mapping of domain abbreviations to full domain names."""
+        return {
+            "MECHANICS": PhysicsDomain.MECHANICS,
+            "ELECTRICITY": PhysicsDomain.ELECTRICITY,
+            "THERMODYNAMICS": PhysicsDomain.THERMODYNAMICS,
+            "MODERN": PhysicsDomain.MODERN_PHYSICS,
+            "OPTICS": PhysicsDomain.OPTICS,
+            "ADVANCED": PhysicsDomain.ADVANCED_PHYSICS
+        }
+    
     def _process_metadata(
         self,
         metadata: Dict[str, Any]
@@ -55,6 +74,11 @@ class PHYBenchLoader(BaseDatasetLoader):
         """Process metadata to create standardized problem fields."""
 
         metadata['answer_type'] = "symbolic" # according to the paper
+        
+        domain = metadata.get("domain")
+        if domain:
+            metadata['domain'] = self.DOMAIN_MAPPING.get(domain, PhysicsDomain.OTHER)
+        
         return metadata
         
     def load(
