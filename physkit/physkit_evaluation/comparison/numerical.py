@@ -10,7 +10,8 @@ from typing import Any, Dict, Optional, Tuple
 
 
 from .base import BaseComparator
-from physkit_core.definitions.answer_types import Answer, NumericalAnswer
+from physkit_core.models.answer import Answer
+from physkit_core.definitions.answer_types import AnswerType
 from physkit_core.llm import LLMClient
 
 class NumericalComparator(BaseComparator):
@@ -73,9 +74,9 @@ class NumericalComparator(BaseComparator):
             }
         }
     
-    def _extract_numerical_data(self, answer: NumericalAnswer) -> Tuple[float, Optional[str]]:
+    def _extract_numerical_data(self, answer: Answer) -> Tuple[float, Optional[str]]:
         """Extract numerical value and units from an answer."""
-        return answer.value, answer.units
+        return answer.value, answer.unit
     
     def _is_special_case(self, val1: float, val2: float) -> bool:
         """Check if values are special cases (infinity, NaN, etc.)."""
@@ -223,5 +224,7 @@ class NumericalComparator(BaseComparator):
 
     def can_compare(self, answer1: Answer, answer2: Answer) -> bool:
         """Check if both answers are numerical."""
-        return (isinstance(answer1, NumericalAnswer) and 
-                isinstance(answer2, NumericalAnswer))
+        return (isinstance(answer1, Answer) and 
+                isinstance(answer2, Answer) and 
+                answer1.answer_type == AnswerType.NUMERICAL and 
+                answer2.answer_type == AnswerType.NUMERICAL)

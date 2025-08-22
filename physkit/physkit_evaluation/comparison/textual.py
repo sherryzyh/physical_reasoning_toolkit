@@ -8,7 +8,8 @@ using semantic similarity and fuzzy matching techniques.
 from typing import Any, Dict
 
 from .base import BaseComparator
-from physkit_core.definitions.answer_types import Answer, TextualAnswer
+from physkit_core.models.answer import Answer
+from physkit_core.definitions.answer_types import AnswerType
 from physkit_core.llm import LLMClient
 
 
@@ -55,5 +56,7 @@ class TextualComparator(BaseComparator):
     
     def can_compare(self, answer1: Answer, answer2: Answer) -> bool:
         """Check if both answers are textual."""
-        return (isinstance(answer1, TextualAnswer) and 
-                isinstance(answer2, TextualAnswer))
+        return (isinstance(answer1, Answer) and 
+                isinstance(answer2, Answer) and 
+                answer1.answer_type == AnswerType.TEXTUAL and 
+                answer2.answer_type == AnswerType.TEXTUAL)

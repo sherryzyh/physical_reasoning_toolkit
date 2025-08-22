@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
 from physkit_core.models import PhysicalDataset
-from .full_physics_annotation import FullPhysicsAnnotation
+from physkit_annotation.full_physics_annotation import FullPhysicsAnnotation
 
 class AnnotationWorkflow(ABC):
     @abstractmethod

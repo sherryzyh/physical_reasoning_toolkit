@@ -62,7 +62,7 @@ class VariableAnnotator(BaseAnnotator):
         **kwargs,
     ) -> VariableAnnotation:
         """Extract variables from the problem statement."""
-        domain_name = domain_anno.primary_domain.value
+        domain_name = domain_anno.domains[0].value if domain_anno.domains else 'Unknown'
         theorems = theorem_anno.theorems
         equations = theorem_anno.equations
         

@@ -8,7 +8,8 @@ answers using latex2sympy2_extended for robust LaTeX parsing.
 import re
 from typing import Any, Dict, Optional
 import sympy as sp
-from physkit_core.definitions.answer_types import Answer, SymbolicAnswer
+from physkit_core.models.answer import Answer
+from physkit_core.definitions.answer_types import AnswerType
 from .base import BaseComparator
 
 from ..utils.phybench_latex_pre_process import master_convert, time_simplify
@@ -432,5 +433,7 @@ class SymbolicComparator(BaseComparator):
     
     def can_compare(self, answer1: Answer, answer2: Answer) -> bool:
         """Check if both answers are symbolic."""
-        return (isinstance(answer1, SymbolicAnswer) and 
-                isinstance(answer2, SymbolicAnswer))
+        return (isinstance(answer1, Answer) and 
+                isinstance(answer2, Answer) and 
+                answer1.answer_type == AnswerType.SYMBOLIC and 
+                answer2.answer_type == AnswerType.SYMBOLIC)

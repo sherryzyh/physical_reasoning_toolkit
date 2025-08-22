@@ -14,8 +14,8 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional, Union, Iterator
 from datetime import datetime
 
-from ..full_physics_annotation import FullPhysicsAnnotation
-from ..annotators import (
+from physkit_annotation.full_physics_annotation import FullPhysicsAnnotation
+from physkit_annotation.annotators import (
     DomainAnnotator, TheoremAnnotator, VariableAnnotator, FinalAnswerAnnotator
 )
 from physkit_core.models import PhysicalDataset

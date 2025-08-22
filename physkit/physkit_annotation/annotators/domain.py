@@ -9,28 +9,13 @@ from typing import Dict, List, Any
 
 
 from .base import BaseAnnotator
-from physkit_core.models import PhysicsDomain
+from physkit_core.definitions.physics_domain import PhysicsDomain
+from physkit_annotation.annotations.domain import DomainAnnotation
 
 
-@dataclass
-class DomainAnnotation:
-    """Annotation for physics domain classification."""
-    primary_domain: PhysicsDomain
-    confidence: float = 1.0
-    reasoning: str = ""
-    subdomains: List[str] = field(default_factory=list)
-    
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary representation."""
-        return {
-            "primary_domain": self.primary_domain.value,
-            "confidence": self.confidence,
-            "reasoning": self.reasoning,
-            "subdomains": self.subdomains
-        }
 
 class DomainResponse(BaseModel):
-    primary_domain: PhysicsDomain
+    domains: List[str]
     confidence: float
     reasoning: str
     subdomains: List[str]
@@ -41,30 +26,49 @@ class DomainAnnotator(BaseAnnotator):
     def annotate(self, question: str, **kwargs) -> DomainAnnotation:
         """Annotate the physics domain of the problem."""
         prompt = f"""
-        Analyze the following physics problem and identify the primary physics domain it belongs to.
+        Analyze the following physics problem and identify ALL relevant physics domains it belongs to.
 
         Problem: {question}
 
-        Choose from these physics domains based on evaluation dataset standards:
+        Choose from these physics domains. A problem can belong to multiple domains if it involves concepts from different areas:
 
-        - mechanics: classical mechanics, kinematics, dynamics, energy, momentum, gravitational forces
-        - electromagnetism: electric fields, magnetic fields, circuits, electromagnetic waves, Maxwell's equations
-        - thermodynamics: heat, temperature, entropy, energy transfer, work, pressure, volume
-        - optics: light, reflection, refraction, diffraction, interference, lenses, mirrors, wave optics
-        - acoustics: sound waves, wave propagation, resonance, wave acoustics, ultrasonic waves
-        - quantum_mechanics: wave-particle duality, quantum states, uncertainty principle, superposition
-        - relativity: special relativity, general relativity, spacetime, time dilation, length contraction
-        - atomic_physics: atomic structure, energy levels, spectroscopy, electron transitions
-        - condensed_matter: materials science, phase transitions, superconductivity, semiconductors
-        - other: if none of the above clearly apply
+        - classical_mechanics
+        - theoretical_mechanics
+        - mechanics
+        - classical_electromagnetism
+        - electrodynamics
+        - electricity
+        - quantum_mechanics
+        - modern_physics
+        - atomic_physics
+        - high_energy_theory
+        - thermodynamics
+        - statistical_mechanics
+        - optics
+        - geometrical_optics
+        - wave_optics
+        - solid_state_physics
+        - semiconductor_physics
+        - relativity
+        - cosmology
+        - fundamental_physics
+        - advanced_physics
+        - other
 
         Provide your response in this exact JSON format:
         {{
-            "primary_domain": "primary domain name from the options above",
-            "confidence": "your confidence in the domain choice, between 0 and 1",
-            "reasoning": "brief explanation of why this domain was chosen",
+            "domains": ["domain1", "domain2", "domain3"],
+            "confidence": "your confidence in the domain choices, between 0 and 1",
+            "reasoning": "brief explanation of why these domains were chosen",
             "subdomains": ["specific_subdomain1", "specific_subdomain2"]
         }}
+
+        Guidelines:
+        1. Choose ALL relevant domains - a problem can span multiple areas
+        2. Order domains by relevance (most relevant first)
+        3. Be specific but comprehensive
+        4. If unsure about a domain, include it with lower confidence
+        5. For subdomains, you can freely decide what specific aspects or subcategories to include (e.g., "kinematics", "collision", "spring systems", "electromagnetic waves", "quantum tunneling", etc.)
         """
         
         try:
@@ -74,49 +78,46 @@ class DomainAnnotator(BaseAnnotator):
                 response_format=DomainResponse
             )
             if result is not None:
+                # Convert string domains to PhysicsDomain enums
+                physics_domains = []
+                for domain_str in result.domains:
+                    try:
+                        # Try to find exact match first
+                        domain_enum = PhysicsDomain(domain_str.lower())
+                        physics_domains.append(domain_enum)
+                    except ValueError:
+                        # Try normalized matching
+                        normalized_str = domain_str.lower().replace(' ', '_').replace('-', '_')
+                        found = False
+                        for domain in PhysicsDomain:
+                            if domain.value == normalized_str:
+                                physics_domains.append(domain)
+                                found = True
+                                break
+                        if not found:
+                            # Add as OTHER if no match found
+                            physics_domains.append(PhysicsDomain.OTHER)
+                
                 return DomainAnnotation(
-                    primary_domain=result.primary_domain,
+                    domains=physics_domains,
                     confidence=result.confidence,
                     reasoning=result.reasoning,
                     subdomains=result.subdomains
                 )
             else:
-                # Fallback to basic domain detection
-                return self._fallback_domain_detection(question)
-        except Exception as e:
-            print(f"Error with structured domain annotation: {e}")
-            # Fallback to basic domain detection
-            return self._fallback_domain_detection(question)
-    
-    def _fallback_domain_detection(self, question: str) -> DomainAnnotation:
-        """Fallback domain detection using keyword matching."""
-        question_lower = question.lower()
-        
-        # Keyword-based domain detection for evaluation dataset domains
-        domain_keywords = {
-            PhysicsDomain.MECHANICS: ["force", "mass", "velocity", "acceleration", "energy", "momentum", "kinematics", "dynamics", "gravity", "friction", "spring", "pendulum"],
-            PhysicsDomain.ELECTROMAGNETISM: ["electric", "magnetic", "field", "charge", "current", "voltage", "circuit", "capacitor", "resistor", "inductor", "maxwell", "electromagnetic"],
-            PhysicsDomain.THERMODYNAMICS: ["heat", "temperature", "entropy", "energy", "work", "pressure", "volume", "gas", "adiabatic", "isothermal", "carnot"],
-            PhysicsDomain.OPTICS: ["light", "ray", "reflection", "refraction", "lens", "mirror", "interference", "diffraction", "wavelength", "frequency", "optical", "wave optics", "optical physics"],
-            PhysicsDomain.ACOUSTICS: ["sound", "acoustic", "ultrasonic", "resonance", "wave acoustics", "frequency", "amplitude", "wave propagation"],
-            PhysicsDomain.QUANTUM_MECHANICS: ["quantum", "wave", "particle", "uncertainty", "superposition", "entanglement", "photon", "electron", "wavefunction"],
-            PhysicsDomain.RELATIVITY: ["relativity", "spacetime", "light speed", "time dilation", "length contraction", "einstein", "lorentz"],
-            PhysicsDomain.ATOMIC_PHYSICS: ["atomic", "spectrum", "energy level", "electron", "ionization", "excitation", "spectroscopy"],
-            PhysicsDomain.CONDENSED_MATTER: ["material", "phase transition", "superconductivity", "crystal structure", "semiconductor", "doping", "band gap"]
-        }
-        
-        for domain, keywords in domain_keywords.items():
-            if any(keyword in question_lower for keyword in keywords):
+                # Return empty annotation if no result
                 return DomainAnnotation(
-                    primary_domain=domain,
-                    confidence=0.7,
-                    reasoning="Fallback detection using keyword matching",
+                    domains=[],
+                    confidence=0.0,
+                    reasoning="No domain classification result obtained",
                     subdomains=[]
                 )
-        
-        return DomainAnnotation(
-            primary_domain=PhysicsDomain.OTHER,
-            confidence=0.5,
-            reasoning="Fallback detection - no clear domain identified",
-            subdomains=[]
-        )
+        except Exception as e:
+            print(f"Error with structured domain annotation: {e}")
+            # Return error annotation
+            return DomainAnnotation(
+                domains=[],
+                confidence=0.0,
+                reasoning=f"Error in domain annotation: {str(e)}",
+                subdomains=[]
+            )

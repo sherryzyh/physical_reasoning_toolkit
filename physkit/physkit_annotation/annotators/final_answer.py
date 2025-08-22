@@ -56,7 +56,7 @@ class FinalAnswerAnnotator(BaseAnnotator):
         **kwargs,
     ) -> FinalAnswer:
         """Compute the final answer using the identified variables and equations."""
-        domain_name = domain_anno.primary_domain.value
+        domain_name = domain_anno.domains[0].value if domain_anno.domains else 'Unknown'
         equations = theorem_anno.equations
         known_values = variable_anno.known_variables
         unknown_variables = variable_anno.unknown_variables
