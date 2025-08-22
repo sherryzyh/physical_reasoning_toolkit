@@ -68,7 +68,7 @@ class SeePhysLoader(BaseDatasetLoader):
         # Set default data directory if none provided
         # Resolve data directory with environment variable support
         data_dir = self.resolve_data_dir(data_dir, "SeePhys")
-        self.logger.info(f"Using data directory: {data_dir}")
+        self.logger.debug(f"Using data directory: {data_dir}")
         
         if not data_dir.exists():
             raise FileNotFoundError(f"Data directory not found: {data_dir}")
@@ -122,6 +122,9 @@ class SeePhysLoader(BaseDatasetLoader):
         
         # Create dataset info
         info = self.get_info()
+        
+        # Log final loading result
+        self.logger.info(f"Successfully loaded {len(problems)} problems from SeePhys dataset")
         
         return PhysicalDataset(problems, info, split=split)
     

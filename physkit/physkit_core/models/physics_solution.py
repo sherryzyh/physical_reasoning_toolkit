@@ -82,15 +82,17 @@ class PhysicsSolution:
         self,
         step_name: str,
         step_content: str,
-        step_metadata: Optional[Dict[str, Any]] = None,
         step_type: Optional[str] = None,
+        tool_usage: Optional[Dict[str, Any]] = None,
+        **kwargs,
     ) -> None:
         """Add an intermediate step to the solution process."""
         step = {
             "step_name": step_name,
             "step_content": step_content,
             "step_type": step_type,
-            "metadata": step_metadata or {},
+            "tool_usage": tool_usage or {},
+            **kwargs,
         }
         self.intermediate_steps.append(step)
     

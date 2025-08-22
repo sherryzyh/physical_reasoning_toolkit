@@ -35,17 +35,34 @@ class SymbolicComparator(BaseComparator):
             answer1_exp=self._latex_to_sympy(answer1.value)
             answer2_exp=self._latex_to_sympy(answer2.value)
             
+            # First try symbolic comparison
             zero_exp=time_simplify(sp.expand(answer1_exp-answer2_exp))
+            symbolic_equal = zero_exp==0 or answer1_exp==answer2_exp
+            
+            # If symbolic comparison fails, try enhanced symbolic comparison
+            enhanced_symbolic_equal = False
+            if not symbolic_equal:
+                enhanced_symbolic_equal = self._check_enhanced_symbolic_equivalence(answer1_exp, answer2_exp)
+            
+            # Only try numerical comparison if both symbolic methods fail AND expressions are numerical
+            numerical_equal = False
+            if not symbolic_equal and not enhanced_symbolic_equal:
+                if self._are_expressions_numerical(answer1_exp, answer2_exp):
+                    numerical_equal = self._check_numerical_equivalence(answer1_exp, answer2_exp)
             
             result={
-                "is_equal": zero_exp==0 or answer1_exp==answer2_exp,
+                "is_equal": symbolic_equal or enhanced_symbolic_equal or numerical_equal,
                 "details":{
-                    "method": "symbolic",
+                    "method": "symbolic" if symbolic_equal else ("enhanced_symbolic" if enhanced_symbolic_equal else "numerical"),
                     "parsed_eq1": answer1.value,
                     "parsed_eq2": answer2.value,
                     "sympy_eq1": answer1_exp,
                     "sympy_eq2": answer2_exp,
-                    "zero_exp": zero_exp
+                    "zero_exp": zero_exp,
+                    "symbolic_equal": symbolic_equal,
+                    "enhanced_symbolic_equal": enhanced_symbolic_equal,
+                    "numerical_equal": numerical_equal,
+                    "expressions_numerical": self._are_expressions_numerical(answer1_exp, answer2_exp)
                 },
                 "error": None
             }
@@ -64,7 +81,194 @@ class SymbolicComparator(BaseComparator):
         
 
         return result
-
+    
+    def _check_numerical_equivalence(self, expr1: sp.Basic, expr2: sp.Basic, tolerance: float = 1e-10) -> bool:
+        """
+        Check if two expressions are numerically equivalent.
+        
+        Args:
+            expr1: First SymPy expression
+            expr2: Second SymPy expression
+            tolerance: Numerical tolerance for comparison
+            
+        Returns:
+            True if expressions are numerically equivalent within tolerance
+        """
+        try:
+            # Try to evaluate both expressions numerically
+            # First, check if they can be evaluated to numbers
+            if expr1.is_number and expr2.is_number:
+                # Both are numbers, compare directly
+                return abs(float(expr1) - float(expr2)) < tolerance
+            
+            # Try to substitute common variables with random values and compare
+            # This handles cases like comparing 0.8 vs 2/5
+            if self._can_evaluate_numerically(expr1) and self._can_evaluate_numerically(expr2):
+                # Evaluate both expressions
+                val1 = self._evaluate_expression(expr1)
+                val2 = self._evaluate_expression(expr2)
+                
+                if val1 is not None and val2 is not None:
+                    return abs(val1 - val2) < tolerance
+            
+            return False
+            
+        except Exception:
+            return False
+    
+    def _check_enhanced_symbolic_equivalence(self, expr1: sp.Basic, expr2: sp.Basic) -> bool:
+        """
+        Enhanced symbolic comparison for expressions that might not simplify to zero directly.
+        
+        This method handles cases where expressions are symbolically equivalent but
+        don't simplify to zero through basic expansion and simplification.
+        
+        Args:
+            expr1: First SymPy expression
+            expr2: Second SymPy expression
+            
+        Returns:
+            True if expressions are symbolically equivalent
+        """
+        try:
+            # Method 1: Try different simplification strategies
+            simplified1 = time_simplify(expr1)
+            simplified2 = time_simplify(expr2)
+            
+            if simplified1 == simplified2:
+                return True
+            
+            # Method 2: Check if they're structurally identical
+            if expr1 == expr2:
+                return True
+            
+            # Method 3: Try factoring and expanding in different ways
+            try:
+                factored1 = sp.factor(expr1)
+                factored2 = sp.factor(expr2)
+                if factored1 == factored2:
+                    return True
+            except:
+                pass
+            
+            # Method 4: Check if they're both equations and compare sides
+            if self._are_both_equations(expr1, expr2):
+                return self._compare_equation_sides(expr1, expr2)
+            
+            # Method 5: Try to solve for variables and check equivalence
+            if self._can_solve_for_equivalence(expr1, expr2):
+                return self._solve_for_equivalence(expr1, expr2)
+            
+            return False
+            
+        except Exception:
+            return False
+    
+    def _are_expressions_numerical(self, expr1: sp.Basic, expr2: sp.Basic) -> bool:
+        """
+        Check if both expressions can be evaluated to numerical values.
+        
+        Args:
+            expr1: First SymPy expression
+            expr2: Second SymPy expression
+            
+        Returns:
+            True if both expressions are purely numerical (no variables)
+        """
+        try:
+            # Check if both expressions contain no free symbols (variables)
+            return len(expr1.free_symbols) == 0 and len(expr2.free_symbols) == 0
+        except Exception:
+            return False
+    
+    def _are_both_equations(self, expr1: sp.Basic, expr2: sp.Basic) -> bool:
+        """Check if both expressions are equations."""
+        try:
+            return (hasattr(expr1, 'lhs') and hasattr(expr1, 'rhs') and 
+                    hasattr(expr2, 'lhs') and hasattr(expr2, 'rhs'))
+        except Exception:
+            return False
+    
+    def _compare_equation_sides(self, eq1: sp.Basic, eq2: sp.Basic) -> bool:
+        """Compare equation sides for equivalence."""
+        try:
+            # Compare left sides
+            left_equal = time_simplify(sp.expand(eq1.lhs - eq2.lhs)) == 0
+            # Compare right sides
+            right_equal = time_simplify(sp.expand(eq1.rhs - eq2.rhs)) == 0
+            return left_equal and right_equal
+        except Exception:
+            return False
+    
+    def _can_solve_for_equivalence(self, expr1: sp.Basic, expr2: sp.Basic) -> bool:
+        """Check if we can solve expressions for equivalence."""
+        try:
+            # Only try solving if expressions are relatively simple
+            complexity1 = self._get_expression_complexity(expr1)
+            complexity2 = self._get_expression_complexity(expr2)
+            return complexity1 < 10 and complexity2 < 10  # Arbitrary complexity threshold
+        except Exception:
+            return False
+    
+    def _solve_for_equivalence(self, expr1: sp.Basic, expr2: sp.Basic) -> bool:
+        """Try to solve expressions for equivalence."""
+        try:
+            # Try to solve expr1 = expr2
+            solution = sp.solve(expr1 - expr2)
+            # If solution is empty list, expressions are never equal
+            # If solution is a list with values, expressions can be equal
+            return len(solution) > 0
+        except Exception:
+            return False
+    
+    def _get_expression_complexity(self, expr: sp.Basic) -> int:
+        """Get a rough measure of expression complexity."""
+        try:
+            # Count operations and symbols
+            count = 0
+            for arg in expr.args:
+                count += 1
+                if hasattr(arg, 'args'):
+                    count += self._get_expression_complexity(arg)
+            return count
+        except Exception:
+            return 0
+    
+    def _can_evaluate_numerically(self, expr: sp.Basic) -> bool:
+        """Check if expression can be evaluated to a number."""
+        try:
+            # Check if it's a simple expression that can be evaluated
+            if expr.is_number:
+                return True
+            
+            # Check if it's a fraction, decimal, or simple arithmetic
+            if expr.is_rational or expr.is_float:
+                return True
+            
+            # Check if it's a simple arithmetic expression
+            if expr.is_Add or expr.is_Mul or expr.is_Pow:
+                # Check if all sub-expressions are numbers
+                return all(arg.is_number for arg in expr.args)
+            
+            return False
+        except Exception:
+            return False
+    
+    def _evaluate_expression(self, expr: sp.Basic) -> Optional[float]:
+        """Evaluate expression to a numerical value."""
+        try:
+            if expr.is_number:
+                return float(expr)
+            
+            # Try to evaluate the expression
+            result = expr.evalf()
+            if result.is_number:
+                return float(result)
+            
+            return None
+        except Exception:
+            return None
+    
     # def _extract_equation_sides(self, equation: str) -> tuple[Optional[str], Optional[str]]:
     #     """
     #     Extract left and right sides of an equation.

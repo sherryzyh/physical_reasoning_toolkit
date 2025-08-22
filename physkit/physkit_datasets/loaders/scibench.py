@@ -32,25 +32,63 @@ class SciBenchLoader(BaseDatasetLoader):
         """Initialize the SciBench loader with a logger."""
         super().__init__()
         self.logger = PhysKitLogger.get_logger(__name__)
-
-    # Subject classification mapping
-    SUBJECT_MAPPING = {
-        # Mathematics subjects
-        "calculus": "math",
-        "diff": "math", 
-        "fund": "math",
-        "stat": "math",
-        
-        # Chemistry subjects
-        "atkins": "chemistry",
-        "chemmc": "chemistry",
-        "quan": "chemistry",
-        
-        # Physics subjects
-        "class": "physics",
-        "matter": "physics", 
-        "thermo": "physics"
-    }
+    
+    @property
+    def DOMAIN_SUBJECT_MAPPING(self) -> Dict[str, str]:
+        """Return mapping of source domains to their subjects and problem counts."""
+        # Subject classification mapping
+        return {
+            "diff": {
+            "domain": "Differential Equations",
+            "subject": "math",
+            "problem_count": 50
+            },
+            "fund": {
+            "domain": "Fundamental Physics",
+            "subject": "physics",
+            "problem_count": 71
+            },
+            "chemmc": {
+            "domain": "Chemistry Multiple Choice",
+            "subject": "chemistry",
+            "problem_count": 38
+            },
+            "atkins": {
+            "domain": "Physical Chemistry",
+            "subject": "chemistry",
+            "problem_count": 105
+            },
+            "matter": {
+            "domain": "Matter and Materials",
+            "subject": "chemistry",
+            "problem_count": 47
+            },
+            "thermo": {
+            "domain": "Thermodynamics",
+            "subject": "chemistry",
+            "problem_count": 66
+            },
+            "class": {
+            "domain": "Classical Mechanics",
+            "subject": "physics",
+            "problem_count": 56
+            },
+            "quan": {
+            "domain": "Quantum Mechanics",
+            "subject": "physics",
+            "problem_count": 33
+            },
+            "stat": {
+            "domain": "Statistics",
+            "subject": "math",
+            "problem_count": 72
+            },
+            "calculus": {
+            "domain": "Calculus",
+            "subject": "math",
+            "problem_count": 42
+            }
+        }
 
     @property
     def name(self) -> str:
@@ -67,16 +105,19 @@ class SciBenchLoader(BaseDatasetLoader):
         return {
             "name": self.name,
             "description": self.description,
-            "subjects": ["physics", "chemistry", "math"],
+            "domains": [
+                "fundamental_physics",
+                "classical_mechanics",
+                "quantum_mechanics"
+            ],
             "languages": ["en"],
             "variants": ["full"],
             "splits": ["test"],
             "problem_types": ["OE"],
-            "total_problems": "~1000+",
+            "total_problems": "160",
             "difficulty": "College level",
             "source": "College textbooks",
-            "citation": "SciBench dataset for scientific problem solving",
-            "license": "Research use"
+            "citation": "SciBench: A College-Level Scientific Reasoning Benchmark",
         }
 
     @property
@@ -96,19 +137,10 @@ class SciBenchLoader(BaseDatasetLoader):
         """
         return {
             "problem_text": "question",
-            "solution": "solution"
+            "solution": "solution",
+            "domain": "domain",
         }
 
-    def _get_subject_from_source(self, source: str) -> str:
-        """Determine subject from source field."""
-        source_lower = source.lower().strip()
-        return self.SUBJECT_MAPPING.get(source_lower, "other")
-
-    def _should_include_subject(self, subject: str) -> bool:
-        """Check if subject should be included based on filter."""
-        if self.subject_filter == "all":
-            return True
-        return subject == self.subject_filter
 
     def _parse_unit_with_exponent(self, unit: str) -> Tuple[str, str]:
         """
@@ -214,39 +246,6 @@ class SciBenchLoader(BaseDatasetLoader):
         # Default to textual if nothing else matches
         return answer_latex or answer_number or "", "textual", actual_unit
 
-    def _determine_domain(self, source: str, question_text: str) -> PhysicsDomain:
-        """Determine physics domain from source and question content."""
-        source_lower = source.lower().strip()
-        question_lower = question_text.lower()
-        
-        # Map based on source
-        if source_lower == "class":
-            return PhysicsDomain.MECHANICS
-        elif source_lower == "matter":
-            return PhysicsDomain.CONDENSED_MATTER
-        elif source_lower == "thermo":
-            return PhysicsDomain.THERMODYNAMICS
-        
-        # Map based on question content keywords
-        if any(keyword in question_lower for keyword in ["force", "mass", "velocity", "acceleration", "energy", "momentum"]):
-            return PhysicsDomain.MECHANICS
-        elif any(keyword in question_lower for keyword in ["electric", "magnetic", "circuit", "field", "voltage", "current"]):
-            return PhysicsDomain.ELECTROMAGNETISM
-        elif any(keyword in question_lower for keyword in ["heat", "temperature", "entropy", "pressure", "volume"]):
-            return PhysicsDomain.THERMODYNAMICS
-        elif any(keyword in question_lower for keyword in ["light", "reflection", "refraction", "diffraction", "wave"]):
-            return PhysicsDomain.OPTICS
-        elif any(keyword in question_lower for keyword in ["sound", "wave", "frequency", "resonance"]):
-            return PhysicsDomain.ACOUSTICS
-        elif any(keyword in question_lower for keyword in ["quantum", "wave function", "uncertainty", "energy level"]):
-            return PhysicsDomain.QUANTUM_MECHANICS
-        elif any(keyword in question_lower for keyword in ["relativity", "spacetime", "time dilation", "length contraction"]):
-            return PhysicsDomain.RELATIVITY
-        elif any(keyword in question_lower for keyword in ["atom", "electron", "nucleus", "spectrum"]):
-            return PhysicsDomain.ATOMIC_PHYSICS
-        
-        return PhysicsDomain.OTHER
-
     def _load_json_file(self, file_path: Path) -> List[Dict[str, Any]]:
         """Load and parse a JSON file."""
         try:
@@ -308,11 +307,17 @@ class SciBenchLoader(BaseDatasetLoader):
         
         return merged_problems
 
+    @property
+    def DOMAIN_MAPPING(self) -> Dict[str, str]:
+        """Mapping of domain abbreviations to full domain names."""
+        return {
+            "fund": PhysicsDomain.FUNDAMENTAL_PHYSICS,
+            "class": PhysicsDomain.CLASSICAL_MECHANICS,
+            "quan": PhysicsDomain.QUANTUM_MECHANICS,
+        }
+
     def _process_metadata(self, metadata: Dict[str, Any]) -> Dict[str, Any]:
         """Process metadata to create a PhysicsProblem."""
-        problem_id = metadata.get("problemid", "")
-        metadata.pop("problemid", None)
-        metadata["problem_id"] = problem_id.strip()
         
         # Determine answer type and extract unit
         answer_latex = metadata.get("answer_latex", "")
@@ -343,6 +348,13 @@ class SciBenchLoader(BaseDatasetLoader):
         # Set problem type
         metadata['problem_type'] = "OE"
         
+        domain = metadata.get("domain", "")
+        if domain:
+            metadata['domain'] = self.DOMAIN_MAPPING.get(domain, PhysicsDomain.OTHER)
+        
+        problem_id = metadata.get("problemid", "")
+        metadata.pop("problemid", None)
+        metadata["problem_id"] = domain + "_" + problem_id.strip()
         return metadata
 
 
@@ -350,7 +362,6 @@ class SciBenchLoader(BaseDatasetLoader):
         self,
         data_dir: Union[str, Path, None] = None,
         sample_size: Optional[int] = None,
-        subject_filter: str = "physics",
         **kwargs
     ) -> PhysicalDataset:
         """
@@ -374,13 +385,14 @@ class SciBenchLoader(BaseDatasetLoader):
         problem_files = [f for f in json_files if not f.name.endswith("_sol.json")]
         solution_files = [f for f in json_files if f.name.endswith("_sol.json")]
         
-        self.logger.info(f"Found {len(problem_files)} problem files and {len(solution_files)} solution files")
+        self.logger.debug("Found %d problem files and %d solution files", len(problem_files), len(solution_files))
         
-        self.subject_filter = subject_filter
         
         # Process each problem file
         for problem_file in problem_files:
             source_name = problem_file.stem  # filename without extension
+            if source_name not in self.DOMAIN_SUBJECT_MAPPING:
+                continue
             
             # Load problems
             problems = self._load_json_file(problem_file)
@@ -398,29 +410,25 @@ class SciBenchLoader(BaseDatasetLoader):
             
             # Filter by subject and add to all problems
             for problem in merged_problems:
-                subject = self._get_subject_from_source(problem.get("source", ""))
-                
-                if self._should_include_subject(subject):
-                    # Add source information
-                    problem["source"] = source_name
-                    problem["subject"] = subject
-                    all_problems.append(problem)
+                problem["domain"] = source_name
+            
+            all_problems.extend(merged_problems)
         
-        self.logger.info(f"Loaded {len(all_problems)} problems after subject filtering")
+        self.logger.debug("Loaded %d problems", len(all_problems))
         
         # Create PhysicsProblem objects
         physics_problems = []
-        for problem_data in all_problems:
+        for idx, problem_data in enumerate(all_problems):
             try:
                 metadata = self.initialize_metadata(problem_data)
                 metadata = self._process_metadata(metadata)
                 physics_problem = self.create_physics_problem(metadata)
                 physics_problems.append(physics_problem)
             except Exception as e:
-                self.logger.warning(f"Could not create problem from {problem_data.get('problemid', 'unknown')}: {e}")
+                self.logger.warning("Could not create problem from %s: %s", problem_data.get('problemid', 'unknown'), e)
                 continue
         
-        self.logger.info(f"Successfully created {len(physics_problems)} PhysicsProblem objects")
+        self.logger.debug("Successfully created %d PhysicsProblem objects", len(physics_problems))
         
         # Create PhysicalDataset
         dataset = PhysicalDataset(
@@ -428,11 +436,13 @@ class SciBenchLoader(BaseDatasetLoader):
             info={
                 "name": self.name,
                 "description": self.description,
-                "subject_filter": subject_filter,
                 "total_problems": len(physics_problems),
                 "subjects_included": list(set(p.domain.value for p in physics_problems if p.domain)),
                 "source_files": [f.stem for f in problem_files]
             }
         )
+        
+        # Log final loading result
+        self.logger.info(f"Successfully loaded {len(physics_problems)} problems from SciBench dataset")
         
         return dataset

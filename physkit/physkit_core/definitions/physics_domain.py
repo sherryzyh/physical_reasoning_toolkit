@@ -8,24 +8,31 @@ from enum import Enum
 
 
 class PhysicsDomain(Enum):
-    """Enumeration of physics domains based on evaluation dataset standards."""
-    # Core classical physics domains (from PHYBench, UGPhysics, SeePhys)
-    MECHANICS = "mechanics"  # Classical mechanics, kinematics, dynamics, energy, momentum
-    ELECTROMAGNETISM = "electromagnetism"  # Electric fields, magnetic fields, circuits, electromagnetic waves
-    THERMODYNAMICS = "thermodynamics"  # Heat, temperature, entropy, energy transfer
-    OPTICS = "optics"  # Light, reflection, refraction, diffraction, interference, wave optics
-    ACOUSTICS = "acoustics"  # Sound waves, wave propagation, resonance, wave acoustics
     
-    # Modern physics domains (from UGPhysics, PhysReason)
-    QUANTUM_MECHANICS = "quantum_mechanics"  # Wave-particle duality, quantum states, uncertainty
-    RELATIVITY = "relativity"  # Special relativity, general relativity, spacetime
-    ATOMIC_PHYSICS = "atomic_physics"  # Atomic structure, energy levels, spectroscopy
+    SOLID_STATE_PHYSICS = "solid_state_physics"                 # UGPhysics
+    RELATIVITY = "relativity"                                   # UGPhysics
+    QUANTUM_MECHANICS = "quantum_mechanics"                     # UGPhysics # TPBench # SciBench
+    CLASSICAL_ELECTROMAGNETISM = "classical_electromagnetism"   # UGPhysics
+    ELECTRODYNAMICS = "electrodynamics"                         # UGPhysics
+    THERMODYNAMICS = "thermodynamics"                           # UGPhysics # PHYBench
+    THEORETICAL_MECHANICS = "theoretical_mechanics"             # UGPhysics
+    ATOMIC_PHYSICS = "atomic_physics"                           # UGPhysics
+    STATISTICAL_MECHANICS = "statistical_mechanics"             # UGPhysics # TPBench
+    GEOMETRICAL_OPTICS = "geometrical_optics"                   # UGPhysics
+    WAVE_OPTICS = "wave_optics"                                 # UGPhysics
+    SEMICONDUCTOR_PHYSICS = "semiconductor_physics"             # UGPhysics
+    CLASSICAL_MECHANICS = "classical_mechanics"                 # UGPhysics # TPBench # SciBench
+    HIGH_ENERGY_THEORY = "high_energy_theory"                   # TPBench
+    COSMOLOGY = "cosmology"                                     # TPBench
+    FUNDAMENTAL_PHYSICS = "fundamental_physics"                 # SciBench
+    MECHANICS = "mechanics"                                     # PHYBench
+    ELECTRICITY = "electricity"                                 # PHYBench
+    OPTICS = "optics"                                           # PHYBench
+    MODERN_PHYSICS = "modern_physics"                           # PHYBench
+    ADVANCED_PHYSICS = "advanced_physics"                       # PHYBench
     
-    # Advanced physics domains (from UGPhysics)
-    CONDENSED_MATTER = "condensed_matter"  # Materials science, phase transitions, semiconductors
+    OTHER = "other"
     
-    # Fallback
-    OTHER = "other"  # If none of the above clearly apply
     
     @classmethod
     def from_string(cls, domain_str: str) -> 'PhysicsDomain':

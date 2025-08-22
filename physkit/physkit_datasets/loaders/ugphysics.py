@@ -38,10 +38,10 @@ class UGPhysicsLoader(BaseDatasetLoader):
             "name": self.name,
             "description": self.description,
             "domains": [
-                "AtomicPhysics", "ClassicalElectromagnetism", "ClassicalMechanics",
-                "Electrodynamics", "GeometricalOptics", "QuantumMechanics",
-                "Relativity", "SemiconductorPhysics", "Solid-StatePhysics",
-                "StatisticalMechanics", "TheoreticalMechanics", "Thermodynamics", "WaveOptics"
+                "atomic_physics", "classical_electromagnetism", "classical_mechanics",
+                "electrodynamics", "geometrical_optics", "quantum_mechanics",
+                "relativity", "semiconductor_physics", "solid_state_physics",
+                "statistical_mechanics", "theoretical_mechanics", "thermodynamics", "wave_optics"
             ],
             "languages": ["en", "zh"],
             "variants": ["mini", "full"],
@@ -69,10 +69,35 @@ class UGPhysicsLoader(BaseDatasetLoader):
             "language": "language",     # Map "language" to language metadata
         }
     
+    @property
+    def DOMAIN_MAPPING(self) -> Dict[str, str]:
+        """Mapping of domain abbreviations to full domain names."""
+        return {
+            "AtomicPhysics": PhysicsDomain.ATOMIC_PHYSICS,
+            "ClassicalElectromagnetism": PhysicsDomain.CLASSICAL_ELECTROMAGNETISM,
+            "ClassicalMechanics": PhysicsDomain.CLASSICAL_MECHANICS,
+            "Electrodynamics": PhysicsDomain.ELECTRODYNAMICS,
+            "GeometricalOptics": PhysicsDomain.GEOMETRICAL_OPTICS,
+            "QuantumMechanics": PhysicsDomain.QUANTUM_MECHANICS,
+            "Relativity": PhysicsDomain.RELATIVITY,
+            "SemiconductorPhysics": PhysicsDomain.SEMICONDUCTOR_PHYSICS,
+            "Solid-StatePhysics": PhysicsDomain.SOLID_STATE_PHYSICS,
+            "StatisticalMechanics": PhysicsDomain.STATISTICAL_MECHANICS,
+            "TheoreticalMechanics": PhysicsDomain.THEORETICAL_MECHANICS,
+            "Thermodynamics": PhysicsDomain.THERMODYNAMICS,
+            "WaveOptics": PhysicsDomain.WAVE_OPTICS
+        }
+                
     def _process_metadata(self, metadata: Dict[str, Any], domain_name: str):
         """Process metadata to create standardized problem fields."""
-        # Set domain from the domain name
-        metadata['domain'] = domain_name
+        # Map UGPhysics domain names to PhysicsDomain enum values
+
+        
+        # Set domain from the domain name mapping
+        metadata['domain'] = self.DOMAIN_MAPPING.get(
+            domain_name,
+            PhysicsDomain.OTHER,
+        )
         
         # difficulty
         metadata['difficulty'] = "undergraduate"
@@ -133,7 +158,7 @@ class UGPhysicsLoader(BaseDatasetLoader):
         
         # Resolve data directory with environment variable support
         data_dir = self.resolve_data_dir(data_dir, "ugphysics")
-        self.logger.info(f"Using data directory: {data_dir}")
+        self.logger.debug(f"Using data directory: {data_dir}")
         
         if not data_dir.exists():
             raise FileNotFoundError(f"Data directory not found: {data_dir}")
@@ -216,6 +241,9 @@ class UGPhysicsLoader(BaseDatasetLoader):
         info["total_problems"] = len(problems)
         info["problems_by_domain"] = {str(domain): count for domain, count in domain_counts.items()}
         
+        # Log final loading result
+        self.logger.info(f"Successfully loaded {len(problems)} problems from UGPhysics dataset")
+        
         return PhysicalDataset(
             problems,
             info,
@@ -233,7 +261,7 @@ class UGPhysicsLoader(BaseDatasetLoader):
             self.logger.error(f"Data directory does not exist: {data_dir}")
             return []
         
-        self.logger.info(f"Scanning directory: {data_dir}")
+        self.logger.debug(f"Scanning directory: {data_dir}")
         
         # Get all subdirectories
         all_dirs = [d for d in data_dir.iterdir() if d.is_dir()]
