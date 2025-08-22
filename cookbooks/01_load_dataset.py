@@ -145,6 +145,11 @@ def detailed_log_of_loading(args):
         # 8. Save dataset information to showcase output
         root_dir = os.path.dirname(os.path.dirname(__file__))
         output_dir = Path(root_dir) / "showcase_output" / "dataset_exploration"
+        
+        # Clear output directory at the beginning
+        if output_dir.exists():
+            import shutil
+            shutil.rmtree(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
         
         # Save dataset summary

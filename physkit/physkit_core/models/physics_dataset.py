@@ -191,6 +191,11 @@ class PhysicalDataset:
         """Get the dataset split."""
         return self._split
     
+    @property
+    def name(self) -> str:
+        """Get the dataset name."""
+        return self._info.get('name', self.__class__.__name__)
+    
     def to_list(self) -> List[Dict[str, Any]]:
         """Convert dataset to list of dictionaries."""
         return [problem.to_dict() for problem in self._problems]

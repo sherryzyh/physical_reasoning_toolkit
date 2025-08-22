@@ -29,7 +29,7 @@ import json
 from pathlib import Path
 
 # Import the annotation workflow functionality
-from physkit_annotation import AnnotationWorkflow
+from physkit_annotation.workflows.presets import PlainAutomaticWorkflow
 from physkit_datasets import DatasetHub
 
 def main():
@@ -70,6 +70,13 @@ def main():
     # 2. Set up output directory
     root_dir = os.path.dirname(os.path.dirname(__file__))
     output_dir = Path(root_dir) / "showcase_output" / "automated_annotation"
+    
+    # Clear output directory at the beginning
+    if output_dir.exists():
+        import shutil
+        shutil.rmtree(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    
     print(f"\n📁 Output directory: {output_dir}")
     
     # 3. Initialize the automated annotation workflow
@@ -78,7 +85,7 @@ def main():
     
     try:
         # Initialize with o3-mini model (you can change this to other models)
-        workflow = AnnotationWorkflow(
+        workflow = PlainAutomaticWorkflow(
             output_dir=output_dir,
             model="o3-mini"  # You can also use "gpt-4", "gpt-3.5-turbo", etc.
         )
@@ -99,11 +106,7 @@ def main():
         print("  This may take a few minutes depending on the LLM response time...")
         
         # Run the annotation workflow
-        summary = workflow.run(
-            dataset=dataset,
-            max_problems=3,  # Ensure we only process 3 problems
-            domain_filter=None  # Process all domains
-        )
+        summary = workflow.run(dataset=dataset)
         
         print(f"  ✅ Annotation completed successfully!")
         print(f"  📊 Results summary:")
@@ -127,7 +130,7 @@ def main():
                 print(f"    • {rel_path}")
         
         # Show individual problem results
-        annotation_dir = output_dir / "llm_annotation"
+        annotation_dir = output_dir / "annotation"
         if annotation_dir.exists():
             print(f"\n  📝 Individual problem annotations:")
             for problem_file in annotation_dir.glob("*.json"):
@@ -139,12 +142,16 @@ def main():
                         problem_result = json.load(f)
                     
                     problem_id = problem_result.get('problem_id', 'Unknown')
-                    domain = problem_result.get('domain_annotation', {}).get('primary_domain', 'Unknown')
-                    theorem = problem_result.get('theorem_annotation', {}).get('theorem', 'Unknown')
+                    domain = problem_result.get('annotations', {}).get('domain', {})
+                    theorem = problem_result.get('annotations', {}).get('theorem', {})
+                    
+                    # Extract domain and theorem information from the new structure
+                    domain_info = domain.get('primary_domain', 'Unknown') if hasattr(domain, 'get') else str(domain)
+                    theorem_info = theorem.get('theorem', 'Unknown') if hasattr(theorem, 'get') else str(theorem)
                     
                     print(f"      - Problem ID: {problem_id}")
-                    print(f"      - Domain: {domain}")
-                    print(f"      - Theorem: {theorem[:50]}{'...' if len(str(theorem)) > 50 else ''}")
+                    print(f"      - Domain: {domain_info}")
+                    print(f"      - Theorem: {str(theorem_info)[:50]}{'...' if len(str(theorem_info)) > 50 else ''}")
                     break  # Only show first one to avoid too much output
                 except Exception as e:
                     print(f"      - Error reading result: {e}")

@@ -1,4 +1,4 @@
-# Physical Reasoning Toolkit ��🔬
+# Physical Reasoning Toolkit 🔬
 
 A comprehensive research toolkit for physical reasoning, dataset management, annotation workflows, and evaluation in physics education and AI research.
 
