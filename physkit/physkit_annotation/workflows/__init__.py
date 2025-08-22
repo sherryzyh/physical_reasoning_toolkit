@@ -2,14 +2,12 @@
 Workflow modules for physical annotation.
 
 This package provides different workflow strategies for processing physics problems:
-- SupervisedAnnotationWorkflow: Supervised workflow with human review after each step
-- AnnotationWorkflow: Simple annotation workflow that chains annotators step by step
+- WorkflowComposer: Modular workflow composition system
 """
 
-from .supervised_annotation_workflow import SupervisedAnnotationWorkflow
-from .annotation_workflow import AnnotationWorkflow
+from .workflow_composer import WorkflowComposer
+
 
 __all__ = [
-    "SupervisedAnnotationWorkflow",
-    "AnnotationWorkflow"
+    "WorkflowComposer",
 ]

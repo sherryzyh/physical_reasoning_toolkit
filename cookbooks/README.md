@@ -16,13 +16,17 @@ python 01_load_dataset.py ugphysics
 python 01_load_dataset.py phybench
 python 01_load_dataset.py physreason
 
-
 # Run annotation workflows
 python 02_automated_annotation.py
-python 03_supervised_annotation.py
 
-# Test enhanced evaluation toolkit (18 comprehensive test scenarios)
-python 05_evaluation_demo.py
+
+# Demo environment variables and workflow composition
+python 03_environment_variables.py
+python 04_workflow_composition_demo.py
+
+
+# Test enhanced evaluation toolkit (25 comprehensive test scenarios)
+python 05_answer_comparison_demo.py
 ```
 
 ## 📚 Available Cookbooks
@@ -68,10 +72,11 @@ python 01_load_dataset.py physreason --data-dir ~/my_data
 **Purpose**: Run unsupervised LLM-based annotation on physics problems
 
 **Features**:
-- Uses OpenAI GPT models for automated domain annotation
-- Configurable sample sizes (default: 5 problems)
-- Saves results to `showcase_output/automated_annotation/`
-- No human intervention required
+- ✅ **Sequential Pipeline**: Domain → Theorem → Variable → Final Answer annotation
+- ✅ **LLM Integration**: Uses OpenAI models for automated annotation
+- ✅ **Configurable**: Sample sizes and model selection
+- ✅ **Comprehensive Results**: Saves individual problem annotations and workflow statistics
+- ✅ **Error Handling**: Graceful handling of failed annotations with detailed error reporting
 
 **Usage**:
 ```bash
@@ -82,26 +87,12 @@ python 02_automated_annotation.py
 - `OPENAI_API_KEY` environment variable set
 - UGPhysics dataset available
 
-### 3. **Supervised Annotation Workflow** (`03_supervised_annotation.py`)
-**Purpose**: Run human-in-the-loop annotation workflow with quality control
+**Output**:
+- Individual problem annotation files in `annotation/` directory
+- Workflow statistics and summary
+- Detailed logging of each annotation step
 
-**Features**:
-- Automated domain annotation with LLM
-- Quality assessment and human review simulation
-- Revision capabilities for improved annotations
-- Comprehensive statistics and success rate tracking
-- Saves results to `showcase_output/supervised_annotation/`
-
-**Usage**:
-```bash
-python 03_supervised_annotation.py
-```
-
-**Prerequisites**:
-- `OPENAI_API_KEY` environment variable set
-- UGPhysics dataset available
-
-### 4. **Environment Variables Demo** (`04_environment_variables_demo.py`)
+### 3. **Environment Variables Demo** (`03_environment_variables.py`)
 **Purpose**: Demonstrate environment variable configuration and priority
 
 **Features**:
@@ -112,28 +103,55 @@ python 03_supervised_annotation.py
 
 **Usage**:
 ```bash
-python 04_environment_variables_demo.py
+python 03_environment_variables.py
 ```
 
-### 5. **Enhanced Evaluation Toolkit Demo** (`05_evaluation_demo.py`)
+### 4. **Workflow Composition Demo** (`04_workflow_composition_demo.py`)
+**Purpose**: Demonstrate how to compose custom annotation workflows using WorkflowComposer
+
+**Features**:
+- ✅ **Custom Workflow Creation**: Build workflows by combining individual modules
+- ✅ **Module Composition**: Add, remove, and chain workflow modules
+- ✅ **Flexible Configuration**: Customize workflow parameters and settings
+- ✅ **Result Analysis**: Comprehensive workflow statistics and data flow analysis
+- ✅ **Status Monitoring**: Real-time workflow status and control capabilities
+
+**Usage**:
+```bash
+python 04_workflow_composition_demo.py
+```
+
+**Prerequisites**:
+- `OPENAI_API_KEY` environment variable set
+- PHYBench dataset available
+
+**Key Concepts Demonstrated**:
+- WorkflowComposer for orchestration
+- Module composition and chaining
+- Result aggregation and statistics
+- Output management and file organization
+
+### 5. **Enhanced Evaluation Toolkit Demo** (`05_answer_comparison_demo.py`)
 **Purpose**: Comprehensive demonstration of PhysKit's advanced evaluation capabilities across different answer types
 
 **Features**:
-- ✅ **Multi-type comparison**: Symbolic expressions, numerical values, and textual descriptions
+- ✅ **Multi-type comparison**: Symbolic expressions, numerical values, textual descriptions, and multiple choice options
 - ✅ **Advanced symbolic parsing**: Handles complex LaTeX, equations vs expressions, mathematical equivalence
 - ✅ **Smart numerical comparison**: Significant figure-based comparison, unit conversions, special cases (infinity, NaN, zero)
 - ✅ **Semantic textual analysis**: LLM-powered comparison for different phrasings and explanations
-- ✅ **Comprehensive test scenarios**: 18 diverse physics problems covering various edge cases
+- ✅ **Intelligent option comparison**: Case-insensitive, order-independent multiple choice answer comparison
+- ✅ **Comprehensive test scenarios**: 25 diverse physics problems covering various edge cases
 - ✅ **Detailed analysis**: Per-type accuracy breakdown, comparison method details, error analysis
 
 **Test Scenarios**:
 - **Symbolic (5 problems)**: Complex velocity functions, Newton's laws, Einstein's E=mc², integral equations
 - **Numerical (8 problems)**: Unit conversions (km/h ↔ m/s, °F ↔ °C, g ↔ kg), significant figures, special values
 - **Textual (5 problems)**: Physics explanations with different phrasings and terminology
+- **Option (7 problems)**: Single choice, multiple choice, case-insensitive, order-independent, different separators
 
 **Usage**:
 ```bash
-python 05_evaluation_demo.py
+python 05_answer_comparison_demo.py
 ```
 
 **Prerequisites**:
@@ -147,12 +165,14 @@ python 05_evaluation_demo.py
   • Symbolic: Handles equations vs expressions, complex LaTeX parsing
   • Numerical: Unit conversions, significant figures, special cases (inf, NaN)
   • Textual: Semantic similarity using LLM comparison
+  • Option: Case-insensitive, order-independent multiple choice comparison
   • Comprehensive error handling and detailed comparison results
 
 📈 Accuracy Breakdown by Answer Type
 Symbolic:   80.00% (4/5)
 Numerical:  75.00% (6/8)  
 Textual:    100.00% (5/5)
+Option:     100.00% (7/7)
 ```
 
 **Advanced Capabilities Showcased**:
@@ -160,6 +180,9 @@ Textual:    100.00% (5/5)
 - **Unit Intelligence**: Dimensional analysis, automatic conversion factors, compatibility checking
 - **Significant Figures**: Precision-aware comparison without fixed tolerance
 - **LLM Integration**: GPT-4o for semantic comparison of units and explanations
+- **Option Intelligence**: Smart multiple choice comparison with normalization, case-insensitive matching, order independence
+
+
 
 
 
@@ -171,6 +194,8 @@ Before running the cookbooks, you need to download the required datasets. PhysKi
 - **UGPhysics**: Undergraduate physics problems across 13 domains
 - **SeePhys**: Visual physics problems with images
 - **PHYBench**: Physics benchmark dataset
+- **PhysReason**: Physics reasoning problems with step-by-step solutions
+- **JEEBench**: Challenging problems from IIT JEE-Advanced examination across Physics, Chemistry, and Mathematics
 
 ### **Dataset Structure**
 Your datasets should be organized as follows:
@@ -200,6 +225,7 @@ Your datasets should be organized as follows:
     ├── PHYBench-fullques_v1.json
     ├── PHYBench-onlyques_v1.json
     └── PHYBench-questions_v1.json
+
 ```
 
 ### **Download Instructions**
@@ -316,11 +342,13 @@ showcase_output/
 │   ├── phybench_summary.txt
 │   └── ...
 ├── automated_annotation/
-│   ├── domain_annotations/
-│   └── annotation_statistics.json
-├── supervised_annotation/
-│   ├── domain_annotation_step/
-│   └── supervised_anno_statistics.json
+│   ├── annotation/
+│   │   ├── problem_1.json
+│   │   └── problem_2.json
+│   └── annotation_workflow.log
+├── workflow_composition_demo/
+│   ├── domain_assessment_demo_workflow_statistics.json
+│   └── domain_assessment_demo_results.json
 └── evaluation_results/
     ├── symbolic_comparison_details.json
     ├── numerical_comparison_details.json

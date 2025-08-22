@@ -46,6 +46,19 @@ class PhysicsDomain(Enum):
                 if domain.value == normalized_str:
                     return domain
             return cls.OTHER
+        
+    @classmethod
+    def from_value(cls, domain_str: str) -> 'PhysicsDomain':
+        """Convert a string to a PhysicsDomain enum value."""
+        try:
+            return cls(domain_str.lower())
+        except ValueError:
+            # Try to find a match ignoring case and special characters
+            normalized_str = domain_str.lower().replace(' ', '_').replace('-', '_')
+            for domain in cls:
+                if domain.value == normalized_str:
+                    return domain
+            return cls.OTHER
     
     def __str__(self) -> str:
         """Return the string representation of the domain."""
