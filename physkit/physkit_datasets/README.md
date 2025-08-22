@@ -30,17 +30,58 @@ for problem in dataset[:5]:  # First 5 problems
 
 ## 📊 Dataset Overview
 
-| Dataset | Physics Problems | Format | Specialty |
-|---------|------------------|---------|-----------|
-| **UGPhysics** | 11,040 | JSONL | Domain-specific Organization |
-| **SeePhys** | 6,200 | CSV/Parquet | Image-based Problems |
-| **PHYBench** | 500 | JSON | Comprehensive Solutions |
-| **JEEBench** | 123 | JSON | Competitive Exam Level |
-| **SciBench** | 160 | JSON | College-level Physics |
-| **PhysReason** | 192 | JSON | Step-by-step Solutions |
-| **TPBench** | 10 | Parquet | Code Generation |
+| Dataset | Physics Problems | Format | Domain Coverage | Specialty |
+|---------|------------------|---------|----------------|-----------|
+| **UGPhysics** | 11,040 | JSONL | 13 domains | Domain-specific Organization |
+| **SeePhys** | 6,200 | CSV/Parquet | Visual physics | Image-based Problems |
+| **PHYBench** | 500 | JSON | 6 domains | Comprehensive Solutions |
+| **JEEBench** | 123 | JSON | General physics | Competitive Exam Level |
+| **SciBench** | 160 | JSON | 3 domains | College-level Physics |
+| **PhysReason** | 192 | JSON | General physics | Step-by-step Solutions |
+| **TPBench** | 10 | Parquet | 5 domains | Code Generation |
 
 **Total: 18,225 physics problems** across multiple formats and domains.
+
+### **Physics Domains Coverage**
+PhysKit supports **25 physics domains** across all datasets:
+
+#### **Core Mechanics & Dynamics**
+- **Classical Mechanics**: Motion, forces, energy, momentum
+- **Theoretical Mechanics**: Lagrangian/Hamiltonian formulations
+- **Mechanics**: General mechanical principles
+
+#### **Electromagnetism & Fields**
+- **Classical Electromagnetism**: Electric and magnetic fields
+- **Electrodynamics**: Advanced electromagnetic theory
+- **Electricity**: Electrical circuits and phenomena
+
+#### **Quantum & Modern Physics**
+- **Quantum Mechanics**: Wave-particle duality, quantum states
+- **Modern Physics**: Contemporary physics concepts
+- **Atomic Physics**: Atomic structure and spectroscopy
+- **High Energy Theory**: Particle physics and high-energy phenomena
+
+#### **Thermal & Statistical Physics**
+- **Thermodynamics**: Heat, temperature, entropy, energy transfer
+- **Statistical Mechanics**: Statistical behavior of systems
+
+#### **Optics & Waves**
+- **Optics**: General optical phenomena
+- **Geometrical Optics**: Ray optics, lenses, mirrors
+- **Wave Optics**: Interference, diffraction, wave phenomena
+
+#### **Materials & Condensed Matter**
+- **Solid State Physics**: Crystalline materials, electronic properties
+- **Semiconductor Physics**: Semiconductor materials and devices
+- **Condensed Matter**: Phase transitions, superconductivity
+
+#### **Relativity & Cosmology**
+- **Relativity**: Special and general relativity
+- **Cosmology**: Universe structure and evolution
+
+#### **Fundamental & Advanced**
+- **Fundamental Physics**: Basic physics principles
+- **Advanced Physics**: Complex physics concepts
 
 ### **Problem Type Distribution**
 | Problem Type | Description | Datasets Supporting |
@@ -53,7 +94,7 @@ for problem in dataset[:5]:  # First 5 problems
 
 ### **UGPhysics** - Undergraduate Physics Collection
 - **11,040 problems** across **13 physics domains**
-- **Domains**: Classical Mechanics, Quantum Mechanics, Electromagnetism, Optics, Thermodynamics, Relativity, and more
+- **Domains**: Classical Mechanics, Quantum Mechanics, Classical Electromagnetism, Electrodynamics, Thermodynamics, Relativity, Atomic Physics, Statistical Mechanics, Geometrical Optics, Wave Optics, Semiconductor Physics, Theoretical Mechanics, Solid State Physics
 - **Format**: JSONL with domain organization
 - **Use case**: Physics education, domain-specific training
 
@@ -66,7 +107,7 @@ for problem in dataset[:5]:  # First 5 problems
 ### **PHYBench** - Physics Benchmark
 - **500 problems** with comprehensive solutions
 - **Problem Types**: OE
-- **Domains**: Mechanics (191), Electricity (142), Thermodynamics (66), Modern Physics (42), Optics (41), Advanced (18)
+- **Domains**: Mechanics (191), Electricity (142), Thermodynamics (66), Modern Physics (42), Optics (41), Advanced Physics (18)
 - **Specialty**: Full questions with detailed solutions
 - **Use case**: Physics reasoning, solution quality assessment
 
@@ -93,6 +134,7 @@ for problem in dataset[:5]:  # First 5 problems
 
 ### **TPBench** - Theoretical Physics Code Generation
 - **10 problems** requiring Python implementation
+- **Problem Types**: OE
 - **Domains**: Quantum Mechanics, High Energy Theory, Statistical Mechanics, Classical Mechanics, Cosmology
 - **Specialty**: Code generation for physics problems
 - **Use case**: AI code generation, theoretical physics implementation

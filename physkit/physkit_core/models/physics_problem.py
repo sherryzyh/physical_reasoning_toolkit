@@ -12,7 +12,7 @@ from typing import Dict, List, Optional, Any, Union
 from datetime import datetime
 
 from ..definitions.physics_domain import PhysicsDomain
-from ..definitions.answer_types import Answer
+from .answer import Answer
 
 
 @dataclass

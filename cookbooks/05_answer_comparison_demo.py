@@ -16,7 +16,8 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "physkit"))
 
 from physkit_evaluation.metrics import AccuracyMetric
-from physkit_core.definitions.answer_types import SymbolicAnswer, NumericalAnswer, TextualAnswer, OptionAnswer, AnswerType
+from physkit_core.definitions.answer_types import AnswerType
+from physkit_core.models.answer import Answer
 
 
 def main():
@@ -32,141 +33,141 @@ def main():
     # Create comprehensive test cases
     predictions = [
         # Symbolic comparisons - different scenarios
-        SymbolicAnswer(
+        Answer(
             value="v(t) = \\frac{k}{c-b}e^{-b t} - \\frac{g}{c} + \\left(-\\frac{k}{c-b}+\\frac{g}{c}\\right)e^{-c t}",
             answer_type=AnswerType.SYMBOLIC,
             metadata={"id": "sym_001"}
         ),
-        SymbolicAnswer(
+        Answer(
             value="F = ma",
             answer_type=AnswerType.SYMBOLIC,
             metadata={"id": "sym_002"}
         ),
-        SymbolicAnswer(
+        Answer(
             value="\\frac{g}{c}\\left(\\mathrm{e}^{-c t} - 1\\right) + \\frac{k}{c-b}\\left(\\mathrm{e}^{-b t} - \\mathrm{e}^{-c t}\\right)",
             answer_type=AnswerType.SYMBOLIC,
             metadata={"id": "sym_003"}
         ),
-        SymbolicAnswer(
+        Answer(
             value="E = mc^2",
             answer_type=AnswerType.SYMBOLIC,
             metadata={"id": "sym_004"}
         ),
-        SymbolicAnswer(
+        Answer(
             value="\\int_0^t v(\\tau) d\\tau = x(t)",
             answer_type=AnswerType.SYMBOLIC,
             metadata={"id": "sym_005"}
         ),
         
         # Numerical comparisons - various scenarios
-        NumericalAnswer(
+        Answer(
             value=9.81,
-            units="m/s²",
+            unit="m/s²",
             answer_type=AnswerType.NUMERICAL,
             metadata={"id": "num_001"}
         ),
-        NumericalAnswer(
+        Answer(
             value=35.316,
-            units="km/h",
+            unit="km/h",
             answer_type=AnswerType.NUMERICAL,
             metadata={"id": "num_002"}
         ),
-        NumericalAnswer(
+        Answer(
             value=3.14159,
-            units="rad",
+            unit="rad",
             answer_type=AnswerType.NUMERICAL,
             metadata={"id": "num_003"}
         ),
-        NumericalAnswer(
+        Answer(
             value=1000.0,
-            units="g",
+            unit="g",
             answer_type=AnswerType.NUMERICAL,
             metadata={"id": "num_004"}
         ),
-        NumericalAnswer(
+        Answer(
             value=float('inf'),
-            units="m/s",
+            unit="m/s",
             answer_type=AnswerType.NUMERICAL,
             metadata={"id": "num_005"}
         ),
-        NumericalAnswer(
+        Answer(
             value=float('nan'),
-            units="kg",
+            unit="kg",
             answer_type=AnswerType.NUMERICAL,
             metadata={"id": "num_006"}
         ),
-        NumericalAnswer(
+        Answer(
             value=0.0,
-            units="N",
+            unit="N",
             answer_type=AnswerType.NUMERICAL,
             metadata={"id": "num_007"}
         ),
-        NumericalAnswer(
+        Answer(
             value=212.0,
-            units="°F",
+            unit="°F",
             answer_type=AnswerType.NUMERICAL,
             metadata={"id": "num_008"}
         ),
         
         # Textual comparisons - different phrasings
-        TextualAnswer(
+        Answer(
             value="The object accelerates downward due to the force of gravity acting on it.",
             answer_type=AnswerType.TEXTUAL,
             metadata={"id": "txt_001"}
         ),
-        TextualAnswer(
+        Answer(
             value="Gravity causes the object to accelerate downward.",
             answer_type=AnswerType.TEXTUAL,
             metadata={"id": "txt_002"}
         ),
-        TextualAnswer(
+        Answer(
             value="When a force is applied to an object, it accelerates according to F = ma.",
             answer_type=AnswerType.TEXTUAL,
             metadata={"id": "txt_003"}
         ),
-        TextualAnswer(
+        Answer(
             value="Newton's second law states that acceleration equals force divided by mass.",
             answer_type=AnswerType.TEXTUAL,
             metadata={"id": "txt_004"}
         ),
-        TextualAnswer(
+        Answer(
             value="The object falls faster and faster because of Earth's gravitational pull.",
             answer_type=AnswerType.TEXTUAL,
             metadata={"id": "txt_005"}
         ),
         
         # Option comparisons - multiple choice scenarios
-        OptionAnswer(
+        Answer(
             value="B",
             answer_type=AnswerType.OPTION,
             metadata={"id": "opt_001"}
         ),
-        OptionAnswer(
+        Answer(
             value="A",
             answer_type=AnswerType.OPTION,
             metadata={"id": "opt_002"}
         ),
-        OptionAnswer(
+        Answer(
             value="ABC",
             answer_type=AnswerType.OPTION,
             metadata={"id": "opt_003"}
         ),
-        OptionAnswer(
+        Answer(
             value="cab",
             answer_type=AnswerType.OPTION,
             metadata={"id": "opt_004"}
         ),
-        OptionAnswer(
+        Answer(
             value="B, A",
             answer_type=AnswerType.OPTION,
             metadata={"id": "opt_005"}
         ),
-        OptionAnswer(
+        Answer(
             value="A;B",
             answer_type=AnswerType.OPTION,
             metadata={"id": "opt_006"}
         ),
-        OptionAnswer(
+        Answer(
             value="",
             answer_type=AnswerType.OPTION,
             metadata={"id": "opt_007"}
@@ -175,141 +176,141 @@ def main():
     
     ground_truths = [
         # Symbolic ground truths
-        SymbolicAnswer(
+        Answer(
             value="\\boxed{\\frac{g}{c}\\left(\\mathrm{e}^{-c t} - 1\\right) + \\frac{k}{c-b}\\left(\\mathrm{e}^{-b t} - \\mathrm{e}^{-c t}\\right)}",
             answer_type=AnswerType.SYMBOLIC,
             metadata={"id": "sym_001"}
         ),
-        SymbolicAnswer(
+        Answer(
             value="F = m \\cdot a",
             answer_type=AnswerType.SYMBOLIC,
             metadata={"id": "sym_002"}
         ),
-        SymbolicAnswer(
+        Answer(
             value="\\frac{g}{c}\\left(\\mathrm{e}^{-c t} - 1\\right) + \\frac{k}{c-b}\\left(\\mathrm{e}^{-b t} - \\mathrm{e}^{-c t}\\right)",
             answer_type=AnswerType.SYMBOLIC,
             metadata={"id": "sym_003"}
         ),
-        SymbolicAnswer(
+        Answer(
             value="E = m c^2",
             answer_type=AnswerType.SYMBOLIC,
             metadata={"id": "sym_004"}
         ),
-        SymbolicAnswer(
+        Answer(
             value="\\int_0^t v(\\tau) d\\tau = x(t)",
             answer_type=AnswerType.SYMBOLIC,
             metadata={"id": "sym_005"}
         ),
         
         # Numerical ground truths
-        NumericalAnswer(
+        Answer(
             value=9.80665,
-            units="m/s²",
+            unit="m/s²",
             answer_type=AnswerType.NUMERICAL,
             metadata={"id": "num_001"}
         ),
-        NumericalAnswer(
+        Answer(
             value=9.81,
-            units="m/s",
+            unit="m/s",
             answer_type=AnswerType.NUMERICAL,
             metadata={"id": "num_002"}
         ),
-        NumericalAnswer(
+        Answer(
             value=3.14159,
-            units="rad",
+            unit="rad",
             answer_type=AnswerType.NUMERICAL,
             metadata={"id": "num_003"}
         ),
-        NumericalAnswer(
+        Answer(
             value=1.0,
-            units="kg",
+            unit="kg",
             answer_type=AnswerType.NUMERICAL,
             metadata={"id": "num_004"}
         ),
-        NumericalAnswer(
+        Answer(
             value=float('inf'),
-            units="m/s",
+            unit="m/s",
             answer_type=AnswerType.NUMERICAL,
             metadata={"id": "num_005"}
         ),
-        NumericalAnswer(
+        Answer(
             value=float('nan'),
-            units="kg",
+            unit="kg",
             answer_type=AnswerType.NUMERICAL,
             metadata={"id": "num_006"}
         ),
-        NumericalAnswer(
+        Answer(
             value=0.0,
-            units="N",
+            unit="N",
             answer_type=AnswerType.NUMERICAL,
             metadata={"id": "num_007"}
         ),
-        NumericalAnswer(
+        Answer(
             value=100.0,
-            units="°C",
+            unit="°C",
             answer_type=AnswerType.NUMERICAL,
             metadata={"id": "num_008"}
         ),
         
         # Textual ground truths
-        TextualAnswer(
+        Answer(
             value="Gravity causes the object to accelerate downward.",
             answer_type=AnswerType.TEXTUAL,
             metadata={"id": "txt_001"}
         ),
-        TextualAnswer(
+        Answer(
             value="Gravity causes the object to accelerate downward.",
             answer_type=AnswerType.TEXTUAL,
             metadata={"id": "txt_002"}
         ),
-        TextualAnswer(
+        Answer(
             value="Newton's second law states that acceleration equals force divided by mass.",
             answer_type=AnswerType.TEXTUAL,
             metadata={"id": "txt_003"}
         ),
-        TextualAnswer(
+        Answer(
             value="Newton's second law states that acceleration equals force divided by mass.",
             answer_type=AnswerType.TEXTUAL,
             metadata={"id": "txt_004"}
         ),
-        TextualAnswer(
+        Answer(
             value="The object accelerates downward due to the force of gravity acting on it.",
             answer_type=AnswerType.TEXTUAL,
             metadata={"id": "txt_005"}
         ),
         
         # Option ground truths
-        OptionAnswer(
+        Answer(
             value="B",
             answer_type=AnswerType.OPTION,
             metadata={"id": "opt_001"}
         ),
-        OptionAnswer(
+        Answer(
             value="A",
             answer_type=AnswerType.OPTION,
             metadata={"id": "opt_002"}
         ),
-        OptionAnswer(
+        Answer(
             value="ABC",
             answer_type=AnswerType.OPTION,
             metadata={"id": "opt_003"}
         ),
-        OptionAnswer(
+        Answer(
             value="ABC",
             answer_type=AnswerType.OPTION,
             metadata={"id": "opt_004"}
         ),
-        OptionAnswer(
+        Answer(
             value="A, B",
             answer_type=AnswerType.OPTION,
             metadata={"id": "opt_005"}
         ),
-        OptionAnswer(
+        Answer(
             value="A;B",
             answer_type=AnswerType.OPTION,
             metadata={"id": "opt_006"}
         ),
-        OptionAnswer(
+        Answer(
             value="",
             answer_type=AnswerType.OPTION,
             metadata={"id": "opt_007"}

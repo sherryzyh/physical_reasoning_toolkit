@@ -10,11 +10,11 @@ from datetime import datetime
 from collections import Counter
 
 
-from ..assessment.domain_assessor import DomainAssessor
-from ..revision.domain_revisor import DomainRevisor
+from physkit_annotation.assessment.domain_assessor import DomainAssessor
+from physkit_annotation.revision.domain_revisor import DomainRevisor
 
-from ..annotators.domain import DomainAnnotator, DomainAnnotation
-from ..full_physics_annotation import FullPhysicsAnnotation
+from physkit_annotation.annotators.domain import DomainAnnotator, DomainAnnotation
+from physkit_annotation.full_physics_annotation import FullPhysicsAnnotation
 from physkit_core.models import PhysicalDataset
 from physkit_core import PhysKitLogger
 
@@ -37,7 +37,7 @@ class SupervisedAnnotationWorkflow:
     
     # Access the revised domain annotation properties
     if revised_anno:
-        print(f"Domain: {revised_anno.primary_domain.value}")
+        print(f"Domain: {revised_anno.domains[0].value if revised_anno.domains else 'Unknown'}")
         print(f"Confidence: {revised_anno.confidence}")
         print(f"Reasoning: {revised_anno.reasoning}")
         print(f"Subdomains: {revised_anno.subdomains}")
@@ -356,9 +356,9 @@ class SupervisedAnnotationWorkflow:
         
         # Create new DomainAnnotation with revised domain
         revised_annotation = DomainAnnotation(
-            primary_domain=revised_domain,
+            domains=[revised_domain],
             confidence=original_annotation.confidence,  # Keep original confidence
-            reasoning=f"Revised from '{original_annotation.primary_domain.value}' to '{revised_domain.value}' based on {revision_result.revision_type}",
+            reasoning=f"Revised from '{original_annotation.domains[0].value if original_annotation.domains else 'Unknown'}' to '{revised_domain.value}' based on {revision_result.revision_type}",
             subdomains=original_annotation.subdomains  # Keep original subdomains for now
         )
         
@@ -451,7 +451,7 @@ class SupervisedAnnotationWorkflow:
             
             # Revised domain annotation instance
             "revised_domain_annotation": {
-                "primary_domain": revised_domain_anno.primary_domain.value,
+                "primary_domain": revised_domain_anno.domains[0].value if revised_domain_anno.domains else 'Unknown',
                 "confidence": revised_domain_anno.confidence,
                 "reasoning": revised_domain_anno.reasoning,
                 "subdomains": revised_domain_anno.subdomains,
@@ -460,7 +460,7 @@ class SupervisedAnnotationWorkflow:
             
             # Final domain classification
             "final_result": {
-                "final_domain": revised_domain_anno.primary_domain.value,
+                "final_domain": revised_domain_anno.domains[0].value if revised_domain_anno.domains else 'Unknown',
                 "confidence": revised_domain_anno.confidence,
                 "requires_human_review": revision_result.revision_type == "human_answer"
             }
@@ -634,7 +634,7 @@ class SupervisedAnnotationWorkflow:
             
             # Create and return the DomainAnnotation instance
             revised_annotation = DomainAnnotation(
-                primary_domain=domain_enum,
+                domains=[domain_enum],
                 confidence=revised_data.get("confidence", 1.0),
                 reasoning=revised_data.get("reasoning", ""),
                 subdomains=revised_data.get("subdomains", [])
@@ -687,7 +687,7 @@ class SupervisedAnnotationWorkflow:
                     
                     # Create the DomainAnnotation instance
                     revised_annotation = DomainAnnotation(
-                        primary_domain=domain_enum,
+                        domains=[domain_enum],
                         confidence=revised_data.get("confidence", 1.0),
                         reasoning=revised_data.get("reasoning", ""),
                         subdomains=revised_data.get("subdomains", [])
@@ -725,7 +725,7 @@ class SupervisedAnnotationWorkflow:
         subdomain_counts = []
         
         for problem_id, annotation in all_annotations.items():
-            domain_counts[annotation.primary_domain.value] += 1
+            domain_counts[annotation.domains[0].value if annotation.domains else 'Unknown'] += 1
             confidence_values.append(annotation.confidence)
             reasoning_lengths.append(len(annotation.reasoning))
             subdomain_counts.append(len(annotation.subdomains))

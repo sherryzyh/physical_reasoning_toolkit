@@ -337,7 +337,7 @@ class SciBenchLoader(BaseDatasetLoader):
         # Set the processed values
         metadata['answer'] = answer_value
         metadata['answer_type'] = answer_type
-        if answer_type == "numerical" and extracted_unit:
+        if answer_type == AnswerType.NUMERICAL and extracted_unit:
             metadata['answer'] = {
                 "value": answer_value,
                 "unit": extracted_unit

@@ -52,7 +52,7 @@ def main():
     
     try:
         # Load only 3 problems for showcase
-        dataset = DatasetHub.load("ugphysics", sample_size=3)
+        dataset = DatasetHub.load("ugphysics", sample_size=1)
         print(f"  ✅ Successfully loaded dataset!")
         print(f"  📊 Total problems to annotate: {len(dataset)}")
         
@@ -77,10 +77,10 @@ def main():
     print("-" * 40)
     
     try:
-        # Initialize with gpt-4o model (you can change this to other models)
+        # Initialize with o3-mini model (you can change this to other models)
         workflow = AnnotationWorkflow(
             output_dir=output_dir,
-            model="gpt-4o"  # You can also use "gpt-4", "gpt-3.5-turbo", etc.
+            model="o3-mini"  # You can also use "gpt-4", "gpt-3.5-turbo", etc.
         )
         print(f"  ✅ Workflow initialized successfully!")
         print(f"  🤖 Using model: {workflow.model}")

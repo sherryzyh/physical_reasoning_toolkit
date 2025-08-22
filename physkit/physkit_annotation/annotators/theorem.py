@@ -36,7 +36,7 @@ class TheoremAnnotator(BaseAnnotator):
     
     def annotate(self, question: str, domain_anno: DomainAnnotation, **kwargs) -> TheoremAnnotation:
         """Identify relevant physical theorems and principles."""
-        domain_name = domain_anno.primary_domain.value
+        domain_name = domain_anno.domains[0].value if domain_anno.domains else 'Unknown'
         
         prompt = f"""
         Analyze this physics problem and identify the relevant physical theorems, principles, and equations.

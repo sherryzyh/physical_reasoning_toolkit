@@ -12,7 +12,8 @@ from abc import ABC, abstractmethod
 from typing import Dict, List, Any, Union, Optional
 from pathlib import Path
 
-from physkit_core.definitions.answer_types import Answer, NumericalAnswer, SymbolicAnswer, TextualAnswer, OptionAnswer, AnswerType
+from physkit_core.definitions.answer_types import AnswerType
+from physkit_core.models.answer import Answer
 from physkit_core.models import PhysicsProblem, PhysicalDataset
 
 
@@ -352,12 +353,12 @@ class BaseDatasetLoader(ABC):
         problem_type = metadata.get("problem_type", "")
         
         if "MC" in problem_type:
-            return OptionAnswer(value=answer)
+            return Answer(value=answer, answer_type=AnswerType.OPTION)
         
         if not answer_type:
             answer_type = detect_answer_type(answer)
             
-        if answer_type == "numerical":
+        if answer_type == AnswerType.NUMERICAL:
             if isinstance(answer, dict):
                 value = answer.get("value")
                 unit = answer.get("unit", "")
@@ -372,16 +373,16 @@ class BaseDatasetLoader(ABC):
             value = re.sub(r'\$\$(.*?)\$\$', r'\1', value)
             value = re.sub(r'\$([^$]+)\$', r'\1', value)
             
-            return NumericalAnswer(value=value, unit=unit)
-        elif answer_type == "symbolic":
-            return SymbolicAnswer(value=answer)
-        elif answer_type == "textual":
-            return TextualAnswer(value=answer)
-        elif answer_type == "option":
-            return OptionAnswer(value=answer)
+            return Answer(value=value, answer_type=AnswerType.NUMERICAL, unit=unit)
+        elif answer_type == AnswerType.SYMBOLIC:
+            return Answer(value=answer, answer_type=AnswerType.SYMBOLIC)
+        elif answer_type == AnswerType.TEXTUAL:
+            return Answer(value=answer, answer_type=AnswerType.TEXTUAL)
+        elif answer_type == AnswerType.OPTION:
+            return Answer(value=answer, answer_type=AnswerType.OPTION)
         else:
             # fallback to textual
-            return TextualAnswer(value=answer)
+            return Answer(value=answer, answer_type=AnswerType.TEXTUAL)
     
     def create_physics_problem(
         self, 
