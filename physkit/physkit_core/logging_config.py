@@ -17,7 +17,7 @@ class PhysKitLogger:
     
     _loggers: Dict[str, logging.Logger] = {}
     _default_level = logging.INFO
-    _default_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    _default_format = '%(asctime)s - %(name)s - %(levelname)s [%(filename)s, %(lineno)d] - %(message)s'
     _default_date_format = '%Y-%m-%d %H:%M:%S'
     
     @classmethod

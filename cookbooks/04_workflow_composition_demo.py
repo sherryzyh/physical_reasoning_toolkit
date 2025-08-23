@@ -166,7 +166,7 @@ def main():
         stats = workflow_results.get('statistics', {})
         workflow_summary = stats.get('workflow_summary', {})
         print(f"    - Total modules: {workflow_summary.get('total_modules', 0)}")
-        print(f"    - Problems processed: {stats.get('total_processed', 0)}")
+        print(f"    - Problems processed: {stats.get('problem_stats', {}).get('processed', 0)}")
         print(f"    - Successful: {stats.get('successful', 0)}")
         print(f"    - Failed: {stats.get('failed', 0)}")
         print(f"    - Duration: {stats.get('duration_seconds', 0):.2f}s")
@@ -186,7 +186,7 @@ def main():
         stats = workflow_results["statistics"]
         print(f"  📊 Overall Workflow Statistics:")
         print(f"    - Total modules executed: {stats['modules_executed']}")
-        print(f"    - Total problems processed: {stats['total_processed']}")
+        print(f"    - Total problems processed: {stats['problem_stats']['processed']}")
         print(f"    - Successful: {stats['successful']}")
         print(f"    - Failed: {stats['failed']}")
         
@@ -207,16 +207,16 @@ def main():
         for module_name, module_result in workflow_results.get("module_results", {}).items():
             print(f"    Module: {module_name}")
             module_stats = module_result.get("statistics", {})
-            print(f"      - Problems processed: {module_stats.get('total_processed', 0)}")
-            print(f"      - Success rate: {module_stats.get('successful', 0)}/{module_stats.get('total_processed', 0)}")
+            print(f"      - Problems processed: {module_stats.get('problem_stats', {}).get('processed', 0)}")
+            print(f"      - Success rate: {module_stats.get('problem_stats', {}).get('successful', 0)}/{module_stats.get('problem_stats', {}).get('processed', 0)}")
             
-            # Show domain-specific statistics if available
-            if hasattr(domain_module, 'get_domain_statistics'):
-                domain_stats = domain_module.get_domain_statistics()
-                if domain_stats.get('domains_identified'):
-                    print(f"      - Domains identified: {domain_stats['domains_identified']}")
-                if domain_stats.get('average_confidence'):
-                    print(f"      - Average confidence: {domain_stats['average_confidence']:.3f}")
+            # Show domain-specific statistics using generic method
+            domain_stats = domain_module.get_statistics()
+            if domain_stats.get('domains_labeled'):
+                print(f"      - Domains labeled: {domain_stats['domains_labeled']}")
+            if domain_stats.get('confidence_scores'):
+                avg_confidence = sum(domain_stats['confidence_scores']) / len(domain_stats['confidence_scores']) if domain_stats['confidence_scores'] else 0
+                print(f"      - Average confidence: {avg_confidence:.3f}")
         
     except Exception as e:
         print(f"  ❌ Error analyzing results: {e}")
@@ -278,8 +278,8 @@ def main():
         for module in workflow.modules:
             module_status = module.get_status()
             print(f"    - {module_status['module_name']}: {module_status['status']}")
-            print(f"      * Problems processed: {module_status['statistics']['total_processed']}")
-            print(f"      * Success rate: {module_status['statistics']['successful']}/{module_status['statistics']['total_processed']}")
+            print(f"      * Problems processed: {module_status['statistics']['problem_stats']['processed']}")
+            print(f"      * Success rate: {module_status['statistics']['problem_stats']['successful']}/{module_status['statistics']['problem_stats']['processed']}")
         
         # Demonstrate reset functionality
         print(f"\n  🔄 Workflow Reset Capability:")

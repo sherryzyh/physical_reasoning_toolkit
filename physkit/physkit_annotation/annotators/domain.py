@@ -23,7 +23,11 @@ class DomainResponse(BaseModel):
 class DomainAnnotator(BaseAnnotator):
     """Annotator for physics domain classification."""
     
-    def annotate(self, question: str, **kwargs) -> DomainAnnotation:
+    def annotate(
+        self,
+        question: str,
+        **kwargs,
+    ) -> DomainAnnotation:
         """Annotate the physics domain of the problem."""
         prompt = f"""
         Analyze the following physics problem and identify ALL relevant physics domains it belongs to.

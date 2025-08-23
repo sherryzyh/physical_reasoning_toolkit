@@ -38,12 +38,11 @@ class DomainOnlyWorkflow:
             config=self.config
         )
         
-        # Add the domain annotation module
+        # Add the domain label and assessment module
         self.workflow.add_module(
             DomainAssessmentModule(
-                name="domain_classifier",
+                name="domain_label_and_assessment",
                 model=self.model,
-                output_dir=self.output_dir / "domain"
             )
         )
     

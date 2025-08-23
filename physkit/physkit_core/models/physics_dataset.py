@@ -38,7 +38,7 @@ class PhysicalDataset:
         return len(self._problems)
     
     def __getitem__(self, idx: Union[int, slice]) -> Union[PhysicsProblem, 'PhysicalDataset']:
-        """Get problem(s) by index or slice."""
+        """Get a problem by index or a slice of dataset."""
         if isinstance(idx, slice):
             # Return a new PhysicalDataset with sliced problems
             sliced_problems = [self._problems[i] for i in range(*idx.indices(len(self._problems)))]
