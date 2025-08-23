@@ -7,12 +7,17 @@ and as a dataset-compatible object, providing a unified interface across
 all PhysKit packages.
 """
 
+import logging
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Any, Union
 from datetime import datetime
 
 from ..definitions.physics_domain import PhysicsDomain
 from .answer import Answer
+from ..definitions.answer_types import AnswerType
+
+# Get logger for this module
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -131,10 +136,9 @@ class PhysicsProblem:
     
     def get(self, key: str, default: Any = None) -> Any:
         """Get field value with default fallback."""
-        try:
+        if key in self:
             return self[key]
-        except KeyError:
-            return default
+        return default
     
     def update(self, data: Dict[str, Any]) -> None:
         """Update multiple fields at once."""
@@ -147,16 +151,23 @@ class PhysicsProblem:
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert problem to dictionary for serialization."""
+        # Safely handle answer field
+        if hasattr(self.answer, 'to_dict'):
+            answer_dict = self.answer.to_dict()
+        else:
+            answer_dict = self.answer
+        
         result = {
             'question': self.question,
             'problem_id': self.problem_id,
-            'answer': self.answer.to_dict(),
+            'answer': answer_dict,
             'solution': self.solution,
-            'domain': self.domain.value if isinstance(self.domain, PhysicsDomain) else self.domain,
+            'domain': self.domain.value if isinstance(self.domain, PhysicsDomain) else self.domain if isinstance(self.domain, str) else None,
             'language': self.language,
             'problem_type': self.problem_type,
             'options': self.options,
             'correct_option': self.correct_option,
+            'additional_fields': self.additional_fields
         }
         
         # Add additional fields if present
@@ -178,7 +189,34 @@ class PhysicsProblem:
         
         for key, value in data.items():
             if key in core_fields:
-                core_data[key] = value
+                if key == 'answer' and isinstance(value, dict):
+                    # Convert answer dictionary to Answer object
+                    # Extract answer fields from dictionary
+                    answer_value = value.get('value')
+                    answer_type_str = value.get('answer_type')
+                    answer_unit = value.get('unit')
+                    answer_metadata = value.get('metadata', {})
+                    
+                    # Convert answer_type string to AnswerType enum
+                    if answer_type_str:
+                        try:
+                            answer_type = AnswerType(answer_type_str)
+                        except ValueError:
+                            # Default to TEXTUAL if invalid type
+                            answer_type = AnswerType.TEXTUAL
+                    else:
+                        # Default to TEXTUAL if no type specified
+                        answer_type = AnswerType.TEXTUAL
+                    
+                    # Create Answer object
+                    core_data[key] = Answer(
+                        value=answer_value,
+                        answer_type=answer_type,
+                        unit=answer_unit,
+                        metadata=answer_metadata
+                    )
+                else:
+                    core_data[key] = value
             elif key == 'additional_fields':
                 # Handle additional fields separately
                 if value:

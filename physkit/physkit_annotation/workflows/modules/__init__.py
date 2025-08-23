@@ -7,8 +7,16 @@ together to quickly construct complex annotation workflows.
 
 from .base_module import BaseWorkflowModule
 from .domain_assessment_module import DomainAssessmentModule
+from .label_domain_module import LabelDomainModule
+from .identify_theorem_module import IdentifyTheoremModule
+from .extract_variable_module import ExtractVariableModule
+from .compute_answer_module import ComputeAnswerModule
 
 __all__ = [
     "BaseWorkflowModule",
-    "DomainAssessmentModule"
+    "DomainAssessmentModule",
+    "LabelDomainModule",
+    "IdentifyTheoremModule",
+    "ExtractVariableModule",
+    "ComputeAnswerModule"
 ]
