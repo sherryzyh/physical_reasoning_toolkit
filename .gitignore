@@ -212,3 +212,5 @@ __marimo__/
 dev_docs/
 showcase_output/
 legacy/
+experiments_outputs/
+experiments/

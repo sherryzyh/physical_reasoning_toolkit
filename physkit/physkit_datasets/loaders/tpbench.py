@@ -95,7 +95,7 @@ class TPBenchLoader(BaseDatasetLoader):
     def load(
         self,
         data_dir: Union[str, Path, None] = None,
-        split: str = "test",
+        split: str = "public",
         variant: str = "full",
         sample_size: Optional[int] = None,
         per_domain: Optional[int] = None,

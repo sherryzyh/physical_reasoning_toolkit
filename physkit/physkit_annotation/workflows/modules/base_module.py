@@ -30,11 +30,11 @@ class BaseWorkflowModule(ABC):
         self.logger = PhysKitLogger.get_logger(f"{__name__}.{name}")
         self.logger.info(f"Initializing module {name} with model {model}")
         
-        self.name = name
+        self._name = name
         self.model = model
         self.config = config or {}
         
-        # Module status - aligned with workflow_status structure
+        # Initialize module status
         self.module_status = {
             "module_name": name,
             "model": model,
@@ -42,12 +42,21 @@ class BaseWorkflowModule(ABC):
             "execution_status": "PENDING",
             "execution_error": None,
             "result": None,
-            "result_validity": None  # New field: tracks if result meets quality/validity criteria
+            "result_validity": None,  # New field: tracks if result meets quality/validity criteria
+            "validity_count": 0  # Count of VALID results
         }
         
         # Validation
         self._validate_config()
         self.logger.info(f"Module {name} initialized successfully")
+    
+    @property
+    def name(self) -> str:
+        return self.name
+
+    @name.setter
+    def name(self, value: str) -> None:
+        self._name = value
     
     def _validate_config(self) -> None:
         """Validate module configuration."""
@@ -109,8 +118,11 @@ class BaseWorkflowModule(ABC):
             if result is not None:
                 self.logger.info(f"Module {self.name} successfully processed problem {problem_id}")
                 self.module_status["execution_status"] = "SUCCESS"
-                self.module_status["result_validity"] = "VALID"  # Result was produced
                 self.module_status["execution_time_seconds"] = (datetime.now() - execution_start).total_seconds()
+                
+                # Update validity_count based on result_validity set by derived class during process()
+                if self.module_status.get("result_validity") == "VALID":
+                    self.module_status["validity_count"] = self.module_status.get("validity_count", 0) + 1
             else:
                 # Processing failed (returned None)
                 self.logger.warning(f"Module {self.name} returned None for problem {problem_id}")
@@ -130,8 +142,8 @@ class BaseWorkflowModule(ABC):
             self.module_status["execution_time_seconds"] = 0
             result = None
         
-        # Store the result in module status
-        self.module_status["result"] = result
+        # Note: result is not stored in module_status to maintain data separation
+        # (results are stored in workflow_results.json, not workflow_status.json)
 
         # Handle output formatting
         if problem_as_output:
@@ -167,20 +179,7 @@ class BaseWorkflowModule(ABC):
     
     def get_status(self) -> Dict[str, Any]:
         """Get current module status."""
-        status_copy = self.module_status.copy()
-        
-        # Ensure the result field is serializable
-        if status_copy.get("result") is not None:
-            result = status_copy["result"]
-            
-            if hasattr(result, 'to_dict'):
-                # Convert objects with to_dict method to dictionaries
-                status_copy["result"] = result.to_dict()
-            elif not isinstance(result, (dict, list, str, int, float, bool, type(None))):
-                # Convert other complex objects to strings
-                status_copy["result"] = str(result)
-        
-        return status_copy
+        return self.module_status.copy()
     
     def reset(self) -> None:
         """Reset module state and status."""
@@ -191,8 +190,8 @@ class BaseWorkflowModule(ABC):
             "execution_time_seconds": 0,
             "execution_status": "PENDING",
             "execution_error": None,
-            "result": None,
-            "result_validity": None
+            "result_validity": None,
+            "validity_count": 0  # Reset validity count
         }
         self.logger.info(f"Module {self.name} reset completed successfully")
     
