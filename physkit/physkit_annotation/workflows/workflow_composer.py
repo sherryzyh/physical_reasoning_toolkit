@@ -24,6 +24,16 @@ class WorkflowComposer:
     of one module becomes the input to the next module in the chain.
     Each module processes one PhysicsProblem at a time, and the workflow
     orchestrates the flow of problems through the entire pipeline.
+    
+    Data Separation:
+    - workflow_status: Contains execution metadata (timing, success rates, performance metrics)
+    - workflow_results: Contains actual problem data (questions, answers, domain classifications)
+    - execution_flows/: Individual files for each problem's detailed execution trace
+    
+    Memory Management:
+    - Problem execution flows are saved immediately to individual files
+    - Only basic metadata is kept in memory for the status file
+    - This approach scales better for large datasets
     """
     
     def __init__(
@@ -46,7 +56,7 @@ class WorkflowComposer:
         # Configuration
         self.config = config or {}
         
-        # Comprehensive workflow status dictionary
+        # Comprehensive workflow status dictionary (execution metadata only)
         self.workflow_status = {
             # Basic workflow info
             "workflow_name": name,
@@ -58,18 +68,15 @@ class WorkflowComposer:
                 "total": 0,
                 "processed": 0,
                 "successful": 0,
-                "failed": 0,
-                "partial_success": 0  # Problems that succeeded through some modules but failed in others
+                "failed": 0
             },
             
             # Timing and performance
             "execution_time_seconds": 0,
-            "start_time": None,
-            "end_time": None,
             
-            # Execution tracking
-            "module_results": {},  # Results from each module for each problem
-            "problem_execution_flow": [],  # Step-by-step execution flow for each problem
+            # Execution tracking (metadata only, not actual problem data)
+            "module_results": {},  # Execution statistics for each module (counts, timing, status)
+            # Removed problem_execution_flow - now stored in individual files
             "workflow_errors": [],  # Workflow-level errors
             
             # Performance metrics
@@ -89,8 +96,10 @@ class WorkflowComposer:
                 "successful_problems": 0,
                 "failed_problems": 0,
                 "execution_time_seconds": 0,
-                "problem_results": [],  # Will store results for each problem
-                "module_status": module.get_status()
+                "validity_count": 0,  # Track valid results at workflow level
+                # Module-level metadata only
+                "module_name": module.name,
+                "model": module.model
             }
     
     def add_module(self, module: BaseWorkflowModule) -> 'WorkflowComposer':
@@ -112,8 +121,10 @@ class WorkflowComposer:
             "successful_problems": 0,
             "failed_problems": 0,
             "execution_time_seconds": 0,
-            "problem_results": [],
-            "module_status": module.get_status()
+            "validity_count": 0,  # Track valid results at workflow level
+            # Module-level metadata only
+            "module_name": module.name,
+            "model": module.model
         }
         
         self.logger.info(f"Added module '{module.name}' to workflow")
@@ -227,13 +238,7 @@ class WorkflowComposer:
                 self.workflow_status["module_results"][module_name]["failed_problems"] += 1
                 self.workflow_status["module_results"][module_name]["execution_time_seconds"] += execution_time
                 
-                # Store problem result for this module
-                self.workflow_status["module_results"][module_name]["problem_results"].append({
-                    "problem_id": problem_id,
-                    "execution_time_seconds": execution_time,
-                    "status": "FAILED",
-                    "error": f"{error_type}: {error_msg}"
-                })
+                # Remove problem result storage from status - only keep execution metadata
                 
                 # Mark problem as failed
                 problem_success = False
@@ -261,21 +266,7 @@ class WorkflowComposer:
             self.workflow_status["module_results"][module_name]["successful_problems"] += 1
             self.workflow_status["module_results"][module_name]["execution_time_seconds"] += execution_time
             
-            # Store problem result for this module
-            self.workflow_status["module_results"][module_name]["problem_results"].append({
-                "problem_id": problem_id,
-                "execution_time_seconds": execution_time,
-                "status": "SUCCESS"
-            })
-            
-            # Add result to the problem_results entry
-            if isinstance(current_problem, PhysicsProblem):
-                result_dict = current_problem.to_dict()
-            else:
-                result_dict = str(current_problem)
-                self.logger.warning(f"Module {module_name} returned {type(current_problem)} instead of PhysicsProblem")
-            
-            self.workflow_status["module_results"][module_name]["problem_results"][-1]["result"] = result_dict
+            # Remove problem result storage from status - only keep execution metadata
 
         # Determine final problem status
         if problem_success:
@@ -288,22 +279,34 @@ class WorkflowComposer:
         # Update problem statistics
         self.workflow_status["problem_stats"]["processed"] += 1
         
-        # Store problem execution flow
-        self.workflow_status["problem_execution_flow"].append({
+        # Save the execution flow immediately to reduce memory usage
+        self._save_problem_execution_flow(problem_id, {
             "problem_id": problem_id,
             "status": final_status,
             "error": problem_error,
-            "execution_flow": problem_execution_flow,
-            "final_result": self._safe_to_dict(current_problem) if problem_success else None
+            "execution_flow": problem_execution_flow
         })
         
-        return {
+        # Save the problem result immediately to reduce memory usage
+        problem_result = {
             "problem_id": problem_id,
             "status": final_status,
             "error": problem_error,
             "execution_flow": problem_execution_flow,
-            "final_result": self._safe_to_dict(current_problem) if problem_success else None
+            "annotated_problem": self._safe_to_dict(current_problem) if problem_success else None
         }
+        self._save_problem_result(problem_id, problem_result)
+        
+        # Update workflow-level validity count based on module results
+        for module_execution in problem_execution_flow:
+            if module_execution.get("status") == "SUCCESS":
+                module_name = module_execution.get("module_name")
+                module_status = module_execution.get("module_status", {})
+                if module_status.get("result_validity") == "VALID":
+                    self.workflow_status["module_results"][module_name]["validity_count"] += 1
+        
+        # Return the problem result (already saved to file)
+        return problem_result
     
     def _safe_to_dict(self, obj) -> Any:
         """
@@ -350,18 +353,16 @@ class WorkflowComposer:
         
         # Record dataset size and start execution
         self.workflow_status["problem_stats"]["total"] = len(dataset)
-        self.workflow_status["start_time"] = datetime.now()
         execution_start = datetime.now()
-        
-        all_results = []
         
         try:
             # Process each problem through all modules sequentially
             for problem in dataset:
                 self.logger.info(f"Processing problem: {problem.problem_id}")
                 
+                # Process problem and save result immediately (releases memory)
                 problem_results = self._process_problem_through_pipeline(problem, **kwargs)
-                all_results.append(problem_results)
+                # Note: problem_results is already saved to individual file, no need to accumulate
             
             # Update modules executed count
             self.workflow_status["modules_executed"] = len(self.modules)
@@ -374,22 +375,23 @@ class WorkflowComposer:
         finally:
             # Calculate execution time and final statistics
             execution_end = datetime.now()
-            self.workflow_status["end_time"] = execution_end
             self.workflow_status["execution_time_seconds"] = (execution_end - execution_start).total_seconds()
             
             # Calculate performance metrics
             self._calculate_performance_metrics()
             
-            # Save workflow results and status
-            self._save_workflow_results(all_results)
+            # Update final module statuses after completion
+            self._update_final_module_statuses()
+            
+            # Save workflow status (execution metadata) only
+            # Note: Individual problem results are already saved to results/ subfolder
             self._save_workflow_status()
         
         return {
             "workflow_name": self.name,
-            "final_results": all_results,
             "module_results": self.workflow_status["module_results"],
             "workflow_status": self.workflow_status,
-            "problem_execution_flow": self.workflow_status["problem_execution_flow"]
+            "note": "Individual problem results saved to results/ subfolder, execution flows saved to execution_flows/ subfolder"
         }
     
     def _reset_workflow_status(self) -> None:
@@ -399,23 +401,24 @@ class WorkflowComposer:
             "total": 0,
             "processed": 0,
             "successful": 0,
-            "failed": 0,
-            "partial_success": 0
+            "failed": 0
         })
         
         # Reset execution tracking
         self.workflow_status["execution_time_seconds"] = 0
-        self.workflow_status["start_time"] = None
-        self.workflow_status["end_time"] = None
-        self.workflow_status["problem_execution_flow"] = []
+        # Removed problem_execution_flow reset - no longer stored in memory
         self.workflow_status["workflow_errors"] = []
         
         # Reset module results
         self._initialize_module_results()
         
-        # Reset all modules
+        # Reset all modules but preserve validity_count for accumulation across problems
         for module in self.modules:
+            # Store current validity_count before reset
+            current_validity_count = module.module_status.get("validity_count", 0)
             module.reset()
+            # Restore validity_count to continue accumulating
+            module.module_status["validity_count"] = current_validity_count
     
     def _calculate_performance_metrics(self) -> None:
         """Calculate performance metrics for the workflow."""
@@ -450,23 +453,59 @@ class WorkflowComposer:
             "average_module_execution_time": self.workflow_status["average_module_execution_time"]
         }
     
+    def _update_final_module_statuses(self) -> None:
+        """Update module statuses after workflow completion to reflect final state."""
+        # Note: No need to update problem-specific fields in module_results
+        # as they are tracked per-problem in execution_flows, not per-module
+        pass
+    
+    def _save_problem_execution_flow(self, problem_id: str, execution_flow: Dict[str, Any]) -> None:
+        """Save individual problem execution flow to a separate file."""
+        # Create execution_flows subdirectory
+        flows_dir = self.output_dir / "execution_flows"
+        flows_dir.mkdir(exist_ok=True)
+        
+        # Save to individual file
+        flow_file = flows_dir / f"problem_{problem_id}_execution_flow.json"
+        try:
+            with open(flow_file, 'w') as f:
+                json.dump(execution_flow, f, indent=2, default=str)
+            self.logger.info(f"Saved execution flow for problem {problem_id} to {flow_file}")
+        except Exception as e:
+            self.logger.error(f"Failed to save execution flow for problem {problem_id}: {e}")
+    
+    def _save_problem_result(self, problem_id: str, problem_result: Dict[str, Any]) -> None:
+        """Save individual problem result to a separate file."""
+        # Create results subdirectory
+        results_dir = self.output_dir / "results"
+        results_dir.mkdir(exist_ok=True)
+        
+        # Save to individual file
+        result_file = results_dir / f"problem_{problem_id}_result.json"
+        try:
+            with open(result_file, 'w') as f:
+                json.dump(problem_result, f, indent=2, default=str)
+            self.logger.info(f"Saved problem result for {problem_id} to {result_file}")
+        except Exception as e:
+            self.logger.error(f"Failed to save problem result for {problem_id}: {e}")
+    
     def _save_workflow_results(self, results: List[Any]) -> None:
-        """Save workflow results to output directory."""
+        """Save workflow results (actual problem data) to output directory."""
         results_file = self.output_dir / f"{self.name}_results.json"
         try:
             with open(results_file, 'w') as f:
                 json.dump(results, f, indent=2, default=str)
-            self.logger.info(f"Saved workflow results to {results_file}")
+            self.logger.info(f"Saved workflow results (problem data) to {results_file}")
         except Exception as e:
             self.logger.error(f"Failed to save workflow results: {e}")
     
     def _save_workflow_status(self) -> None:
-        """Save workflow status to output directory."""
+        """Save workflow status (execution metadata) to output directory."""
         status_file = self.output_dir / f"{self.name}_status.json"
         try:
             with open(status_file, 'w') as f:
                 json.dump(self.workflow_status, f, indent=2, default=str)
-            self.logger.info(f"Saved workflow status to {status_file}")
+            self.logger.info(f"Saved workflow status (execution metadata) to {status_file}")
         except Exception as e:
             self.logger.error(f"Failed to save workflow status: {e}")
     

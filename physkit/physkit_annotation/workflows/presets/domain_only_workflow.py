@@ -14,12 +14,6 @@ from ..modules.domain_assessment_module import DomainAssessmentModule
 
 
 class DomainOnlyWorkflow:
-    """
-    Pre-defined workflow for domain-only annotation.
-    
-    This workflow provides a simple way to classify physics problems
-    by domain without the complexity of full annotation pipelines.
-    """
     
     def __init__(
         self,
@@ -41,7 +35,6 @@ class DomainOnlyWorkflow:
         # Add the domain label and assessment module
         self.workflow.add_module(
             DomainAssessmentModule(
-                name="domain_label_and_assessment",
                 model=self.model,
             )
         )

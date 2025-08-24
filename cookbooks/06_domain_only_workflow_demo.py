@@ -234,7 +234,7 @@ def analyze_workflow_results(workflow_results: Dict[str, Any], dataset_size: int
             
             print(f"    Module: {module_name}")
             print(f"      - Problems processed: {total_problems}")
-            print(f"      - Success rate: {successful_problems}/{total_problems}")
+            print(f"      - Completion rate: {successful_problems}/{total_problems}")
             print(f"      - Execution time: {execution_time:.2f}s")
             
             if total_problems > 0:
@@ -243,20 +243,14 @@ def analyze_workflow_results(workflow_results: Dict[str, Any], dataset_size: int
         
         # Problem execution summary
         print(f"\n  🔄 Problem Processing Summary:")
-        problem_flow = workflow_status.get('problem_execution_flow', [])
-        successful_count = 0
-        failed_count = 0
+        problem_stats = workflow_status.get('problem_stats', {})
+        total_problems = problem_stats.get('total', 0)
+        successful_problems = problem_stats.get('successful', 0)
+        failed_problems = problem_stats.get('failed', 0)
         
-        for problem_exec in problem_flow:
-            status = problem_exec.get('status', 'Unknown')
-            if status == 'SUCCESS':
-                successful_count += 1
-            elif status == 'FAILED':
-                failed_count += 1
-        
-        print(f"    - Total problems: {len(problem_flow)}")
-        print(f"    - Successful: {successful_count}")
-        print(f"    - Failed: {failed_count}")
+        print(f"    - Total problems: {total_problems}")
+        print(f"    - Successful: {successful_problems}")
+        print(f"    - Failed: {failed_problems}")
         
         # Workflow summary
         workflow_summary = workflow_status.get('workflow_summary', {})

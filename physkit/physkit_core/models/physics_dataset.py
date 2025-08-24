@@ -1,3 +1,4 @@
+import random
 from typing import Dict, Any, List, Optional, Union, Iterator
 from pathlib import Path
 import json
@@ -170,6 +171,21 @@ class PhysicalDataset:
             return PhysicalDataset([], self._info, self._split)
         n = min(n, len(self._problems))
         return PhysicalDataset(self._problems[-n:], self._info, self._split)
+    
+    def sample(self, n: int) -> 'PhysicalDataset':
+        """
+        Sample N problems from the dataset.
+        
+        Args:
+            n: Number of problems to sample
+            
+        Returns:
+            New PhysicalDataset with sampled problems
+        """
+        if n <= 0:
+            return PhysicalDataset([], self._info, self._split)
+        n = min(n, len(self._problems))
+        return PhysicalDataset(random.sample(self._problems, n), self._info, self._split)
     
     def map(self, map_func) -> List[Any]:
         """

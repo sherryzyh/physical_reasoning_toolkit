@@ -1,7 +1,7 @@
 """
 Domain assessment workflow module for physics problem classification.
 
-This module provides domain annotation and assessment functionality that can be composed
+This module provides domain labeling and assessment functionality that can be composed
 into larger annotation workflows.
 """
 
@@ -14,17 +14,9 @@ from .base_module import BaseWorkflowModule
 
 
 class DomainAssessmentModule(BaseWorkflowModule):
-    """
-    Workflow module for domain assessment of physics problems.
-    
-    This module classifies physics problems into their respective domains
-    (e.g., mechanics, electromagnetism, quantum physics, etc.) and assesses
-    the quality of the annotations.
-    """
-    
     def __init__(
         self,
-        name: str = "domain_assessment",
+        name: str = "mod_domain_assessment",
         model: str = "o3-mini",
         config: Optional[Dict[str, Any]] = None
     ):
@@ -35,7 +27,7 @@ class DomainAssessmentModule(BaseWorkflowModule):
         
         # Update module status with domain-specific information
         self.module_status.update({
-            "annotation_type": "domain",
+            "labeling_type": "domain",
             "domains_identified": 0,
             "confidence_scores": [],
             "problems_with_multiple_domains": 0,
@@ -43,100 +35,132 @@ class DomainAssessmentModule(BaseWorkflowModule):
             "assessment_failures": 0
         })
     
-    def _annotate_domain(
+    @property
+    def name(self) -> str:
+        return self._name
+    
+    def _label_domain(
         self,
         problem: PhysicsProblem,
     ) -> Optional[DomainAnnotation]:
         """
-        Perform domain annotation for a problem.
+        Perform domain labeling for a problem.
         
         Args:
             problem: PhysicsProblem object
             
         Returns:
-            DomainAnnotation object or None if annotation fails
+            DomainAnnotation object or None if labeling fails
         """
-        # Perform domain annotation - returns DomainAnnotation object
-        domain_annotation = self.domain_annotator.annotate(problem.question)
+        # Perform domain labeling - returns DomainAnnotation object
+        domain_label = self.domain_annotator.annotate(problem.question)
         
-        if not domain_annotation:
+        if not domain_label:
             self.module_status["execution_status"] = "SUCCESS"  # Execution succeeded
-            self.module_status["result_validity"] = "INVALID"  # But no annotations returned
-            self.module_status["execution_error"] = "No domain annotations returned"
+            self.module_status["result_validity"] = "INVALID"  # But no domain labels returned
+            self.module_status["execution_error"] = "No domain labels returned"
             return None
         
-        return domain_annotation
+        return domain_label
     
-    def _assess_annotated_domain(
+    def _assess_domain_labels(
         self,
         problem: PhysicsProblem,
-        llm_annotation: DomainAnnotation,
+        llm_label: DomainAnnotation,
     ) -> Optional[Dict[str, Any]]:
         """
-        Assess the quality of domain annotations.
+        Assess the quality of domain labels.
         
         Args:
             problem: PhysicsProblem object
-            llm_annotation: DomainAnnotation object
+            llm_label: DomainAnnotation object containing LLM domain labels
             
         Returns:
             Dictionary containing assessment results or None if assessment fails
         """
         
-        annotated_domains = llm_annotation.domains
+        labeled_domains = llm_label.domains
         
-        # Check if any domains are annotated
-        if not annotated_domains:
+        # Check if any domains are labeled
+        if not labeled_domains:
             self.module_status["execution_status"] = "FAILED"
-            self.module_status["execution_error"] = "No domains annotated by LLM"
+            self.module_status["execution_error"] = "No domains labeled by LLM"
             return None
         
-        valid_annotated_domains = []
+        valid_labeled_domains = []
         
-        # Check if the annotated domains are valid
-        for domain in annotated_domains:
+        # Check if the labeled domains are valid
+        for domain in labeled_domains:
             if domain in PhysicsDomain:
-                valid_annotated_domains.append(domain)
+                valid_labeled_domains.append(domain)
             else:
                 self.logger.warning("Invalid domain: %s", domain)
         
-        if not valid_annotated_domains:
+        if not valid_labeled_domains:
             self.module_status["execution_status"] = "FAILED"
-            self.module_status["execution_error"] = "No valid domains annotated by LLM"
+            self.module_status["execution_error"] = "No valid domains labeled by LLM"
             return None
         
-        # Check the annotation's correctness
+        # Check the labeling's correctness
         gold_domain = problem.domain
         
         if gold_domain:
-            if gold_domain in valid_annotated_domains:
-                self.module_status["execution_status"] = "SUCCESS"
-                self.module_status["result_validity"] = "VALID"  # Gold domain found in annotations
-                assessment = {
-                    "domain_to_proceed": gold_domain,
-                    "reasoning": "The gold domain is in the annotated domains",
-                    "valid_annotated_domains": valid_annotated_domains,
-                    "gold_domain": gold_domain
-                }
-                return assessment
-            else:
-                self.module_status["execution_status"] = "SUCCESS"
-                self.module_status["result_validity"] = "INVALID"  # Domain annotated but gold domain not found
-                assessment = {
-                    "domain_to_proceed": gold_domain,
-                    "reasoning": "DUMMY SUCCESS - GOLD DOMAIN not in annotated domains",
-                    "valid_annotated_domains": valid_annotated_domains,
-                    "gold_domain": gold_domain
-                }
-                return assessment
+            # Convert gold_domain to PhysicsDomain enum for comparison
+            try:
+                gold_domain_enum = PhysicsDomain.from_string(str(gold_domain))
+                if gold_domain_enum in valid_labeled_domains:
+                    self.module_status["execution_status"] = "SUCCESS"
+                    self.module_status["result_validity"] = "VALID"  # Gold domain found in labels
+                    assessment = {
+                        "domain_to_proceed": gold_domain,
+                        "reasoning": "The gold domain is in the labeled domains",
+                        "valid_labeled_domains": valid_labeled_domains,
+                        "gold_domain": gold_domain
+                    }
+                    return assessment
+                else:
+                    self.module_status["execution_status"] = "SUCCESS"
+                    self.module_status["result_validity"] = "INVALID"  # Domain labeled but gold domain not found
+                    assessment = {
+                        "domain_to_proceed": gold_domain,
+                        "reasoning": "DUMMY SUCCESS - GOLD DOMAIN not in labeled domains",
+                        "valid_labeled_domains": valid_labeled_domains,
+                        "gold_domain": gold_domain
+                    }
+                    return assessment
+            except Exception as e:
+                self.logger.warning(f"Failed to convert gold domain '{gold_domain}' to enum: {e}")
+                # Fallback to string comparison
+                gold_domain_str = str(gold_domain).lower()
+                valid_domain_strings = [str(domain).lower() for domain in valid_labeled_domains]
+                if gold_domain_str in valid_domain_strings:
+                    self.module_status["execution_status"] = "SUCCESS"
+                    self.module_status["result_validity"] = "VALID"  # Gold domain found in labels
+                    assessment = {
+                        "domain_to_proceed": gold_domain,
+                        "reasoning": "The gold domain is in the labeled domains",
+                        "valid_labeled_domains": valid_labeled_domains,
+                        "gold_domain": gold_domain
+                    }
+                    return assessment
+                else:
+                    self.module_status["execution_status"] = "SUCCESS"
+                    self.module_status["result_validity"] = "INVALID"  # Domain labeled but gold domain not found
+                    assessment = {
+                        "domain_to_proceed": gold_domain,
+                        "reasoning": "DUMMY SUCCESS - GOLD DOMAIN not in labeled domains",
+                        "valid_labeled_domains": valid_labeled_domains,
+                        "gold_domain": gold_domain
+                    }
+                    return assessment
         else:
             # TODO: decide if domain is correct when gold domain is not provided
             self.module_status["execution_status"] = "SUCCESS"
             self.module_status["result_validity"] = "VALID"  # No gold domain to validate against
             assessment = {
-                "domain_to_proceed": valid_annotated_domains[0],
+                "domain_to_proceed": valid_labeled_domains[0],
                 "reasoning": "DUMMY SUCCESS - NO GOLD DOMAIN PROVIDED",
-                "valid_annotated_domains": valid_annotated_domains,
+                "valid_labeled_domains": valid_labeled_domains,
                 "gold_domain": None
             }
             return assessment
@@ -147,7 +171,7 @@ class DomainAssessmentModule(BaseWorkflowModule):
         **kwargs
     ) -> Optional[Dict[str, Any]]:
         """
-        Process a single problem for domain annotation and assessment.
+        Process a single problem for domain labeling and assessment.
         
         Args:
             problem: PhysicsProblem object
@@ -162,26 +186,26 @@ class DomainAssessmentModule(BaseWorkflowModule):
             self.module_status["execution_error"] = "No question found"
             return None
         
-        # Step 1: Domain annotation
-        llm_annotation = self._annotate_domain(problem)
-        if llm_annotation is None:
+        # Step 1: Domain labeling
+        llm_label = self._label_domain(problem)
+        if llm_label is None:
             return None
         
-        # Step 2: Assess the domain annotation
-        domain_assessment_result = self._assess_annotated_domain(
+        # Step 2: Assess the domain labels
+        domain_labeling_result = self._assess_domain_labels(
             problem,
-            llm_annotation
+            llm_label
         )  
-        if domain_assessment_result is None:
+        if domain_labeling_result is None:
             return None
         
         # Return successful result with all information
         return {
-            "llm_annotation": llm_annotation,
-            "domain_to_proceed": domain_assessment_result.get("domain_to_proceed"),
-            "reasoning": domain_assessment_result.get("reasoning"),
-            "valid_annotated_domains": domain_assessment_result.get("valid_annotated_domains"),
-            "gold_domain": domain_assessment_result.get("gold_domain")
+            "llm_label": llm_label,
+            "domain_to_proceed": domain_labeling_result.get("domain_to_proceed"),
+            "reasoning": domain_labeling_result.get("reasoning"),
+            "valid_labeled_domains": domain_labeling_result.get("valid_labeled_domains"),
+            "gold_domain": domain_labeling_result.get("gold_domain"),
         }
     
     def _form_output_as_a_problem(
@@ -211,7 +235,7 @@ class DomainAssessmentModule(BaseWorkflowModule):
             return new_problem
         
         # Check if result has required keys
-        required_keys = ["domain_to_proceed", "reasoning", "valid_annotated_domains"]
+        required_keys = ["domain_to_proceed", "reasoning", "valid_labeled_domains"]
         
         if not all(key in result for key in required_keys):
             self.logger.warning(f"Result is missing required keys, returning the copied problem as-is")
@@ -232,8 +256,12 @@ class DomainAssessmentModule(BaseWorkflowModule):
         self.logger.info(f"Gold domain added to additional fields: {new_problem.additional_fields['gold_domain']}")
         
         new_problem.additional_fields["reasoning"] = result["reasoning"]
-        new_problem.additional_fields["valid_annotated_domains"] = result["valid_annotated_domains"]
-        new_problem.additional_fields["llm_annotation"] = result["llm_annotation"]
+        new_problem.additional_fields["valid_labeled_domains"] = result["valid_labeled_domains"]
+        new_problem.additional_fields["llm_domain_label"] = result["llm_label"]
+        # Check if the gold domain is in the valid labeled domains
+        # Convert enum values to strings for comparison
+        valid_domain_strings = [str(domain).lower() for domain in result["valid_labeled_domains"]]
+        new_problem.additional_fields["domain_accuracy"] = (gold_domain_value.lower() in valid_domain_strings)
         
         return new_problem
     
