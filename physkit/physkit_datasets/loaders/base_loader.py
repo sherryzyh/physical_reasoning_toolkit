@@ -105,14 +105,24 @@ def is_mathematical_expression(value: str) -> bool:
         # LaTeX indicators
         '$', '\\', '\\[', '\\]', '\\(', '\\)',
         # Mathematical symbols
-        'π', '∞', '±', '≤', '≥', '≠', '≈'
+        'π', '∞', '±', '≤', '≥', '≠', '≈',
+        # Additional LaTeX patterns
+        re.search(r'\\frac\{[^}]+\}\{[^}]+\}', value),  # \frac{}{}
+        re.search(r'\\[a-zA-Z]+\{[^}]*\}', value),  # \command{}
+        re.search(r'\\mathrm\{[^}]+\}', value),  # \mathrm{}
+        re.search(r'\\text\{[^}]+\}', value),  # \text{}
     ]
     
     # Check if any math indicators are present
-    has_math = any(
-        indicator in value if isinstance(indicator, str) else indicator
-        for indicator in math_indicators
-    )
+    has_math = False
+    for indicator in math_indicators:
+        if isinstance(indicator, str):
+            if indicator in value:
+                has_math = True
+                break
+        elif indicator is not None:  # regex match object
+            has_math = True
+            break
     
     # Additional validation: should not be just a single number
     if has_math and not is_pure_number(value):
@@ -354,11 +364,8 @@ class BaseDatasetLoader(ABC):
         
         if "MC" in problem_type:
             return Answer(value=answer, answer_type=AnswerType.OPTION)
-        
-        if not answer_type:
-            answer_type = detect_answer_type(answer)
             
-        if answer_type == AnswerType.NUMERICAL:
+        if answer_type == AnswerType.NUMERICAL or answer_type == "numerical":
             if isinstance(answer, dict):
                 value = answer.get("value")
                 unit = answer.get("unit", "")
@@ -374,15 +381,16 @@ class BaseDatasetLoader(ABC):
             value = re.sub(r'\$([^$]+)\$', r'\1', value)
             
             return Answer(value=value, answer_type=AnswerType.NUMERICAL, unit=unit)
-        elif answer_type == AnswerType.SYMBOLIC:
+        elif answer_type == AnswerType.SYMBOLIC or answer_type == "symbolic":
             return Answer(value=answer, answer_type=AnswerType.SYMBOLIC)
-        elif answer_type == AnswerType.TEXTUAL:
+        elif answer_type == AnswerType.TEXTUAL or answer_type == "textual":
             return Answer(value=answer, answer_type=AnswerType.TEXTUAL)
-        elif answer_type == AnswerType.OPTION:
+        elif answer_type == AnswerType.OPTION or answer_type == "option":
             return Answer(value=answer, answer_type=AnswerType.OPTION)
         else:
-            # fallback to textual
-            return Answer(value=answer, answer_type=AnswerType.TEXTUAL)
+            # fallback to auto-detect
+            answer_type = detect_answer_type(answer)
+            return Answer(value=answer, answer_type=answer_type)
     
     def create_physics_problem(
         self, 

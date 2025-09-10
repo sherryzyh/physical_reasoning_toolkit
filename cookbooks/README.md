@@ -27,6 +27,9 @@ python 04_workflow_composition_demo.py
 
 # Test enhanced evaluation toolkit (25 comprehensive test scenarios)
 python 05_answer_comparison_demo.py
+
+# Demo theorem review workflow with human interaction
+python 08_theorem_review_workflow_demo.py
 ```
 
 ## 📚 Available Cookbooks
@@ -181,6 +184,52 @@ Option:     100.00% (7/7)
 - **Significant Figures**: Precision-aware comparison without fixed tolerance
 - **LLM Integration**: GPT-4o for semantic comparison of units and explanations
 - **Option Intelligence**: Smart multiple choice comparison with normalization, case-insensitive matching, order independence
+
+### 6. **Theorem Review Workflow Demo** (`08_theorem_review_workflow_demo.py`)
+**Purpose**: Demonstrate human-in-the-loop theorem review using ReviewTheoremModule
+
+**Features**:
+- ✅ **Interactive Review**: Human reviewers evaluate predicted theorems for relevance, equation correctness, and condition validity
+- ✅ **Result Loading**: Loads theorem detection results from previous experiments
+- ✅ **PhysicsProblem Creation**: Converts annotated problem data to PhysicsProblem objects
+- ✅ **Workflow Composition**: Creates workflow with only ReviewTheoremModule
+- ✅ **Comprehensive Analysis**: Detailed review statistics and human feedback analysis
+- ✅ **Output Management**: Saves review results and workflow statistics
+
+**Usage**:
+```bash
+# Review 3 problems (default)
+python 08_theorem_review_workflow_demo.py
+
+# Review specific number of problems
+python 08_theorem_review_workflow_demo.py 5
+
+# Use different model
+python 08_theorem_review_workflow_demo.py 3 --model o3-mini
+```
+
+**Prerequisites**:
+- `OPENAI_API_KEY` environment variable set
+- Theorem detection results available in `experiments_outputs/theorem_detection/phybench_mechanics/results/`
+- Human reviewer available for interactive theorem evaluation
+
+**Review Process**:
+1. **Relevance Check**: Is the theorem relevant to solving the physics problem?
+2. **Equations Check**: Are the equations correct and appropriate for this theorem?
+3. **Conditions Check**: Do the conditions make sense and are they appropriate?
+
+**Output**:
+- Individual problem review files with human feedback
+- Workflow statistics and review summaries
+- Detailed logging of each review step
+- Review metadata including timestamps and reviewer feedback
+
+**Key Concepts Demonstrated**:
+- Human-in-the-loop annotation workflows
+- Theorem review and validation processes
+- PhysicsProblem object creation from experiment results
+- Interactive workflow execution with user input
+- Review quality assessment and feedback collection
 
 
 

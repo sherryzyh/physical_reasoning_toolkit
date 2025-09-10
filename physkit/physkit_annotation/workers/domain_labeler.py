@@ -20,10 +20,9 @@ class DomainResponse(BaseModel):
     reasoning: str
     subdomains: List[str]
 
-class DomainAnnotator(BaseAnnotator):
+class DomainLabeler(BaseAnnotator):
     """Annotator for physics domain classification."""
-    
-    def annotate(
+    def work(
         self,
         question: str,
         **kwargs,
@@ -43,7 +42,7 @@ class DomainAnnotator(BaseAnnotator):
         - electrodynamics
         - electricity
         - quantum_mechanics
-        - modern_physics
+        - modern_physics    
         - atomic_physics
         - high_energy_theory
         - thermodynamics

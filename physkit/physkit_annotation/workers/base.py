@@ -17,7 +17,7 @@ class BaseAnnotator(ABC):
         self.llm_client = LLMClient.from_model(model)
     
     @abstractmethod
-    def annotate(self, question: str, **kwargs) -> Any:
+    def work(self, question: str, **kwargs) -> Any:
         """Perform annotation for this step."""
         pass
     

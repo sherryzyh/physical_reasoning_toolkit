@@ -8,6 +8,7 @@ that can be chained together to create complex annotation workflows.
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional, Union
 from datetime import datetime
+import logging
 
 from physkit_core.models.physics_problem import PhysicsProblem
 from physkit_core import PhysKitLogger
@@ -27,6 +28,7 @@ class BaseWorkflowModule(ABC):
         model: str = "o3-mini",
         config: Optional[Dict[str, Any]] = None
     ):
+        # Setup module logging - the workflow will configure this properly
         self.logger = PhysKitLogger.get_logger(f"{__name__}.{name}")
         self.logger.info(f"Initializing module {name} with model {model}")
         
@@ -42,8 +44,12 @@ class BaseWorkflowModule(ABC):
             "execution_status": "PENDING",
             "execution_error": None,
             "result": None,
-            "result_validity": None,  # New field: tracks if result meets quality/validity criteria
-            "validity_count": 0  # Count of VALID results
+            "successful_problems": 0,  # Generic field for reusability
+            "failed_problems": 0,      # Generic field for reusability
+            "total_problems": 0,       # Generic field for reusability
+            # Optional validity fields for backward compatibility
+            "result_validity": None,
+            "validity_count": 0
         }
         
         # Validation
@@ -52,7 +58,7 @@ class BaseWorkflowModule(ABC):
     
     @property
     def name(self) -> str:
-        return self.name
+        return self._name
 
     @name.setter
     def name(self, value: str) -> None:
@@ -84,7 +90,7 @@ class BaseWorkflowModule(ABC):
     def run(
         self,
         problem: PhysicsProblem,
-        problem_as_output: bool = False,
+        problem_as_output: bool = True,
         **kwargs
     ) -> Union[PhysicsProblem, Dict[str, Any]]:
         """
@@ -120,25 +126,26 @@ class BaseWorkflowModule(ABC):
                 self.module_status["execution_status"] = "SUCCESS"
                 self.module_status["execution_time_seconds"] = (datetime.now() - execution_start).total_seconds()
                 
-                # Update validity_count based on result_validity set by derived class during process()
+                # Update validity_count if result_validity is set (optional feature)
                 if self.module_status.get("result_validity") == "VALID":
                     self.module_status["validity_count"] = self.module_status.get("validity_count", 0) + 1
             else:
                 # Processing failed (returned None)
                 self.logger.warning(f"Module {self.name} returned None for problem {problem_id}")
                 self.module_status["execution_status"] = "SUCCESS"  # Execution succeeded
-                self.module_status["result_validity"] = "INVALID"  # But result is invalid/None
                 self.module_status["execution_error"] = "Processing returned None"
                 self.module_status["execution_time_seconds"] = 0
 
         except Exception as e:
             error_type = type(e).__name__
             error_msg = str(e)
-            self.logger.error(f"Module {self.name} failed to process problem {problem_id}: {error_type}: {error_msg}")
+            self.logger.error(
+                f"Module {self.name} failed to process problem {problem_id}: {error_type}: {error_msg}",
+                exc_info=True
+            )
             
             self.module_status["execution_error"] = f"{error_type}: {error_msg}"
             self.module_status["execution_status"] = "FAILED"
-            self.module_status["result_validity"] = "INVALID"  # Execution failed, so result is invalid
             self.module_status["execution_time_seconds"] = 0
             result = None
         
@@ -190,8 +197,13 @@ class BaseWorkflowModule(ABC):
             "execution_time_seconds": 0,
             "execution_status": "PENDING",
             "execution_error": None,
+            # Generic fields for all modules
+            "total_problems": 0,
+            "successful_problems": 0,
+            "failed_problems": 0,
+            # Optional validity fields for backward compatibility
             "result_validity": None,
-            "validity_count": 0  # Reset validity count
+            "validity_count": 0
         }
         self.logger.info(f"Module {self.name} reset completed successfully")
     

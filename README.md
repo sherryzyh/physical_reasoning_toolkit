@@ -122,6 +122,60 @@ Dataset management with support for:
 - **Variant Support**: Full/mini versions where available
 - **Sampling**: Reproducible data sampling for development
 
+#### **Dataset Field Comparison**
+All datasets are automatically converted to standard field names. Here's what each dataset provides:
+
+| Dataset | Domain | Solution | Answer | Total Problems |
+|---------|---------|----------|---------|----------------|
+| **PHYBench** | ✅ Yes | ✅ Yes | ✅ Yes | 500 (100) |
+| **SeePhys** | ✅ Yes | ❌ No | ✅ Yes | 6,200 |
+| **UGPhysics** | ✅ Yes | ✅ Yes | ✅ Yes | 11,040 |
+| **JEEBench** | ❌ No | ❌ No | ✅ Yes | 515 |
+| **SciBench** | ✅ Yes | ❌ No | ✅ Yes | 580 |
+| **TPBench** | ✅ Yes | ✅ Yes | ✅ Yes | 10 |
+| **PhysReason** | ❌ No | ✅ Yes | ✅ Yes | 1,200 |
+
+**Field Coverage Summary:**
+- **Domain**: 5/7 datasets provide physics domain classification
+- **Solution**: 4/7 datasets include detailed solutions/explanations  
+- **Answer**: 7/7 datasets provide correct answers
+
+#### **Physics Domain Coverage by Dataset**
+The following table shows which physics domains are available in each dataset:
+
+| Physics Domain | UGPhysics | PHYBench | TPBench | SciBench | SeePhys | JEEBench | PhysReason |
+|----------------|-----------|----------|---------|----------|---------|----------|------------|
+| **Advanced Physics** | ❌ | 18 | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Atomic Physics** | 915 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Classical Electromagnetism** | 390 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Classical Mechanics** | 836 | ❌ | 1 | 56 | ❌ | ❌ | ❌ |
+| **Cosmology** | ❌ | ❌ | 4 | ❌ | ❌ | ❌ | ❌ |
+| **Electricity** | ❌ | 142 | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Electrodynamics** | 184 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Fundamental Physics** | ❌ | ❌ | ❌ | 71 | ❌ | ❌ | ❌ |
+| **Geometrical Optics** | 58 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **High Energy Theory** | ❌ | ❌ | 2 | ❌ | ❌ | ❌ | ❌ |
+| **Mechanics** | ❌ | 191 | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Modern Physics** | ❌ | 42 | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Optics** | ❌ | 41 | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Other** | ❌ | ❌ | ❌ | ❌ | 2000 | ❌ | ❌ |
+| **Quantum Mechanics** | 1019 | ❌ | 2 | 33 | ❌ | ❌ | ❌ |
+| **Relativity** | 207 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Semiconductor Physics** | 186 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Solid State Physics** | 172 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Statistical Mechanics** | 560 | ❌ | 1 | ❌ | ❌ | ❌ | ❌ |
+| **Theoretical Mechanics** | 319 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Thermodynamics** | 372 | 66 | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Wave Optics** | 302 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+
+**Domain Coverage Summary:**
+- **UGPhysics**: 13 domains (most comprehensive coverage) - 5,520 problems
+- **SeePhys**: 1 domain (Other - visual physics focus) - 2,000 problems  
+- **PHYBench**: 6 domains (focused on core physics areas) - 500 problems
+- **SciBench**: 3 domains (fundamental physics focus) - 160 problems
+- **TPBench**: 5 domains (specialized in theoretical physics) - 10 problems
+- **JEEBench, PhysReason**: No domain classification - 123 and 3,117 problems respectively
+
 ### **physkit_annotation**
 Annotation workflows for:
 - **Automated Annotation**: LLM-powered problem annotation

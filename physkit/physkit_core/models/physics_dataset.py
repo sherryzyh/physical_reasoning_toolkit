@@ -117,6 +117,83 @@ class PhysicalDataset:
         filtered_problems = [p for p in self._problems if filter_func(p)]
         return PhysicalDataset(filtered_problems, self._info, self._split)
     
+    def filter_by_domains(self, domains: List[Union[str, 'PhysicsDomain']]) -> 'PhysicalDataset':
+        """
+        Filter problems by physics domains.
+        
+        Args:
+            domains: List of domain names (strings) or PhysicsDomain enum values
+            
+        Returns:
+            New PhysicalDataset containing only problems from the specified domains
+            
+        Example:
+            # Filter by domain names
+            mechanics_dataset = dataset.filter_by_domains(["mechanics", "classical_mechanics"])
+            
+            # Filter by PhysicsDomain enum values
+            from physkit_core.definitions.physics_domain import PhysicsDomain
+            quantum_dataset = dataset.filter_by_domains([PhysicsDomain.QUANTUM_MECHANICS])
+        """
+        # Import here to avoid circular imports
+        from ..definitions.physics_domain import PhysicsDomain
+        
+        # Normalize domains to strings for comparison
+        normalized_domains = set()
+        for domain in domains:
+            if isinstance(domain, PhysicsDomain):
+                normalized_domains.add(domain.value)
+            elif isinstance(domain, str):
+                # Try to normalize the string domain
+                try:
+                    physics_domain = PhysicsDomain.from_string(domain)
+                    normalized_domains.add(physics_domain.value)
+                except (ValueError, AttributeError):
+                    # If normalization fails, use the original string
+                    normalized_domains.add(domain.lower())
+            else:
+                # Skip invalid domain types
+                continue
+        
+        # Filter problems that match any of the specified domains
+        filtered_problems = []
+        for problem in self._problems:
+            problem_domain = problem.get_domain_name()
+            if problem_domain:
+                # Check if the problem's domain exactly matches any of the specified domains
+                if problem_domain.lower() in normalized_domains:
+                    filtered_problems.append(problem)
+        
+        # Create new dataset with filtered problems
+        filtered_dataset = PhysicalDataset(filtered_problems, self._info, self._split)
+        
+        # Log filtering results
+        logger = PhysKitLogger.get_logger(__name__)
+        logger.info(f"Filtered dataset by domains {list(normalized_domains)}: "
+                   f"{len(filtered_problems)} problems out of {len(self._problems)}")
+        
+        return filtered_dataset
+    
+    def filter_by_domain(self, domain: Union[str, 'PhysicsDomain']) -> 'PhysicalDataset':
+        """
+        Filter problems by a single physics domain.
+        
+        Args:
+            domain: Domain name (string) or PhysicsDomain enum value
+            
+        Returns:
+            New PhysicalDataset containing only problems from the specified domain
+            
+        Example:
+            # Filter by domain name
+            mechanics_dataset = dataset.filter_by_domain("mechanics")
+            
+            # Filter by PhysicsDomain enum value
+            from physkit_core.definitions.physics_domain import PhysicsDomain
+            quantum_dataset = dataset.filter_by_domain(PhysicsDomain.QUANTUM_MECHANICS)
+        """
+        return self.filter_by_domains([domain])
+    
     def select(self, indices: List[int]) -> 'PhysicalDataset':
         """
         Select problems by indices.
