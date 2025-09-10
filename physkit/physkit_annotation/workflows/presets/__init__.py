@@ -6,9 +6,9 @@ multiple workflow modules for specific use cases.
 """
 
 from .domain_only_workflow import DomainOnlyWorkflow
-from .plain_auto_workflow import PlainAutomaticWorkflow
+from .theorem_label_only_workflow import TheoremLabelOnlyWorkflow
 
 __all__ = [
     "DomainOnlyWorkflow",
-    "PlainAutomaticWorkflow"
+    "TheoremLabelOnlyWorkflow"
 ]

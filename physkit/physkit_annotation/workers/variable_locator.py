@@ -6,8 +6,8 @@ import json
 
 from pydantic import BaseModel
 from .base import BaseAnnotator
-from ..annotators.domain import DomainAnnotation
-from ..annotators.theorem import TheoremAnnotation
+from .domain_labeler import DomainLabeler
+from .theorem_detector import TheoremDetector
 
 
 
@@ -51,28 +51,20 @@ class VariableResponse(BaseModel):
         description="Brief summary of what variables are being solved for"
     )
 
-class VariableAnnotator(BaseAnnotator):
+class VariableLocator(BaseAnnotator):
     """Annotator for extracting variables from the problem statement."""
     
-    def annotate(
+    def work(
         self,
         question: str,
-        domain_anno: DomainAnnotation,
-        theorem_anno: TheoremAnnotation,
         **kwargs,
     ) -> VariableAnnotation:
         """Extract variables from the problem statement."""
-        domain_name = domain_anno.domains[0].value if domain_anno.domains else 'Unknown'
-        theorems = theorem_anno.theorems
-        equations = theorem_anno.equations
         
         prompt = f"""
         Extract all variables from this physics problem and classify them as known or unknown.
 
         Problem: {question}
-        Physics Domain: {domain_name}
-        Relevant Theorems: {theorems}
-        Relevant Equations: {equations}
 
         For each variable, identify:
         - Symbol/name (e.g., "v", "t", "a")

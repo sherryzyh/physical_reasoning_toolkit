@@ -34,59 +34,81 @@ class SciBenchLoader(BaseDatasetLoader):
         self.logger = PhysKitLogger.get_logger(__name__)
     
     @property
+    def PHYSICS_DOMAIN_SUBJECT_MAPPING(self) -> Dict[str, str]:
+        """Return mapping of source domains to their subjects and problem counts."""
+        # Subject classification mapping
+        return {
+            "fund": {
+                "domain": "Fundamental Physics",
+                "subject": "physics",
+                "problem_count": 71
+            },
+            "class": {
+                "domain": "Classical Mechanics",
+                "subject": "physics",
+                "problem_count": 56
+            },
+            "quan": {
+                "domain": "Quantum Mechanics",
+                "subject": "physics",
+                "problem_count": 33
+            },
+        }
+
+    @property
     def DOMAIN_SUBJECT_MAPPING(self) -> Dict[str, str]:
         """Return mapping of source domains to their subjects and problem counts."""
         # Subject classification mapping
         return {
             "diff": {
-            "domain": "Differential Equations",
-            "subject": "math",
-            "problem_count": 50
+                "domain": "Differential Equations",
+                "subject": "math",
+                "problem_count": 50
             },
             "fund": {
-            "domain": "Fundamental Physics",
-            "subject": "physics",
-            "problem_count": 71
+                "domain": "Fundamental Physics",
+                "subject": "physics",
+                "problem_count": 71
             },
             "chemmc": {
-            "domain": "Chemistry Multiple Choice",
-            "subject": "chemistry",
-            "problem_count": 38
+                "domain": "Chemistry Multiple Choice",
+                "subject": "chemistry",
+                "problem_count": 38
             },
             "atkins": {
-            "domain": "Physical Chemistry",
-            "subject": "chemistry",
-            "problem_count": 105
+                "domain": "Physical Chemistry",
+                "subject": "chemistry",
+                "problem_count": 105
             },
             "matter": {
-            "domain": "Matter and Materials",
-            "subject": "chemistry",
-            "problem_count": 47
+                "domain": "Matter and Materials",
+                "subject": "chemistry",
+                "problem_count": 47
             },
             "thermo": {
-            "domain": "Thermodynamics",
-            "subject": "chemistry",
-            "problem_count": 66
+                "domain": "Thermodynamics",
+                "subject": "chemistry",
+                "problem_count": 66
             },
             "class": {
-            "domain": "Classical Mechanics",
-            "subject": "physics",
-            "problem_count": 56
+                "domain": "Classical Mechanics",
+                "subject": "physics",
+                "problem_count": 56
             },
             "quan": {
-            "domain": "Quantum Mechanics",
-            "subject": "physics",
-            "problem_count": 33
+                "domain": "Quantum Mechanics",
+                "subject": "physics",
+                "problem_count": 33
             },
             "stat": {
-            "domain": "Statistics",
-            "subject": "math",
-            "problem_count": 72
+                "domain": "Statistics",
+                "subject": "math",
+                "problem_count": 72
             },
             "calculus": {
-            "domain": "Calculus",
-            "subject": "math",
-            "problem_count": 42
+                "domain": "Calculus",
+                "subject": "math",
+                "problem_count": 42
             }
         }
 
@@ -116,7 +138,6 @@ class SciBenchLoader(BaseDatasetLoader):
             "problem_types": ["OE"],
             "total_problems": "160",
             "difficulty": "College level",
-            "source": "College textbooks",
             "citation": "SciBench: A College-Level Scientific Reasoning Benchmark",
         }
 
@@ -391,7 +412,7 @@ class SciBenchLoader(BaseDatasetLoader):
         # Process each problem file
         for problem_file in problem_files:
             source_name = problem_file.stem  # filename without extension
-            if source_name not in self.DOMAIN_SUBJECT_MAPPING:
+            if source_name not in self.PHYSICS_DOMAIN_SUBJECT_MAPPING:
                 continue
             
             # Load problems

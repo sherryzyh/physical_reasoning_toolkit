@@ -12,6 +12,83 @@ from typing import Optional, Dict, Any
 import os
 
 
+class ColoredFormatter(logging.Formatter):
+    """Custom formatter that adds colors to console output with fallbacks."""
+    
+    def __init__(self, fmt=None, datefmt=None):
+        super().__init__(fmt, datefmt)
+        self._setup_colors()
+    
+    def _setup_colors(self):
+        """Set up color support using ANSI codes only."""
+        self._colors_available = False
+        self.COLORS = {}
+        
+        # Use ANSI codes for colors
+        try:
+            import os
+            import sys
+            
+            # Check if terminal supports colors
+            if (hasattr(sys.stdout, 'isatty') and sys.stdout.isatty() and
+                os.getenv('TERM') and 'color' in os.getenv('TERM', '')):
+                
+                self.COLORS = {
+                    'DEBUG': '\033[36m',      # Cyan
+                    'INFO': '\033[32m',       # Green
+                    'WARNING': '\033[33m',    # Yellow
+                    'ERROR': '\033[31m',      # Red
+                    'CRITICAL': '\033[35m',   # Magenta
+                    'RESET': '\033[0m'        # Reset color
+                }
+                self._colors_available = True
+            else:
+                # Fallback with visual indicators when colors aren't supported
+                self.COLORS = {
+                    'DEBUG': '[DEBUG]',
+                    'INFO': '[INFO]',
+                    'WARNING': '[WARNING]',
+                    'ERROR': '[ERROR]',
+                    'CRITICAL': '[CRITICAL]',
+                    'RESET': ''
+                }
+                self._colors_available = False
+        except Exception:
+            # Fallback with visual indicators on any error
+            self.COLORS = {
+                'DEBUG': '[DEBUG]',
+                'INFO': '[INFO]',
+                'WARNING': '[WARNING]',
+                'ERROR': '[ERROR]',
+                'CRITICAL': '[CRITICAL]',
+                'RESET': ''
+            }
+            self._colors_available = False
+    
+    def format(self, record):
+        """Format the log record with colors or visual indicators."""
+        # Get the original formatted message
+        formatted = super().format(record)
+        
+        # Add color/visual indicator for both console and file output
+        level_name = record.levelname
+        if level_name in self.COLORS:
+            if self._colors_available:
+                # Use colors (work in both console and file)
+                formatted = formatted.replace(
+                    level_name, 
+                    f"{self.COLORS[level_name]}{level_name}{self.COLORS['RESET']}"
+                )
+            else:
+                # Use visual indicators (work in both console and file)
+                formatted = formatted.replace(
+                    level_name, 
+                    f"{self.COLORS[level_name]} {level_name}"
+                )
+        
+        return formatted
+
+
 class PhysKitLogger:
     """Centralized logger for PhysKit packages with consistent configuration."""
     
@@ -19,6 +96,13 @@ class PhysKitLogger:
     _default_level = logging.INFO
     _default_format = '%(asctime)s - %(name)s - %(levelname)s [%(filename)s, %(lineno)d] - %(message)s'
     _default_date_format = '%Y-%m-%d %H:%M:%S'
+    _colors_enabled = True  # Control whether colors are enabled
+    
+    class ConsoleFilter(logging.Filter):
+        """Filter to mark console records for colored output."""
+        def filter(self, record):
+            record.console_output = True
+            return True
     
     @classmethod
     def setup_global_config(
@@ -59,8 +143,13 @@ class PhysKitLogger:
         if console_output:
             console_handler = logging.StreamHandler(sys.stdout)
             console_handler.setLevel(cls._default_level)
-            formatter = logging.Formatter(cls._default_format, cls._default_date_format)
-            console_handler.setFormatter(formatter)
+            
+            # Use colored formatter for console output
+            colored_formatter = ColoredFormatter(cls._default_format, cls._default_date_format)
+            console_handler.setFormatter(colored_formatter)
+            
+            # Add a filter to mark console records
+            console_handler.addFilter(cls.ConsoleFilter())
             root_logger.addHandler(console_handler)
         
         # File handler (if specified)
@@ -68,8 +157,10 @@ class PhysKitLogger:
             log_file.parent.mkdir(parents=True, exist_ok=True)
             file_handler = logging.FileHandler(log_file)
             file_handler.setLevel(cls._default_level)
-            formatter = logging.Formatter(cls._default_format, cls._default_date_format)
-            file_handler.setFormatter(formatter)
+            
+            # Use colored formatter for file output as well
+            colored_formatter = ColoredFormatter(cls._default_format, cls._default_date_format)
+            file_handler.setFormatter(colored_formatter)
             root_logger.addHandler(file_handler)
         
         # Set up environment-based configuration
@@ -104,9 +195,21 @@ class PhysKitLogger:
         if env_console == "false":
             # Disable console output directly instead of calling setup_global_config
             cls._disable_console_output()
+        
+        # Check for PHYSKIT_LOG_COLORS environment variable
+        env_colors = os.getenv("PHYSKIT_LOG_COLORS", "true").lower()
+        if env_colors == "false":
+            cls.disable_colors()
+        elif cls.is_color_supported():
+            cls.enable_colors()
+        else:
+            cls.disable_colors()
     
     @classmethod
-    def get_logger(cls, name: str = None) -> logging.Logger:
+    def get_logger(
+        cls,
+        name: str = None,
+    ) -> logging.Logger:
         """
         Get a logger instance for the specified name.
         
@@ -133,7 +236,10 @@ class PhysKitLogger:
                 else:
                     name = "physkit"
             finally:
-                del frame
+                try:
+                    del frame
+                except:
+                    pass
         
         # Check if we already have this logger
         if name in cls._loggers:
@@ -154,16 +260,92 @@ class PhysKitLogger:
                 if isinstance(handler, logging.FileHandler):
                     new_handler = logging.FileHandler(handler.baseFilename)
                     new_handler.setLevel(handler.level)
-                    new_handler.setFormatter(handler.formatter)
+                    
+                    # Preserve colored formatting for file handlers
+                    if isinstance(handler.formatter, ColoredFormatter):
+                        new_handler.setFormatter(handler.formatter)
+                    else:
+                        # Use colored formatter for new file handlers
+                        new_handler.setFormatter(ColoredFormatter(cls._default_format, cls._default_date_format))
+                    
                     logger.addHandler(new_handler)
                 elif isinstance(handler, logging.StreamHandler):
                     new_handler = logging.StreamHandler(handler.stream)
                     new_handler.setLevel(handler.level)
-                    new_handler.setFormatter(handler.formatter)
+                    
+                    # Preserve colored formatting for console handlers
+                    if isinstance(handler.formatter, ColoredFormatter):
+                        new_handler.setFormatter(handler.formatter)
+                        # Add console filter to mark records
+                        new_handler.addFilter(cls.ConsoleFilter())
+                    else:
+                        new_handler.setFormatter(handler.formatter)
+                    
                     logger.addHandler(new_handler)
         
         # Store logger
         cls._loggers[name] = logger
+        
+        return logger
+
+    @classmethod
+    def get_logger_with_selective_handlers(
+        cls, 
+        name: str, 
+        log_file: Optional[Path] = None,
+        console_output: bool = True,
+        level: int = None
+    ) -> logging.Logger:
+        """
+        Get a logger instance with selective handler configuration.
+        
+        Args:
+            name: Logger name
+            log_file: Optional log file path (if None, no file handler)
+            console_output: Whether to enable console output
+            level: Logger level (if None, uses default)
+            
+        Returns:
+            Logger instance with specified handler configuration
+        """
+        if level is None:
+            level = cls._default_level
+        
+        # Check if we already have this logger
+        if name in cls._loggers:
+            logger = cls._loggers[name]
+        else:
+            # Create new logger
+            logger = logging.getLogger(name)
+            logger.setLevel(level)
+            cls._loggers[name] = logger
+        
+        # Clear existing handlers to avoid duplicates
+        logger.handlers.clear()
+        
+        # Add file handler if specified
+        if log_file:
+            log_file.parent.mkdir(parents=True, exist_ok=True)
+            file_handler = logging.FileHandler(log_file)
+            file_handler.setLevel(logging.DEBUG)  # File gets all levels
+            
+            # Use colored formatter for file output as well
+            colored_formatter = ColoredFormatter(cls._default_format, cls._default_date_format)
+            file_handler.setFormatter(colored_formatter)
+            logger.addHandler(file_handler)
+        
+        # Add console handler if enabled
+        if console_output:
+            console_handler = logging.StreamHandler(sys.stdout)
+            console_handler.setLevel(level)  # Console respects specified level
+            
+            # Use colored formatter for console output
+            colored_formatter = ColoredFormatter(cls._default_format, cls._default_date_format)
+            console_handler.setFormatter(colored_formatter)
+            
+            # Add a filter to mark console records
+            console_handler.addFilter(cls.ConsoleFilter())
+            logger.addHandler(console_handler)
         
         return logger
     
@@ -181,12 +363,90 @@ class PhysKitLogger:
             handler.setLevel(level)
     
     @classmethod
+    def enable_colors(cls) -> None:
+        """Enable colored output for console logging."""
+        cls._colors_enabled = True
+        cls._update_colors_for_all_handlers()
+    
+    @classmethod
+    def disable_colors(cls) -> None:
+        """Disable colored output for console logging."""
+        cls._colors_enabled = False
+        cls._update_colors_for_all_handlers()
+    
+    @classmethod
+    def force_colors(cls) -> None:
+        """Force enable colors even if terminal detection fails."""
+        cls._colors_enabled = True
+        # Force color detection to retry
+        cls._update_colors_for_all_handlers()
+    
+    @classmethod
+    def is_color_supported(cls) -> bool:
+        """Check if the current terminal supports colors."""
+        import os
+        import sys
+        
+        # Check if we're in a terminal that supports colors
+        if not hasattr(sys.stdout, 'isatty') or not sys.stdout.isatty():
+            return False
+        
+        # Check for common terminal types that support colors
+        term = os.getenv('TERM', '')
+        if term in ['xterm', 'xterm-256color', 'linux', 'screen', 'screen-256color']:
+            return True
+        
+        # Check for Windows color support (basic check)
+        if os.name == 'nt':
+            # Windows terminals generally support colors
+            return True
+        
+        return False
+    
+    @classmethod
+    def _update_colors_for_all_handlers(cls) -> None:
+        """Update color formatting for all existing handlers."""
+        for logger in cls._loggers.values():
+            for handler in logger.handlers:
+                if isinstance(handler, logging.StreamHandler) and handler.stream == sys.stdout:
+                    if cls._colors_enabled:
+                        # Enable colors
+                        if not isinstance(handler.formatter, ColoredFormatter):
+                            handler.setFormatter(ColoredFormatter(cls._default_format, cls._default_date_format))
+                                                    # Add console filter
+                        handler.addFilter(cls.ConsoleFilter())
+                    else:
+                        # Disable colors
+                        if isinstance(handler.formatter, ColoredFormatter):
+                            handler.setFormatter(logging.Formatter(cls._default_format, cls._default_date_format))
+                            # Remove console filters
+                            handler.filters = [f for f in handler.filters if not hasattr(f, 'filter')]
+        
+        # Also update root logger
+        root_logger = logging.getLogger("physkit")
+        for handler in root_logger.handlers:
+            if isinstance(handler, logging.StreamHandler) and handler.stream == sys.stdout:
+                if cls._colors_enabled:
+                    # Enable colors
+                    if not isinstance(handler.formatter, ColoredFormatter):
+                        handler.setFormatter(ColoredFormatter(cls._default_format, cls._default_date_format))
+                        # Add console filter
+                        handler.addFilter(cls.ConsoleFilter())
+                else:
+                    # Disable colors
+                    if isinstance(handler.formatter, ColoredFormatter):
+                        handler.setFormatter(logging.Formatter(cls._default_format, cls._default_date_format))
+                        # Remove console filters
+                        handler.filters = [f for f in handler.filters if not hasattr(f, 'filter')]
+    
+    @classmethod
     def add_file_handler(cls, log_file: Path, level: int = None) -> None:
         """Add a file handler to all existing loggers."""
         if level is None:
             level = cls._default_level
         
-        formatter = logging.Formatter(cls._default_format, cls._default_date_format)
+        # Use colored formatter for file output as well
+        colored_formatter = ColoredFormatter(cls._default_format, cls._default_date_format)
         
         for logger_name, logger in cls._loggers.items():
             # Check if logger already has a file handler
@@ -198,7 +458,7 @@ class PhysKitLogger:
             if not has_file_handler:
                 file_handler = logging.FileHandler(log_file)
                 file_handler.setLevel(level)
-                file_handler.setFormatter(formatter)
+                file_handler.setFormatter(colored_formatter)
                 logger.addHandler(file_handler)
         
         # Also add to root logger
@@ -211,7 +471,7 @@ class PhysKitLogger:
         if not has_file_handler:
             file_handler = logging.FileHandler(log_file)
             file_handler.setLevel(level)
-            file_handler.setFormatter(formatter)
+            file_handler.setFormatter(colored_formatter)
             root_logger.addHandler(file_handler)
     
     @classmethod
@@ -220,7 +480,8 @@ class PhysKitLogger:
         if not log_file.parent.exists():
             log_file.parent.mkdir(parents=True, exist_ok=True)
         
-        formatter = logging.Formatter(cls._default_format, cls._default_date_format)
+        # Use colored formatter for file output as well
+        colored_formatter = ColoredFormatter(cls._default_format, cls._default_date_format)
         
         for logger_name, logger in cls._loggers.items():
             # Check if logger already has a file handler
@@ -232,7 +493,7 @@ class PhysKitLogger:
             if not has_file_handler:
                 file_handler = logging.FileHandler(log_file)
                 file_handler.setLevel(cls._default_level)
-                file_handler.setFormatter(formatter)
+                file_handler.setFormatter(colored_formatter)
                 logger.addHandler(file_handler)
         
         # Also add to root logger
@@ -245,7 +506,7 @@ class PhysKitLogger:
         if not has_file_handler:
             file_handler = logging.FileHandler(log_file)
             file_handler.setLevel(cls._default_level)
-            file_handler.setFormatter(formatter)
+            file_handler.setFormatter(colored_formatter)
             root_logger.addHandler(file_handler)
     
     @classmethod
