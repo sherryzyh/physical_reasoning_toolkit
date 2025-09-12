@@ -110,6 +110,7 @@ class ReviewTheoremModule(BaseWorkflowModule):
                 reviewed_theorem = self._review_single_theorem(
                     theorem=theorem,
                     problem_question=question,
+                    problem_solution=solution,
                     theorem_index=i+1,
                     total_theorems=len(theorems)
                 )
@@ -172,6 +173,7 @@ class ReviewTheoremModule(BaseWorkflowModule):
             problem: PhysicsProblem object containing the problem and predicted theorems
         """
         question = problem.question
+        solution = problem.solution if problem.solution else ""
         problem_id = problem.problem_id
         
         self.logger.info("Starting missing theorem review for problem %s", problem_id)
@@ -179,8 +181,17 @@ class ReviewTheoremModule(BaseWorkflowModule):
         print("\n" + "="*80)
         print("MISSING THEOREM REVIEW")
         print("="*80)
-        problem_preview = question[:200] + ("..." if len(question) > 200 else "")
-        print(f"Problem: {problem_preview}")
+        print("PROBLEM:")
+        print("-" * 40)
+        print(question)
+        print("-" * 40)
+        
+        if solution:
+            print("\nSOLUTION:")
+            print("-" * 40)
+            print(solution)
+            print("-" * 40)
+        
         print("\nDo you think there are any important theorems missing from the detected ones?")
         print("You can add missing theorems by entering their names.")
         print("Enter 'DONE' when you're finished adding missing theorems.")
@@ -271,6 +282,7 @@ class ReviewTheoremModule(BaseWorkflowModule):
         self,
         theorem: Dict[str, Any],
         problem_question: str,
+        problem_solution: str,
         theorem_index: int,
         total_theorems: int
     ) -> Dict[str, Any]:
@@ -280,6 +292,7 @@ class ReviewTheoremModule(BaseWorkflowModule):
         Args:
             theorem: The theorem dictionary to review
             problem_question: The physics problem question text
+            problem_solution: The physics problem solution text
             theorem_index: Index of this theorem (1-based)
             total_theorems: Total number of theorems to review
             
@@ -294,8 +307,17 @@ class ReviewTheoremModule(BaseWorkflowModule):
         print("\n" + "="*80)
         print(f"THEOREM REVIEW - {theorem_index}/{total_theorems}")
         print("="*80)
-        problem_preview = problem_question[:200] + ("..." if len(problem_question) > 200 else "")
-        print(f"Problem: {problem_preview}")
+        print("PROBLEM:")
+        print("-" * 40)
+        print(problem_question)
+        print("-" * 40)
+        
+        if problem_solution:
+            print("\nSOLUTION:")
+            print("-" * 40)
+            print(problem_solution)
+            print("-" * 40)
+        
         print(f"\nTheorem: {theorem_name}")
         print(f"Description: {theorem.get('description', 'No description provided')}")
         

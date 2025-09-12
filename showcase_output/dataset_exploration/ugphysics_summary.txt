@@ -1,0 +1,10 @@
+UGPHYSICS Dataset Summary
+==============================
+
+Dataset: ugphysics
+Variant: full
+Split: test
+Total problems: 5520
+Variants available: ['mini', 'full']
+Splits available: ['test']
+

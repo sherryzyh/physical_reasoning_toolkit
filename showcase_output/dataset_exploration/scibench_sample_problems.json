@@ -1,0 +1,132 @@
+[
+  {
+    "problem_id": "37.7(a)",
+    "domain": "None",
+    "question": "Radiation from an X-ray source consists of two components of wavelengths $154.433 \\mathrm{pm}$ and $154.051 \\mathrm{pm}$. Calculate the difference in glancing angles $(2 \\theta)$ of the diffraction lines arising from the two components in a diffraction pattern from planes of separation $77.8 \\mathrm{pm}$.",
+    "answer": {
+      "value": "2.14",
+      "answer_type": "numerical",
+      "class": "NumericalAnswer",
+      "unit": "${\\circ}$"
+    },
+    "solution": "",
+    "all_fields": {
+      "source": "matter",
+      "answer": "numerical: 2.14",
+      "problem_id": "37.7(a)",
+      "options": null,
+      "comment": " ",
+      "domain": null,
+      "subject": "physics",
+      "solution": "",
+      "correct_option": null,
+      "question": "Radiation from an X-ray source consists of two components of wavelengths $154.433 \\mathrm{pm}$ and $154.051 \\mathrm{pm}$. Calculate the difference in glancing angles $(2 \\theta)$ of the diffraction lines arising from the two components in a diffraction pattern from planes of separation $77.8 \\mathrm{pm}$.",
+      "problem_type": "OE",
+      "language": null
+    }
+  },
+  {
+    "problem_id": "55.4(a)",
+    "domain": "None",
+    "question": "A chemical reaction takes place in a container of cross-sectional area $50 \\mathrm{~cm}^2$. As a result of the reaction, a piston is pushed out through $15 \\mathrm{~cm}$ against an external pressure of $1.0 \\mathrm{~atm}$. Calculate the work done by the system.",
+    "answer": {
+      "value": "-75",
+      "answer_type": "numerical",
+      "class": "NumericalAnswer",
+      "unit": "$\\mathrm{~J}$"
+    },
+    "solution": "",
+    "all_fields": {
+      "source": "matter",
+      "answer": "numerical: -75",
+      "problem_id": "55.4(a)",
+      "options": null,
+      "comment": " ",
+      "domain": null,
+      "subject": "physics",
+      "solution": "",
+      "correct_option": null,
+      "question": "A chemical reaction takes place in a container of cross-sectional area $50 \\mathrm{~cm}^2$. As a result of the reaction, a piston is pushed out through $15 \\mathrm{~cm}$ against an external pressure of $1.0 \\mathrm{~atm}$. Calculate the work done by the system.",
+      "problem_type": "OE",
+      "language": null
+    }
+  },
+  {
+    "problem_id": "69.2(a)",
+    "domain": "None",
+    "question": "A mixture of water and ethanol is prepared with a mole fraction of water of 0.60 . If a small change in the mixture composition results in an increase in the chemical potential of water by $0.25 \\mathrm{~J} \\mathrm{~mol}^{-1}$, by how much will the chemical potential of ethanol change?",
+    "answer": {
+      "value": "-0.38",
+      "answer_type": "numerical",
+      "class": "NumericalAnswer",
+      "unit": "$\\mathrm{~J} \\mathrm{~mol}^{-1}$"
+    },
+    "solution": "",
+    "all_fields": {
+      "source": "matter",
+      "answer": "numerical: -0.38",
+      "problem_id": "69.2(a)",
+      "options": null,
+      "comment": " ",
+      "domain": null,
+      "subject": "physics",
+      "solution": "",
+      "correct_option": null,
+      "question": "A mixture of water and ethanol is prepared with a mole fraction of water of 0.60 . If a small change in the mixture composition results in an increase in the chemical potential of water by $0.25 \\mathrm{~J} \\mathrm{~mol}^{-1}$, by how much will the chemical potential of ethanol change?",
+      "problem_type": "OE",
+      "language": null
+    }
+  },
+  {
+    "problem_id": "69.3",
+    "domain": "None",
+    "question": "The enthalpy of fusion of mercury is $2.292 \\mathrm{~kJ} \\mathrm{~mol}^{-1}$, and its normal freezing point is $234.3 \\mathrm{~K}$ with a change in molar volume of $+0.517 \\mathrm{~cm}^3 \\mathrm{~mol}^{-1}$ on melting. At what temperature will the bottom of a column of mercury (density $13.6 \\mathrm{~g} \\mathrm{~cm}^{-3}$ ) of height $10.0 \\mathrm{~m}$ be expected to freeze?",
+    "answer": {
+      "value": "234.4",
+      "answer_type": "numerical",
+      "class": "NumericalAnswer",
+      "unit": "$ \\mathrm{~K}$"
+    },
+    "solution": "",
+    "all_fields": {
+      "source": "matter",
+      "answer": "numerical: 234.4",
+      "problem_id": "69.3",
+      "options": null,
+      "comment": " problem",
+      "domain": null,
+      "subject": "physics",
+      "solution": "",
+      "correct_option": null,
+      "question": "The enthalpy of fusion of mercury is $2.292 \\mathrm{~kJ} \\mathrm{~mol}^{-1}$, and its normal freezing point is $234.3 \\mathrm{~K}$ with a change in molar volume of $+0.517 \\mathrm{~cm}^3 \\mathrm{~mol}^{-1}$ on melting. At what temperature will the bottom of a column of mercury (density $13.6 \\mathrm{~g} \\mathrm{~cm}^{-3}$ ) of height $10.0 \\mathrm{~m}$ be expected to freeze?",
+      "problem_type": "OE",
+      "language": null
+    }
+  },
+  {
+    "problem_id": "11.3(a)",
+    "domain": "None",
+    "question": "Suppose a nanostructure is modelled by an electron confined to a rectangular region with sides of lengths $L_1=1.0 \\mathrm{~nm}$ and $L_2=2.0 \\mathrm{~nm}$ and is subjected to thermal motion with a typical energy equal to $k T$, where $k$ is Boltzmann's constant. How low should the temperature be for the thermal energy to be comparable to the zero-point energy\uff1f",
+    "answer": {
+      "value": "5.5",
+      "answer_type": "numerical",
+      "class": "NumericalAnswer",
+      "unit": "$10^3 \\mathrm{~K}$"
+    },
+    "solution": "",
+    "all_fields": {
+      "source": "matter",
+      "answer": "numerical: 5.5",
+      "problem_id": "11.3(a)",
+      "options": null,
+      "comment": " ",
+      "domain": null,
+      "subject": "physics",
+      "solution": "",
+      "correct_option": null,
+      "question": "Suppose a nanostructure is modelled by an electron confined to a rectangular region with sides of lengths $L_1=1.0 \\mathrm{~nm}$ and $L_2=2.0 \\mathrm{~nm}$ and is subjected to thermal motion with a typical energy equal to $k T$, where $k$ is Boltzmann's constant. How low should the temperature be for the thermal energy to be comparable to the zero-point energy\uff1f",
+      "problem_type": "OE",
+      "language": null
+    }
+  }
+]
