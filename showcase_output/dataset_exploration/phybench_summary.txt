@@ -1,0 +1,10 @@
+PHYBENCH Dataset Summary
+==============================
+
+Dataset: phybench
+Variant: full
+Split: test
+Total problems: 500
+Variants available: ['full', 'fullques']
+Splits available: ['test']
+

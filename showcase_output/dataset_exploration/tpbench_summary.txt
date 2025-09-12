@@ -1,0 +1,10 @@
+TPBENCH Dataset Summary
+==============================
+
+Dataset: tpbench
+Variant: full
+Split: test
+Total problems: 10
+Variants available: ['full']
+Splits available: ['public']
+

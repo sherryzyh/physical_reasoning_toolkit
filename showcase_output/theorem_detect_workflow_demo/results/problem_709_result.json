@@ -1,0 +1,107 @@
+{
+  "problem_id": "709",
+  "status": "SUCCESS",
+  "error": null,
+  "execution_flow": [
+    {
+      "module_name": "theorem_detector",
+      "module_index": 0,
+      "status": "SUCCESS",
+      "execution_time_seconds": 30.402834,
+      "module_status": {
+        "module_name": "theorem_detector",
+        "model": "o3-mini",
+        "execution_time_seconds": 30.402133,
+        "execution_status": "SUCCESS",
+        "execution_error": null,
+        "total_problems": 3,
+        "successful_problems": 3,
+        "failed_problems": 0,
+        "result_validity": null,
+        "validity_count": 0,
+        "detection_type": "theorem",
+        "theorems_detected": 14,
+        "problems_with_theorems": 3,
+        "problems_without_theorems": 0,
+        "average_theorems_per_problem": 4.666666666666667
+      },
+      "error": null
+    }
+  ],
+  "annotated_problem": {
+    "question": "In a zero-gravity space, there is a ring made of a certain material, with a radius of $R$, density $\\rho$, Young's modulus $E$, and a circular cross-section with a radius of $r$ ($r \\ll R$). The center of the ring is stationary in a rotating reference frame with an angular velocity $\\Omega$, and the normal of the ring is in the same direction as $\\Omega$. $\\Omega$ is much smaller than the natural frequency of the ring's vibration. A perturbation is applied, causing vibrations on the ring. Considering a standing wave solution of order $m$, it is known that the antinodes of the standing wave will precess. Find the precession angular velocity $\\delta\\omega$. The positive direction is defined to be the same as $\\Omega$.  Ignore motion perpendicular to the plane of the ring; the order $m$ indicates that the displacement has the form of $\\cos(m\\theta)$ or $\\sin(m\\theta)$.\n",
+    "problem_id": "709",
+    "answer": {
+      "value": "$$\n\\delta \\omega = -\\frac{2}{m^2+1} \\Omega\n$$",
+      "answer_type": "symbolic"
+    },
+    "solution": "Assume the radial and angular displacements of a particle on the ring are $w, v$, and the kinetic energy, potential energy line density are given as $$ T = \\frac{1}{2}\\rho S\\left((\\dot v + \\Omega (R + w))^2 + (\\dot w - \\Omega v)^2\\right) $$  $$ V = \\frac{E I}{2 R^4}\\left(w + \\partial_\\theta^2w\\right)^2 $$  The incompressibility constraint $$ \\partial_\\theta v + w = 0 $$ Thus, the Lagrangian density is $$ \\mathcal{L} = \\frac{1}{2}\\rho S\\left((\\dot v + \\Omega (R + w))^2 + (\\dot w - \\Omega v)^2\\right) - \\frac{E I}{2 R^4}\\left(w + \\partial_\\theta^2w\\right)^2 - \\lambda (\\partial_\\theta v + w) $$ Substituting into the Lagrange's equations, we get $$ \\begin{cases} \\ddot v + 2 \\Omega \\dot w + \\partial_\\theta \\lambda = 0, \\\\ \\ddot w - 2 \\Omega \\dot v + \\frac{EI}{\\rho S R}\\left(\\partial_\\theta^4 + 2\\partial_\\theta^2 + 1\\right)w - \\lambda = 0, \\\\ \\partial_\\theta v + w = 0 \\end{cases} $$ Eliminate variables to obtain $$ \\partial_t^2\\partial_\\theta^2 w - \\partial_t^2 w + 4 \\Omega \\partial_t \\partial_\\theta w + \\frac{EI}{\\rho S R}(\\partial_\\theta^6 + 2\\partial_\\theta^4 + \\partial_\\theta^2)w = 0 $$ Substituting the $m$-th order traveling wave solution $w = e^{i(\\omega t + m\\theta)}$ gives $$ (m^2+1)\\omega^2-4m\\Omega\\omega-\\frac{EI}{\\rho S R}(m^6-2m^4+m^2)=0 $$ Solving gives $$ \\omega = \\frac{4m\\Omega\\pm\\sqrt{16m^2\\Omega^2+\\frac{4EI}{\\rho S R}(m^6-2m^4+m^2)}}{2(m^2+1)}=\\omega_1 \\pm \\omega_{0} $$ The precession standing wave solution is $$ w = \\cos((\\omega_1 + \\omega_{0})t+m\\theta)+\\cos((\\omega_1 - \\omega_{0})t+m\\theta) = 2 \\cos(\\omega_1 t + m\\theta)\\cos(\\omega_0 t) $$ It can be observed that the wave crest will retreat with a precession angular velocity, according to our sign convention, $$ \\delta\\omega = - \\frac{2}{m^2+1}\\Omega $$  Of course, it can also be solved using Newtonian mechanics methods, but it is a bit more tedious.\n",
+    "domain": "mechanics",
+    "language": "en",
+    "problem_type": "OE",
+    "additional_fields": {
+      "theorems": [
+        {
+          "name": "Coriolis Force in Rotating Frames",
+          "description": "In a rotating reference frame, moving particles experience an additional inertial force known as the Coriolis force. This force acts perpendicular to the velocity of the moving mass and the axis of rotation. When applied to vibrating systems (such as a perturbed ring), the Coriolis force causes a frequency splitting of modes and can lead to a precession of the antinodes of the standing wave.",
+          "equations": [
+            "$$\\vec{F}_C = -2m\\; \\vec{\\Omega} \\times \\vec{v}$$"
+          ],
+          "domain": "Classical Mechanics / Rotating Reference Frames",
+          "conditions": [
+            "Valid in non-inertial (rotating) frames.",
+            "Perturbations must be small so that linear analysis applies.",
+            "The angular velocity \\(\\Omega\\) is assumed to be much smaller than the natural vibrational frequencies."
+          ]
+        },
+        {
+          "name": "Gyroscopic Precession (Gyroscopic Effect)",
+          "description": "A gyroscopic system (or a system with distributed angular momentum) exhibits precession when subjected to a perturbation. For the vibrating ring, the coupling between its rotation and its vibrational modes results in a slow precession of the standing wave antinodes. This effect is analogous to the precession seen in spinning tops or gyroscopes, where the direction of the oscillation modes (or tilt) changes over time due to the rotational motion.",
+          "equations": [
+            "$$\\delta\\omega \\propto \\Omega$$",
+            "A simplified approximate relation (in some cases derived via perturbation theory) is, for mode order \\(m\\), $$\\delta\\omega \\sim \\frac{m}{2}\\;\\Omega$$ (the precise proportionality depends on the system parameters)"
+          ],
+          "domain": "Rigid Body Dynamics / Vibrational Mechanics",
+          "conditions": [
+            "The rotation rate \\(\\Omega\\) must be small compared to the intrinsic vibrational frequencies.",
+            "Linear perturbation theory applies (small amplitude vibrations)."
+          ]
+        },
+        {
+          "name": "Euler\u2013Bernoulli Beam Theory for Elastic Vibrations",
+          "description": "This classical theory describes the bending and vibrational behavior of slender elastic structures. For a ring with a small cross-section relative to its radius (\\(r \\ll R\\)), the Euler\u2013Bernoulli beam theory (with modifications for curvature) can be used to derive the natural frequencies and mode shapes. It sets up the balance between the bending stiffness and the inertia of the material, which is fundamental in analyzing the normal modes of vibration from which the standing wave patterns are constructed.",
+          "equations": [
+            "$$EI\\;\\frac{\\partial^4 w}{\\partial s^4} + \\rho A\\;\\frac{\\partial^2 w}{\\partial t^2} = 0$$",
+            "Here, \\(w\\) is the transverse displacement, \\(E\\) is Young's modulus, \\(I\\) is the second moment of area, \\(\\rho\\) is the density, and \\(A\\) is the cross-sectional area. In a ring, the coordinate \\(s\\) is along the circumference."
+          ],
+          "domain": "Solid Mechanics / Structural Dynamics",
+          "conditions": [
+            "Valid for slender structures where the cross-sectional dimensions are much smaller than the overall radius (\\(r \\ll R\\)).",
+            "Assumes small deflections and linear elasticity.",
+            "Shear deformations and rotary inertia are neglected."
+          ]
+        },
+        {
+          "name": "Modal Analysis and Standing Wave Decomposition",
+          "description": "Modal analysis is a technique used to decompose the complicated motion of a vibrating system into its fundamental modes (eigenmodes), which can be studied independently. For a circular ring, these modes are represented by spatial functions like \\(\\cos(m\\theta)\\) and \\(\\sin(m\\theta)\\), corresponding to different orders \\(m\\) of the vibration. In the presence of rotation, the degeneracy of modes traveling clockwise and counterclockwise is lifted, which manifests as a precession of the standing wave (i.e., the positions of the antinodes shift over time).",
+          "equations": [
+            "$$w(\\theta,t) = A\\cos(m\\theta)\\cos(\\omega t + \\phi)$$",
+            "or equivalently, a combination of sine and cosine functions to represent the standing wave."
+          ],
+          "domain": "Vibrations and Wave Mechanics",
+          "conditions": [
+            "Applicable to linear systems with small oscillations.",
+            "The system must be linear so that the superposition principle holds.",
+            "Boundary conditions are periodic, as required for a closed ring."
+          ]
+        }
+      ],
+      "theorem_detection_metadata": {
+        "module_name": "theorem_detector",
+        "model_used": "o3-mini",
+        "detection_type": "theorem",
+        "timestamp": null
+      }
+    }
+  }
+}

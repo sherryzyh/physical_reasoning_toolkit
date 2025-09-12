@@ -1,0 +1,39 @@
+{
+  "problems_successful": 5,
+  "start_time": "2025-08-21 23:14:38.530499",
+  "end_time": "2025-08-21 23:15:31.448939",
+  "current_problem": 5,
+  "current_step": "completed",
+  "steps_completed": [
+    "domain_annotation"
+  ],
+  "processing_times": [],
+  "summary_of_domain": {
+    "assessment_results": {
+      "True": 0,
+      "SemanticallyTrue": 0,
+      "False": 0,
+      "HumanApproved": 0,
+      "HumanCorrected": 0
+    },
+    "revision_types": {
+      "no_change": 0,
+      "golden_annotation": 0,
+      "human_answer": 0
+    },
+    "human_review_required": 0,
+    "processing_times": []
+  },
+  "duration_seconds": 52.91844,
+  "problems_per_minute": 5.669101356729337,
+  "domain_annotator": {
+    "class": "DomainAnnotator",
+    "model": "o3-mini"
+  },
+  "efficiency_metrics": {
+    "problems_per_minute": 5.669101356729337,
+    "human_review_rate": 0.0,
+    "auto_correction_rate": 0.0,
+    "no_change_rate": 0.0
+  }
+}

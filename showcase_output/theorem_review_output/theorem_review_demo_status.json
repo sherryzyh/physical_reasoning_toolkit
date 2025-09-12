@@ -1,0 +1,32 @@
+{
+  "workflow_name": "theorem_review_demo",
+  "total_modules": 1,
+  "modules_executed": 1,
+  "problem_stats": {
+    "total": 1,
+    "processed": 1,
+    "successful": 1,
+    "failed": 0
+  },
+  "execution_time_seconds": 79.298752,
+  "module_results": {
+    "theorem_reviewer": {
+      "total_problems": 1,
+      "successful_problems": 1,
+      "failed_problems": 0,
+      "execution_time_seconds": 79.288526,
+      "validity_count": 0,
+      "module_name": "theorem_reviewer",
+      "model": "o3-mini"
+    }
+  },
+  "workflow_errors": [],
+  "problems_per_minute": 0.7566323364080182,
+  "average_module_execution_time": 79.288526,
+  "workflow_summary": {
+    "total_execution_time_minutes": 1.3216458666666666,
+    "success_rate_percentage": 100.0,
+    "problems_per_minute": 0.7566323364080182,
+    "average_module_execution_time": 79.288526
+  }
+}

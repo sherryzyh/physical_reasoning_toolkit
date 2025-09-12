@@ -1,0 +1,66 @@
+{
+  "workflow_name": "domain_assessment_demo",
+  "total_modules": 1,
+  "modules_executed": 1,
+  "total_processed": 2,
+  "successful": 2,
+  "failed": 0,
+  "start_time": "2025-08-22 17:19:40.599703",
+  "end_time": "2025-08-22 17:19:55.698288",
+  "module_results": {
+    "physics_domain_classifier": {
+      "statistics": {
+        "module_name": "physics_domain_classifier",
+        "total_processed": 2,
+        "successful": 2,
+        "failed": 0,
+        "start_time": "2025-08-22 17:19:40.599736",
+        "end_time": "2025-08-22 17:19:55.697851",
+        "errors": [],
+        "annotation_type": "domain",
+        "domains_identified": 6,
+        "confidence_scores": [
+          1.0,
+          1.0
+        ],
+        "problems_with_multiple_domains": 0,
+        "assessment_successes": 0,
+        "assessment_failures": 0
+      },
+      "problem_count": 2,
+      "sample_results": [
+        {
+          "problem_id": "215",
+          "status": "SUCCESS",
+          "domain_to_proceed": "mechanics",
+          "has_llm_annotation": true,
+          "has_assessment_metadata": true
+        },
+        {
+          "problem_id": "211",
+          "status": "SUCCESS",
+          "domain_to_proceed": "modern_physics",
+          "has_llm_annotation": true,
+          "has_assessment_metadata": true
+        }
+      ]
+    }
+  },
+  "data_flow": [
+    {
+      "module_index": 0,
+      "module_name": "physics_domain_classifier",
+      "input_size": 2,
+      "output_size": 2,
+      "execution_time": 0
+    }
+  ],
+  "duration_seconds": 15.098585,
+  "problems_per_minute": 7.947764641521043,
+  "workflow_summary": {
+    "total_modules": 1,
+    "modules_executed": 1,
+    "success_rate": 1.0,
+    "failure_rate": 0.0
+  }
+}
