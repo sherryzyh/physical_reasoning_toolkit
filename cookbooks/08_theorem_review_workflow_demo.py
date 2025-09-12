@@ -399,10 +399,6 @@ def main():
     # Display header
     display_workflow_header(args)
     
-    # Check prerequisites
-    if not check_prerequisites():
-        return
-    
     # Load theorem detection results
     results = load_theorem_detection_results(args.results_dir, args.sample_size)
     if not results:
