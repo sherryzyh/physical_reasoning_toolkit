@@ -63,27 +63,9 @@ def display_workflow_header(args):
     print("🔍 PhysKit Theorem Review Workflow Demo")
     print("=" * 60)
     print(f"📊 Sample size: {args.sample_size}")
-    print(f"🤖 Model: {args.model}")
     print(f"📁 Output: {args.output_dir}")
     print(f"📂 Results dir: {args.results_dir}")
     print()
-
-
-def check_prerequisites():
-    """Check if all prerequisites are met."""
-    print("🔍 Checking Prerequisites:")
-    print("-" * 30)
-    
-    # Check OpenAI API key
-    if not os.getenv("OPENAI_API_KEY"):
-        print("  ❌ OPENAI_API_KEY environment variable not set")
-        print("     This cookbook requires an OpenAI API key for LLM-based annotation")
-        print("     Please set your API key: export OPENAI_API_KEY='your-key-here'")
-        print("     Or create a .env file with: OPENAI_API_KEY=your-key-here")
-        return False
-    
-    print("  ✅ OpenAI API key found")
-    return True
 
 
 def load_theorem_detection_results(results_dir: str, sample_size: int) -> List[Dict[str, Any]]:
