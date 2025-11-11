@@ -83,7 +83,7 @@ class SeePhysLoader(BaseDatasetLoader):
         else:
             raise ValueError(f"Unknown variant: {variant}. Choose 'full' or 'mini'")
         
-        return self._load_csv_format(seephys_file, variant, sample_size, **kwargs)
+        return self._load_csv_format(seephys_file, data_dir, variant, sample_size, **kwargs)
     
     @property
     def field_mapping(self) -> Dict[str, str]:
@@ -96,6 +96,7 @@ class SeePhysLoader(BaseDatasetLoader):
     def _load_csv_format(
         self,
         seephys_file: Path,
+        data_dir: Path,
         sample_size: Optional[int],
         split: str,
         **kwargs,
@@ -117,6 +118,7 @@ class SeePhysLoader(BaseDatasetLoader):
             
             problem = self.create_physics_problem(
                 metadata=metadata,
+                data_dir=data_dir,
             )
             problems.append(problem)
         

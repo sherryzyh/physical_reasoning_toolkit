@@ -8,6 +8,7 @@ using simple field mapping dictionaries.
 
 import os
 import re
+import ast
 from abc import ABC, abstractmethod
 from typing import Dict, List, Any, Union, Optional
 from pathlib import Path
@@ -26,6 +27,7 @@ CORE_FIELDS = [
     "domain",       # domain in physics
     "language",     # language
     "answer_type",  # answer type in symbolic, numerical, or textual
+    "image_path",  # path to associated image file (for visual problems)
 ]
 
 
@@ -395,14 +397,14 @@ class BaseDatasetLoader(ABC):
     def create_physics_problem(
         self, 
         metadata: Dict[str, Any],
+        data_dir: Optional[Union[str, Path]] = None,
     ) -> PhysicsProblem:
         """
         Create a PhysicsProblem instance from metadata.
         
         Args:
             metadata: Dictionary containing all problem data and metadata
-            domain: Physics domain
-            language: Problem language
+            data_dir: Root directory of the dataset (for resolving relative image paths)
             
         Returns:
             PhysicsProblem instance
@@ -414,6 +416,51 @@ class BaseDatasetLoader(ABC):
         problem_type = metadata.get("problem_type", "OE")
         domain = metadata.get("domain")
         language = metadata.get("language")
+        image_path = metadata.get("image_path")
+        
+        # Normalize image_path to a list of strings and resolve relative paths
+        if image_path is not None:
+            if isinstance(image_path, str):
+                # Try to parse as string representation of list (e.g., "['path1', 'path2']")
+                image_path_str = image_path.strip()
+                if image_path_str.startswith('[') and image_path_str.endswith(']'):
+                    try:
+                        # Use ast.literal_eval to safely parse the string representation
+                        parsed = ast.literal_eval(image_path_str)
+                        if isinstance(parsed, list):
+                            image_path = parsed
+                        else:
+                            # Single value in brackets, convert to list
+                            image_path = [parsed] if parsed else None
+                    except (ValueError, SyntaxError):
+                        # If parsing fails, treat as single path string
+                        image_path = [image_path_str] if image_path_str else None
+                else:
+                    # Single string: convert to list if not empty
+                    image_path = [image_path_str] if image_path_str else None
+            elif isinstance(image_path, list):
+                # Already a list: filter out empty strings and None values
+                image_path = [path for path in image_path if path and (isinstance(path, str) and path.strip())]
+                # Return None if list becomes empty
+                image_path = image_path if image_path else None
+            else:
+                # Invalid type: set to None
+                image_path = None
+            
+            # Resolve relative paths by joining with data_dir if provided
+            if image_path and data_dir is not None:
+                data_dir_path = Path(data_dir)
+                resolved_paths = []
+                for path in image_path:
+                    path_obj = Path(path)
+                    # Only resolve if path is relative (not absolute)
+                    if not path_obj.is_absolute():
+                        resolved_path = (data_dir_path / path).resolve()
+                        resolved_paths.append(str(resolved_path))
+                    else:
+                        # Keep absolute paths as-is
+                        resolved_paths.append(path)
+                image_path = resolved_paths if resolved_paths else None
         
         # Create Answer object from answer
         answer_obj = self._create_answer_from_raw(metadata)
@@ -437,6 +484,7 @@ class BaseDatasetLoader(ABC):
             domain=domain,
             language=language,
             problem_type=problem_type,
+            image_path=image_path,
             additional_fields=additional_fields,
         )
         
