@@ -5,11 +5,11 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "physkit"
 version = "0.1.0"
-description = "Physical Reasoning Toolkit - Core Package"
-readme = "README.md"
+description = "Physical Reasoning Toolkit"
+readme = {file = "README.md", content-type = "text/markdown"}
 license = {text = "MIT"}
 authors = [
-    {name = "PhysKit Contributors", email = "physkit@example.com"}
+    {name = "Yinghuan Zhang", email = "yinghuan.flash@gmail.com"}
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -47,21 +47,26 @@ docs = [
     "sphinx-rtd-theme>=1.0.0",
 ]
 all = [
-    "physkit-annotation",
-    "physkit-datasets", 
-    "physkit-evaluation",
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "mypy>=1.0.0",
+    "sphinx>=5.0.0",
+    "myst-parser>=1.0.0",
+    "sphinx-rtd-theme>=1.0.0",
 ]
 
 [project.urls]
-Homepage = "https://github.com/physkit/physkit"
-Documentation = "https://physkit.readthedocs.io"
-Repository = "https://github.com/physkit/physkit"
-Issues = "https://github.com/physkit/physkit/issues"
+Homepage = "https://github.com/sherryzyh/physical_reasoning_toolkit"
+Documentation = "https://github.com/sherryzyh/physical_reasoning_toolkit#readme"
+Repository = "https://github.com/sherryzyh/physical_reasoning_toolkit"
+Issues = "https://github.com/sherryzyh/physical_reasoning_toolkit/issues"
 
 
 
 [tool.setuptools.packages.find]
-where = ["."]
+where = ["src"]
 include = ["physkit*"]
 
 [tool.setuptools.package-data]
@@ -69,14 +74,14 @@ include = ["physkit*"]
 
 [tool.black]
 line-length = 88
-target-version = ['py38']
+target-version = ['py312']
 
 [tool.isort]
 profile = "black"
 multi_line_output = 3
 
 [tool.mypy]
-python_version = "3.8"
+python_version = "3.12"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
