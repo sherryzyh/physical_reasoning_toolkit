@@ -320,7 +320,8 @@ class SmartAnswerComparator:
             "type_compatibility": {},
             "comparator_compatibility": {},
             "recommendations": [],
-            "smart_conversion_applied": False
+            "smart_conversion_applied": False,
+            "input_validation": {"valid": True}
         }
         
         # The following diagnosis logic is kept for backward compatibility with previous code,

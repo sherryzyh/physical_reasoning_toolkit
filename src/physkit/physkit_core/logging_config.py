@@ -258,6 +258,9 @@ class PhysKitLogger:
             for handler in root_logger.handlers:
                 # Create a copy of the handler to avoid sharing
                 if isinstance(handler, logging.FileHandler):
+                    # Ensure parent directory exists before creating FileHandler
+                    log_path = Path(handler.baseFilename)
+                    log_path.parent.mkdir(parents=True, exist_ok=True)
                     new_handler = logging.FileHandler(handler.baseFilename)
                     new_handler.setLevel(handler.level)
                     
@@ -444,6 +447,9 @@ class PhysKitLogger:
         """Add a file handler to all existing loggers."""
         if level is None:
             level = cls._default_level
+        
+        # Ensure parent directory exists
+        log_file.parent.mkdir(parents=True, exist_ok=True)
         
         # Use colored formatter for file output as well
         colored_formatter = ColoredFormatter(cls._default_format, cls._default_date_format)
