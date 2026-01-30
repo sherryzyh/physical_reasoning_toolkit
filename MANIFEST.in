@@ -1,0 +1,15 @@
+# Include documentation files
+include README.md
+include LICENSE
+include pyproject.toml
+
+# Include all markdown and text files in the package
+recursive-include src/physkit *.md
+recursive-include src/physkit *.txt
+recursive-include src/physkit *.rst
+
+# Exclude unnecessary files
+recursive-exclude * __pycache__
+recursive-exclude * *.py[co]
+recursive-exclude * .DS_Store
+exclude .gitignore

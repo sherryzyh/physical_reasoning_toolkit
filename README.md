@@ -15,14 +15,17 @@ The Physical Reasoning Toolkit is designed to support research and development i
 
 ```
 physical_reasoning_toolkit/
-├── physkit/                          # Main toolkit packages
+├── src/physkit/                     # Main package (modern src-layout)
 │   ├── physkit_core/                # Core models and interfaces
 │   ├── physkit_datasets/            # Dataset loading and management
 │   ├── physkit_annotation/          # Annotation workflows and tools
 │   └── physkit_evaluation/          # Evaluation metrics and benchmarks
+├── tests/                           # Unit tests
 ├── cookbooks/                       # Usage examples and tutorials
-├── dev_docs/                        # Development documentation
-└── showcase_output/                  # Example outputs and demonstrations
+├── showcase_output/                 # Example outputs and demonstrations
+├── pyproject.toml                   # Package configuration
+├── LICENSE                          # MIT License
+└── README.md                        # This file
 ```
 
 **Note**: The actual dataset files are stored externally (see Environment Setup section). This repository contains only the toolkit code, examples, and documentation.
@@ -30,9 +33,9 @@ physical_reasoning_toolkit/
 ### **What's Included vs. External**
 
 **In Repository (Code & Documentation):**
-- ✅ **physkit/**: Complete toolkit with 4 packages
+- ✅ **src/physkit/**: Complete toolkit with 4 subpackages
+- ✅ **tests/**: Unit tests (for contributors)
 - ✅ **cookbooks/**: Working examples and tutorials
-- ✅ **dev_docs/**: Development guides and technical docs
 - ✅ **showcase_output/**: Example outputs and demonstrations
 
 **External (Data & Runtime):**
@@ -49,13 +52,24 @@ physical_reasoning_toolkit/
 
 ### **Installation**
 
-#### **1. Clone the Repository**
+#### **Option 1: Install from PyPI (Recommended for Users)**
 ```bash
-git clone https://github.com/your-username/PhysicalReasoning.git
-cd PhysicalReasoning/physical_reasoning_toolkit
+# Install the latest stable version
+pip install physkit
+
+# Verify installation
+python -c "import physkit; print(physkit.__version__)"
 ```
 
-#### **2. Set Up Virtual Environment**
+#### **Option 2: Install from Source (For Development)**
+
+**Step 1: Clone the Repository**
+```bash
+git clone https://github.com/sherryzyh/physical_reasoning_toolkit.git
+cd physical_reasoning_toolkit
+```
+
+**Step 2: Set Up Virtual Environment**
 ```bash
 # Create virtual environment
 python3.12 -m venv venv
@@ -67,16 +81,13 @@ source venv/bin/activate
 venv\Scripts\activate
 ```
 
-#### **3. Install the Toolkit**
+**Step 3: Install in Development Mode**
 ```bash
-# Navigate to physkit directory
-cd physkit
-
-# Install in development mode
-python3 setup.py develop
+# Install in editable mode with dev dependencies
+pip install -e ".[dev]"
 
 # Verify installation
-python3 -c "import physkit; print('✅ Toolkit installed successfully!')"
+python -c "import physkit; print('✅ Toolkit installed successfully!')"
 ```
 
 ## 🔧 **Environment Setup**
@@ -194,19 +205,18 @@ Evaluation and benchmarking:
 
 ### **Run Basic Tests**
 ```bash
-cd physkit
-python3 -c "
+python -c "
 import physkit
-import physkit_datasets
-import physkit_annotation
+from physkit_datasets import DatasetHub
+from physkit_annotation.workflows import WorkflowComposer
 print('✅ All packages imported successfully!')
+print(f'PhysKit version: {physkit.__version__}')
 "
 ```
 
 ### **Test Dataset Loading**
 ```bash
-cd physkit
-python3 -c "
+python -c "
 from physkit_datasets import DatasetHub
 print('Available datasets:', DatasetHub.list_available())
 "
@@ -216,14 +226,14 @@ print('Available datasets:', DatasetHub.list_available())
 ```bash
 cd cookbooks
 
-# Test core functionality
-python3 06_testing_core_functionality.py
-
-# Comprehensive demo
-python3 03_comprehensive_demo.py
-
 # Dataset exploration
-python3 01_load_dataset.py
+python 01_load_dataset.py
+
+# Automated annotation
+python 02_automated_annotation.py
+
+# Workflow composition
+python 04_workflow_composition_demo.py
 ```
 
 ## 🔍 **Repository Features**
@@ -262,12 +272,11 @@ source venv/bin/activate
 
 #### **Import Errors**
 ```bash
-# Ensure proper installation
-cd physkit
-python3 setup.py develop
+# Reinstall in development mode
+pip install -e .
 
 # Check installation
-pip list | grep physkit
+pip show physkit
 ```
 
 #### **Data Directory Issues**
@@ -291,27 +300,29 @@ ls -la $PHYSKIT_DATA_DIR/PhysReason/
 
 ## 📚 **Documentation & Resources**
 
-### **Primary Documentation**
-- **Toolkit README**: `physkit/README.md` - Detailed toolkit usage
-- **Cookbooks**: `cookbooks/` - Practical examples and tutorials
-- **API Reference**: Package `__init__.py` files and docstrings
+### **Learning Resources**
+- **Cookbooks**: [`cookbooks/`](cookbooks/) - Practical examples and tutorials
+- **Example Outputs**: [`showcase_output/`](showcase_output/) - Sample results and demonstrations
+- **API Documentation**: Comprehensive docstrings in package files
 
-### **Additional Resources**
-- **Development Docs**: `dev_docs/` - Development guides and technical details
-- **Showcase Output**: `showcase_output/` - Example outputs and demonstrations
-- **Dataset Information**: Individual dataset summaries and metadata
+### **Community & Support**
+- **GitHub Issues**: [Report bugs or request features](https://github.com/sherryzyh/physical_reasoning_toolkit/issues)
+- **Discussions**: Share ideas and get help
+- **Contributing**: See the Contributing section above
 
 ## 🤝 **Contributing**
 
 ### **Development Setup**
 ```bash
-# Install development dependencies
-pip install -e .[dev]
+# Clone and install in development mode
+git clone https://github.com/sherryzyh/physical_reasoning_toolkit.git
+cd physical_reasoning_toolkit
+pip install -e ".[dev]"
 
 # Run code quality tools
-black physkit/
-isort physkit/
-mypy physkit/
+black src/
+isort src/
+mypy src/
 
 # Run tests
 pytest tests/
@@ -323,21 +334,32 @@ pytest tests/
 3. **Update documentation**: Add examples and update README files
 4. **Maintain compatibility**: Ensure changes don't break existing functionality
 
+### **Submitting Pull Requests**
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes with tests
+4. Ensure all tests pass
+5. Submit a pull request with clear description
+
 
 ## 🎉 **Getting Started Checklist**
 
-- [x] ✅ Clone repository
-- [x] ✅ Set up Python 3.12+ environment
-- [x] ✅ Install toolkit (`python3 setup.py develop`)
-- [x] ✅ Verify installation (import tests)
-- [x] ✅ Set up external data directory (`export PHYSKIT_DATA_DIR=~/data`)
-- [x] ✅ Download datasets (see cookbooks for instructions)
-- [x] ✅ Run cookbook examples
-- [x] ✅ Explore available datasets
-- [x] ✅ Start building your physics reasoning system!
+**For Users:**
+- [ ] Install via PyPI: `pip install physkit`
+- [ ] Set up environment variables (API keys)
+- [ ] Set data directory: `export PHYSKIT_DATA_DIR=~/data`
+- [ ] Run example: `python cookbooks/01_load_dataset.py`
+- [ ] Start building your physics reasoning system!
+
+**For Developers:**
+- [ ] Clone repository
+- [ ] Set up Python 3.12+ environment
+- [ ] Install in dev mode: `pip install -e ".[dev]"`
+- [ ] Run tests: `pytest tests/`
+- [ ] Contribute improvements!
 
 ---
 
 **Ready to advance physics reasoning research! 🚀✨**
 
-*For detailed toolkit usage, see `physkit/README.md`*
+**Package:** `pip install physkit` | **GitHub:** [sherryzyh/physical_reasoning_toolkit](https://github.com/sherryzyh/physical_reasoning_toolkit) | **License:** MIT

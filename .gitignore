@@ -215,3 +215,9 @@ legacy/
 experiments_outputs/
 experiments/
 experiments_stats/
+
+# Developer documentation (internal notes, credentials, deployment info)
+DEVELOPER.md
+DEV_NOTES.md
+.developer/
+PYPI_RELEASE_REVIEW.md
