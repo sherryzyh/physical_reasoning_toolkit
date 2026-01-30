@@ -10,7 +10,7 @@ This cookbook demonstrates how to:
 - Access different dataset splits and variants
 
 Prerequisites:
-- physkit_datasets package installed
+- prkit_datasets package installed (via: pip install physical-reasoning-toolkit)
 - Dataset files available in the data directory
 
 Usage:
@@ -29,11 +29,8 @@ import pprint
 import argparse
 from pathlib import Path
 
-# Add the physkit to the path
-sys.path.append(os.path.join(os.path.dirname(__file__), "..", "physkit"))
-
 # Import the dataset loading functionality
-from physkit_datasets import DatasetHub
+from prkit_datasets import DatasetHub
 
 
 def arg_parser():
@@ -76,7 +73,7 @@ def detailed_log_of_loading(args):
             print(f"{marker}{dataset_name}")
     except Exception as e:
         print(f"  ❌ Error listing datasets: {e}")
-        print("  Make sure physkit_datasets is properly installed")
+        print("  Make sure prkit_datasets is properly installed (pip install physical-reasoning-toolkit)")
         return
     
     # Check if requested dataset is available

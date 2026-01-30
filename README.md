@@ -15,11 +15,11 @@ The Physical Reasoning Toolkit is designed to support research and development i
 
 ```
 physical_reasoning_toolkit/
-├── src/physkit/                     # Main package (modern src-layout)
-│   ├── physkit_core/                # Core models and interfaces
-│   ├── physkit_datasets/            # Dataset loading and management
-│   ├── physkit_annotation/          # Annotation workflows and tools
-│   └── physkit_evaluation/          # Evaluation metrics and benchmarks
+├── src/prkit/                       # Main package (modern src-layout)
+│   ├── prkit_core/                  # Core models and interfaces
+│   ├── prkit_datasets/              # Dataset loading and management
+│   ├── prkit_annotation/            # Annotation workflows and tools
+│   └── prkit_evaluation/            # Evaluation metrics and benchmarks
 ├── tests/                           # Unit tests
 ├── cookbooks/                       # Usage examples and tutorials
 ├── showcase_output/                 # Example outputs and demonstrations
@@ -33,7 +33,7 @@ physical_reasoning_toolkit/
 ### **What's Included vs. External**
 
 **In Repository (Code & Documentation):**
-- ✅ **src/physkit/**: Complete toolkit with 4 subpackages
+- ✅ **src/prkit/**: Complete toolkit with 4 subpackages
 - ✅ **tests/**: Unit tests (for contributors)
 - ✅ **cookbooks/**: Working examples and tutorials
 - ✅ **showcase_output/**: Example outputs and demonstrations
@@ -55,10 +55,10 @@ physical_reasoning_toolkit/
 #### **Option 1: Install from PyPI (Recommended for Users)**
 ```bash
 # Install the latest stable version
-pip install physkit
+pip install physical-reasoning-toolkit
 
 # Verify installation
-python -c "import physkit; print(physkit.__version__)"
+python -c "import prkit; print(prkit.__version__)"
 ```
 
 #### **Option 2: Install from Source (For Development)**
@@ -87,7 +87,7 @@ venv\Scripts\activate
 pip install -e ".[dev]"
 
 # Verify installation
-python -c "import physkit; print('✅ Toolkit installed successfully!')"
+python -c "import prkit; print('✅ Toolkit installed successfully!')"
 ```
 
 ## 🔧 **Environment Setup**
@@ -121,27 +121,28 @@ python3 01_load_dataset.py
 
 ### **Import Style**
 
-PhysKit supports flexible imports for convenience:
+PRKit supports flexible imports for convenience:
 
 ```python
-# Top-level imports (recommended, matches examples in this README)
-from physkit_datasets import DatasetHub
-from physkit_evaluation import AccuracyMetric
-from physkit_annotation.workflows import WorkflowComposer
+# Package-level imports (recommended)
+import prkit
+from prkit.prkit_datasets import DatasetHub
+from prkit.prkit_evaluation import AccuracyMetric
+from prkit.prkit_annotation.workflows import WorkflowComposer
+from prkit.prkit_core import PhysKitLogger
 
-# Package-level imports (also works)
-from physkit.physkit_datasets import DatasetHub
-from physkit.physkit_core import PhysKitLogger
+# Note: After installation, subpackages are also available as top-level modules
+# via sys.modules registration (e.g., `from prkit_datasets import DatasetHub`)
 ```
 
-### **physkit_core**
+### **prkit_core**
 The foundation package providing:
 - **PhysicsProblem**: Standardized representation of physics problems
 - **PhysicalDataset**: Container for collections of problems
 - **Centralized Logging**: Professional logging system across all packages
 - **LLM Integration**: Unified interface for various language models
 
-### **physkit_datasets**
+### **prkit_datasets**
 Dataset management with support for:
 - **Multiple Sources**: PHYBench, SeePhys, UGPhysics, JEEBench, SciBench, TPBench, PhysReason
 - **Standardized Format**: Consistent API across all datasets
@@ -202,14 +203,14 @@ The following table shows which physics domains are available in each dataset:
 - **TPBench**: 5 domains (specialized in theoretical physics) - 10 problems
 - **JEEBench, PhysReason**: No domain classification - 123 and 3,117 problems respectively
 
-### **physkit_annotation**
+### **prkit_annotation**
 Annotation workflows for:
 - **Automated Annotation**: LLM-powered problem annotation
 - **Supervised Workflows**: Human-in-the-loop annotation processes
 - **Domain Classification**: Physics domain identification
 - **Theorem Extraction**: Physical principle identification
 
-### **physkit_evaluation**
+### **prkit_evaluation**
 Evaluation and benchmarking:
 - **Accuracy Metrics**: Standard evaluation metrics
 - **Domain-Specific Assessment**: Physics-focused evaluation
@@ -221,22 +222,22 @@ Evaluation and benchmarking:
 ### **Run Basic Tests**
 ```bash
 python -c "
-import physkit
-from physkit_datasets import DatasetHub
-from physkit_annotation.workflows import WorkflowComposer
+import prkit
+from prkit.prkit_datasets import DatasetHub
+from prkit.prkit_annotation.workflows import WorkflowComposer
 print('✅ All packages imported successfully!')
-print(f'PhysKit version: {physkit.__version__}')
+print(f'PRKit version: {prkit.__version__}')
 "
 ```
 
-**Note**: PhysKit supports both top-level and package-level imports:
-- **Top-level** (recommended): `from physkit_datasets import DatasetHub`
-- **Package-level** (also works): `from physkit.physkit_datasets import DatasetHub`
+**Note**: PRKit supports flexible imports:
+- **Package-level** (recommended): `from prkit.prkit_datasets import DatasetHub`
+- **Top-level** (also available): `from prkit_datasets import DatasetHub` (via sys.modules registration)
 
 ### **Test Dataset Loading**
 ```bash
 python -c "
-from physkit_datasets import DatasetHub
+from prkit.prkit_datasets import DatasetHub
 print('Available datasets:', DatasetHub.list_available())
 "
 ```
@@ -295,7 +296,7 @@ source venv/bin/activate
 pip install -e .
 
 # Check installation
-pip show physkit
+pip show physical-reasoning-toolkit
 ```
 
 #### **Data Directory Issues**
@@ -364,7 +365,7 @@ pytest tests/
 ## 🎉 **Getting Started Checklist**
 
 **For Users:**
-- [ ] Install via PyPI: `pip install physkit`
+- [ ] Install via PyPI: `pip install physical-reasoning-toolkit`
 - [ ] Set up environment variables (API keys)
 - [ ] Set data directory: `export PHYSKIT_DATA_DIR=~/data`
 - [ ] Run example: `python cookbooks/01_load_dataset.py`
@@ -381,6 +382,6 @@ pytest tests/
 
 **Ready to advance physics reasoning research! 🚀✨**
 
-**Package:** `pip install physkit` | **Version:** 0.1.0 | **GitHub:** [sherryzyh/physical_reasoning_toolkit](https://github.com/sherryzyh/physical_reasoning_toolkit) | **License:** MIT
+**Package:** `pip install physical-reasoning-toolkit` | **Import:** `import prkit` | **Version:** 0.1.0 | **GitHub:** [sherryzyh/physical_reasoning_toolkit](https://github.com/sherryzyh/physical_reasoning_toolkit) | **License:** MIT
 
 **Author:** Yinghuan Zhang (yinghuan.flash@gmail.com)

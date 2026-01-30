@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "physkit"
+name = "physical-reasoning-toolkit"
 version = "0.1.0"
 description = "Physical Reasoning Toolkit"
 readme = {file = "README.md", content-type = "text/markdown"}
@@ -28,7 +28,7 @@ dependencies = [
     "openai>=1.99.9",
     "pydantic>=2.11.7",
     "tqdm>=4.67.1",
-    "google-generativeai>=0.8.5",
+    "google-genai>=1.0.0",
     "sympy>=1.14.0",
     "python-dotenv>=1.0.0",
     "latex2sympy2-extended>=1.0.0",
@@ -47,9 +47,6 @@ docs = [
     "myst-parser>=1.0.0",
     "sphinx-rtd-theme>=1.0.0",
 ]
-timeout = [
-    "timeout-decorator>=0.5.0",
-]
 all = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
@@ -59,7 +56,6 @@ all = [
     "sphinx>=5.0.0",
     "myst-parser>=1.0.0",
     "sphinx-rtd-theme>=1.0.0",
-    "timeout-decorator>=0.5.0",
 ]
 
 [project.urls]
@@ -72,7 +68,7 @@ Issues = "https://github.com/sherryzyh/physical_reasoning_toolkit/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["physkit*"]
+include = ["prkit*"]
 
 [tool.setuptools.package-data]
 "*" = ["*.txt", "*.md", "*.rst"]
@@ -99,7 +95,7 @@ python_functions = ["test_*"]
 addopts = [
     "--strict-markers",
     "--strict-config",
-    "--cov=physkit",
+    "--cov=prkit",
     "--cov-report=term-missing",
     "--cov-report=html",
 ]

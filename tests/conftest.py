@@ -8,8 +8,8 @@ import os
 from pathlib import Path
 from typing import List, Dict, Any
 
-from physkit.physkit_core.models import PhysicsProblem, Answer, PhysicalDataset
-from physkit.physkit_core.definitions import PhysicsDomain, AnswerType
+from prkit.prkit_core.models import PhysicsProblem, Answer, PhysicalDataset
+from prkit.prkit_core.definitions import PhysicsDomain, AnswerType
 
 
 @pytest.fixture

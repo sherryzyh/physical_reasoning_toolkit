@@ -15,7 +15,7 @@ The ReviewTheoremModule allows human reviewers to evaluate predicted theorems fo
 3. Validity of conditions
 
 Prerequisites:
-- physkit_annotation package installed
+- prkit_annotation package installed (via: pip install physical-reasoning-toolkit)
 - Theorem detection results available in experiments_outputs/theorem_detection/phybench_mechanics/results/
 - OpenAI API key set (for LLM-based annotation)
 
@@ -34,13 +34,10 @@ import argparse
 from pathlib import Path
 from typing import Dict, Any, List
 
-# Add the physkit to the path
-sys.path.append(os.path.join(os.path.dirname(__file__), "..", "physkit"))
-
 # Import the workflow composition functionality
-from physkit_annotation.workflows import WorkflowComposer
-from physkit_annotation.workflows.modules.review_theorem_module import ReviewTheoremModule
-from physkit_core.models.physics_problem import PhysicsProblem
+from prkit_annotation.workflows import WorkflowComposer
+from prkit_annotation.workflows.modules.review_theorem_module import ReviewTheoremModule
+from prkit_core.models.physics_problem import PhysicsProblem
 
 
 def arg_parser():
