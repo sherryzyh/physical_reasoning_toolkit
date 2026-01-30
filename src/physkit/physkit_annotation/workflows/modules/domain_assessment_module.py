@@ -6,7 +6,7 @@ into larger annotation workflows.
 """
 
 from typing import Any, Dict, Optional, List
-from physkit_annotation.workers import DomainLabeler
+from physkit.physkit_annotation.workers import DomainLabeler
 from .base_module import BaseWorkflowModule
 
 

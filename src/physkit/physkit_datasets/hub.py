@@ -6,8 +6,8 @@ This module provides a clean, simple interface for loading physical reasoning da
 
 from typing import Dict, Any, List, Type, Optional, Union
 from pathlib import Path
-from physkit_datasets.loaders.base_loader import BaseDatasetLoader
-from physkit_datasets.loaders import (
+from physkit.physkit_datasets.loaders.base_loader import BaseDatasetLoader
+from physkit.physkit_datasets.loaders import (
     PHYBenchLoader, 
     SeePhysLoader, 
     UGPhysicsLoader,
@@ -16,8 +16,8 @@ from physkit_datasets.loaders import (
     TPBenchLoader,
     PhysReasonLoader
 )
-from physkit_core.models import PhysicalDataset
-from physkit_core import PhysKitLogger
+from physkit.physkit_core.models import PhysicalDataset
+from physkit.physkit_core import PhysKitLogger
 
 
 class DatasetHub:

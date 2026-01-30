@@ -8,8 +8,8 @@ import json
 import random
 from collections import Counter
 
-from physkit_core.models.physics_problem import PhysicsProblem
-from physkit_core.models.physics_dataset import PhysicalDataset
+from physkit.physkit_core.models.physics_problem import PhysicsProblem
+from physkit.physkit_core.models.physics_dataset import PhysicalDataset
 
 def sample_balanced(dataset: PhysicalDataset, field: str, samples_per_category: int, 
                    seed: Optional[int] = None) -> PhysicalDataset: 

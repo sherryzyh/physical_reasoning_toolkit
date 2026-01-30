@@ -10,9 +10,9 @@ import pandas as pd
 from pathlib import Path
 from typing import Dict, List, Any, Union, Optional
 import random
-from physkit_core.models import PhysicsDomain, PhysicalDataset
-from physkit_datasets.loaders.base_loader import BaseDatasetLoader
-from physkit_core import PhysKitLogger
+from physkit.physkit_core.models import PhysicsDomain, PhysicalDataset
+from physkit.physkit_datasets.loaders.base_loader import BaseDatasetLoader
+from physkit.physkit_core import PhysKitLogger
 
 
 class TPBenchLoader(BaseDatasetLoader):

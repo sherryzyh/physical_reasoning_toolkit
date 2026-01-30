@@ -8,7 +8,7 @@ that only detects relevant physical theorems and principles in physics problems.
 from pathlib import Path
 from typing import Dict, Any
 
-from physkit_core.models import PhysicalDataset
+from physkit.physkit_core.models import PhysicalDataset
 from ..workflow_composer import WorkflowComposer
 from ..modules.detect_theorem_module import DetectTheoremModule
 

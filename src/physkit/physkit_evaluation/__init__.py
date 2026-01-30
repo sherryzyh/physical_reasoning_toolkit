@@ -6,7 +6,8 @@ multiple answer types and evaluation metrics.
 """
 
 __version__ = "0.1.0"
-__author__ = "Physical Reasoning Team"
+__author__ = "Yinghuan Zhang"
+__author_email__ = "yinghuan.flash@gmail.com"
 
 from .metrics import AccuracyMetric
 from .comparison import BaseComparator, SymbolicComparator, NumericalComparator, TextualComparator, SmartAnswerComparator

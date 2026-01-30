@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Any
 
 
-from physkit_core.definitions.physics_domain import PhysicsDomain
+from physkit.physkit_core.definitions.physics_domain import PhysicsDomain
 
 
 @dataclass

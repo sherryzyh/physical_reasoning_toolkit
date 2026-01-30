@@ -19,10 +19,10 @@ import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 from .base_loader import BaseDatasetLoader
-from physkit_core.models import PhysicalDataset, PhysicsProblem
-from physkit_core.definitions.physics_domain import PhysicsDomain
-from physkit_core.definitions.answer_types import AnswerType
-from physkit_core import PhysKitLogger
+from physkit.physkit_core.models import PhysicalDataset, PhysicsProblem
+from physkit.physkit_core.definitions.physics_domain import PhysicsDomain
+from physkit.physkit_core.definitions.answer_types import AnswerType
+from physkit.physkit_core import PhysKitLogger
 
 
 class SciBenchLoader(BaseDatasetLoader):

@@ -9,8 +9,8 @@ from typing import Dict, Any, Optional, Union, List
 
 
 from .base_loader import BaseDatasetLoader
-from physkit_core.definitions.physics_domain import PhysicsDomain
-from physkit_core.models import PhysicalDataset
+from physkit.physkit_core.definitions.physics_domain import PhysicsDomain
+from physkit.physkit_core.models import PhysicalDataset
 
 
 class PHYBenchLoader(BaseDatasetLoader):

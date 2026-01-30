@@ -119,6 +119,21 @@ python3 01_load_dataset.py
 
 ## 📦 **Package Overview**
 
+### **Import Style**
+
+PhysKit supports flexible imports for convenience:
+
+```python
+# Top-level imports (recommended, matches examples in this README)
+from physkit_datasets import DatasetHub
+from physkit_evaluation import AccuracyMetric
+from physkit_annotation.workflows import WorkflowComposer
+
+# Package-level imports (also works)
+from physkit.physkit_datasets import DatasetHub
+from physkit.physkit_core import PhysKitLogger
+```
+
 ### **physkit_core**
 The foundation package providing:
 - **PhysicsProblem**: Standardized representation of physics problems
@@ -213,6 +228,10 @@ print('✅ All packages imported successfully!')
 print(f'PhysKit version: {physkit.__version__}')
 "
 ```
+
+**Note**: PhysKit supports both top-level and package-level imports:
+- **Top-level** (recommended): `from physkit_datasets import DatasetHub`
+- **Package-level** (also works): `from physkit.physkit_datasets import DatasetHub`
 
 ### **Test Dataset Loading**
 ```bash
@@ -362,4 +381,6 @@ pytest tests/
 
 **Ready to advance physics reasoning research! 🚀✨**
 
-**Package:** `pip install physkit` | **GitHub:** [sherryzyh/physical_reasoning_toolkit](https://github.com/sherryzyh/physical_reasoning_toolkit) | **License:** MIT
+**Package:** `pip install physkit` | **Version:** 0.1.0 | **GitHub:** [sherryzyh/physical_reasoning_toolkit](https://github.com/sherryzyh/physical_reasoning_toolkit) | **License:** MIT
+
+**Author:** Yinghuan Zhang (yinghuan.flash@gmail.com)

@@ -7,8 +7,8 @@ enhanced error handling, validation, and debugging capabilities.
 """
 
 from typing import Any, Dict, List, Optional, Union
-from physkit_core.definitions.answer_types import AnswerType
-from physkit_core.models.answer import Answer
+from physkit.physkit_core.definitions.answer_types import AnswerType
+from physkit.physkit_core.models.answer import Answer
 from .symbolic import SymbolicComparator
 from .numerical import NumericalComparator
 from .textual import TextualComparator

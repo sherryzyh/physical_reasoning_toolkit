@@ -8,8 +8,8 @@ answers using latex2sympy2_extended for robust LaTeX parsing.
 import re
 from typing import Any, Dict, Optional
 import sympy as sp
-from physkit_core.models.answer import Answer
-from physkit_core.definitions.answer_types import AnswerType
+from physkit.physkit_core.models.answer import Answer
+from physkit.physkit_core.definitions.answer_types import AnswerType
 from .base import BaseComparator
 
 from ..utils.phybench_latex_pre_process import master_convert, time_simplify
@@ -18,12 +18,21 @@ class SymbolicComparator(BaseComparator):
     """Comparator for symbolic mathematical expressions."""
     
     def _latex_to_sympy(self, latex_expr: str) -> sp.Basic:
+        """
+        Convert LaTeX expression to SymPy expression.
+        
+        Args:
+            latex_expr: LaTeX string representation
+            
+        Returns:
+            SymPy expression object
+        """
         if latex_expr.startswith("\boxed{"):
-            latex_expr=latex_expr[6:-1]
+            latex_expr = latex_expr[6:-1]
         answer_exp = master_convert(latex_expr)
-        answer_exp, replacements=sp.posify(answer_exp)
-        answer_exp=time_simplify(answer_exp)
-        answer_exp=answer_exp.subs(replacements)
+        answer_exp, replacements = sp.posify(answer_exp)
+        answer_exp = time_simplify(answer_exp)
+        answer_exp = answer_exp.subs(replacements)
         return answer_exp
     
     def compare(
@@ -31,6 +40,19 @@ class SymbolicComparator(BaseComparator):
         answer1: Answer,
         answer2: Answer
     ) -> Dict[str, Any]:
+        """
+        Compare two symbolic answers.
+        
+        Args:
+            answer1: First answer to compare
+            answer2: Second answer to compare
+            
+        Returns:
+            Dictionary containing comparison results with keys:
+            - is_equal: Boolean indicating if answers are equivalent
+            - details: Dictionary with detailed comparison information
+            - error: Error message if comparison failed
+        """
         
         try:
             answer1_exp=self._latex_to_sympy(answer1.value)

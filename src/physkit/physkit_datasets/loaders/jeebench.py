@@ -36,8 +36,8 @@ import random
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 from .base_loader import BaseDatasetLoader
-from physkit_core.models import PhysicalDataset
-from physkit_core import PhysKitLogger
+from physkit.physkit_core.models import PhysicalDataset
+from physkit.physkit_core import PhysKitLogger
 
 
 class JEEBenchLoader(BaseDatasetLoader):
