@@ -9,6 +9,8 @@ from typing import Any, Dict, List, Optional, Type, Union
 
 from prkit.prkit_core import PhysKitLogger
 from prkit.prkit_core.models import PhysicalDataset
+from prkit.prkit_datasets.downloaders import PhysReasonDownloader, SeePhysDownloader
+from prkit.prkit_datasets.downloaders.base_downloader import BaseDownloader
 from prkit.prkit_datasets.loaders import (
     JEEBenchLoader,
     PHYBenchLoader,
@@ -50,6 +52,8 @@ class DatasetHub:
 
     # Class-level registry of dataset loaders
     _loaders: Dict[str, Type[BaseDatasetLoader]] = {}
+    # Class-level registry of dataset downloaders
+    _downloaders: Dict[str, Type[BaseDownloader]] = {}
     _logger = PhysKitLogger.get_logger(__name__)
 
     @classmethod
@@ -64,9 +68,32 @@ class DatasetHub:
         cls.register("physreason", PhysReasonLoader)
 
     @classmethod
+    def _register_default_downloaders(cls):
+        """Register the default dataset downloaders."""
+        cls.register_downloader("physreason", PhysReasonDownloader)
+        cls.register_downloader("seephys", SeePhysDownloader)
+        # Add more downloaders as they are implemented
+
+    @classmethod
     def register(cls, name: str, loader_class: Type[BaseDatasetLoader]):
         """Register a new dataset loader."""
         cls._loaders[name] = loader_class
+
+    @classmethod
+    def register_downloader(cls, name: str, downloader_class: Type[BaseDownloader]):
+        """Register a new dataset downloader."""
+        cls._downloaders[name] = downloader_class
+
+    @classmethod
+    def _get_downloader(cls, name: str) -> Optional[BaseDownloader]:
+        """Get a dataset downloader by name."""
+        if not cls._downloaders:
+            cls._register_default_downloaders()
+
+        if name not in cls._downloaders:
+            return None
+
+        return cls._downloaders[name]()
 
     @classmethod
     def _get_loader(cls, name: str) -> BaseDatasetLoader:
@@ -88,6 +115,7 @@ class DatasetHub:
         dataset_name: str,
         data_dir: Union[str, Path, None] = None,
         sample_size: Optional[int] = None,
+        auto_download: bool = False,
         **kwargs,
     ) -> PhysicalDataset:
         """
@@ -97,6 +125,7 @@ class DatasetHub:
             dataset_name: Name of the dataset ('ugphysics', 'phybench', 'seephys', etc.)
             data_dir: Path to the data directory (None = auto-detect)
             sample_size: Number of problems to load (None = all)
+            auto_download: If True, automatically download the dataset if it doesn't exist
             **kwargs: Additional arguments for the specific loader (e.g., split, variant, etc.)
 
         Returns:
@@ -104,7 +133,8 @@ class DatasetHub:
 
         Raises:
             ValueError: If dataset name is unknown
-            FileNotFoundError: If data directory doesn't exist
+            FileNotFoundError: If data directory doesn't exist and auto_download=False
+            RuntimeError: If auto_download=True but download fails
 
         Examples:
             >>> # Load UGPhysics dataset
@@ -117,8 +147,8 @@ class DatasetHub:
             >>> # Load specific split
             >>> dataset = DatasetHub.load("ugphysics", split="test")
 
-            >>> # Load with variant
-            >>> dataset = DatasetHub.load("ugphysics", variant="mini", split="test")
+            >>> # Load with variant and auto-download
+            >>> dataset = DatasetHub.load("physreason", variant="full", auto_download=True)
         """
         # Get the appropriate loader
         loader = cls._get_loader(dataset_name)
@@ -130,10 +160,52 @@ class DatasetHub:
         if data_dir is not None:
             load_kwargs["data_dir"] = data_dir
 
-        # Load the dataset
-        dataset = loader.load(**load_kwargs)
+        # Try to load the dataset
+        try:
+            dataset = loader.load(**load_kwargs)
+            return dataset
+        except FileNotFoundError as e:
+            # If dataset doesn't exist and auto_download is enabled, try to download
+            if auto_download:
+                cls._logger.info(
+                    "Dataset not found. Attempting to download %s...", dataset_name
+                )
+                downloader = cls._get_downloader(dataset_name)
 
-        return dataset
+                if downloader is None:
+                    cls._logger.warning(
+                        "No downloader available for %s. Cannot auto-download.",
+                        dataset_name,
+                    )
+                    raise FileNotFoundError(
+                        f"Dataset not found and no downloader available for {dataset_name}. "
+                        f"Please download the dataset manually or implement a downloader."
+                    ) from e
+
+                # Extract variant from kwargs for downloader
+                variant = kwargs.get("variant", "full")
+                try:
+                    # Download the dataset
+                    download_path = downloader.download(
+                        data_dir=data_dir, variant=variant, force=False
+                    )
+                    cls._logger.info(
+                        "Successfully downloaded %s to %s", dataset_name, download_path
+                    )
+
+                    # Retry loading after download
+                    dataset = loader.load(**load_kwargs)
+                    return dataset
+                except Exception as download_error:
+                    cls._logger.error(
+                        "Failed to download %s: %s", dataset_name, download_error
+                    )
+                    raise RuntimeError(
+                        f"Auto-download failed for {dataset_name}: {download_error}"
+                    ) from download_error
+            else:
+                # Re-raise the original FileNotFoundError
+                raise
 
     @classmethod
     def list_available(cls) -> List[str]:

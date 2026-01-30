@@ -90,7 +90,7 @@ class PHYBenchLoader(BaseDatasetLoader):
         Load PHYBench dataset.
 
         Args:
-            data_dir: Path to the PHYBench dataset (defaults to ~/data/PHYBench)
+            data_dir: Path to the PHYBench dataset (defaults to ~/PHYSICAL_REASONING_DATASETS/PHYBench)
             variant: Dataset variant ("full" or "fullques")
             **kwargs: Additional loading parameters (unused, for compatibility)
 

@@ -39,7 +39,7 @@ physical_reasoning_toolkit/
 - ✅ **showcase_output/**: Example outputs and demonstrations
 
 **External (Data & Runtime):**
-- 📁 **Data Directory**: Dataset files (set via `PHYSKIT_DATA_DIR`)
+- 📁 **Data Directory**: Dataset files (set via `DATASET_CACHE_DIR`)
 - 🔑 **API Keys**: LLM service credentials
 - 📊 **Log Files**: Runtime logs (set via `PHYSKIT_LOG_FILE`)
 
@@ -108,14 +108,14 @@ export PHYSKIT_LOG_FILE=/var/log/physkit.log
 ```bash
 # Set up data directory structure (external to repository)
 mkdir -p ~/data
-export PHYSKIT_DATA_DIR=~/data
+export DATASET_CACHE_DIR=~/data
 
 # Download datasets (see cookbooks for examples)
 cd cookbooks
 python3 01_load_dataset.py
 ```
 
-**Note**: The data directory is external to the repository and contains the actual dataset files. See the cookbooks for dataset download and setup instructions.
+**Note**: The data directory is external to the repository and contains the actual dataset files. The default cache directory is `~/data/` if `DATASET_CACHE_DIR` is not set. See the cookbooks for dataset download and setup instructions.
 
 ## 📦 **Package Overview**
 
@@ -144,28 +144,21 @@ The foundation package providing:
 
 ### **prkit_datasets**
 Dataset management with support for:
-- **Multiple Sources**: PHYBench, SeePhys, UGPhysics, JEEBench, SciBench, TPBench, PhysReason
+- **Supported Datasets**: PhysReason, SeePhys (fully tested and validated)
+- **Experimental Datasets**: PHYBench, UGPhysics, JEEBench, SciBench, TPBench (available but require further testing and validation)
 - **Standardized Format**: Consistent API across all datasets
 - **Variant Support**: Full/mini versions where available
 - **Sampling**: Reproducible data sampling for development
 
-#### **Dataset Field Comparison**
-All datasets are automatically converted to standard field names. Here's what each dataset provides:
+#### **Supported Dataset Field Comparison**
+The following datasets are fully supported and tested:
 
 | Dataset | Domain | Solution | Answer | Total Problems |
 |---------|---------|----------|---------|----------------|
-| **PHYBench** | ✅ Yes | ✅ Yes | ✅ Yes | 500 (100) |
+| **PhysReason** | ✅ Yes | ✅ Yes | ✅ Yes | 1,200 (full) / 200 (mini) |
 | **SeePhys** | ✅ Yes | ❌ No | ✅ Yes | 6,200 |
-| **UGPhysics** | ✅ Yes | ✅ Yes | ✅ Yes | 11,040 |
-| **JEEBench** | ❌ No | ❌ No | ✅ Yes | 515 |
-| **SciBench** | ✅ Yes | ❌ No | ✅ Yes | 580 |
-| **TPBench** | ✅ Yes | ✅ Yes | ✅ Yes | 10 |
-| **PhysReason** | ❌ No | ✅ Yes | ✅ Yes | 1,200 |
 
-**Field Coverage Summary:**
-- **Domain**: 5/7 datasets provide physics domain classification
-- **Solution**: 4/7 datasets include detailed solutions/explanations  
-- **Answer**: 7/7 datasets provide correct answers
+**Note**: Other datasets (PHYBench, UGPhysics, JEEBench, SciBench, TPBench) are available in the codebase but require further testing and validation before being marked as fully supported.
 
 #### **Physics Domain Coverage by Dataset**
 The following table shows which physics domains are available in each dataset:
@@ -271,7 +264,8 @@ python 04_workflow_composition_demo.py
 - **Documented**: Comprehensive examples and cookbooks
 
 ### **Dataset Support**
-- **7+ Datasets**: Comprehensive coverage of physics reasoning tasks
+- **2 Fully Supported Datasets**: PhysReason and SeePhys (tested and validated)
+- **5 Experimental Datasets**: PHYBench, UGPhysics, JEEBench, SciBench, TPBench (available but require further testing)
 - **Multiple Formats**: JSON, Parquet, CSV, and custom formats
 - **Rich Metadata**: Preserves original dataset information
 - **Standardized Interface**: Consistent API across all datasets
@@ -308,14 +302,14 @@ pip show physical-reasoning-toolkit
 #### **Data Directory Issues**
 ```bash
 # Set data directory (external to repository)
-export PHYSKIT_DATA_DIR=/path/to/your/data
+export DATASET_CACHE_DIR=/path/to/your/data
 
 # Check directory structure
-ls -la $PHYSKIT_DATA_DIR
+ls -la $DATASET_CACHE_DIR
 
 # Verify dataset files exist
-ls -la $PHYSKIT_DATA_DIR/ugphysics/
-ls -la $PHYSKIT_DATA_DIR/PhysReason/
+ls -la $DATASET_CACHE_DIR/ugphysics/
+ls -la $DATASET_CACHE_DIR/PhysReason/
 ```
 
 ### **Getting Help**
@@ -373,7 +367,7 @@ pytest tests/
 **For Users:**
 - [ ] Install via PyPI: `pip install physical-reasoning-toolkit`
 - [ ] Set up environment variables (API keys)
-- [ ] Set data directory: `export PHYSKIT_DATA_DIR=~/data`
+- [ ] Set data directory: `export DATASET_CACHE_DIR=~/data` (optional, defaults to ~/data/)
 - [ ] Run example: `python cookbooks/01_load_dataset.py`
 - [ ] Start building your physics reasoning system!
 

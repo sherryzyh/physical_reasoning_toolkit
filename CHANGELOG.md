@@ -18,7 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Standardized package structure with consistent `__init__.py` formatting across all subpackages
 
 ### Features
-- Support for PHYBench, SeePhys, UGPhysics, JEEBench, SciBench, TPBench, and PhysReason datasets
+- **Supported Datasets**: PhysReason and SeePhys (fully tested and validated)
+- **Experimental Datasets**: PHYBench, UGPhysics, JEEBench, SciBench, TPBench (available but require further testing)
 - Standardized `PhysicsProblem` and `PhysicalDataset` models
 - Domain classification and theorem detection workflows
 - Multiple LLM provider support (OpenAI, Google Gemini, DeepSeek)

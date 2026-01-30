@@ -108,7 +108,7 @@ class TPBenchLoader(BaseDatasetLoader):
         Load the TPBench dataset.
 
         Args:
-            data_dir: Path to the TPBench dataset (defaults to ~/data/TPBench)
+            data_dir: Path to the TPBench dataset (defaults to ~/PHYSICAL_REASONING_DATASETS/TPBench)
             split: Dataset split to load (only "test" is supported)
             variant: Dataset variant ("full" only)
             sample_size: Number of problems to sample (None for all)

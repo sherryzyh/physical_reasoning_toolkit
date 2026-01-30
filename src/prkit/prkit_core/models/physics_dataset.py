@@ -303,6 +303,11 @@ class PhysicalDataset:
         return self._split
 
     @property
+    def split(self) -> str:
+        """Get the dataset split."""
+        return self._split
+
+    @property
     def name(self) -> str:
         """Get the dataset name."""
         return self._info.get("name", self.__class__.__name__)

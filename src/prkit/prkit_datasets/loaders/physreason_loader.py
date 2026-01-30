@@ -3,6 +3,8 @@ PhysReason Dataset Loader
 
 This module provides a loader for the PhysReason dataset, which contains
 physics reasoning problems with detailed step-by-step solutions.
+
+For citation information, see prkit.prkit_datasets.citations.
 """
 
 import json
@@ -35,13 +37,30 @@ class PhysReasonLoader(BaseDatasetLoader):
         return {
             "name": self.name,
             "description": self.description,
+            "citation": "See prkit.prkit_datasets.citations for BibTeX citation",
+            "paper_url": "https://aclanthology.org/2025.acl-long.811.pdf",
+            "homepage": "https://dxzxy12138.github.io/PhysReason/",
+            "repository_url": "https://huggingface.co/datasets/zhibei1204/PhysReason",
+            "license": "CC BY-NC-SA / MIT",
             "languages": ["en"],
             "variants": ["full", "mini"],
             "splits": ["test"],
             "problem_types": ["OE"],
-            "total_problems": "192",
-            "difficulty": ["easy", "medium", "hard"],
-            "source": "PhysReason dataset with full and mini variants",
+            "total_problems": "1200 (full), 200 (mini)",
+            "difficulty": ["knowledge", "easy", "medium", "hard"],
+            "source": "PhysReason dataset with full (1200 problems) and mini (200 problems) variants",
+            "domains": [
+                "Classical Mechanics",
+                "Quantum Mechanics",
+                "Fluid Mechanics",
+                "Thermodynamics",
+                "Electromagnetics",
+                "Optics",
+                "Relativity",
+            ],
+            "specialty": "Step-by-step reasoning with detailed solutions, multi-modal (81% with diagrams)",
+            "average_steps": 8.1,
+            "hard_problem_steps": 15.6,
         }
 
     @property
@@ -111,7 +130,8 @@ class PhysReasonLoader(BaseDatasetLoader):
             PhysicalDataset containing PhysReason problems
         """
         # Resolve data directory with environment variable support
-        data_dir = self.resolve_data_dir(data_dir, "PhysReason")
+        # Use lowercase "physreason" to match downloader's dataset_name
+        data_dir = self.resolve_data_dir(data_dir, "physreason")
         self.logger.debug(f"Using data directory: {data_dir}")
 
         if not data_dir.exists():
