@@ -95,13 +95,22 @@ def is_pure_number(value: str) -> bool:
 
 def is_mathematical_expression(value: str) -> bool:
     """Check if value represents a mathematical expression."""
+    value = value.strip()
+    
+    # Check if it's a standalone single-letter variable (e.g., "x", "y", "z")
+    # This handles cases like "x" but not "a" in "a descriptive answer"
+    if len(value) == 1 and value.isalpha():
+        return True
+    
     # Must contain mathematical operators or symbols
     math_indicators = [
         # Operators
         '+', '-', '*', '/', '=', '^', '**', '√', 'sqrt',
-        # Variables (single letters, often with subscripts)
-        re.search(r'\b[a-zA-Z]\b', value),  # Single letter variables
-        re.search(r'[a-zA-Z]_[a-zA-Z0-9]', value),  # Subscripts
+        # Variables in mathematical context (single letters next to operators/numbers, not in words)
+        re.search(r'[0-9]\s*[a-zA-Z]|[a-zA-Z]\s*[0-9]', value),  # Numbers with variables (e.g., "2x", "x2")
+        re.search(r'[+\-*/=^]\s*[a-zA-Z]|[a-zA-Z]\s*[+\-*/=^]', value),  # Variables with operators (e.g., "x+", "+x", "x=")
+        re.search(r'\^[a-zA-Z]|[a-zA-Z]\^', value),  # Variables with exponentiation (e.g., "x^2", "^x")
+        re.search(r'[a-zA-Z]_[a-zA-Z0-9]', value),  # Subscripts (e.g., "x_i", "a_1")
         # Functions
         re.search(r'\b(sin|cos|tan|log|ln|exp|sqrt)\s*\(', value, re.IGNORECASE),
         # LaTeX indicators
