@@ -8,8 +8,8 @@ __version__ = "0.1.0"
 __author__ = "Yinghuan Zhang"
 __author_email__ = "yinghuan.flash@gmail.com"
 
-from .workflows import WorkflowComposer
 from .workers import DomainLabeler, TheoremDetector
+from .workflows import WorkflowComposer
 
 __all__ = [
     "WorkflowComposer",

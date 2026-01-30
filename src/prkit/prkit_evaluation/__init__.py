@@ -9,8 +9,14 @@ __version__ = "0.1.0"
 __author__ = "Yinghuan Zhang"
 __author_email__ = "yinghuan.flash@gmail.com"
 
+from .comparison import (
+    BaseComparator,
+    NumericalComparator,
+    SmartAnswerComparator,
+    SymbolicComparator,
+    TextualComparator,
+)
 from .metrics import AccuracyMetric
-from .comparison import BaseComparator, SymbolicComparator, NumericalComparator, TextualComparator, SmartAnswerComparator
 
 __all__ = [
     "AccuracyMetric",

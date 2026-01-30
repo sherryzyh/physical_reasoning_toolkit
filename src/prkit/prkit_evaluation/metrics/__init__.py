@@ -9,8 +9,8 @@ __version__ = "0.1.0"
 __author__ = "Yinghuan Zhang"
 __author_email__ = "yinghuan.flash@gmail.com"
 
-from .base import BaseMetric
 from .accuracy import AccuracyMetric
+from .base import BaseMetric
 
 __all__ = [
     "BaseMetric",

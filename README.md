@@ -232,7 +232,13 @@ print(f'PRKit version: {prkit.__version__}')
 
 **Note**: PRKit supports flexible imports:
 - **Package-level** (recommended): `from prkit.prkit_datasets import DatasetHub`
-- **Top-level** (also available): `from prkit_datasets import DatasetHub` (via sys.modules registration)
+- **Top-level** (also available): Requires `import prkit` first, then `from prkit_datasets import DatasetHub` (via sys.modules registration)
+
+**Example of top-level import:**
+```python
+import prkit  # Must import prkit first to register subpackages
+from prkit_datasets import DatasetHub  # Now this works
+```
 
 ### **Test Dataset Loading**
 ```bash

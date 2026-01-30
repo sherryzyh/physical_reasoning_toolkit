@@ -10,19 +10,19 @@ providing a consistent experience across all PRKit (physical-reasoning-toolkit) 
 Usage:
     # Simple loading (recommended)
     from prkit_datasets import DatasetHub
-    
+
     dataset = DatasetHub.load("ugphysics")
     print(f"Loaded {len(dataset)} problems")
-    
+
     # With options
     dataset = DatasetHub.load("ugphysics", sample_size=100, split="test")
-    
+
     # List available datasets
     print(DatasetHub.list_available())
-    
+
     # Get dataset info
     info = DatasetHub.get_info("ugphysics")
-    
+
     # All datasets return PhysicsProblem objects
     for problem in dataset:
         print(f"Problem {problem.problem_id}: {problem.question}")

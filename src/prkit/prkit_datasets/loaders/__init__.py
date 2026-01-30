@@ -7,13 +7,13 @@ __author__ = "Yinghuan Zhang"
 __author_email__ = "yinghuan.flash@gmail.com"
 
 from .base_loader import BaseDatasetLoader
-from .phybench import PHYBenchLoader
-from .seephys import SeePhysLoader
-from .ugphysics import UGPhysicsLoader
 from .jeebench import JEEBenchLoader
-from .scibench import SciBenchLoader
-from .tpbench import TPBenchLoader
+from .phybench import PHYBenchLoader
 from .physreason import PhysReasonLoader
+from .scibench import SciBenchLoader
+from .seephys import SeePhysLoader
+from .tpbench import TPBenchLoader
+from .ugphysics import UGPhysicsLoader
 
 __all__ = [
     "BaseDatasetLoader",

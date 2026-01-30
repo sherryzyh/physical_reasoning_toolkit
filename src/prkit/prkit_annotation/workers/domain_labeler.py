@@ -2,16 +2,15 @@
 Domain annotator for physics problem classification.
 """
 
-from pydantic import BaseModel
-from typing import List
 from dataclasses import dataclass, field
-from typing import Dict, List, Any
+from typing import Any, Dict, List
 
+from pydantic import BaseModel
+
+from prkit.prkit_annotation.annotations.domain import DomainAnnotation
+from prkit.prkit_core.definitions.physics_domain import PhysicsDomain
 
 from .base import BaseAnnotator
-from prkit.prkit_core.definitions.physics_domain import PhysicsDomain
-from prkit.prkit_annotation.annotations.domain import DomainAnnotation
-
 
 
 class DomainResponse(BaseModel):
@@ -20,8 +19,10 @@ class DomainResponse(BaseModel):
     reasoning: str
     subdomains: List[str]
 
+
 class DomainLabeler(BaseAnnotator):
     """Annotator for physics domain classification."""
+
     def work(
         self,
         question: str,
@@ -73,12 +74,11 @@ class DomainLabeler(BaseAnnotator):
         4. If unsure about a domain, include it with lower confidence
         5. For subdomains, you can freely decide what specific aspects or subcategories to include (e.g., "kinematics", "collision", "spring systems", "electromagnetic waves", "quantum tunneling", etc.)
         """
-        
+
         try:
             # Use structured output directly
             result = self._call_llm_structured(
-                prompt=prompt,
-                response_format=DomainResponse
+                prompt=prompt, response_format=DomainResponse
             )
             if result is not None:
                 # Convert string domains to PhysicsDomain enums
@@ -90,7 +90,9 @@ class DomainLabeler(BaseAnnotator):
                         physics_domains.append(domain_enum)
                     except ValueError:
                         # Try normalized matching
-                        normalized_str = domain_str.lower().replace(' ', '_').replace('-', '_')
+                        normalized_str = (
+                            domain_str.lower().replace(" ", "_").replace("-", "_")
+                        )
                         found = False
                         for domain in PhysicsDomain:
                             if domain.value == normalized_str:
@@ -100,12 +102,12 @@ class DomainLabeler(BaseAnnotator):
                         if not found:
                             # Add as OTHER if no match found
                             physics_domains.append(PhysicsDomain.OTHER)
-                
+
                 return DomainAnnotation(
                     domains=physics_domains,
                     confidence=result.confidence,
                     reasoning=result.reasoning,
-                    subdomains=result.subdomains
+                    subdomains=result.subdomains,
                 )
             else:
                 # Return empty annotation if no result
@@ -113,7 +115,7 @@ class DomainLabeler(BaseAnnotator):
                     domains=[],
                     confidence=0.0,
                     reasoning="No domain classification result obtained",
-                    subdomains=[]
+                    subdomains=[],
                 )
         except Exception as e:
             print(f"Error with structured domain annotation: {e}")
@@ -122,5 +124,5 @@ class DomainLabeler(BaseAnnotator):
                 domains=[],
                 confidence=0.0,
                 reasoning=f"Error in domain annotation: {str(e)}",
-                subdomains=[]
+                subdomains=[],
             )

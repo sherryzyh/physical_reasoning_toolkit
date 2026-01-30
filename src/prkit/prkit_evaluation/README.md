@@ -13,7 +13,7 @@ prkit_evaluation/
 │   ├── symbolic.py         # Symbolic expression comparator
 │   ├── numerical.py        # Numerical value comparator
 │   ├── textual.py          # Textual answer comparator
-│   └── answer_comparator.py # Main routing comparator
+│   └── smart_answer_comparator.py # Main routing comparator
 ├── metrics/                 # Evaluation metrics package
 │   ├── __init__.py         # Metrics package initialization
 │   ├── base.py             # Base metric class
@@ -132,13 +132,13 @@ class NewMetric(BaseMetric):
 1. Create a new class inheriting from `BaseAnswer`
 2. Implement the `validate` method
 3. Add a corresponding comparator
-4. Update the `AnswerComparator` routing
+4. Update the `SmartAnswerComparator` routing
 
 ### Adding New Comparison Strategies
 
 1. Inherit from `BaseComparator`
 2. Implement `compare` and `can_compare` methods
-3. Register with the `AnswerComparator`
+3. Register with the `SmartAnswerComparator`
 
 ## Dependencies
 
