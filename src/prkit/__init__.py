@@ -17,28 +17,25 @@ import sys
 
 # Import and expose subpackages at top level
 try:
-    from . import prkit_core
-    from . import prkit_datasets
-    from . import prkit_annotation
-    from . import prkit_evaluation
-    
+    from . import prkit_annotation, prkit_core, prkit_datasets, prkit_evaluation
+
     # Make them available as top-level modules
-    sys.modules['prkit_core'] = prkit_core
-    sys.modules['prkit_datasets'] = prkit_datasets
-    sys.modules['prkit_annotation'] = prkit_annotation
-    sys.modules['prkit_evaluation'] = prkit_evaluation
-    
+    sys.modules["prkit_core"] = prkit_core
+    sys.modules["prkit_datasets"] = prkit_datasets
+    sys.modules["prkit_annotation"] = prkit_annotation
+    sys.modules["prkit_evaluation"] = prkit_evaluation
+
     # Import main components for easy access
     from .prkit_core import PhysKitLogger
-    from .prkit_core.models import PhysicsProblem, PhysicalDataset
-    from .prkit_core.definitions import PhysicsDomain, AnswerType
+    from .prkit_core.definitions import AnswerType, PhysicsDomain
+    from .prkit_core.models import PhysicalDataset, PhysicsProblem
 except ImportError:
     # Allow package to be imported even if subpackages aren't installed
     pass
 
 __all__ = [
     "PhysKitLogger",
-    "PhysicsProblem", 
+    "PhysicsProblem",
     "PhysicalDataset",
     "PhysicsDomain",
     "AnswerType",

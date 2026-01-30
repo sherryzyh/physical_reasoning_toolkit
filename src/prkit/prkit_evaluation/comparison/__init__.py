@@ -9,12 +9,12 @@ __version__ = "0.1.0"
 __author__ = "Yinghuan Zhang"
 __author_email__ = "yinghuan.flash@gmail.com"
 
+from .smart_answer_comparator import SmartAnswerComparator
 from .base import BaseComparator
-from .symbolic import SymbolicComparator
 from .numerical import NumericalComparator
-from .textual import TextualComparator
 from .option import OptionComparator
-from .answer_comparator import SmartAnswerComparator
+from .symbolic import SymbolicComparator
+from .textual import TextualComparator
 
 __all__ = [
     "BaseComparator",

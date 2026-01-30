@@ -9,9 +9,9 @@ __author__ = "Yinghuan Zhang"
 __author_email__ = "yinghuan.flash@gmail.com"
 
 from ..definitions.physics_domain import PhysicsDomain
-from .physics_problem import PhysicsProblem
-from .physics_dataset import PhysicalDataset
 from .answer import Answer
+from .physics_dataset import PhysicalDataset
+from .physics_problem import PhysicsProblem
 
 __all__ = [
     "PhysicsDomain",
