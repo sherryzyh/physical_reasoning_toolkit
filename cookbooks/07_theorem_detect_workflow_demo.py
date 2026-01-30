@@ -13,8 +13,8 @@ The theorem_label_only_workflow identifies relevant physical theorems,
 principles, and equations for each physics problem.
 
 Prerequisites:
-- physkit_annotation package installed
-- physkit_datasets package installed
+- prkit_annotation package installed (via: pip install physical-reasoning-toolkit)
+- prkit_datasets package installed (via: pip install physical-reasoning-toolkit)
 - PHYBench dataset available
 - OpenAI API key set (for LLM-based annotation)
 
@@ -33,12 +33,9 @@ import argparse
 from pathlib import Path
 from typing import Dict, Any
 
-# Add the physkit to the path
-sys.path.append(os.path.join(os.path.dirname(__file__), "..", "physkit"))
-
 # Import the preset workflow and dataset functionality
-from physkit_annotation.workflows.presets.theorem_label_only_workflow import TheoremLabelOnlyWorkflow
-from physkit_datasets import DatasetHub
+from prkit_annotation.workflows.presets.theorem_label_only_workflow import TheoremLabelOnlyWorkflow
+from prkit_datasets import DatasetHub
 
 
 def arg_parser():
@@ -178,7 +175,7 @@ def create_and_run_workflow(dataset, output_dir: Path, model: str) -> Dict[str, 
         # Test TheoremDetector creation separately to isolate the issue
         try:
             print("  🧪 Testing TheoremDetector creation...")
-            from physkit_annotation.workers import TheoremDetector
+            from prkit_annotation.workers import TheoremDetector
             test_detector = TheoremDetector(model=model)
             print("  ✅ TheoremDetector created successfully")
         except Exception as detector_error:
@@ -422,7 +419,7 @@ def test_theorem_detector_creation():
     
     print(f"\n🔍 Testing model: o3-mini")
     try:
-        from physkit_annotation.workers import TheoremDetector
+        from prkit_annotation.workers import TheoremDetector
         print("  📦 Importing TheoremDetector...")
         detector = TheoremDetector(model="o3-mini")
         print(f"  ✅ Successfully created TheoremDetector with o3-mini")

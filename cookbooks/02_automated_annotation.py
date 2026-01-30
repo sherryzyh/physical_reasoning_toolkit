@@ -9,8 +9,8 @@ This cookbook demonstrates how to:
 - Save results to organized output directories
 
 Prerequisites:
-- physkit_annotation package installed
-- physkit_datasets package installed
+- prkit_annotation package installed (via: pip install physical-reasoning-toolkit)
+- prkit_datasets package installed (via: pip install physical-reasoning-toolkit)
 - ugphysics dataset available
 - OpenAI API key set (for LLM-based annotation)
 
@@ -21,16 +21,12 @@ Usage:
 import pprint
 import sys
 import os
-# Add the physkit to the path
-sys.path.append(os.path.join(os.path.dirname(__file__), "..", "physkit"))
-
-
 import json
 from pathlib import Path
 
 # Import the annotation workflow functionality
-from physkit_annotation.workflows.presets import PlainAutomaticWorkflow
-from physkit_datasets import DatasetHub
+from prkit_annotation.workflows.presets import PlainAutomaticWorkflow
+from prkit_datasets import DatasetHub
 
 def main():
     """Main function demonstrating automated annotation workflow."""

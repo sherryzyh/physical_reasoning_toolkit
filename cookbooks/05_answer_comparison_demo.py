@@ -12,12 +12,9 @@ This cookbook demonstrates comprehensive answer comparison capabilities:
 import os
 import sys
 
-# Add the physkit to the path
-sys.path.append(os.path.join(os.path.dirname(__file__), "..", "physkit"))
-
-from physkit_evaluation.metrics import AccuracyMetric
-from physkit_core.definitions.answer_types import AnswerType
-from physkit_core.models.answer import Answer
+from prkit_evaluation.metrics import AccuracyMetric
+from prkit_core.definitions.answer_types import AnswerType
+from prkit_core.models.answer import Answer
 
 
 def main():

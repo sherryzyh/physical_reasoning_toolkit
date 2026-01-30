@@ -22,16 +22,14 @@ import pprint
 import sys
 import os
 # Add the physkit to the path
-sys.path.append(os.path.join(os.path.dirname(__file__), "..", "physkit"))
-
 import json
 from pathlib import Path
 from typing import Dict, Any
 
 # Import the workflow composition functionality directly from modules
-from physkit_annotation.workflows import WorkflowComposer
-from physkit_annotation.workflows.modules import DomainAssessmentModule
-from physkit_datasets import DatasetHub
+from prkit_annotation.workflows import WorkflowComposer
+from prkit_annotation.workflows.modules import DomainAssessmentModule
+from prkit_datasets import DatasetHub
 
 def main():
     """Main function demonstrating workflow composition."""

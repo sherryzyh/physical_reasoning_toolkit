@@ -1,0 +1,45 @@
+"""
+PRKit - Physical Reasoning Toolkit
+
+A comprehensive toolkit for physical reasoning, annotation, and dataset management.
+
+Package name: physical-reasoning-toolkit
+Import name: prkit
+"""
+
+__version__ = "0.1.0"
+__author__ = "Yinghuan Zhang"
+__author_email__ = "yinghuan.flash@gmail.com"
+
+# Make subpackages importable at top level (e.g., `from prkit.prkit_datasets import DatasetHub` or `from prkit_datasets import DatasetHub`)
+# Note: PyPI package name is "physical-reasoning-toolkit", import name is "prkit"
+import sys
+
+# Import and expose subpackages at top level
+try:
+    from . import prkit_core
+    from . import prkit_datasets
+    from . import prkit_annotation
+    from . import prkit_evaluation
+    
+    # Make them available as top-level modules
+    sys.modules['prkit_core'] = prkit_core
+    sys.modules['prkit_datasets'] = prkit_datasets
+    sys.modules['prkit_annotation'] = prkit_annotation
+    sys.modules['prkit_evaluation'] = prkit_evaluation
+    
+    # Import main components for easy access
+    from .prkit_core import PhysKitLogger
+    from .prkit_core.models import PhysicsProblem, PhysicalDataset
+    from .prkit_core.definitions import PhysicsDomain, AnswerType
+except ImportError:
+    # Allow package to be imported even if subpackages aren't installed
+    pass
+
+__all__ = [
+    "PhysKitLogger",
+    "PhysicsProblem", 
+    "PhysicalDataset",
+    "PhysicsDomain",
+    "AnswerType",
+]

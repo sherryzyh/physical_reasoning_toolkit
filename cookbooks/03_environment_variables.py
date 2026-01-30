@@ -17,10 +17,7 @@ import os
 import sys
 from pathlib import Path
 
-# Add the physkit to the path
-sys.path.append(os.path.join(os.path.dirname(__file__), "..", "physkit"))
-
-from physkit_datasets import DatasetHub
+from prkit_datasets import DatasetHub
 
 def main():
     """Main function demonstrating environment variable usage."""

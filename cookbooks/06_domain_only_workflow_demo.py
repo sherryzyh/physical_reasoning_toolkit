@@ -33,12 +33,9 @@ import argparse
 from pathlib import Path
 from typing import Dict, Any
 
-# Add the physkit to the path
-sys.path.append(os.path.join(os.path.dirname(__file__), "..", "physkit"))
-
 # Import the preset workflow and dataset functionality
-from physkit_annotation.workflows.presets.domain_only_workflow import DomainOnlyWorkflow
-from physkit_datasets import DatasetHub
+from prkit_annotation.workflows.presets.domain_only_workflow import DomainOnlyWorkflow
+from prkit_datasets import DatasetHub
 
 
 def arg_parser():

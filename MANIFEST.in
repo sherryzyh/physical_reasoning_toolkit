@@ -4,9 +4,9 @@ include LICENSE
 include pyproject.toml
 
 # Include all markdown and text files in the package
-recursive-include src/physkit *.md
-recursive-include src/physkit *.txt
-recursive-include src/physkit *.rst
+recursive-include src/prkit *.md
+recursive-include src/prkit *.txt
+recursive-include src/prkit *.rst
 
 # Exclude unnecessary files
 recursive-exclude * __pycache__
