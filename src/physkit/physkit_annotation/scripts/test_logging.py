@@ -11,10 +11,10 @@ from typing import Optional, Dict, Any
 # Add the physkit package to the path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from physkit_core.models import PhysicalDataset
-from physkit_core.models.physics_problem import PhysicsProblem
-from physkit_annotation.workflows.workflow_composer import WorkflowComposer
-from physkit_annotation.modules.base_module import BaseWorkflowModule
+from physkit.physkit_core.models import PhysicalDataset
+from physkit.physkit_core.models.physics_problem import PhysicsProblem
+from physkit.physkit_annotation.workflows.workflow_composer import WorkflowComposer
+from physkit.physkit_annotation.modules.base_module import BaseWorkflowModule
 
 class TestModule(BaseWorkflowModule):
     """A simple test module for testing logging."""

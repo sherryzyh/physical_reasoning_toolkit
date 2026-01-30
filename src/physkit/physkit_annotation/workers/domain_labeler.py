@@ -9,8 +9,8 @@ from typing import Dict, List, Any
 
 
 from .base import BaseAnnotator
-from physkit_core.definitions.physics_domain import PhysicsDomain
-from physkit_annotation.annotations.domain import DomainAnnotation
+from physkit.physkit_core.definitions.physics_domain import PhysicsDomain
+from physkit.physkit_annotation.annotations.domain import DomainAnnotation
 
 
 

@@ -8,8 +8,8 @@ This comparator handles both single and multiple choice answers, with support fo
 """
 
 from typing import Any, Dict, List
-from physkit_core.models.answer import Answer
-from physkit_core.definitions.answer_types import AnswerType
+from physkit.physkit_core.models.answer import Answer
+from physkit.physkit_core.definitions.answer_types import AnswerType
 from .base import BaseComparator
 
 

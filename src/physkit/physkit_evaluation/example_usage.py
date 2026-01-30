@@ -5,7 +5,7 @@ This script demonstrates how to use the AccuracyMetric with different
 types of answers (symbolic, numerical, and textual).
 """
 
-from physkit_core.definitions.answer_types import (
+from physkit.physkit_core.definitions.answer_types import (
     SymbolicAnswer, NumericalAnswer, TextualAnswer
 )
 from .metrics import AccuracyMetric

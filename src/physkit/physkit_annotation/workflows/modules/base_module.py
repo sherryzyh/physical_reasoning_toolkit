@@ -10,8 +10,8 @@ from typing import Any, Dict, Optional, Union
 from datetime import datetime
 import logging
 
-from physkit_core.models.physics_problem import PhysicsProblem
-from physkit_core import PhysKitLogger
+from physkit.physkit_core.models.physics_problem import PhysicsProblem
+from physkit.physkit_core import PhysKitLogger
 
 
 class BaseWorkflowModule(ABC):

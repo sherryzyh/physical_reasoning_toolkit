@@ -6,8 +6,8 @@ answers against ground truth answers using appropriate comparison strategies.
 """
 
 from typing import List, Dict, Any, Union, Optional
-from physkit_core.definitions.answer_types import AnswerType
-from physkit_core.models.answer import Answer
+from physkit.physkit_core.definitions.answer_types import AnswerType
+from physkit.physkit_core.models.answer import Answer
 from ..comparison import SmartAnswerComparator
 from .base import BaseMetric
 

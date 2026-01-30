@@ -9,9 +9,9 @@ import json
 from pathlib import Path
 from typing import Dict, List, Any, Union, Optional
 
-from physkit_core.models import PhysicsDomain, PhysicalDataset
-from physkit_datasets.loaders.base_loader import BaseDatasetLoader
-from physkit_core import PhysKitLogger
+from physkit.physkit_core.models import PhysicsDomain, PhysicalDataset
+from physkit.physkit_datasets.loaders.base_loader import BaseDatasetLoader
+from physkit.physkit_core import PhysKitLogger
 
 
 # TODO: add support for handling multiple sub-questions

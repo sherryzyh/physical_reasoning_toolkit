@@ -7,7 +7,7 @@ in the physical reasoning toolkit.
 
 from abc import ABC, abstractmethod
 from typing import Any, Dict
-from physkit_core.models.answer import Answer
+from physkit.physkit_core.models.answer import Answer
 
 
 class BaseComparator(ABC):

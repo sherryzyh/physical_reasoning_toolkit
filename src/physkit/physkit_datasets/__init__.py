@@ -32,9 +32,12 @@ Usage:
         print(f"Custom field: {problem['source']}")  # Custom fields work too
 """
 
+__version__ = "0.1.0"
+__author__ = "Yinghuan Zhang"
+__author_email__ = "yinghuan.flash@gmail.com"
+
 from .hub import DatasetHub
 
-__version__ = "0.5.0"
 __all__ = [
-    "DatasetHub",           # 🚀 Main interface
+    "DatasetHub",
 ]

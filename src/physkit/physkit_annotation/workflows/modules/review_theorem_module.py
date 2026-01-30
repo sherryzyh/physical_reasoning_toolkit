@@ -8,9 +8,9 @@ It can be composed into larger annotation workflows.
 
 from typing import Any, Dict, Optional, List
 
-from physkit_core.models.physics_problem import PhysicsProblem
+from physkit.physkit_core.models.physics_problem import PhysicsProblem
 from datetime import datetime
-from physkit_annotation.workers import TheoremDetector
+from physkit.physkit_annotation.workers import TheoremDetector
 from .base_module import BaseWorkflowModule
 
 

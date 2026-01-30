@@ -7,7 +7,7 @@ through composition rather than inheritance.
 
 from dataclasses import dataclass
 from typing import Any, Dict, Optional, List, Union
-from physkit_core.definitions.answer_types import AnswerType
+from ..definitions.answer_types import AnswerType
 
 
 @dataclass

@@ -11,9 +11,9 @@ import json
 import logging
 from datetime import datetime
 
-from physkit_core.models.physics_problem import PhysicsProblem
-from physkit_core import PhysKitLogger
-from physkit_core.models import PhysicalDataset
+from physkit.physkit_core.models.physics_problem import PhysicsProblem
+from physkit.physkit_core import PhysKitLogger
+from physkit.physkit_core.models import PhysicalDataset
 from .modules.base_module import BaseWorkflowModule
 
 try:

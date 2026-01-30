@@ -13,9 +13,9 @@ from abc import ABC, abstractmethod
 from typing import Dict, List, Any, Union, Optional
 from pathlib import Path
 
-from physkit_core.definitions.answer_types import AnswerType
-from physkit_core.models.answer import Answer
-from physkit_core.models import PhysicsProblem, PhysicalDataset
+from physkit.physkit_core.definitions.answer_types import AnswerType
+from physkit.physkit_core.models.answer import Answer
+from physkit.physkit_core.models import PhysicsProblem, PhysicalDataset
 
 
 CORE_FIELDS = [
