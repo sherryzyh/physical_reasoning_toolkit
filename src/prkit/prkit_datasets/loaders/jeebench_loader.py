@@ -102,7 +102,7 @@ class JEEBenchLoader(BaseDatasetLoader):
         Load the JEEBench dataset.
 
         Args:
-            data_dir: Path to the JEEBench dataset (defaults to ~/data/JEEBench)
+            data_dir: Path to the JEEBench dataset (defaults to ~/PHYSICAL_REASONING_DATASETS/JEEBench)
             variant: Dataset variant to load (only "full" is supported)
             split: Dataset split to load (only "test" is supported)
             sample_size: Number of problems to sample (None for all)

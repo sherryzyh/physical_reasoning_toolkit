@@ -1,6 +1,9 @@
 # PRKit Datasets
 
-A comprehensive package for loading and managing physical reasoning datasets in PRKit (physical-reasoning-toolkit), featuring **7 datasets** with **18,647+ physics problems** across multiple domains.
+A comprehensive package for loading and managing physical reasoning datasets in PRKit (physical-reasoning-toolkit).
+
+**Supported Datasets**: PhysReason and SeePhys (fully tested and validated)  
+**Experimental Datasets**: PHYBench, UGPhysics, JEEBench, SciBench, TPBench (available but require further testing and validation)
 
 ## 🚀 Quick Start
 
@@ -12,8 +15,8 @@ hub = DatasetHub()
 available_datasets = hub.list_available()
 print(f"Available datasets: {available_datasets}")
 
-# Load a specific dataset
-dataset = hub.load("ugphysics", variant="full", split="test")
+# Load a supported dataset
+dataset = hub.load("physreason", variant="full", split="test")
 print(f"Loaded {len(dataset)} problems from {dataset.info['name']}")
 
 # Access problems
@@ -30,20 +33,27 @@ for problem in dataset[:5]:  # First 5 problems
 
 ## 📊 Dataset Overview
 
+### **Supported Datasets** (Fully Tested and Validated)
+
 | Dataset | Physics Problems | Format | Domain Coverage | Specialty |
 |---------|------------------|---------|----------------|-----------|
-| **UGPhysics** | 11,040 | JSONL | 13 domains | Domain-specific Organization |
-| **SeePhys** | 6,200 | CSV/Parquet | Visual physics | Image-based Problems |
-| **PHYBench** | 500 | JSON | 6 domains | Comprehensive Solutions |
-| **JEEBench** | 123 | JSON | General physics | Competitive Exam Level |
-| **SciBench** | 160 | JSON | 3 domains | College-level Physics |
-| **PhysReason** | 192 | JSON | General physics | Step-by-step Solutions |
-| **TPBench** | 10 | Parquet | 5 domains | Code Generation |
+| **PhysReason** | 1,200 (full) / 200 (mini) | JSON | 7 domains | Step-by-step Solutions, Multi-modal |
+| **SeePhys** | 6,200 | CSV/Parquet/JSON | Visual physics | Image-based Problems |
 
-**Total: 18,225 physics problems** across multiple formats and domains.
+### **Experimental Datasets** (Available but Require Further Testing)
+
+| Dataset | Physics Problems | Format | Domain Coverage | Status |
+|---------|------------------|---------|----------------|--------|
+| **UGPhysics** | 11,040 | JSONL | 13 domains | ⚠️ Experimental |
+| **PHYBench** | 500 | JSON | 6 domains | ⚠️ Experimental |
+| **JEEBench** | 123 | JSON | General physics | ⚠️ Experimental |
+| **SciBench** | 160 | JSON | 3 domains | ⚠️ Experimental |
+| **TPBench** | 10 | Parquet | 5 domains | ⚠️ Experimental |
+
+**Note**: Experimental datasets are available in the codebase but have not been fully tested and validated. Use them at your own risk and report any issues.
 
 ### **Physics Domains Coverage**
-PRKit supports **25 physics domains** across all datasets:
+The supported datasets cover multiple physics domains:
 
 #### **Core Mechanics & Dynamics**
 - **Classical Mechanics**: Motion, forces, energy, momentum
@@ -92,52 +102,36 @@ PRKit supports **25 physics domains** across all datasets:
 
 ## 🎯 Dataset Details
 
-### **UGPhysics** - Undergraduate Physics Collection
-- **11,040 problems** across **13 physics domains**
-- **Domains**: Classical Mechanics, Quantum Mechanics, Classical Electromagnetism, Electrodynamics, Thermodynamics, Relativity, Atomic Physics, Statistical Mechanics, Geometrical Optics, Wave Optics, Semiconductor Physics, Theoretical Mechanics, Solid State Physics
-- **Format**: JSONL with domain organization
-- **Use case**: Physics education, domain-specific training
+### **PhysReason** - Comprehensive Physics Reasoning Benchmark ✅ Supported
+- **1,200 problems** (full) or **200 problems** (mini) with detailed step-by-step solutions
+- **Problem Types**: OE
+- **Domains**: Classical Mechanics, Quantum Mechanics, Fluid Mechanics, Thermodynamics, Electromagnetics, Optics, Relativity
+- **Difficulty Levels**: Knowledge-based (25%), Easy (25%), Medium (25%), Hard (25%)
+- **Specialty**: Complex reasoning (avg. 8.1 steps, hard problems: 15.6 steps), multi-modal (81% with diagrams)
+- **Format**: JSON with structured problem directories
+- **Use case**: Physics reasoning evaluation, step-by-step solution generation, multi-modal physics understanding
+- **Citation**: See `prkit.prkit_datasets.citations` for BibTeX citation
+- **Homepage**: https://dxzxy12138.github.io/PhysReason/
 
-### **SeePhys** - Visual Physics Problems
+### **SeePhys** - Visual Physics Problems ✅ Supported
 - **6,200 problems** with images
 - **Specialty**: Visual physics problem solving
 - **Format**: CSV, Parquet, JSON
 - **Use case**: Computer vision + physics reasoning
+- **Citation**: See `prkit.prkit_datasets.citations` for BibTeX citation
+- **Homepage**: https://seephys.github.io/
 
-### **PHYBench** - Physics Benchmark
-- **500 problems** with comprehensive solutions
-- **Problem Types**: OE
-- **Domains**: Mechanics (191), Electricity (142), Thermodynamics (66), Modern Physics (42), Optics (41), Advanced Physics (18)
-- **Specialty**: Full questions with detailed solutions
-- **Use case**: Physics reasoning, solution quality assessment
+### **Experimental Datasets** ⚠️
 
-### **JEEBench** - Competitive Exam Physics
-- **123 physics problems** from IIT JEE-Advanced examination
-- **Problem Types**: MC, MultipleMC, OE
-- **Question Types**: MCQ, MCQ(multiple), Integer, Numeric
-- **Specialty**: High-difficulty competitive exam level
-- **Use case**: Advanced physics problem-solving evaluation
+The following datasets are available but require further testing and validation:
 
-### **SciBench** - College-Level Physics
-- **160 physics problems** from college textbooks
-- **Problem Types**: OE
-- **Domains**: Fundamental Physics (71), Classical Mechanics (56), Quantum Mechanics (33)
-- **Format**: JSON with separate problem/solution files
-- **Use case**: College-level physics assessment
+- **UGPhysics**: 11,040 problems across 13 physics domains (JSONL format)
+- **PHYBench**: 500 problems with comprehensive solutions (JSON format)
+- **JEEBench**: 123 physics problems from IIT JEE-Advanced examination (JSON format)
+- **SciBench**: 160 physics problems from college textbooks (JSON format)
+- **TPBench**: 10 problems requiring Python implementation (Parquet format)
 
-### **PhysReason** - Step-by-Step Physics
-- **192 problems** with detailed solutions
-- **Problem Types**: OE
-- **Specialty**: Step-by-step reasoning and explanations
-- **Format**: JSON with structured problem directories
-- **Use case**: Reasoning evaluation, solution generation
-
-### **TPBench** - Theoretical Physics Code Generation
-- **10 problems** requiring Python implementation
-- **Problem Types**: OE
-- **Domains**: Quantum Mechanics, High Energy Theory, Statistical Mechanics, Classical Mechanics, Cosmology
-- **Specialty**: Code generation for physics problems
-- **Use case**: AI code generation, theoretical physics implementation
+**Note**: These experimental datasets may have incomplete implementations or untested edge cases. Use them with caution and report any issues.
 
 ## 🔧 Standardized Data Structure
 
@@ -267,30 +261,40 @@ class MyDatasetLoader(BaseDatasetLoader):
 PRKit automatically resolves data directories using environment variables:
 
 ```bash
-# Set data directory (optional)
-export PHYSKIT_DATA_DIR="/path/to/your/data"
+# Set data directory (optional, defaults to ~/PHYSICAL_REASONING_DATASETS/)
+export DATASET_CACHE_DIR="/path/to/your/data"
 
-# Default locations
-~/data/UGPhysics/
-~/data/PhyBench/
-~/data/SciBench/
-~/data/PhysReason/
-~/data/SeePhys/
-~/data/TPBench/
-~/data/JEEBench/
+# Default locations (when DATASET_CACHE_DIR is not set)
+~/PHYSICAL_REASONING_DATASETS/UGPhysics/
+~/PHYSICAL_REASONING_DATASETS/PhyBench/
+~/PHYSICAL_REASONING_DATASETS/SciBench/
+~/PHYSICAL_REASONING_DATASETS/PhysReason/
+~/PHYSICAL_REASONING_DATASETS/SeePhys/
+~/PHYSICAL_REASONING_DATASETS/TPBench/
+~/PHYSICAL_REASONING_DATASETS/JEEBench/
 ```
+
+**Note**: The `DATASET_CACHE_DIR` environment variable is used as the root directory for all datasets. This directory will also be used for automated dataset downloading and preparation in future releases. If not set, it defaults to `~/PHYSICAL_REASONING_DATASETS/`.
 
 ## 🔍 Dataset Selection Guide
 
+### **Supported Datasets** (Recommended)
+
 | Use Case | Recommended Dataset | Reason |
 |----------|-------------------|---------|
-| **Physics Education** | UGPhysics | 13 domains, 11K+ problems |
+| **Step-by-step Reasoning** | PhysReason | Detailed solutions, multi-modal (81% with diagrams) |
 | **Visual Problems** | SeePhys | 6.2K image-based questions |
-| **Comprehensive Physics** | PHYBench | 500 problems across 6 domains |
-| **Code Generation** | TPBench | Python implementation required |
-| **Step-by-step** | PhysReason, PHYBench | Detailed solutions |
-| **Competitive Level** | JEEBench | High-difficulty physics problems |
-| **College Level** | SciBench | 160 fundamental physics problems |
+| **Multi-modal Physics** | PhysReason | 81% of problems include diagrams |
+
+### **Experimental Datasets** (Use with Caution)
+
+| Use Case | Dataset | Status |
+|----------|---------|--------|
+| **Physics Education** | UGPhysics | ⚠️ Experimental |
+| **Comprehensive Physics** | PHYBench | ⚠️ Experimental |
+| **Code Generation** | TPBench | ⚠️ Experimental |
+| **Competitive Level** | JEEBench | ⚠️ Experimental |
+| **College Level** | SciBench | ⚠️ Experimental |
 
 ## 🧪 Testing All Datasets
 
@@ -304,9 +308,25 @@ python cookbooks/01_load_dataset.py ugphysics
 
 
 
+## 📚 Citations
+
+Citations for supported datasets are available in a centralized location:
+
+```python
+from prkit.prkit_datasets import citations
+
+# Get citation for a specific dataset
+physreason_citation = citations.get_citation("physreason")
+seephys_citation = citations.get_citation("seephys")
+
+# List all datasets with citations
+cited_datasets = citations.list_cited_datasets()
+```
+
 ---
 
-**Last Updated**: 2025
-**Total Physics Problems**: 18,225  
+**Last Updated**: 2025  
+**Supported Datasets**: PhysReason, SeePhys  
+**Experimental Datasets**: PHYBench, UGPhysics, JEEBench, SciBench, TPBench  
 **Supported Formats**: JSON, JSONL, Parquet, CSV  
 **Focus**: Physics problems across multiple domains

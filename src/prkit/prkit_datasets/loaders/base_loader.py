@@ -529,7 +529,7 @@ class BaseDatasetLoader(ABC):
         data_dir: Union[str, Path, None] = None, default_subdir: str = None
     ) -> Path:
         """
-        Resolve data directory with support for PHYSKIT_DATA_DIR environment variable.
+        Resolve data directory with support for DATASET_CACHE_DIR environment variable.
 
         Args:
             data_dir: Explicitly provided data directory path
@@ -540,8 +540,8 @@ class BaseDatasetLoader(ABC):
 
         Priority order:
         1. Explicitly provided data_dir (highest priority)
-        2. PHYSKIT_DATA_DIR environment variable + default_subdir
-        3. ~/data + default_subdir (default fallback)
+        2. DATASET_CACHE_DIR environment variable + default_subdir
+        3. ~/PHYSICAL_REASONING_DATASETS + default_subdir (default fallback)
         """
         # If data_dir is explicitly provided, use it
         if data_dir is not None:
@@ -550,16 +550,16 @@ class BaseDatasetLoader(ABC):
                 resolved_dir = resolved_dir.resolve()
             return resolved_dir
 
-        # Check for PHYSKIT_DATA_DIR environment variable
-        physkit_data_dir = os.getenv("PHYSKIT_DATA_DIR")
-        if physkit_data_dir:
-            base_dir = Path(physkit_data_dir)
+        # Check for DATASET_CACHE_DIR environment variable
+        dataset_cache_dir = os.getenv("DATASET_CACHE_DIR")
+        if dataset_cache_dir:
+            base_dir = Path(dataset_cache_dir)
             if default_subdir:
                 return base_dir / default_subdir
             return base_dir
 
-        # Fallback to ~/data
-        home_data_dir = Path.home() / "data"
+        # Fallback to ~/PHYSICAL_REASONING_DATASETS
+        home_data_dir = Path.home() / "PHYSICAL_REASONING_DATASETS"
         if default_subdir:
             return home_data_dir / default_subdir
         return home_data_dir

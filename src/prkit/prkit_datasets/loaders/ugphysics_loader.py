@@ -148,7 +148,7 @@ class UGPhysicsLoader(BaseDatasetLoader):
         Load the UGPhysics dataset.
 
         Args:
-            data_dir: Path to the UGPhysics dataset (defaults to ~/data/ugphysics)
+            data_dir: Path to the UGPhysics dataset (defaults to ~/PHYSICAL_REASONING_DATASETS/ugphysics)
             split: Dataset split to load (only "test" is supported)
             variant: Dataset variant ("full" only)
             sample_size: Number of problems to sample (None for all)
