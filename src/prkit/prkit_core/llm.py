@@ -12,7 +12,7 @@ from google import genai
 from google.genai import types
 from openai import OpenAI
 
-from .logging_config import PhysKitLogger
+from .logging_config import PRKitLogger
 
 
 class LLMClient:
@@ -30,7 +30,7 @@ class LLMClient:
         self.model = model
         self.client = None
         self.provider = None
-        self.logger = logger if logger else PhysKitLogger.get_logger(__name__)
+        self.logger = logger if logger else PRKitLogger.get_logger(__name__)
 
     def chat(self, messages):
         """

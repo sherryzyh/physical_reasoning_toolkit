@@ -92,7 +92,7 @@ class ColoredFormatter(logging.Formatter):
         return formatted
 
 
-class PhysKitLogger:
+class PRKitLogger:
     """Centralized logger for PRKit (physical-reasoning-toolkit) packages with consistent configuration."""
 
     _loggers: Dict[str, logging.Logger] = {}
@@ -118,7 +118,7 @@ class PhysKitLogger:
         date_format: str = None,
     ) -> None:
         """
-        Set up global logging configuration for all PhysKit packages.
+        Set up global logging configuration for all PRKit packages.
 
         Args:
             level: Global logging level (default: INFO)
@@ -177,8 +177,8 @@ class PhysKitLogger:
     @classmethod
     def _setup_environment_config(cls) -> None:
         """Set up logging configuration based on environment variables."""
-        # Check for PHYSKIT_LOG_LEVEL environment variable
-        env_level = os.getenv("PHYSKIT_LOG_LEVEL", "").upper()
+        # Check for PRKIT_LOG_LEVEL environment variable
+        env_level = os.getenv("PRKIT_LOG_LEVEL", "").upper()
         if env_level:
             level_map = {
                 "DEBUG": logging.DEBUG,
@@ -189,7 +189,7 @@ class PhysKitLogger:
             }
             if env_level in level_map:
                 cls._default_level = level_map[env_level]
-                logging.getLogger("physkit").setLevel(cls._default_level)
+                logging.getLogger("prkit").setLevel(cls._default_level)
 
         # Check for PRKIT_LOG_FILE environment variable
         env_log_file = os.getenv("PRKIT_LOG_FILE")
@@ -204,14 +204,14 @@ class PhysKitLogger:
             # Add file handler with default path
             cls._add_file_handler_to_all(default_log_file)
 
-        # Check for PHYSKIT_LOG_CONSOLE environment variable
-        env_console = os.getenv("PHYSKIT_LOG_CONSOLE", "true").lower()
+        # Check for PRKIT_LOG_CONSOLE environment variable
+        env_console = os.getenv("PRKIT_LOG_CONSOLE", "true").lower()
         if env_console == "false":
             # Disable console output directly instead of calling setup_global_config
             cls._disable_console_output()
 
-        # Check for PHYSKIT_LOG_COLORS environment variable
-        env_colors = os.getenv("PHYSKIT_LOG_COLORS", "true").lower()
+        # Check for PRKIT_LOG_COLORS environment variable
+        env_colors = os.getenv("PRKIT_LOG_COLORS", "true").lower()
         if env_colors == "false":
             cls.disable_colors()
         elif cls.is_color_supported():
@@ -231,7 +231,7 @@ class PhysKitLogger:
             name: Logger name (if None, uses the calling module's name)
 
         Returns:
-            Logger instance with PhysKit configuration
+            Logger instance with PRKit configuration
         """
         if name is None:
             # Get the calling module's name
@@ -244,12 +244,12 @@ class PhysKitLogger:
                 if caller_frame:
                     module_name = inspect.getmodule(caller_frame).__name__
                     # Extract the relevant part for logging
-                    if "physkit" in module_name:
+                    if "prkit" in module_name:
                         name = module_name
                     else:
-                        name = "physkit"
+                        name = "prkit"
                 else:
-                    name = "physkit"
+                    name = "prkit"
             finally:
                 try:
                     del frame
@@ -377,7 +377,7 @@ class PhysKitLogger:
 
     @classmethod
     def set_level(cls, level: int) -> None:
-        """Set the global logging level for all PhysKit loggers."""
+        """Set the global logging level for all PRKit loggers."""
         cls._default_level = level
         for logger in cls._loggers.values():
             logger.setLevel(level)
@@ -591,4 +591,4 @@ class PhysKitLogger:
 
 
 # Initialize global configuration
-PhysKitLogger.setup_global_config()
+PRKitLogger.setup_global_config()

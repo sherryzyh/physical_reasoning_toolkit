@@ -7,13 +7,13 @@ using simple field mapping dictionaries.
 """
 
 import ast
-import logging
 import os
 import re
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
+from prkit.prkit_core import PRKitLogger
 from prkit.prkit_core.definitions.answer_types import AnswerType
 from prkit.prkit_core.models import PhysicalDataset, PhysicsProblem
 from prkit.prkit_core.models.answer import Answer
@@ -35,7 +35,7 @@ if TYPE_CHECKING:
         PILImage = Any  # type: ignore
 
 # Get logger for this module
-logger = logging.getLogger(__name__)
+logger = PRKitLogger.get_logger(__name__)
 
 CORE_FIELDS = [
     "question",  # question text

@@ -7,7 +7,7 @@ This module provides a clean, simple interface for loading physical reasoning da
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Type, Union
 
-from prkit.prkit_core import PhysKitLogger
+from prkit.prkit_core import PRKitLogger
 from prkit.prkit_core.models import PhysicalDataset
 from prkit.prkit_datasets.downloaders import (
     PHYBenchDownloader,
@@ -61,7 +61,7 @@ class DatasetHub:
     _loaders: Dict[str, Type[BaseDatasetLoader]] = {}
     # Class-level registry of dataset downloaders
     _downloaders: Dict[str, Type[BaseDownloader]] = {}
-    _logger = PhysKitLogger.get_logger(__name__)
+    _logger = PRKitLogger.get_logger(__name__)
 
     @classmethod
     def _register_default_loaders(cls):

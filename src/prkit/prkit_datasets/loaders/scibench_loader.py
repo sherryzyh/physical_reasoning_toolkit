@@ -19,7 +19,7 @@ import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from prkit.prkit_core import PhysKitLogger
+from prkit.prkit_core import PRKitLogger
 from prkit.prkit_core.definitions.answer_types import AnswerType
 from prkit.prkit_core.definitions.physics_domain import PhysicsDomain
 from prkit.prkit_core.models import PhysicalDataset, PhysicsProblem
@@ -33,7 +33,7 @@ class SciBenchLoader(BaseDatasetLoader):
     def __init__(self):
         """Initialize the SciBench loader with a logger."""
         super().__init__()
-        self.logger = PhysKitLogger.get_logger(__name__)
+        self.logger = PRKitLogger.get_logger(__name__)
 
     @property
     def PHYSICS_DOMAIN_SUBJECT_MAPPING(self) -> Dict[str, str]:

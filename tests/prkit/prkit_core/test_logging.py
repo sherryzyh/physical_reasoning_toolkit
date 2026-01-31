@@ -1,5 +1,5 @@
 """
-Tests for logging configuration: PhysKitLogger.
+Tests for logging configuration: PRKitLogger.
 """
 
 import logging
@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from prkit.prkit_core.logging_config import ColoredFormatter, PhysKitLogger
+from prkit.prkit_core.logging_config import ColoredFormatter, PRKitLogger
 
 
 class TestColoredFormatter:
@@ -44,25 +44,25 @@ class TestColoredFormatter:
         assert len(formatter.COLORS) > 0
 
 
-class TestPhysKitLogger:
-    """Test cases for PhysKitLogger."""
+class TestPRKitLogger:
+    """Test cases for PRKitLogger."""
 
     def test_get_logger_default(self):
         """Test getting default logger."""
-        logger = PhysKitLogger.get_logger("test_module")
+        logger = PRKitLogger.get_logger("test_module")
         assert isinstance(logger, logging.Logger)
         assert logger.name == "test_module"
 
     def test_get_logger_caching(self):
         """Test that loggers are cached."""
-        logger1 = PhysKitLogger.get_logger("cached_test")
-        logger2 = PhysKitLogger.get_logger("cached_test")
+        logger1 = PRKitLogger.get_logger("cached_test")
+        logger2 = PRKitLogger.get_logger("cached_test")
         assert logger1 is logger2
 
     def test_get_logger_with_selective_handlers(self, temp_dir):
         """Test getting logger with selective handlers."""
         log_file = temp_dir / "test.log"
-        logger = PhysKitLogger.get_logger_with_selective_handlers(
+        logger = PRKitLogger.get_logger_with_selective_handlers(
             "selective_test",
             log_file=log_file,
             console_output=True,
@@ -73,27 +73,27 @@ class TestPhysKitLogger:
 
     def test_set_level(self):
         """Test setting global logging level."""
-        PhysKitLogger.set_level(logging.DEBUG)
-        logger = PhysKitLogger.get_logger("level_test")
+        PRKitLogger.set_level(logging.DEBUG)
+        logger = PRKitLogger.get_logger("level_test")
         assert logger.level <= logging.DEBUG
 
         # Reset to INFO
-        PhysKitLogger.set_level(logging.INFO)
+        PRKitLogger.set_level(logging.INFO)
 
     def test_enable_disable_colors(self):
         """Test enabling and disabling colors."""
-        PhysKitLogger.enable_colors()
-        assert PhysKitLogger._colors_enabled is True
+        PRKitLogger.enable_colors()
+        assert PRKitLogger._colors_enabled is True
 
-        PhysKitLogger.disable_colors()
-        assert PhysKitLogger._colors_enabled is False
+        PRKitLogger.disable_colors()
+        assert PRKitLogger._colors_enabled is False
 
         # Re-enable for other tests
-        PhysKitLogger.enable_colors()
+        PRKitLogger.enable_colors()
 
     def test_is_color_supported(self):
         """Test color support detection."""
-        supported = PhysKitLogger.is_color_supported()
+        supported = PRKitLogger.is_color_supported()
         assert isinstance(supported, bool)
 
     def test_add_file_handler(self, temp_dir):
@@ -103,10 +103,10 @@ class TestPhysKitLogger:
         log_file.parent.mkdir(parents=True, exist_ok=True)
 
         try:
-            PhysKitLogger.add_file_handler(log_file, level=logging.INFO)
+            PRKitLogger.add_file_handler(log_file, level=logging.INFO)
 
             # Check that file handler was added to root logger
-            root_logger = logging.getLogger("physkit")
+            root_logger = logging.getLogger("prkit")
             has_file_handler = any(
                 isinstance(h, logging.FileHandler) and h.baseFilename == str(log_file)
                 for h in root_logger.handlers
@@ -125,21 +125,21 @@ class TestPhysKitLogger:
         log_file.parent.mkdir(parents=True, exist_ok=True)
 
         try:
-            PhysKitLogger.setup_global_config(
+            PRKitLogger.setup_global_config(
                 level=logging.DEBUG, log_file=log_file, console_output=True
             )
 
-            logger = PhysKitLogger.get_logger("global_test")
+            logger = PRKitLogger.get_logger("global_test")
             assert logger.level <= logging.DEBUG
         except Exception as e:
             # If setup fails, just verify logger can be created
-            logger = PhysKitLogger.get_logger("global_test")
+            logger = PRKitLogger.get_logger("global_test")
             assert logger is not None
 
     def test_logger_output(self, capsys):
         """Test that logger actually outputs."""
         # Clear any file handlers that might reference non-existent files
-        logger = PhysKitLogger.get_logger("output_test")
+        logger = PRKitLogger.get_logger("output_test")
 
         # Remove file handlers that might cause issues
         handlers_to_remove = [
@@ -168,7 +168,7 @@ class TestPhysKitLogger:
     def test_environment_config(self, monkeypatch):
         """Test environment-based configuration."""
         # Set environment variable
-        monkeypatch.setenv("PHYSKIT_LOG_LEVEL", "DEBUG")
+        monkeypatch.setenv("PRKIT_LOG_LEVEL", "DEBUG")
 
         # The environment config is set up during import, so we need to test indirectly
         # by checking if the logger respects the level
@@ -176,7 +176,7 @@ class TestPhysKitLogger:
         # mainly verifies the logger can be created
 
         # Clear any file handlers that might reference non-existent files
-        logger = PhysKitLogger.get_logger("env_test")
+        logger = PRKitLogger.get_logger("env_test")
         handlers_to_remove = [
             h for h in logger.handlers if isinstance(h, logging.FileHandler)
         ]
@@ -194,10 +194,10 @@ class TestPhysKitLogger:
     def test_multiple_loggers(self):
         """Test creating multiple loggers."""
         # Clear any existing loggers to avoid conflicts
-        PhysKitLogger._loggers.clear()
+        PRKitLogger._loggers.clear()
 
-        logger1 = PhysKitLogger.get_logger("multi_test_1")
-        logger2 = PhysKitLogger.get_logger("multi_test_2")
+        logger1 = PRKitLogger.get_logger("multi_test_1")
+        logger2 = PRKitLogger.get_logger("multi_test_2")
 
         # Remove file handlers that might cause issues
         for logger in [logger1, logger2]:
@@ -217,11 +217,11 @@ class TestPhysKitLogger:
 
     def test_logger_inherits_root_config(self):
         """Test that loggers inherit root logger configuration."""
-        PhysKitLogger.setup_global_config(level=logging.WARNING)
-        logger = PhysKitLogger.get_logger("inherit_test")
+        PRKitLogger.setup_global_config(level=logging.WARNING)
+        logger = PRKitLogger.get_logger("inherit_test")
 
         # Logger should have appropriate level
         assert logger.level <= logging.WARNING or logger.level == logging.NOTSET
 
         # Reset
-        PhysKitLogger.setup_global_config(level=logging.INFO)
+        PRKitLogger.setup_global_config(level=logging.INFO)

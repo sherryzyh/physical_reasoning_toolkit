@@ -12,6 +12,7 @@ import random
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
+from prkit.prkit_core import PRKitLogger
 from prkit.prkit_core.definitions.physics_domain import PhysicsDomain
 from prkit.prkit_core.models import PhysicalDataset
 
@@ -212,9 +213,7 @@ class PhyXLoader(BaseDatasetLoader):
                 problems.append(problem)
             except Exception as e:
                 # Log warning but continue processing
-                import logging
-
-                logger = logging.getLogger(__name__)
+                logger = PRKitLogger.get_logger(__name__)
                 logger.warning(
                     f"Failed to process problem at index {idx}: {e}. Skipping..."
                 )

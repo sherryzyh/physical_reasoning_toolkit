@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 
-from prkit.prkit_core import PhysKitLogger
+from prkit.prkit_core import PRKitLogger
 from prkit.prkit_core.models import PhysicalDataset
 
 from .base_loader import BaseDatasetLoader
@@ -20,7 +20,7 @@ class SeePhysLoader(BaseDatasetLoader):
     def __init__(self):
         """Initialize the SeePhys loader with a logger."""
         super().__init__()
-        self.logger = PhysKitLogger.get_logger(__name__)
+        self.logger = PRKitLogger.get_logger(__name__)
 
     @property
     def name(self) -> str:

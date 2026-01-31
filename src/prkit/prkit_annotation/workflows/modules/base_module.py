@@ -10,7 +10,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Any, Dict, Optional, Union
 
-from prkit.prkit_core import PhysKitLogger
+from prkit.prkit_core import PRKitLogger
 from prkit.prkit_core.models.physics_problem import PhysicsProblem
 
 
@@ -26,7 +26,7 @@ class BaseWorkflowModule(ABC):
         self, name: str, model: str = "o3-mini", config: Optional[Dict[str, Any]] = None
     ):
         # Setup module logging - the workflow will configure this properly
-        self.logger = PhysKitLogger.get_logger(f"{__name__}.{name}")
+        self.logger = PRKitLogger.get_logger(f"{__name__}.{name}")
         self.logger.info(f"Initializing module {name} with model {model}")
 
         self._name = name
