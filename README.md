@@ -144,21 +144,26 @@ The foundation package providing:
 
 ### **prkit_datasets**
 Dataset management with support for:
-- **Supported Datasets**: PhysReason, SeePhys (fully tested and validated)
-- **Experimental Datasets**: PHYBench, UGPhysics, JEEBench, SciBench, TPBench (available but require further testing and validation)
+- **Supported Datasets**: PHYBench, PhysReason, UGPhysics, SeePhys (both downloader and loader available)
+- **Future Datasets**: JEEBench, SciBench, TPBench (loader available, downloader coming soon)
 - **Standardized Format**: Consistent API across all datasets
 - **Variant Support**: Full/mini versions where available
 - **Sampling**: Reproducible data sampling for development
 
 #### **Supported Dataset Field Comparison**
-The following datasets are fully supported and tested:
+The following datasets have both downloader and loader available:
 
-| Dataset | Domain | Solution | Answer | Total Problems |
-|---------|---------|----------|---------|----------------|
-| **PhysReason** | ✅ Yes | ✅ Yes | ✅ Yes | 1,200 (full) / 200 (mini) |
-| **SeePhys** | ✅ Yes | ❌ No | ✅ Yes | 6,200 |
+| Dataset | Domain | Solution | Answer | Total Problems | Download Method |
+|---------|---------|----------|---------|----------------|-----------------|
+| **PHYBench** | ✅ Yes | ✅ Yes | ✅ Yes | 500 | datasets-server API |
+| **PhysReason** | ✅ Yes | ✅ Yes | ✅ Yes | 1,200 (full) / 200 (mini) | HuggingFace direct download |
+| **UGPhysics** | ✅ Yes | ✅ Yes | ✅ Yes | 11,040 | datasets library |
+| **SeePhys** | ✅ Yes | ❌ No | ✅ Yes | 6,200 | datasets library |
 
-**Note**: Other datasets (PHYBench, UGPhysics, JEEBench, SciBench, TPBench) are available in the codebase but require further testing and validation before being marked as fully supported.
+**Future Datasets** (loader available, downloader coming soon):
+- **JEEBench**: 123 problems (JSON format)
+- **SciBench**: 160 problems (JSON format)
+- **TPBench**: 10 problems (Parquet format)
 
 #### **Physics Domain Coverage by Dataset**
 The following table shows which physics domains are available in each dataset:
@@ -264,8 +269,8 @@ python 04_workflow_composition_demo.py
 - **Documented**: Comprehensive examples and cookbooks
 
 ### **Dataset Support**
-- **2 Fully Supported Datasets**: PhysReason and SeePhys (tested and validated)
-- **5 Experimental Datasets**: PHYBench, UGPhysics, JEEBench, SciBench, TPBench (available but require further testing)
+- **4 Supported Datasets**: PHYBench, PhysReason, UGPhysics, SeePhys (both downloader and loader available)
+- **3 Future Datasets**: JEEBench, SciBench, TPBench (loader available, downloader coming soon)
 - **Multiple Formats**: JSON, Parquet, CSV, and custom formats
 - **Rich Metadata**: Preserves original dataset information
 - **Standardized Interface**: Consistent API across all datasets

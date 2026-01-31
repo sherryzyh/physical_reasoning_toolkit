@@ -2,8 +2,8 @@
 
 A comprehensive package for loading and managing physical reasoning datasets in PRKit (physical-reasoning-toolkit).
 
-**Supported Datasets**: PhysReason and SeePhys (fully tested and validated)  
-**Experimental Datasets**: PHYBench, UGPhysics, JEEBench, SciBench, TPBench (available but require further testing and validation)
+**Supported Datasets**: PHYBench, PhysReason, UGPhysics, SeePhys (both downloader and loader available)  
+**Future Datasets**: JEEBench, SciBench, TPBench (loader available, downloader coming soon)
 
 ## 🚀 Quick Start
 
@@ -33,24 +33,24 @@ for problem in dataset[:5]:  # First 5 problems
 
 ## 📊 Dataset Overview
 
-### **Supported Datasets** (Fully Tested and Validated)
+### **Supported Datasets** (Downloader + Loader Available)
 
-| Dataset | Physics Problems | Format | Domain Coverage | Specialty |
-|---------|------------------|---------|----------------|-----------|
-| **PhysReason** | 1,200 (full) / 200 (mini) | JSON | 7 domains | Step-by-step Solutions, Multi-modal |
-| **SeePhys** | 6,200 | CSV/Parquet/JSON | Visual physics | Image-based Problems |
+| Dataset | Physics Problems | Format | Domain Coverage | Download Method | Specialty |
+|---------|------------------|---------|----------------|-----------------|-----------|
+| **PHYBench** | 500 | JSON | 6 domains | datasets-server API | Comprehensive solutions |
+| **PhysReason** | 1,200 (full) / 200 (mini) | JSON | 7 domains | HuggingFace direct download | Step-by-step Solutions, Multi-modal |
+| **UGPhysics** | 11,040 | JSONL | 13 domains | datasets library | Multi-domain coverage |
+| **SeePhys** | 6,200 | CSV/Parquet/JSON | Visual physics | datasets library | Image-based Problems |
 
-### **Experimental Datasets** (Available but Require Further Testing)
+### **Future Datasets** (Loader Available, Downloader Coming Soon)
 
 | Dataset | Physics Problems | Format | Domain Coverage | Status |
 |---------|------------------|---------|----------------|--------|
-| **UGPhysics** | 11,040 | JSONL | 13 domains | ⚠️ Experimental |
-| **PHYBench** | 500 | JSON | 6 domains | ⚠️ Experimental |
-| **JEEBench** | 123 | JSON | General physics | ⚠️ Experimental |
-| **SciBench** | 160 | JSON | 3 domains | ⚠️ Experimental |
-| **TPBench** | 10 | Parquet | 5 domains | ⚠️ Experimental |
+| **JEEBench** | 123 | JSON | General physics | 🔜 Future |
+| **SciBench** | 160 | JSON | 3 domains | 🔜 Future |
+| **TPBench** | 10 | Parquet | 5 domains | 🔜 Future |
 
-**Note**: Experimental datasets are available in the codebase but have not been fully tested and validated. Use them at your own risk and report any issues.
+**Note**: Future datasets have loaders available but downloaders are not yet implemented. You can use these datasets if you have the data files already downloaded.
 
 ### **Physics Domains Coverage**
 The supported datasets cover multiple physics domains:
@@ -102,36 +102,59 @@ The supported datasets cover multiple physics domains:
 
 ## 🎯 Dataset Details
 
-### **PhysReason** - Comprehensive Physics Reasoning Benchmark ✅ Supported
+### **Supported Datasets** ✅
+
+#### **PHYBench** - Holistic Evaluation of Physical Perception and Reasoning
+- **500 problems** with comprehensive solutions
+- **Problem Types**: OE
+- **Domains**: 6 physics domains
+- **Format**: JSON
+- **Download Method**: datasets-server API
+- **Use case**: Physical perception and reasoning evaluation
+- **Citation**: See `prkit.prkit_datasets.citations` for BibTeX citation
+- **Homepage**: https://www.phybench.cn/
+
+#### **PhysReason** - Comprehensive Physics Reasoning Benchmark
 - **1,200 problems** (full) or **200 problems** (mini) with detailed step-by-step solutions
 - **Problem Types**: OE
 - **Domains**: Classical Mechanics, Quantum Mechanics, Fluid Mechanics, Thermodynamics, Electromagnetics, Optics, Relativity
 - **Difficulty Levels**: Knowledge-based (25%), Easy (25%), Medium (25%), Hard (25%)
 - **Specialty**: Complex reasoning (avg. 8.1 steps, hard problems: 15.6 steps), multi-modal (81% with diagrams)
 - **Format**: JSON with structured problem directories
+- **Download Method**: HuggingFace direct download
 - **Use case**: Physics reasoning evaluation, step-by-step solution generation, multi-modal physics understanding
 - **Citation**: See `prkit.prkit_datasets.citations` for BibTeX citation
 - **Homepage**: https://dxzxy12138.github.io/PhysReason/
 
-### **SeePhys** - Visual Physics Problems ✅ Supported
+#### **UGPhysics** - Undergraduate Physics Reasoning Benchmark
+- **11,040 problems** across 13 physics domains
+- **Problem Types**: OE
+- **Domains**: 13 domains including Classical Mechanics, Quantum Mechanics, Thermodynamics, etc.
+- **Languages**: English and Chinese
+- **Format**: JSONL
+- **Download Method**: datasets library
+- **Use case**: Undergraduate-level physics reasoning evaluation
+- **Citation**: See `prkit.prkit_datasets.citations` for BibTeX citation
+- **Homepage**: https://github.com/YangLabHKUST/UGPhysics
+
+#### **SeePhys** - Visual Physics Problems
 - **6,200 problems** with images
 - **Specialty**: Visual physics problem solving
 - **Format**: CSV, Parquet, JSON
+- **Download Method**: datasets library
 - **Use case**: Computer vision + physics reasoning
 - **Citation**: See `prkit.prkit_datasets.citations` for BibTeX citation
 - **Homepage**: https://seephys.github.io/
 
-### **Experimental Datasets** ⚠️
+### **Future Datasets** 🔜
 
-The following datasets are available but require further testing and validation:
+The following datasets have loaders available, but downloaders are coming soon:
 
-- **UGPhysics**: 11,040 problems across 13 physics domains (JSONL format)
-- **PHYBench**: 500 problems with comprehensive solutions (JSON format)
 - **JEEBench**: 123 physics problems from IIT JEE-Advanced examination (JSON format)
 - **SciBench**: 160 physics problems from college textbooks (JSON format)
 - **TPBench**: 10 problems requiring Python implementation (Parquet format)
 
-**Note**: These experimental datasets may have incomplete implementations or untested edge cases. Use them with caution and report any issues.
+**Note**: You can use these datasets if you have the data files already downloaded. Downloaders will be added in future releases.
 
 ## 🔧 Standardized Data Structure
 
@@ -285,16 +308,16 @@ export DATASET_CACHE_DIR="/path/to/your/data"
 | **Step-by-step Reasoning** | PhysReason | Detailed solutions, multi-modal (81% with diagrams) |
 | **Visual Problems** | SeePhys | 6.2K image-based questions |
 | **Multi-modal Physics** | PhysReason | 81% of problems include diagrams |
+| **Comprehensive Coverage** | UGPhysics | 11K+ problems across 13 domains |
+| **Physical Perception** | PHYBench | Holistic evaluation of physical perception |
 
-### **Experimental Datasets** (Use with Caution)
+### **Future Datasets** (Coming Soon)
 
 | Use Case | Dataset | Status |
 |----------|---------|--------|
-| **Physics Education** | UGPhysics | ⚠️ Experimental |
-| **Comprehensive Physics** | PHYBench | ⚠️ Experimental |
-| **Code Generation** | TPBench | ⚠️ Experimental |
-| **Competitive Level** | JEEBench | ⚠️ Experimental |
-| **College Level** | SciBench | ⚠️ Experimental |
+| **Code Generation** | TPBench | 🔜 Downloader coming soon |
+| **Competitive Level** | JEEBench | 🔜 Downloader coming soon |
+| **College Level** | SciBench | 🔜 Downloader coming soon |
 
 ## 🧪 Testing All Datasets
 
@@ -326,7 +349,7 @@ cited_datasets = citations.list_cited_datasets()
 ---
 
 **Last Updated**: 2025  
-**Supported Datasets**: PhysReason, SeePhys  
-**Experimental Datasets**: PHYBench, UGPhysics, JEEBench, SciBench, TPBench  
+**Supported Datasets**: PHYBench, PhysReason, UGPhysics, SeePhys (downloader + loader)  
+**Future Datasets**: JEEBench, SciBench, TPBench (loader only, downloader coming soon)  
 **Supported Formats**: JSON, JSONL, Parquet, CSV  
 **Focus**: Physics problems across multiple domains

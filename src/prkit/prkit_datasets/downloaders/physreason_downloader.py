@@ -8,6 +8,7 @@ For citation information, see prkit.prkit_datasets.citations.
 
 import json
 import shutil
+import time
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
 
@@ -43,6 +44,7 @@ class PhysReasonDownloader(BaseDownloader):
             "splits": ["train"],
             "size_bytes": None,  # Size varies by variant
             "license": "CC BY-NC-SA / MIT",
+            "download_method": "HuggingFace direct download",
         }
 
     def download(
@@ -66,7 +68,7 @@ class PhysReasonDownloader(BaseDownloader):
             Path to the downloaded dataset directory
 
         Raises:
-            ImportError: If datasets library is not installed
+            ImportError: If requests library is not installed
             FileExistsError: If dataset already exists and force=False
             RuntimeError: If download fails
         """
@@ -82,6 +84,8 @@ class PhysReasonDownloader(BaseDownloader):
         """
         Perform the actual PhysReason dataset download.
 
+        Downloads zip files directly from HuggingFace repository without post-processing.
+
         Args:
             download_dir: Resolved download directory path
             variant: Dataset variant ("full" or "mini")
@@ -91,16 +95,16 @@ class PhysReasonDownloader(BaseDownloader):
             Path to the downloaded dataset directory
 
         Raises:
-            ImportError: If datasets library is not installed
+            ImportError: If requests library is not installed
             RuntimeError: If download fails
         """
-        # Check if datasets library is available
+        # Check if requests library is available
         try:
-            from datasets import load_dataset
+            import requests
         except ImportError as exc:
             raise ImportError(
-                "The 'datasets' library is required to download PhysReason. "
-                "Install it with: pip install datasets"
+                "The 'requests' library is required to download PhysReason. "
+                "Install it with: pip install requests"
             ) from exc
 
         self.logger.info(
@@ -109,173 +113,95 @@ class PhysReasonDownloader(BaseDownloader):
         self.logger.info("Target directory: %s", download_dir)
 
         try:
+            # Validate variant
+            if variant not in ["full", "mini"]:
+                raise ValueError(f"Unknown variant: {variant}. Choose 'full' or 'mini'")
+
             # Create download directory
             download_dir.mkdir(parents=True, exist_ok=True)
 
-            # HuggingFace dataset only has "default" config, so we always use that
-            # For "mini" variant, we'll sample a subset after downloading
-            dataset_name = "zhibei1204/PhysReason"
-            config_name = "default"
-
-            # Load dataset from HuggingFace using streaming mode to bypass schema validation
-            # The dataset has a schema mismatch (step_1-step_5 vs schema only defining step_1)
-            # Streaming mode avoids this issue by not validating against the schema
-            self.logger.info(
-                "Loading dataset from HuggingFace: %s (config: %s) using streaming mode",
-                dataset_name,
-                config_name,
+            # Build the HuggingFace file download URL
+            # Files are available at: https://huggingface.co/datasets/zhibei1204/PhysReason/resolve/main/{filename}
+            dataset_repo = "zhibei1204/PhysReason"
+            
+            # Map variant to filename
+            filename_map = {
+                "full": "PhysReason-full.zip",
+                "mini": "PhysReason-mini.zip",
+            }
+            filename = filename_map[variant]
+            
+            # Construct the download URL using HuggingFace's resolve endpoint
+            # Note: The ?download=true parameter is required for proper file download
+            download_url = (
+                f"https://huggingface.co/datasets/{dataset_repo}/resolve/main/{filename}?download=true"
             )
             
-            # Try loading with streaming first to bypass schema validation
-            try:
-                streaming_dataset = load_dataset(
-                    dataset_name, 
-                    config_name, 
-                    split="train",
-                    streaming=True
-                )
-                self.logger.info("Loaded dataset in streaming mode")
-                
-                # Convert streaming dataset to list for processing
-                # We need to iterate through it to get examples
-                dataset_examples = []
-                total_count = 0
-                max_to_collect = 200 if variant == "mini" else None  # None means collect all
-                
-                for example in streaming_dataset:
-                    dataset_examples.append(example)
-                    total_count += 1
-                    
-                    # Log progress every 100 examples for full variant
-                    if variant == "full" and total_count % 100 == 0:
-                        self.logger.info("Collected %d examples so far...", total_count)
-                    
-                    # For mini variant, stop at 200 examples
-                    if max_to_collect is not None and total_count >= max_to_collect:
-                        break
-                
-                self.logger.info("Collected %d examples from streaming dataset", len(dataset_examples))
-                max_problems = len(dataset_examples)
-                
-                if variant == "mini":
-                    self.logger.info(
-                        "Creating mini variant: using first %d problems",
-                        max_problems,
-                    )
-                elif variant == "full":
-                    self.logger.info(
-                        "Creating full variant: using all %d problems",
-                        max_problems,
-                    )
-                else:
-                    raise ValueError(f"Unknown variant: {variant}. Choose 'full' or 'mini'")
-                    
-            except Exception as stream_error:
-                # Fallback: try without streaming if streaming fails
-                self.logger.warning(
-                    "Streaming mode failed: %s. Trying non-streaming mode with download_mode...",
-                    stream_error
-                )
+            self.logger.info("Downloading from HuggingFace repository...")
+            self.logger.info("URL: %s", download_url)
+            self.logger.info("File: %s", filename)
+
+            # Download the zip file with progress tracking
+            max_retries = 3
+            retry_delay = 5  # seconds
+            
+            for attempt in range(max_retries):
                 try:
-                    # Try with force_redownload to regenerate cache and bypass schema issues
-                    dataset = load_dataset(
-                        dataset_name, 
-                        config_name, 
-                        split="train",
-                        download_mode="force_redownload"
-                    )
-                    self.logger.info("Loaded dataset in non-streaming mode with force_redownload")
+                    # Stream the download to handle large files
+                    response = requests.get(download_url, stream=True, timeout=600)  # 10 minute timeout
+                    response.raise_for_status()
                     
-                    # Determine how many problems to save based on variant
-                    if variant == "mini":
-                        # Mini variant: use first 200 problems
-                        max_problems = 200
+                    # Determine output file path
+                    output_file = download_dir / filename
+                    
+                    # Download and save the file
+                    self.logger.info("Saving to: %s", output_file)
+                    total_size = int(response.headers.get('content-length', 0))
+                    
+                    with open(output_file, 'wb') as f:
+                        downloaded = 0
+                        for chunk in response.iter_content(chunk_size=8192):
+                            if chunk:
+                                f.write(chunk)
+                                downloaded += len(chunk)
+                                
+                                # Log progress for large files
+                                if total_size > 0 and downloaded % (10 * 1024 * 1024) == 0:  # Every 10MB
+                                    progress = (downloaded / total_size) * 100
+                                    self.logger.info(
+                                        "Download progress: %.1f%% (%d / %d bytes)",
+                                        progress, downloaded, total_size
+                                    )
+                    
+                    # Verify file was downloaded
+                    if output_file.exists() and output_file.stat().st_size > 0:
+                        file_size_mb = output_file.stat().st_size / (1024 * 1024)
                         self.logger.info(
-                            "Creating mini variant: sampling first %d problems from %d total",
-                            max_problems,
-                            len(dataset),
+                            "Successfully downloaded PhysReason (%s) to %s (%.2f MB)",
+                            variant,
+                            output_file,
+                            file_size_mb,
                         )
-                    elif variant == "full":
-                        # Full variant: use all problems
-                        max_problems = len(dataset)
-                        self.logger.info(
-                            "Creating full variant: using all %d problems",
-                            max_problems,
-                        )
+                        break
                     else:
-                        raise ValueError(f"Unknown variant: {variant}. Choose 'full' or 'mini'")
-                    
-                    # Convert to list and limit to max_problems for consistent processing
-                    dataset_examples = list(dataset[:max_problems])
-                    self.logger.info("Collected %d examples from dataset", len(dataset_examples))
-                except Exception as fallback_error:
-                    self.logger.error("Both streaming and non-streaming modes failed")
-                    raise RuntimeError(
-                        f"Failed to load dataset. Streaming error: {stream_error}. "
-                        f"Fallback error: {fallback_error}"
-                    ) from fallback_error
-
-            # Create variant directory
-            if variant == "full":
-                variant_dir = download_dir / "PhysReason_full"
-            else:
-                variant_dir = download_dir / "PhysReason-mini"
-
-            variant_dir.mkdir(parents=True, exist_ok=True)
-
-            # Convert dataset to the expected directory structure
-            # Each problem gets its own directory with problem.json
-            self.logger.info("Converting dataset to directory structure...")
-            saved_count = 0
-            
-            # Process collected examples
-            for idx, example in enumerate(dataset_examples):
-                # Convert example to dict if it's not already
-                if hasattr(example, '__dict__'):
-                    example_dict = dict(example)
-                elif hasattr(example, 'keys'):
-                    example_dict = dict(example)
-                else:
-                    example_dict = example
-                
-                # Create problem directory
-                problem_id = example_dict.get("problem_id", f"problem_{idx:05d}")
-                problem_dir = variant_dir / problem_id
-                problem_dir.mkdir(exist_ok=True)
-
-                # Save problem.json
-                problem_file = problem_dir / "problem.json"
-                with open(problem_file, "w", encoding="utf-8") as f:
-                    json.dump(example_dict, f, indent=2, ensure_ascii=False)
-
-                # Handle images if present
-                if "image" in example_dict and example_dict["image"] is not None:
-                    images_dir = problem_dir / "images"
-                    images_dir.mkdir(exist_ok=True)
-
-                    # Save image
-                    image = example_dict["image"]
-                    if hasattr(image, "save"):
-                        # PIL Image
-                        image_path = images_dir / f"image_{problem_id}.png"
-                        image.save(image_path)
-                    elif isinstance(image, (str, Path)):
-                        # Path to image file
-                        image_path = images_dir / Path(image).name
-                        shutil.copy2(image, image_path)
-                
-                saved_count += 1
-
-            self.logger.info(
-                "Successfully downloaded PhysReason (%s) to %s",
-                variant,
-                variant_dir,
-            )
-            self.logger.info("Saved problems: %d (from %d collected)", saved_count, len(dataset_examples))
+                        raise RuntimeError("Downloaded file is empty or does not exist")
+                        
+                except requests.exceptions.RequestException as req_err:
+                    if attempt < max_retries - 1:
+                        self.logger.warning(
+                            "Download failed (attempt %d/%d): %s. Retrying in %d seconds...",
+                            attempt + 1, max_retries, req_err, retry_delay
+                        )
+                        time.sleep(retry_delay)
+                        continue
+                    else:
+                        raise RuntimeError(
+                            f"Failed to download {filename} after {max_retries} attempts: {req_err}"
+                        ) from req_err
 
             return download_dir
 
-        except (ImportError, ValueError, RuntimeError, OSError) as e:
+        except (ImportError, ValueError, RuntimeError, OSError, Exception) as e:
             # Clean up on error
             if download_dir.exists():
                 try:
@@ -301,43 +227,55 @@ class PhysReasonDownloader(BaseDownloader):
         if not data_dir.exists():
             return False
 
-        # Check for both variants
-        full_dir = data_dir / "PhysReason_full"
-        mini_dir = data_dir / "PhysReason-mini"
+        # Check for downloaded zip files
+        full_file = data_dir / "PhysReason-full.zip"
+        mini_file = data_dir / "PhysReason-mini.zip"
 
-        # At least one variant should exist
-        if not full_dir.exists() and not mini_dir.exists():
-            self.logger.warning("No variant directories found")
+        # At least one variant file should exist
+        if not full_file.exists() and not mini_file.exists():
+            self.logger.warning("No variant files found")
             return False
 
-        # Verify structure for existing variants
-        for variant_dir in [full_dir, mini_dir]:
-            if variant_dir.exists():
-                # Check that it's a directory
-                if not variant_dir.is_dir():
-                    self.logger.warning("%s is not a directory", variant_dir)
+        # Verify that existing files are valid zip files
+        try:
+            import zipfile
+        except ImportError:
+            # If zipfile is not available, just check file existence and size
+            self.logger.warning("zipfile module not available, skipping zip validation")
+            for zip_file in [full_file, mini_file]:
+                if zip_file.exists():
+                    if not zip_file.is_file():
+                        self.logger.warning("%s is not a file", zip_file)
+                        return False
+                    if zip_file.stat().st_size == 0:
+                        self.logger.warning("%s is empty", zip_file)
+                        return False
+            return True
+
+        # Verify zip files are valid
+        for zip_file in [full_file, mini_file]:
+            if zip_file.exists():
+                # Check that it's a file
+                if not zip_file.is_file():
+                    self.logger.warning("%s is not a file", zip_file)
                     return False
 
-                # Check for at least one problem directory
-                problem_dirs = [d for d in variant_dir.iterdir() if d.is_dir()]
-                if len(problem_dirs) == 0:
-                    self.logger.warning(
-                        "No problem directories found in %s", variant_dir
-                    )
+                # Check that it's not empty
+                if zip_file.stat().st_size == 0:
+                    self.logger.warning("%s is empty", zip_file)
                     return False
 
-                # Check that at least one problem has a problem.json file
-                found_valid_problem = False
-                for problem_dir in problem_dirs[:5]:  # Check first 5
-                    problem_file = problem_dir / "problem.json"
-                    if problem_file.exists():
-                        found_valid_problem = True
-                        break
-
-                if not found_valid_problem:
-                    self.logger.warning(
-                        "No valid problem.json files found in %s", variant_dir
-                    )
+                # Check that it's a valid zip file
+                try:
+                    with zipfile.ZipFile(zip_file, 'r') as zf:
+                        file_list = zf.namelist()
+                        self.logger.info(
+                            "%s is a valid zip file with %d entries",
+                            zip_file.name,
+                            len(file_list)
+                        )
+                except zipfile.BadZipFile as e:
+                    self.logger.warning("%s is not a valid zip file: %s", zip_file, e)
                     return False
 
         return True
