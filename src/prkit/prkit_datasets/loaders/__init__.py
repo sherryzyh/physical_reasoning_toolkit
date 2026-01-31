@@ -2,10 +2,6 @@
 Dataset loaders for different physical reasoning datasets.
 """
 
-__version__ = "0.1.0"
-__author__ = "Yinghuan Zhang"
-__author_email__ = "yinghuan.flash@gmail.com"
-
 from .base_loader import BaseDatasetLoader
 from .jeebench_loader import JEEBenchLoader
 from .phybench_loader import PHYBenchLoader

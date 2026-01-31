@@ -227,5 +227,5 @@ DEVELOPER.md
 DEV_NOTES.md
 .developer/
 PYPI_RELEASE_REVIEW.md
-test_*.py
 check_*
+dev_tests/

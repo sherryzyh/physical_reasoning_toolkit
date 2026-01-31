@@ -32,10 +32,6 @@ Usage:
         print(f"Custom field: {problem['source']}")  # Custom fields work too
 """
 
-__version__ = "0.1.0"
-__author__ = "Yinghuan Zhang"
-__author_email__ = "yinghuan.flash@gmail.com"
-
 import os
 from pathlib import Path
 

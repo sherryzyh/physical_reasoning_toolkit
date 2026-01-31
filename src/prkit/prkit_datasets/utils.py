@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
 from prkit.prkit_core.models.physics_dataset import PhysicalDataset
-from prkit.prkit_core.models.physics_problem import PhysicsProblem
 
 
 def sample_balanced(
@@ -51,7 +50,7 @@ def sample_balanced(
         balanced_samples.extend(selected)
 
     # Create info
-    info = dataset.info.copy()
+    info = dataset.get_info().copy()
     info.update(
         {
             "balanced_on": field,
@@ -124,7 +123,7 @@ def export_to_json(
     export_data = {"samples": dataset.to_list()}
 
     if include_info:
-        export_data["info"] = dataset.info
+        export_data["info"] = dataset.get_info()
 
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(export_data, f, indent=2, ensure_ascii=False)
@@ -248,7 +247,13 @@ def validate_dataset_format(
 
     # Check for duplicate problem IDs
     if "problem_id" in first_sample:
-        problem_ids = [sample.get("problem_id") for sample in dataset]
+        problem_ids = []
+        for sample in dataset:
+            try:
+                problem_ids.append(sample["problem_id"])
+            except (KeyError, AttributeError):
+                # Skip if problem_id is not accessible
+                continue
         duplicates = [pid for pid in set(problem_ids) if problem_ids.count(pid) > 1]
         if duplicates:
             report["warnings"].append(

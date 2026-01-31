@@ -12,7 +12,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
 from prkit.prkit_core import PhysKitLogger
-from prkit.prkit_core.models import PhysicalDataset, PhysicsDomain
+from prkit.prkit_core.definitions import PhysicsDomain
+from prkit.prkit_core.models import PhysicalDataset
 from prkit.prkit_datasets.loaders.base_loader import BaseDatasetLoader
 
 

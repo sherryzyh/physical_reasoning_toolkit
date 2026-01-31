@@ -191,12 +191,18 @@ class PhysKitLogger:
                 cls._default_level = level_map[env_level]
                 logging.getLogger("physkit").setLevel(cls._default_level)
 
-        # Check for PHYSKIT_LOG_FILE environment variable
-        env_log_file = os.getenv("PHYSKIT_LOG_FILE")
+        # Check for PRKIT_LOG_FILE environment variable
+        env_log_file = os.getenv("PRKIT_LOG_FILE")
         if env_log_file:
             log_path = Path(env_log_file)
             # Add file handler directly instead of calling setup_global_config
             cls._add_file_handler_to_all(log_path)
+        else:
+            # Default log directory: {cwd}/prkit_logs/prkit.log
+            default_log_dir = Path.cwd() / "prkit_logs"
+            default_log_file = default_log_dir / "prkit.log"
+            # Add file handler with default path
+            cls._add_file_handler_to_all(default_log_file)
 
         # Check for PHYSKIT_LOG_CONSOLE environment variable
         env_console = os.getenv("PHYSKIT_LOG_CONSOLE", "true").lower()
