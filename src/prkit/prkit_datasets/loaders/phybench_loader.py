@@ -90,9 +90,9 @@ class PHYBenchLoader(BaseDatasetLoader):
     def load(
         self,
         data_dir: Union[str, Path, None] = None,
-        variant: str = "full",
+        variant: Optional[str] = None,
         sample_size: Optional[int] = None,
-        split: str = "test",
+        split: Optional[str] = None,
         **kwargs,
     ) -> PhysicalDataset:
         """
@@ -100,21 +100,28 @@ class PHYBenchLoader(BaseDatasetLoader):
 
         Args:
             data_dir: Path to the PHYBench dataset (defaults to ~/PHYSICAL_REASONING_DATASETS/PHYBench)
-            variant: Dataset variant ("full", "fullques", or "onlyques")
-            split: Dataset split ("train" is the only available split)
+            variant: Dataset variant ("full", "fullques", or "onlyques"). Defaults to "full" if available.
+            split: Dataset split ("train" is the only available split). Defaults to "train".
             **kwargs: Additional loading parameters (unused, for compatibility)
 
         Returns:
             PhysicalDataset containing PHYBench problems
         """
+        # Use defaults if not provided
+        if variant is None:
+            variant = self.get_default_variant() or "full"
+        if split is None:
+            split = self.get_default_split() or "train"
+        
+        # Validate variant and split
+        self.validate_variant(variant)
+        self.validate_split(split)
+
         # Resolve data directory with environment variable support
         data_dir = self.resolve_data_dir(data_dir, "PHYBench")
 
         if not data_dir.exists():
             raise FileNotFoundError(f"Data directory not found: {data_dir}")
-
-        if split != "train":
-            raise ValueError("PHYBench dataset only supports 'train' split")
 
         # Determine which file to use based on variant
         if variant == "full":

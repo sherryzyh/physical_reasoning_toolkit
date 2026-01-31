@@ -2,13 +2,11 @@
 Tests for DatasetHub.
 """
 
-from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 
-from prkit.prkit_core.definitions import AnswerType
-from prkit.prkit_core.models import Answer, PhysicalDataset, PhysicsProblem
+from prkit.prkit_core.models import PhysicalDataset, PhysicsProblem
 from prkit.prkit_datasets import DatasetHub
 from prkit.prkit_datasets.loaders.base_loader import BaseDatasetLoader
 
@@ -23,7 +21,10 @@ class TestDatasetHub:
         assert len(datasets) > 0
         # Check for known datasets
         assert (
-            "ugphysics" in datasets or "phybench" in datasets or "jeebench" in datasets
+            "ugphysics" in datasets
+            or "phybench" in datasets
+            or "jeebench" in datasets
+            or "phyx" in datasets
         )
 
     def test_register_custom_loader(self):
@@ -116,6 +117,40 @@ class TestDatasetHub:
         finally:
             if "mock_kwargs" in DatasetHub._loaders:
                 del DatasetHub._loaders["mock_kwargs"]
+
+    def test_phyx_loader_registered(self):
+        """Test that PhyX loader is registered in DatasetHub."""
+        available = DatasetHub.list_available()
+        assert "phyx" in available
+
+    def test_phyx_get_info(self):
+        """Test getting info for PhyX dataset."""
+        info = DatasetHub.get_info("phyx")
+        assert isinstance(info, dict)
+        assert info["name"] == "phyx"
+        assert "description" in info
+        assert "modalities" in info
+        assert "text" in info["modalities"]
+        assert "image" in info["modalities"]
+
+    def test_phyx_get_loader_info(self):
+        """Test getting detailed loader info for PhyX."""
+        info = DatasetHub.get_loader_info("phyx")
+        assert isinstance(info, dict)
+        assert "loader_class" in info
+        assert "loader_module" in info
+        assert info["loader_class"] == "PhyXLoader"
+
+    def test_phyx_downloader_registered(self):
+        """Test that PhyX downloader is registered in DatasetHub."""
+        # Access the downloader registry
+        if not DatasetHub._downloaders:
+            DatasetHub._register_default_downloaders()
+        
+        assert "phyx" in DatasetHub._downloaders
+        downloader = DatasetHub._get_downloader("phyx")
+        assert downloader is not None
+        assert downloader.dataset_name == "phyx"
 
 
 class TestDatasetLoadersIntegration:

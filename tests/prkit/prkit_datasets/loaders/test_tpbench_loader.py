@@ -107,7 +107,7 @@ class TestTPBenchLoader:
         data_dir = temp_dir / "TPBench"
         data_dir.mkdir(parents=True)
         
-        with pytest.raises(ValueError, match="only supports 'public' split"):
+        with pytest.raises(ValueError, match="Unknown split 'test' for dataset 'tpbench'"):
             loader.load(data_dir=str(data_dir), variant="full", split="test")
 
     def test_load_invalid_variant(self, temp_dir):
@@ -119,7 +119,7 @@ class TestTPBenchLoader:
         json_file = data_dir / "tpbench_samples.json"
         json_file.touch()
         
-        with pytest.raises(ValueError, match="Unsupported variant"):
+        with pytest.raises(ValueError, match="Unknown variant 'mini' for dataset 'tpbench'"):
             loader.load(data_dir=str(data_dir), variant="mini", split="public")
 
     def test_load_invalid_language(self, temp_dir):

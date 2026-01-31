@@ -22,7 +22,15 @@ class TestCitations:
         citation = get_citation("physreason")
         assert citation is not None
         assert isinstance(citation, str)
-        assert "@inproceedings" in citation or "@article" in citation
+        assert "@inproceedings" in citation or "@article" in citation or "@misc" in citation
+
+    def test_get_citation_phyx(self):
+        """Test getting citation for PhyX dataset."""
+        citation = get_citation("phyx")
+        assert citation is not None
+        assert isinstance(citation, str)
+        assert "@misc" in citation or "@article" in citation
+        assert "PhyX" in citation or "phyx" in citation.lower()
 
     def test_get_citation_case_insensitive(self):
         """Test that get_citation is case insensitive."""
@@ -56,7 +64,7 @@ class TestCitations:
         citation_keys_lower = [k.lower() for k in citation_keys]
 
         # At least one of these should be present
-        expected_datasets = ["physreason", "seephys", "phybench", "ugphysics"]
+        expected_datasets = ["physreason", "seephys", "phybench", "ugphysics", "phyx"]
         assert any(ds in citation_keys_lower for ds in expected_datasets)
 
     def test_citations_are_bibtex_format(self):

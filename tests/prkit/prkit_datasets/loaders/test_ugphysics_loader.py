@@ -86,7 +86,7 @@ class TestUGPhysicsLoader:
         data_dir = temp_dir / "ugphysics"
         data_dir.mkdir(parents=True)
         
-        with pytest.raises(ValueError, match="only supports 'test' split"):
+        with pytest.raises(ValueError, match="Unknown split 'train' for dataset 'ugphysics'"):
             loader.load(data_dir=str(data_dir), split="train")
 
     def test_load_invalid_variant(self, temp_dir):
@@ -95,8 +95,8 @@ class TestUGPhysicsLoader:
         data_dir = temp_dir / "ugphysics"
         data_dir.mkdir(parents=True)
         
-        with pytest.raises(ValueError, match="Unsupported variant"):
-            loader.load(data_dir=str(data_dir), variant="mini", split="test")
+        with pytest.raises(ValueError, match="Unknown variant 'invalid' for dataset 'ugphysics'"):
+            loader.load(data_dir=str(data_dir), variant="invalid", split="test")
 
     def test_load_with_sample_size(self, temp_dir):
         """Test loading with sample_size parameter."""

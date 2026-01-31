@@ -99,8 +99,8 @@ class TPBenchLoader(BaseDatasetLoader):
     def load(
         self,
         data_dir: Union[str, Path, None] = None,
-        split: str = "public",
-        variant: str = "full",
+        split: Optional[str] = None,
+        variant: Optional[str] = None,
         sample_size: Optional[int] = None,
         per_domain: Optional[int] = None,
         language: str = "en",
@@ -111,8 +111,8 @@ class TPBenchLoader(BaseDatasetLoader):
 
         Args:
             data_dir: Path to the TPBench dataset (defaults to ~/PHYSICAL_REASONING_DATASETS/TPBench)
-            split: Dataset split to load (only "test" is supported)
-            variant: Dataset variant ("full" only)
+            split: Dataset split to load. Defaults to "public" if available.
+            variant: Dataset variant. Defaults to "full" if available.
             sample_size: Number of problems to sample (None for all)
             per_domain: Number of problems to sample per domain (None for all)
             language: Language to load ("en" only)
@@ -121,10 +121,17 @@ class TPBenchLoader(BaseDatasetLoader):
             PhysicalDataset instance
 
         Raises:
-            ValueError: If unsupported split or language is requested
+            ValueError: If unsupported split, variant, or language is requested
         """
-        if split != "public":
-            raise ValueError("TPBench dataset only supports 'public' split")
+        # Use defaults if not provided
+        if split is None:
+            split = self.get_default_split() or "public"
+        if variant is None:
+            variant = self.get_default_variant() or "full"
+        
+        # Validate variant and split
+        self.validate_variant(variant)
+        self.validate_split(split)
 
         if language != "en":
             raise ValueError("TPBench dataset only supports 'en' language")
@@ -135,11 +142,6 @@ class TPBenchLoader(BaseDatasetLoader):
 
         if not data_dir.exists():
             raise FileNotFoundError(f"Data directory not found: {data_dir}")
-
-        if variant != "full":
-            raise ValueError(
-                f"Unsupported variant: {variant}. Supported variants: 'full'"
-            )
 
         # Try to load from parquet file first
         parquet_file = data_dir / "data" / "public-00000-of-00001.parquet"

@@ -58,7 +58,7 @@ class SeePhysDownloader(BaseDownloader):
         self,
         data_dir: Optional[Union[str, Path]] = None,
         force: bool = False,
-        split: str = "train",
+        split: Optional[str] = None,
         **kwargs,
     ) -> Path:
         """
@@ -68,16 +68,24 @@ class SeePhysDownloader(BaseDownloader):
             data_dir: Target directory for download (None = auto-detect)
             force: If True, clean existing dataset directory and re-download.
                   If False, skip download if dataset already exists.
-            split: Dataset split to download ("train" is the only available split)
+            split: Dataset split to download. Defaults to "train" if available.
             **kwargs: Additional download parameters
 
         Returns:
             Path to the downloaded dataset directory
 
         Raises:
+            ValueError: If split is invalid
             FileExistsError: If dataset already exists and force=False
             RuntimeError: If download fails
         """
+        # Use default if not provided
+        if split is None:
+            split = self.get_default_split() or "train"
+        
+        # Validate split
+        self.validate_split(split)
+        
         # Call parent download method which handles force logic
         return super().download(data_dir=data_dir, force=force, split=split, **kwargs)
 

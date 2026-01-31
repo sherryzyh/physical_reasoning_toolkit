@@ -139,8 +139,8 @@ class UGPhysicsLoader(BaseDatasetLoader):
     def load(
         self,
         data_dir: Union[str, Path, None] = None,
-        split: str = "test",
-        variant: str = "full",
+        split: Optional[str] = None,
+        variant: Optional[str] = None,
         sample_size: Optional[int] = None,
         per_domain: Optional[int] = None,
         language: str = "en",
@@ -151,8 +151,8 @@ class UGPhysicsLoader(BaseDatasetLoader):
 
         Args:
             data_dir: Path to the UGPhysics dataset (defaults to ~/PHYSICAL_REASONING_DATASETS/ugphysics)
-            split: Dataset split to load (only "test" is supported)
-            variant: Dataset variant ("full" only)
+            split: Dataset split to load. Defaults to "test" if available.
+            variant: Dataset variant. Defaults to "full" if available.
             sample_size: Number of problems to sample (None for all)
             per_domain: Number of problems to sample per domain (None for all)
             language: Language to load ("en" or "zh")
@@ -161,10 +161,17 @@ class UGPhysicsLoader(BaseDatasetLoader):
             PhysicalDataset instance
 
         Raises:
-            ValueError: If unsupported split is requested
+            ValueError: If unsupported split or variant is requested
         """
-        if split != "test":
-            raise ValueError("UGPhysics dataset only supports 'test' split")
+        # Use defaults if not provided
+        if split is None:
+            split = self.get_default_split() or "test"
+        if variant is None:
+            variant = self.get_default_variant() or "full"
+        
+        # Validate variant and split
+        self.validate_variant(variant)
+        self.validate_split(split)
 
         # Resolve data directory with environment variable support
         data_dir = self.resolve_data_dir(data_dir, "ugphysics")
@@ -172,11 +179,6 @@ class UGPhysicsLoader(BaseDatasetLoader):
 
         if not data_dir.exists():
             raise FileNotFoundError(f"Data directory not found: {data_dir}")
-
-        if variant != "full":
-            raise ValueError(
-                f"Unsupported variant: {variant}. Supported variants: 'full'"
-            )
 
         # Get available domains
         domains = self._get_domains(data_dir, language)

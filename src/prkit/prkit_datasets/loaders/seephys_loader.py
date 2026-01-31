@@ -56,7 +56,7 @@ class SeePhysLoader(BaseDatasetLoader):
         data_dir: Union[str, Path, None] = None,
         variant: Optional[str] = None,
         sample_size: Optional[int] = None,
-        split: str = "train",
+        split: Optional[str] = None,
         **kwargs,
     ) -> PhysicalDataset:
         """
@@ -66,12 +66,20 @@ class SeePhysLoader(BaseDatasetLoader):
             data_dir: Path to the data directory containing SeePhys files
             variant: Dataset variant (deprecated, kept for backward compatibility)
             sample_size: Number of problems to load
-            split: Dataset split to load - "train" (default)
+            split: Dataset split to load. Defaults to "train" if available.
             **kwargs: Additional loading parameters
 
         Returns:
             PhysicalDataset containing SeePhys problems
         """
+        # Use defaults if not provided
+        if split is None:
+            split = self.get_default_split() or "train"
+        
+        # Validate split if provided
+        if split is not None:
+            self.validate_split(split)
+
         # Resolve data directory with environment variable support
         data_dir = self.resolve_data_dir(data_dir, "seephys")
         self.logger.debug(f"Using data directory: {data_dir}")
