@@ -3,7 +3,7 @@ import random
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional, Union
 
-from ..logging_config import PhysKitLogger
+from ..logging_config import PRKitLogger
 from .physics_problem import PhysicsProblem
 
 
@@ -63,7 +63,7 @@ class PhysicalDataset:
                 if problem_id in self._problem_id_index:
                     # Handle duplicate problem_ids by keeping track of the first occurrence
                     dataset_name = self._info.get("name", "unknown_dataset")
-                    PhysKitLogger.get_logger(__name__).warning(
+                    PRKitLogger.get_logger(__name__).warning(
                         f"Dataset '{dataset_name}': Duplicate problem_id '{problem_id}' found. Using first occurrence."
                     )
                 else:
@@ -72,7 +72,7 @@ class PhysicalDataset:
                 # For problems without problem_id, use fallback
                 fallback_id = f"problem_{i}"
                 dataset_name = self._info.get("name", "unknown_dataset")
-                PhysKitLogger.get_logger(__name__).warning(
+                PRKitLogger.get_logger(__name__).warning(
                     f"Dataset '{dataset_name}': Problem at index {i} has no problem_id, using fallback '{fallback_id}'"
                 )
                 self._problem_id_index[fallback_id] = i
@@ -178,7 +178,7 @@ class PhysicalDataset:
         filtered_dataset = PhysicalDataset(filtered_problems, self._info, self._split)
 
         # Log filtering results
-        logger = PhysKitLogger.get_logger(__name__)
+        logger = PRKitLogger.get_logger(__name__)
         logger.info(
             f"Filtered dataset by domains {list(normalized_domains)}: "
             f"{len(filtered_problems)} problems out of {len(self._problems)}"

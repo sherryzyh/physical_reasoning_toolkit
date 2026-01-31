@@ -1,5 +1,5 @@
 """
-Pytest configuration and shared fixtures for PhysKit tests.
+Pytest configuration and shared fixtures for PRKit tests.
 """
 
 import os

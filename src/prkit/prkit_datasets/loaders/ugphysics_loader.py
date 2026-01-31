@@ -10,7 +10,7 @@ import random  # Added for per_domain sampling
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
-from prkit.prkit_core import PhysKitLogger
+from prkit.prkit_core import PRKitLogger
 from prkit.prkit_core.definitions import PhysicsDomain
 from prkit.prkit_core.models import PhysicalDataset
 from prkit.prkit_datasets.loaders.base_loader import BaseDatasetLoader
@@ -22,7 +22,7 @@ class UGPhysicsLoader(BaseDatasetLoader):
     def __init__(self):
         """Initialize the UGPhysics loader with a logger."""
         super().__init__()
-        self.logger = PhysKitLogger.get_logger(__name__)
+        self.logger = PRKitLogger.get_logger(__name__)
 
     @property
     def name(self) -> str:

@@ -11,7 +11,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
-from prkit.prkit_core import PhysKitLogger
+from prkit.prkit_core import PRKitLogger
 from prkit.prkit_core.models import PhysicalDataset
 from prkit.prkit_core.models.physics_problem import PhysicsProblem
 
@@ -60,7 +60,7 @@ class WorkflowComposer:
         # Setup logging
         # Create workflow log file in output directory
         workflow_log_file = self.output_dir / "workflow_execution.log"
-        self.logger = PhysKitLogger.get_logger_with_selective_handlers(
+        self.logger = PRKitLogger.get_logger_with_selective_handlers(
             name=f"{__name__}.{name}",
             log_file=workflow_log_file,
             console_output=True,  # Workflow logs go to both console and file
@@ -118,7 +118,7 @@ class WorkflowComposer:
 
             # Set up module logging if workflow log file is available
             if hasattr(self, "workflow_log_file"):
-                module_logger = PhysKitLogger.get_logger_with_selective_handlers(
+                module_logger = PRKitLogger.get_logger_with_selective_handlers(
                     name=f"{__name__}.modules.{module.name}",
                     log_file=self.workflow_log_file,
                     console_output=False,  # No console output for modules (reduces noise)
@@ -162,7 +162,7 @@ class WorkflowComposer:
 
         # Set up module logging to use the same log file but NO console output
         if hasattr(self, "workflow_log_file"):
-            module_logger = PhysKitLogger.get_logger_with_selective_handlers(
+            module_logger = PRKitLogger.get_logger_with_selective_handlers(
                 name=f"{__name__}.modules.{module.name}",
                 log_file=self.workflow_log_file,
                 console_output=False,  # No console output for modules (reduces noise)

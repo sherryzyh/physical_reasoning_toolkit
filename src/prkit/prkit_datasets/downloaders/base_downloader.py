@@ -11,7 +11,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 
-from prkit.prkit_core import PhysKitLogger
+from prkit.prkit_core import PRKitLogger
 
 
 class BaseDownloader(ABC):
@@ -27,7 +27,7 @@ class BaseDownloader(ABC):
 
     def __init__(self):
         """Initialize the downloader with a logger."""
-        self.logger = PhysKitLogger.get_logger(self.__class__.__module__)
+        self.logger = PRKitLogger.get_logger(self.__class__.__module__)
 
     @property
     @abstractmethod

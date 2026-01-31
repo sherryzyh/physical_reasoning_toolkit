@@ -1,3 +1,3 @@
 """
-Test suite for PhysKit package.
+Test suite for PRKit package.
 """

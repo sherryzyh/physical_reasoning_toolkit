@@ -22,7 +22,7 @@ try:
     sys.modules["prkit_evaluation"] = prkit_evaluation
 
     # Import main components for easy access
-    from .prkit_core import PhysKitLogger
+    from .prkit_core import PRKitLogger
     from .prkit_core.definitions import AnswerType, PhysicsDomain
     from .prkit_core.models import PhysicalDataset, PhysicsProblem
 except ImportError:
@@ -30,7 +30,7 @@ except ImportError:
     pass
 
 __all__ = [
-    "PhysKitLogger",
+    "PRKitLogger",
     "PhysicsProblem",
     "PhysicalDataset",
     "PhysicsDomain",

@@ -37,10 +37,10 @@ from pathlib import Path
 
 # Import the dataset hub
 from prkit.prkit_datasets import DatasetHub
-from prkit.prkit_core import PhysKitLogger
+from prkit.prkit_core import PRKitLogger
 
 # Set up logger
-logger = PhysKitLogger.get_logger(__name__)
+logger = PRKitLogger.get_logger(__name__)
 
 # Try to import image display libraries
 try:
