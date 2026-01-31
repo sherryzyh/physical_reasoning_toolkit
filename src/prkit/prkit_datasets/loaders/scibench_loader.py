@@ -382,6 +382,8 @@ class SciBenchLoader(BaseDatasetLoader):
     def load(
         self,
         data_dir: Union[str, Path, None] = None,
+        variant: Optional[str] = None,
+        split: Optional[str] = None,
         sample_size: Optional[int] = None,
         **kwargs,
     ) -> PhysicalDataset:
@@ -390,11 +392,24 @@ class SciBenchLoader(BaseDatasetLoader):
 
         Args:
             data_dir: Directory containing the SciBench dataset
+            variant: Dataset variant. Defaults to "full" if available. (Currently not used in loading)
+            split: Dataset split. Defaults to "test" if available. (Currently not used in loading)
+            sample_size: Number of problems to load
             **kwargs: Additional loading parameters
 
         Returns:
             PhysicalDataset instance
         """
+        # Use defaults if not provided
+        if variant is None:
+            variant = self.get_default_variant() or "full"
+        if split is None:
+            split = self.get_default_split() or "test"
+        
+        # Validate variant and split if provided (even though they're not used in loading)
+        self.validate_variant(variant)
+        self.validate_split(split)
+        
         data_dir = self.resolve_data_dir(data_dir, "scibench")
 
         all_problems = []

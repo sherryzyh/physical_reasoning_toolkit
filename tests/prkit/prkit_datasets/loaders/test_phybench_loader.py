@@ -101,7 +101,7 @@ class TestPHYBenchLoader:
         data_dir = temp_dir / "PHYBench"
         data_dir.mkdir(parents=True)
         
-        with pytest.raises(ValueError, match="only supports 'train' split"):
+        with pytest.raises(ValueError, match="Unknown split 'test' for dataset 'phybench'"):
             loader.load(data_dir=str(data_dir), variant="full", split="test")
 
     def test_load_invalid_variant(self, temp_dir):

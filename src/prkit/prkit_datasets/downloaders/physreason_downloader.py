@@ -51,7 +51,7 @@ class PhysReasonDownloader(BaseDownloader):
         self,
         data_dir: Optional[Union[str, Path]] = None,
         force: bool = False,
-        variant: str = "full",
+        variant: Optional[str] = None,
         **kwargs,
     ) -> Path:
         """
@@ -61,17 +61,25 @@ class PhysReasonDownloader(BaseDownloader):
             data_dir: Target directory for download (None = auto-detect)
             force: If True, clean existing dataset directory and re-download.
                   If False, skip download if dataset already exists.
-            variant: Dataset variant ("full" or "mini")
+            variant: Dataset variant. Defaults to "full" if available.
             **kwargs: Additional download parameters
 
         Returns:
             Path to the downloaded dataset directory
 
         Raises:
+            ValueError: If variant is invalid
             ImportError: If requests library is not installed
             FileExistsError: If dataset already exists and force=False
             RuntimeError: If download fails
         """
+        # Use default if not provided
+        if variant is None:
+            variant = self.get_default_variant() or "full"
+        
+        # Validate variant
+        self.validate_variant(variant)
+        
         # Call parent download method which handles force logic
         return super().download(data_dir=data_dir, force=force, variant=variant, **kwargs)
 

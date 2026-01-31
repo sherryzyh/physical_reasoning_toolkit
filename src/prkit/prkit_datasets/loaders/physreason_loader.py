@@ -116,9 +116,9 @@ class PhysReasonLoader(BaseDatasetLoader):
     def load(
         self,
         data_dir: Union[str, Path, None] = None,
-        variant: str = "full",
+        variant: Optional[str] = None,
         sample_size: Optional[int] = None,
-        split: str = "test",
+        split: Optional[str] = None,
         **kwargs,
     ) -> PhysicalDataset:
         """
@@ -126,14 +126,24 @@ class PhysReasonLoader(BaseDatasetLoader):
 
         Args:
             data_dir: Path to the data directory containing PhysReason files
-            variant: Dataset variant - "full" (default) or "mini"
+            variant: Dataset variant. Defaults to "full" if available.
             sample_size: Number of problems to load
-            split: Dataset split to load - "test" (only)
+            split: Dataset split to load. Defaults to "test" if available.
             **kwargs: Additional loading parameters (ignored for compatibility)
 
         Returns:
             PhysicalDataset containing PhysReason problems
         """
+        # Use defaults if not provided
+        if variant is None:
+            variant = self.get_default_variant() or "full"
+        if split is None:
+            split = self.get_default_split() or "test"
+        
+        # Validate variant and split
+        self.validate_variant(variant)
+        self.validate_split(split)
+
         # Resolve data directory with environment variable support
         # Use lowercase "physreason" to match downloader's dataset_name
         data_dir = self.resolve_data_dir(data_dir, "physreason")
@@ -142,15 +152,13 @@ class PhysReasonLoader(BaseDatasetLoader):
         if not data_dir.exists():
             raise FileNotFoundError(f"Data directory not found: {data_dir}")
 
-        if split != "test":
-            raise ValueError(f"PhysReason dataset only has 'test' split. Got: {split}")
-
         # Determine variant directory
         if variant == "full":
             variant_dir = data_dir / "PhysReason_full"
         elif variant == "mini":
             variant_dir = data_dir / "PhysReason-mini"
         else:
+            # This should not happen if validation worked, but keep for safety
             raise ValueError(f"Unknown variant: {variant}. Choose 'full' or 'mini'")
 
         if not variant_dir.exists():

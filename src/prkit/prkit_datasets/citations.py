@@ -67,12 +67,24 @@ UGPHYSICS_CITATION = """@article{xu2025ugphysics,
     year = {2025}
 }"""
 
+# PhyX citation
+PHYX_CITATION = """@misc{shen2025phyxdoesmodelwits,
+    title={PhyX: Does Your Model Have the "Wits" for Physical Reasoning?}, 
+    author={Hui Shen and Taiqiang Wu and Qi Han and Yunta Hsieh and Jizhou Wang and Yuyue Zhang and Yuxin Cheng and Zijian Hao and Yuansheng Ni and Xin Wang and Zhongwei Wan and Kai Zhang and Wendong Xu and Jing Xiong and Ping Luo and Wenhu Chen and Chaofan Tao and Zhuoqing Mao and Ngai Wong},
+    year={2025},
+    eprint={2505.15929},
+    archivePrefix={arXiv},
+    primaryClass={cs.AI},
+    url={https://arxiv.org/abs/2505.15929}, 
+}"""
+
 # Dictionary mapping dataset names to their citations
 CITATIONS: Dict[str, str] = {
     "physreason": PHYSREASON_CITATION,
     "seephys": SEEPHYS_CITATION,
     "phybench": PHYBENCH_CITATION,
     "ugphysics": UGPHYSICS_CITATION,
+    "phyx": PHYX_CITATION,
 }
 
 

@@ -88,7 +88,7 @@ class TestPhysReasonLoader:
         data_dir = temp_dir / "physreason"
         data_dir.mkdir(parents=True)
         
-        with pytest.raises(ValueError, match="only has 'test' split"):
+        with pytest.raises(ValueError, match="Unknown split 'train' for dataset 'physreason'"):
             loader.load(data_dir=str(data_dir), variant="full", split="train")
 
     def test_load_invalid_variant(self, temp_dir):

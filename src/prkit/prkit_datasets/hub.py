@@ -11,6 +11,7 @@ from prkit.prkit_core import PhysKitLogger
 from prkit.prkit_core.models import PhysicalDataset
 from prkit.prkit_datasets.downloaders import (
     PHYBenchDownloader,
+    PhyXDownloader,
     PhysReasonDownloader,
     SeePhysDownloader,
     UGPhysicsDownloader,
@@ -19,6 +20,7 @@ from prkit.prkit_datasets.downloaders.base_downloader import BaseDownloader
 from prkit.prkit_datasets.loaders import (
     JEEBenchLoader,
     PHYBenchLoader,
+    PhyXLoader,
     PhysReasonLoader,
     SciBenchLoader,
     SeePhysLoader,
@@ -65,6 +67,7 @@ class DatasetHub:
     def _register_default_loaders(cls):
         """Register the default dataset loaders."""
         cls.register("phybench", PHYBenchLoader)
+        cls.register("phyx", PhyXLoader)
         cls.register("seephys", SeePhysLoader)
         cls.register("ugphysics", UGPhysicsLoader)
         cls.register("jeebench", JEEBenchLoader)
@@ -76,6 +79,7 @@ class DatasetHub:
     def _register_default_downloaders(cls):
         """Register the default dataset downloaders."""
         cls.register_downloader("phybench", PHYBenchDownloader)
+        cls.register_downloader("phyx", PhyXDownloader)
         cls.register_downloader("physreason", PhysReasonDownloader)
         cls.register_downloader("seephys", SeePhysDownloader)
         cls.register_downloader("ugphysics", UGPhysicsDownloader)
@@ -139,12 +143,12 @@ class DatasetHub:
             PhysicalDataset: Loaded dataset
 
         Raises:
-            ValueError: If dataset name is unknown
+            ValueError: If dataset name is unknown, or if variant/split is invalid
             FileNotFoundError: If data directory doesn't exist and auto_download=False
             RuntimeError: If auto_download=True but download fails
 
         Examples:
-            >>> # Load UGPhysics dataset
+            >>> # Load UGPhysics dataset (uses default variant and split)
             >>> dataset = DatasetHub.load("ugphysics")
             >>> print(f"Loaded {len(dataset)} problems")
 
@@ -160,8 +164,38 @@ class DatasetHub:
         # Get the appropriate loader
         loader = cls._get_loader(dataset_name)
 
+        # Handle variant: use default if not provided, validate if provided
+        variant = kwargs.pop("variant", None)
+        if variant is None:
+            variant = loader.get_default_variant()
+            if variant is not None:
+                cls._logger.debug(
+                    f"Using default variant '{variant}' for dataset '{dataset_name}'"
+                )
+        else:
+            # Validate explicitly provided variant
+            loader.validate_variant(variant)
+
+        # Handle split: use default if not provided, validate if provided
+        split = kwargs.pop("split", None)
+        if split is None:
+            split = loader.get_default_split()
+            if split is not None:
+                cls._logger.debug(
+                    f"Using default split '{split}' for dataset '{dataset_name}'"
+                )
+        else:
+            # Validate explicitly provided split
+            loader.validate_split(split)
+
         # Prepare load arguments
         load_kwargs = {"sample_size": sample_size, **kwargs}
+
+        # Add variant and split if they were determined
+        if variant is not None:
+            load_kwargs["variant"] = variant
+        if split is not None:
+            load_kwargs["split"] = split
 
         # Add data_dir if specified
         if data_dir is not None:
@@ -189,13 +223,28 @@ class DatasetHub:
                         f"Please download the dataset manually or implement a downloader."
                     ) from e
 
-                # Extract variant from kwargs for downloader
-                variant = kwargs.get("variant", "full")
+                # Extract variant from load_kwargs (which may have been set to default)
+                variant = load_kwargs.get("variant")
+                if variant is None:
+                    # Try to get default from loader
+                    variant = loader.get_default_variant()
+                    if variant is None:
+                        variant = "full"  # Fallback default
+                
+                # Extract split if downloader needs it
+                split = load_kwargs.get("split")
+                if split is None:
+                    split = loader.get_default_split()
+                
                 try:
                     # Download the dataset
-                    download_path = downloader.download(
-                        data_dir=data_dir, variant=variant, force=False
-                    )
+                    download_kwargs = {"data_dir": data_dir, "force": False}
+                    if variant is not None:
+                        download_kwargs["variant"] = variant
+                    if split is not None:
+                        download_kwargs["split"] = split
+                    
+                    download_path = downloader.download(**download_kwargs)
                     cls._logger.info(
                         "Successfully downloaded %s to %s", dataset_name, download_path
                     )

@@ -94,8 +94,8 @@ class JEEBenchLoader(BaseDatasetLoader):
     def load(
         self,
         data_dir: Union[str, Path, None] = None,
-        variant: str = "full",
-        split: str = "test",
+        variant: Optional[str] = None,
+        split: Optional[str] = None,
         sample_size: Optional[int] = None,
         **kwargs,
     ) -> PhysicalDataset:
@@ -104,8 +104,8 @@ class JEEBenchLoader(BaseDatasetLoader):
 
         Args:
             data_dir: Path to the JEEBench dataset (defaults to ~/PHYSICAL_REASONING_DATASETS/JEEBench)
-            variant: Dataset variant to load (only "full" is supported)
-            split: Dataset split to load (only "test" is supported)
+            variant: Dataset variant to load. Defaults to "full" if available.
+            split: Dataset split to load. Defaults to "test" if available.
             sample_size: Number of problems to sample (None for all)
 
             **kwargs: Additional loading parameters
@@ -114,11 +114,18 @@ class JEEBenchLoader(BaseDatasetLoader):
             PhysicalDataset instance
 
         Raises:
-            ValueError: If unsupported split is requested
+            ValueError: If unsupported split or variant is requested
             FileNotFoundError: If dataset file is not found
         """
-        if split != "test":
-            raise ValueError("JEEBench dataset only supports 'test' split")
+        # Use defaults if not provided
+        if split is None:
+            split = self.get_default_split() or "test"
+        if variant is None:
+            variant = self.get_default_variant() or "full"
+        
+        # Validate variant and split
+        self.validate_variant(variant)
+        self.validate_split(split)
 
         # Resolve data directory with environment variable support
         data_dir = self.resolve_data_dir(data_dir, "JEEBench")
@@ -126,9 +133,6 @@ class JEEBenchLoader(BaseDatasetLoader):
 
         if not data_dir.exists():
             raise FileNotFoundError(f"Data directory not found: {data_dir}")
-
-        if variant != "full":
-            raise ValueError("JEEBench dataset only supports 'full' variant")
 
         # Load the main dataset file
         dataset_file = data_dir / "dataset.json"

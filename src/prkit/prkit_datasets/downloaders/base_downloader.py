@@ -9,7 +9,7 @@ import os
 import shutil
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Dict, Optional, Union
+from typing import Dict, List, Optional, Union
 
 from prkit.prkit_core import PhysKitLogger
 
@@ -50,6 +50,104 @@ class BaseDownloader(ABC):
             Dictionary containing download metadata
         """
         pass
+
+    def get_default_variant(self) -> Optional[str]:
+        """
+        Get the default variant for this dataset downloader.
+        
+        Returns "full" if available, otherwise returns the first available variant.
+        Returns None if no variants are available.
+        
+        Returns:
+            Default variant string or None
+        """
+        info = self.download_info
+        variants = info.get("variants", [])
+        if not variants:
+            return None
+        
+        # Prefer "full" if available
+        if "full" in variants:
+            return "full"
+        
+        # Otherwise return the first variant
+        return variants[0] if variants else None
+
+    def get_default_split(self) -> Optional[str]:
+        """
+        Get the default split for this dataset downloader.
+        
+        Returns "full" if available, otherwise returns the first available split.
+        Returns None if no splits are available.
+        
+        Returns:
+            Default split string or None
+        """
+        info = self.download_info
+        splits = info.get("splits", [])
+        if not splits:
+            return None
+        
+        # Prefer "full" if available
+        if "full" in splits:
+            return "full"
+        
+        # Otherwise return the first split
+        return splits[0] if splits else None
+
+    def get_available_variants(self) -> List[str]:
+        """
+        Get list of available variants for this dataset downloader.
+        
+        Returns:
+            List of variant strings
+        """
+        info = self.download_info
+        return info.get("variants", [])
+
+    def get_available_splits(self) -> List[str]:
+        """
+        Get list of available splits for this dataset downloader.
+        
+        Returns:
+            List of split strings
+        """
+        info = self.download_info
+        return info.get("splits", [])
+
+    def validate_variant(self, variant: str) -> None:
+        """
+        Validate that a variant is available for this dataset downloader.
+        
+        Args:
+            variant: Variant to validate
+            
+        Raises:
+            ValueError: If variant is not available
+        """
+        available = self.get_available_variants()
+        if variant not in available:
+            raise ValueError(
+                f"Unknown variant '{variant}' for dataset '{self.dataset_name}'. "
+                f"Available variants: {available}"
+            )
+
+    def validate_split(self, split: str) -> None:
+        """
+        Validate that a split is available for this dataset downloader.
+        
+        Args:
+            split: Split to validate
+            
+        Raises:
+            ValueError: If split is not available
+        """
+        available = self.get_available_splits()
+        if split not in available:
+            raise ValueError(
+                f"Unknown split '{split}' for dataset '{self.dataset_name}'. "
+                f"Available splits: {available}"
+            )
 
     def download(
         self,
