@@ -55,6 +55,7 @@ class TPBenchLoader(BaseDatasetLoader):
             "total_problems": "10",
             "difficulty": "1-5 scale",
             "answer_formats": ["symbolic"],
+            "modalities": self.modalities,
         }
 
     @property

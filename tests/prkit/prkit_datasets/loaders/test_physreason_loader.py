@@ -151,3 +151,50 @@ class TestPhysReasonLoader:
         assert isinstance(processed, list)
         assert len(processed) == 1
         assert processed[0]["problem_id"] == "test_001_1"
+
+    def test_load_with_images(self, temp_dir):
+        """Test loading PhysReason dataset with images."""
+        loader = PhysReasonLoader()
+        
+        # Create mock data directory structure
+        data_dir = temp_dir / "physreason"
+        variant_dir = data_dir / "PhysReason_full"
+        variant_dir.mkdir(parents=True)
+        
+        # Create a problem directory with images
+        problem_dir = variant_dir / "problem_001"
+        problem_dir.mkdir()
+        
+        # Create images directory and add a test image file
+        images_dir = problem_dir / "images"
+        images_dir.mkdir()
+        test_image = images_dir / "diagram.png"
+        test_image.write_bytes(b"fake image data")
+        
+        problem_file = problem_dir / "problem.json"
+        sample_data = {
+            "problem_id": "problem_001",
+            "question_structure": {
+                "context": "A ball is thrown upward.",
+                "sub_question_1": "What is the velocity at the top?",
+            },
+            "answer": ["0 m/s"],
+            "explanation_steps": {
+                "sub_question_1": {"step1": "At the top, velocity is zero"},
+            },
+            "difficulty": "easy",
+        }
+        with open(problem_file, "w", encoding="utf-8") as f:
+            json.dump(sample_data, f)
+        
+        # Load dataset
+        dataset = loader.load(
+            data_dir=str(data_dir), variant="full", split="test"
+        )
+        
+        assert dataset is not None
+        assert len(dataset) == 1
+        # Verify that image_paths is set correctly
+        assert dataset[0].image_path is not None
+        assert len(dataset[0].image_path) == 1
+        assert "diagram.png" in dataset[0].image_path[0] or "diagram.png" in str(dataset[0].image_path[0])

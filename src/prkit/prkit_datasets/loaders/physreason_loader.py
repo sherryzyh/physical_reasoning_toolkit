@@ -62,6 +62,7 @@ class PhysReasonLoader(BaseDatasetLoader):
             "specialty": "Step-by-step reasoning with detailed solutions, multi-modal (81% with diagrams)",
             "average_steps": 8.1,
             "hard_problem_steps": 15.6,
+            "modalities": self.modalities,
         }
 
     @property
@@ -86,6 +87,8 @@ class PhysReasonLoader(BaseDatasetLoader):
 
         explanation_steps = metadata.get("explanation_steps", {})
         image_captions = metadata.get("image_captions", "")
+        # Include image_paths so they are preserved for each question
+        image_paths = metadata.get("image_paths", [])
 
         for i in range(num_sub_questions):  # Support up to 9 sub-questions
             sub_q_key = f"sub_question_{i+1}"
@@ -104,6 +107,7 @@ class PhysReasonLoader(BaseDatasetLoader):
                         "language": language,
                         "solution": steps,
                         "image_captions": image_captions,
+                        "image_paths": image_paths,  # Preserve image_paths for each question
                     }
                 )
 
@@ -190,7 +194,10 @@ class PhysReasonLoader(BaseDatasetLoader):
                 metadata = self.initialize_metadata(problem_data)
                 metadata_of_questions = self._process_metadata(metadata)
                 for question_metadata in metadata_of_questions:
-                    physics_problem = self.create_physics_problem(question_metadata)
+                    # Pass variant_dir as data_dir to resolve relative image paths
+                    physics_problem = self.create_physics_problem(
+                        question_metadata, data_dir=variant_dir
+                    )
                     physics_problems.append(physics_problem)
             except Exception as e:
                 self.logger.warning(
@@ -244,11 +251,14 @@ class PhysReasonLoader(BaseDatasetLoader):
                 image_files = list(images_dir.glob("*.png")) + list(
                     images_dir.glob("*.jpg")
                 )
-                problem_data["image_files"] = [
-                    str(img.relative_to(problem_dir)) for img in image_files
+                # Store paths relative to variant_dir (which will be passed as data_dir)
+                # This allows create_physics_problem to resolve paths correctly
+                variant_dir = problem_dir.parent
+                problem_data["image_paths"] = [
+                    str(img.relative_to(variant_dir)) for img in image_files
                 ]
             else:
-                problem_data["image_files"] = []
+                problem_data["image_paths"] = []
 
             return problem_data
 

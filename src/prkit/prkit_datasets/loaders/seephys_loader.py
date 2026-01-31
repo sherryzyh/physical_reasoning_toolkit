@@ -30,6 +30,11 @@ class SeePhysLoader(BaseDatasetLoader):
     def description(self) -> str:
         return "SeePhys: A visual physics reasoning dataset with questions, images, and captions"
 
+    @property
+    def modalities(self) -> List[str]:
+        """SeePhys supports both text and image modalities."""
+        return ["text", "image"]
+
     def get_info(self) -> Dict[str, Any]:
         return {
             "name": self.name,
@@ -43,6 +48,7 @@ class SeePhysLoader(BaseDatasetLoader):
             "problem_types": ["OE"],
             "total_problems": "2000",
             "source": "SeePhys dataset from HuggingFace",
+            "modalities": self.modalities,
         }
 
     def load(
@@ -54,7 +60,7 @@ class SeePhysLoader(BaseDatasetLoader):
         **kwargs,
     ) -> PhysicalDataset:
         """
-        Load SeePhys dataset from parquet or JSON files.
+        Load SeePhys dataset from JSON files only.
 
         Args:
             data_dir: Path to the data directory containing SeePhys files
@@ -73,13 +79,11 @@ class SeePhysLoader(BaseDatasetLoader):
         if not data_dir.exists():
             raise FileNotFoundError(f"Data directory not found: {data_dir}")
 
-        # Try loading from new format (parquet/JSON) first
-        parquet_file = data_dir / f"{split}.parquet"
+        # Load only from JSON files
         split_dir = data_dir / split
 
-        # Check if new format exists
-        if parquet_file.exists() or split_dir.exists():
-            return self._load_from_parquet_or_json(
+        if split_dir.exists():
+            return self._load_from_json_only(
                 data_dir, split, sample_size, **kwargs
             )
 
@@ -92,67 +96,47 @@ class SeePhysLoader(BaseDatasetLoader):
                 data_dir, variant, split, sample_size, **kwargs
             )
 
-        # If no variant specified and new format doesn't exist, try default
+        # If JSON directory doesn't exist, raise error
         raise FileNotFoundError(
             f"SeePhys dataset not found in {data_dir}. "
-            f"Expected either '{split}.parquet' or '{split}/' directory, "
-            f"or legacy CSV files. Use the downloader to download the dataset."
+            f"Expected '{split}/' directory with JSON files. "
+            f"Use the downloader to download the dataset."
         )
 
     @property
     def field_mapping(self) -> Dict[str, str]:
         # Field mapping for SeePhys dataset
-        # Fields: question, subject, image_path, sig_figs, level, language, 
+        # Fields: question, subject, image_paths, sig_figs, level, language, 
         # index, img_category, vision_relevance, caption, etc.
         return {
             "index": "problem_id",
             "subject": "domain",
         }
 
-    def _load_from_parquet_or_json(
+    def _load_from_json_only(
         self,
         data_dir: Path,
         split: str,
         sample_size: Optional[int],
         **_kwargs,
     ) -> PhysicalDataset:
-        """Load from parquet or JSON format."""
-        parquet_file = data_dir / f"{split}.parquet"
+        """Load from JSON files only."""
         split_dir = data_dir / split
 
-        problems = []
-
-        # Try loading from parquet file first
-        if parquet_file.exists():
-            try:
-                self.logger.debug("Loading from parquet file: %s", parquet_file)
-                df = pd.read_parquet(parquet_file, engine="pyarrow")
-                problems = self._load_from_dataframe(df, data_dir)
-            except (ValueError, OSError, ImportError) as e:
-                self.logger.error(f"Error loading from parquet: {e}")
-                self.logger.debug("Falling back to JSON files...")
-                try:
-                    problems = self._load_from_json_dir(split_dir, data_dir)
-                except (json.JSONDecodeError, IOError, ValueError) as json_e:
-                    self.logger.error("Error loading from JSON fallback: %s", json_e)
-                    raise RuntimeError(
-                        f"Failed to load SeePhys dataset. "
-                        f"Parquet error: {e}. JSON fallback error: {json_e}"
-                    ) from json_e
-        elif split_dir.exists():
-            # Load from JSON directory
-            self.logger.debug(f"Loading from JSON directory: {split_dir}")
-            problems = self._load_from_json_dir(split_dir, data_dir)
-        else:
+        if not split_dir.exists():
             raise FileNotFoundError(
-                f"Neither parquet file ({parquet_file}) nor JSON directory "
-                f"({split_dir}) found for split '{split}'"
+                f"JSON directory not found: {split_dir}. "
+                f"Use the downloader to download the dataset."
             )
+
+        # Load from JSON directory
+        self.logger.debug(f"Loading from JSON directory: {split_dir}")
+        problems = self._load_from_json_dir(split_dir, data_dir)
 
         if not problems:
             raise RuntimeError(
                 f"No problems loaded from: {data_dir}. "
-                f"Check if data files exist and are valid."
+                f"Check if JSON files exist and are valid."
             )
 
         # Apply sample_size if specified
@@ -166,7 +150,7 @@ class SeePhysLoader(BaseDatasetLoader):
 
         # Log final loading result
         self.logger.info(
-            f"Successfully loaded {len(problems)} problems from SeePhys dataset"
+            f"Successfully loaded {len(problems)} problems from SeePhys dataset (JSON format)"
         )
 
         return PhysicalDataset(problems, info, split=split)
@@ -276,5 +260,63 @@ class SeePhysLoader(BaseDatasetLoader):
         return PhysicalDataset(problems, info, split=split)
 
     def _process_metadata(self, metadata: Dict[str, Any]) -> Dict[str, Any]:
-        """Process metadata to create standardized problem fields."""
+        """
+        Process metadata to create standardized problem fields.
+        
+        Specifically handles:
+        - Ensures image_paths are properly formatted
+        """
+        # Ensure image_paths is properly formatted (base loader now handles image_paths directly)
+        if "image_paths" in metadata:
+            image_paths = metadata["image_paths"]
+            # Ensure it's a list
+            if isinstance(image_paths, str):
+                metadata["image_paths"] = [image_paths]
+            elif not isinstance(image_paths, list):
+                if image_paths is None:
+                    metadata["image_paths"] = None
+                else:
+                    # Try to convert to list
+                    metadata["image_paths"] = [str(image_paths)]
+        
         return metadata
+
+    def load_images_from_paths(
+        self,
+        image_paths: Union[str, List[str], None],
+        data_dir: Optional[Union[str, Path]] = None,
+    ) -> List[Any]:
+        """
+        Load images from image paths using the base loader's image loading functionality.
+        
+        This method wraps the base class's load_images_from_paths() method, providing
+        a convenient way to load images from paths in the SeePhys dataset context.
+        
+        Args:
+            image_paths: Single image path (str) or list of image paths.
+                        Can be relative paths (resolved against data_dir) or absolute paths.
+            data_dir: Root directory of the SeePhys dataset (for resolving relative paths).
+                     If None, will try to resolve using default data directory.
+
+        Returns:
+            List of PIL Image objects. Empty list if no images are available or could be loaded.
+
+        Raises:
+            ImportError: If PIL/Pillow is not installed
+
+        Example:
+            >>> loader = SeePhysLoader()
+            >>> # Load images from paths
+            >>> images = loader.load_images_from_paths(
+            ...     ["images/123_0.png", "images/123_1.jpg"],
+            ...     data_dir="/path/to/seephys"
+            ... )
+            >>> for img in images:
+            ...     print(f"Image size: {img.size}")
+        """
+        # If data_dir is not provided, try to resolve default
+        if data_dir is None:
+            data_dir = self.resolve_data_dir(None, "seephys")
+        
+        # Use the base class method
+        return super().load_images_from_paths(image_paths, data_dir)

@@ -51,6 +51,7 @@ class PHYBenchLoader(BaseDatasetLoader):
             "splits": ["train"],
             "problem_types": ["OE"],
             "total_problems": "500",
+            "modalities": self.modalities,
         }
 
     @property

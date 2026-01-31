@@ -7,15 +7,35 @@ using simple field mapping dictionaries.
 """
 
 import ast
+import logging
 import os
 import re
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from prkit.prkit_core.definitions.answer_types import AnswerType
 from prkit.prkit_core.models import PhysicalDataset, PhysicsProblem
 from prkit.prkit_core.models.answer import Answer
+
+# Try to import PIL/Pillow for image loading
+try:
+    from PIL import Image
+
+    PIL_AVAILABLE = True
+except ImportError:
+    PIL_AVAILABLE = False
+    Image = None
+
+# Type checking for Image
+if TYPE_CHECKING:
+    if PIL_AVAILABLE:
+        from PIL import Image as PILImage
+    else:
+        PILImage = Any  # type: ignore
+
+# Get logger for this module
+logger = logging.getLogger(__name__)
 
 CORE_FIELDS = [
     "question",  # question text
@@ -26,7 +46,7 @@ CORE_FIELDS = [
     "domain",  # domain in physics
     "language",  # language
     "answer_type",  # answer type in symbolic, numerical, or textual
-    "image_path",  # path to associated image file (for visual problems)
+    "image_paths",  # paths to associated image files (for visual problems)
 ]
 
 
@@ -174,6 +194,17 @@ class BaseDatasetLoader(ABC):
     - Problem creation
     - Dataset validation
     """
+
+    @property
+    def modalities(self) -> List[str]:
+        """
+        Get the list of modalities supported by this dataset.
+
+        Returns:
+            List of supported modalities. Default is ["text"].
+            For datasets with images, should return ["text", "image"].
+        """
+        return ["text"]
 
     @property
     @abstractmethod
@@ -432,46 +463,47 @@ class BaseDatasetLoader(ABC):
         problem_type = metadata.get("problem_type", "OE")
         domain = metadata.get("domain")
         language = metadata.get("language")
-        image_path = metadata.get("image_path")
+        # Support both image_paths (preferred) and image_path (legacy) for backward compatibility
+        image_paths = metadata.get("image_paths") or metadata.get("image_path")
 
-        # Normalize image_path to a list of strings and resolve relative paths
-        if image_path is not None:
-            if isinstance(image_path, str):
+        # Normalize image_paths to a list of strings and resolve relative paths
+        if image_paths is not None:
+            if isinstance(image_paths, str):
                 # Try to parse as string representation of list (e.g., "['path1', 'path2']")
-                image_path_str = image_path.strip()
-                if image_path_str.startswith("[") and image_path_str.endswith("]"):
+                image_paths_str = image_paths.strip()
+                if image_paths_str.startswith("[") and image_paths_str.endswith("]"):
                     try:
                         # Use ast.literal_eval to safely parse the string representation
-                        parsed = ast.literal_eval(image_path_str)
+                        parsed = ast.literal_eval(image_paths_str)
                         if isinstance(parsed, list):
-                            image_path = parsed
+                            image_paths = parsed
                         else:
                             # Single value in brackets, convert to list
-                            image_path = [parsed] if parsed else None
+                            image_paths = [parsed] if parsed else None
                     except (ValueError, SyntaxError):
                         # If parsing fails, treat as single path string
-                        image_path = [image_path_str] if image_path_str else None
+                        image_paths = [image_paths_str] if image_paths_str else None
                 else:
                     # Single string: convert to list if not empty
-                    image_path = [image_path_str] if image_path_str else None
-            elif isinstance(image_path, list):
+                    image_paths = [image_paths_str] if image_paths_str else None
+            elif isinstance(image_paths, list):
                 # Already a list: filter out empty strings and None values
-                image_path = [
+                image_paths = [
                     path
-                    for path in image_path
+                    for path in image_paths
                     if path and (isinstance(path, str) and path.strip())
                 ]
                 # Return None if list becomes empty
-                image_path = image_path if image_path else None
+                image_paths = image_paths if image_paths else None
             else:
                 # Invalid type: set to None
-                image_path = None
+                image_paths = None
 
             # Resolve relative paths by joining with data_dir if provided
-            if image_path and data_dir is not None:
+            if image_paths and data_dir is not None:
                 data_dir_path = Path(data_dir)
                 resolved_paths = []
-                for path in image_path:
+                for path in image_paths:
                     path_obj = Path(path)
                     # Only resolve if path is relative (not absolute)
                     if not path_obj.is_absolute():
@@ -480,7 +512,7 @@ class BaseDatasetLoader(ABC):
                     else:
                         # Keep absolute paths as-is
                         resolved_paths.append(path)
-                image_path = resolved_paths if resolved_paths else None
+                image_paths = resolved_paths if resolved_paths else None
 
         # Create Answer object from answer
         answer_obj = self._create_answer_from_raw(metadata)
@@ -500,7 +532,7 @@ class BaseDatasetLoader(ABC):
             domain=domain,
             language=language,
             problem_type=problem_type,
-            image_path=image_path,
+            image_path=image_paths,  # Note: PhysicsProblem model uses image_path field name
             additional_fields=additional_fields,
         )
 
@@ -563,3 +595,100 @@ class BaseDatasetLoader(ABC):
         if default_subdir:
             return home_data_dir / default_subdir
         return home_data_dir
+
+    def load_images_from_paths(
+        self,
+        image_paths: Union[str, List[str], None],
+        data_dir: Optional[Union[str, Path]] = None,
+    ) -> List[Any]:
+        """
+        Load images from image paths and return PIL Image objects.
+
+        Args:
+            image_paths: Single image path (str) or list of image paths.
+                        Can be relative or absolute paths.
+            data_dir: Root directory for resolving relative paths.
+                     If None, relative paths will be resolved from current directory.
+
+        Returns:
+            List of PIL Image objects. Empty list if no images are available or could be loaded.
+
+        Raises:
+            ImportError: If PIL/Pillow is not installed
+
+        Example:
+            >>> loader = SomeLoader()
+            >>> images = loader.load_images_from_paths(
+            ...     ["images/img1.png", "images/img2.jpg"],
+            ...     data_dir="/path/to/dataset"
+            ... )
+            >>> for img in images:
+            ...     print(f"Image size: {img.size}")
+        """
+        # Check if this dataset supports image modality
+        if "image" not in self.modalities:
+            dataset_name = getattr(self, "name", self.__class__.__name__)
+            logger.warning(
+                f"Dataset '{dataset_name}' does not support image modality. "
+                f"Supported modalities: {self.modalities}. "
+                f"Returning empty list."
+            )
+            return []
+
+        if not PIL_AVAILABLE:
+            raise ImportError(
+                "PIL/Pillow is required to load images. "
+                "Install it with: pip install Pillow"
+            )
+
+        if image_paths is None:
+            return []
+
+        # Normalize to list
+        if isinstance(image_paths, str):
+            paths_list = [image_paths]
+        elif isinstance(image_paths, list):
+            paths_list = image_paths
+        else:
+            logger.warning(
+                f"Invalid image_paths type: {type(image_paths)}. Expected str or list."
+            )
+            return []
+
+        # Filter out empty strings and None values
+        paths_list = [
+            path for path in paths_list if path and isinstance(path, str) and path.strip()
+        ]
+
+        if not paths_list:
+            return []
+
+        loaded_images = []
+        for path in paths_list:
+            path_obj = Path(path)
+
+            # Resolve relative paths if data_dir is provided
+            if not path_obj.is_absolute() and data_dir is not None:
+                data_dir_path = Path(data_dir)
+                path_obj = (data_dir_path / path).resolve()
+            elif not path_obj.is_absolute():
+                # Resolve relative to current directory
+                path_obj = path_obj.resolve()
+
+            # Check if file exists
+            if not path_obj.exists():
+                logger.warning(f"Image file not found: {path_obj}")
+                continue
+
+            # Load the image
+            try:
+                image = Image.open(path_obj)
+                # Convert to RGB if necessary (handles RGBA, P, etc.)
+                if image.mode not in ("RGB", "L"):
+                    image = image.convert("RGB")
+                loaded_images.append(image)
+            except (IOError, OSError) as e:
+                logger.warning(f"Failed to load image {path_obj}: {e}")
+                continue
+
+        return loaded_images
