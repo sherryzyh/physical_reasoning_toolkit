@@ -21,7 +21,6 @@ physical_reasoning_toolkit/
 │   ├── prkit_annotation/            # Annotation workflows and tools
 │   └── prkit_evaluation/            # Evaluation metrics and benchmarks
 ├── tests/                           # Unit tests
-├── cookbooks/                       # Usage examples and tutorials
 ├── showcase_output/                 # Example outputs and demonstrations
 ├── pyproject.toml                   # Package configuration
 ├── LICENSE                          # MIT License
@@ -35,13 +34,12 @@ physical_reasoning_toolkit/
 **In Repository (Code & Documentation):**
 - ✅ **src/prkit/**: Complete toolkit with 4 subpackages
 - ✅ **tests/**: Unit tests (for contributors)
-- ✅ **cookbooks/**: Working examples and tutorials
 - ✅ **showcase_output/**: Example outputs and demonstrations
 
 **External (Data & Runtime):**
 - 📁 **Data Directory**: Dataset files (set via `DATASET_CACHE_DIR`)
 - 🔑 **API Keys**: LLM service credentials
-- 📊 **Log Files**: Runtime logs (set via `PHYSKIT_LOG_FILE`)
+- 📊 **Log Files**: Runtime logs (default: `{cwd}/prkit_logs/prkit.log`, can be overridden via `PRKIT_LOG_FILE`)
 
 ## 🚀 **Quick Start**
 
@@ -101,7 +99,7 @@ export DEEPSEEK_API_KEY="your-deepseek-api-key"
 
 # For logging configuration (optional)
 export PHYSKIT_LOG_LEVEL=INFO
-export PHYSKIT_LOG_FILE=/var/log/physkit.log
+export PRKIT_LOG_FILE=/var/log/physkit.log  # Optional: defaults to {cwd}/prkit_logs/prkit.log if not set
 ```
 
 ### **Data Directory Setup**
@@ -110,12 +108,11 @@ export PHYSKIT_LOG_FILE=/var/log/physkit.log
 mkdir -p ~/data
 export DATASET_CACHE_DIR=~/data
 
-# Download datasets (see cookbooks for examples)
-cd cookbooks
-python3 01_load_dataset.py
+# Download datasets using DatasetHub with auto_download=True
+python3 -c "from prkit.prkit_datasets import DatasetHub; DatasetHub.load('ugphysics', auto_download=True)"
 ```
 
-**Note**: The data directory is external to the repository and contains the actual dataset files. The default cache directory is `~/data/` if `DATASET_CACHE_DIR` is not set. See the cookbooks for dataset download and setup instructions.
+**Note**: The data directory is external to the repository and contains the actual dataset files. The default cache directory is `~/PHYSICAL_REASONING_DATASETS/` if `DATASET_CACHE_DIR` is not set. Use `auto_download=True` when loading datasets to automatically download them if they don't exist.
 
 ## 📦 **Package Overview**
 
@@ -246,19 +243,6 @@ print('Available datasets:', DatasetHub.list_available())
 "
 ```
 
-### **Run Cookbook Examples**
-```bash
-cd cookbooks
-
-# Dataset exploration
-python 01_load_dataset.py
-
-# Automated annotation
-python 02_automated_annotation.py
-
-# Workflow composition
-python 04_workflow_composition_demo.py
-```
 
 ## 🔍 **Repository Features**
 
@@ -266,7 +250,7 @@ python 04_workflow_composition_demo.py
 - **Reproducible**: Seed-based sampling and consistent APIs
 - **Extensible**: Easy to add new datasets and evaluation metrics
 - **Professional**: Centralized logging and error handling
-- **Documented**: Comprehensive examples and cookbooks
+- **Documented**: Comprehensive examples and documentation
 
 ### **Dataset Support**
 - **4 Supported Datasets**: PHYBench, PhysReason, UGPhysics, SeePhys (both downloader and loader available)
@@ -318,17 +302,17 @@ ls -la $DATASET_CACHE_DIR/PhysReason/
 ```
 
 ### **Getting Help**
-1. **Check cookbooks**: See `cookbooks/` for working examples
-2. **Review logs**: Check logging output for detailed error information
-3. **Verify setup**: Run the testing commands above
-4. **Check data**: Ensure datasets are properly downloaded and accessible
+1. **Review logs**: Check logging output for detailed error information
+2. **Verify setup**: Run the testing commands above
+3. **Check data**: Ensure datasets are properly downloaded and accessible
+4. **Check documentation**: See package README files for detailed usage examples
 
 ## 📚 **Documentation & Resources**
 
 ### **Learning Resources**
-- **Cookbooks**: [`cookbooks/`](cookbooks/) - Practical examples and tutorials
 - **Example Outputs**: [`showcase_output/`](showcase_output/) - Sample results and demonstrations
 - **API Documentation**: Comprehensive docstrings in package files
+- **Package READMEs**: See `src/prkit/*/README.md` for detailed usage examples
 
 ### **Community & Support**
 - **GitHub Issues**: [Report bugs or request features](https://github.com/sherryzyh/physical_reasoning_toolkit/issues)
@@ -373,7 +357,7 @@ pytest tests/
 - [ ] Install via PyPI: `pip install physical-reasoning-toolkit`
 - [ ] Set up environment variables (API keys)
 - [ ] Set data directory: `export DATASET_CACHE_DIR=~/data` (optional, defaults to ~/data/)
-- [ ] Run example: `python cookbooks/01_load_dataset.py`
+- [ ] Run example: `python -c "from prkit.prkit_datasets import DatasetHub; print(DatasetHub.list_available())"`
 - [ ] Start building your physics reasoning system!
 
 **For Developers:**

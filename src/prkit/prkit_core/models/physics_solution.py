@@ -150,18 +150,26 @@ class PhysicsSolution:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "PhysicsSolution":
         """Create a PhysicsSolution instance from a dictionary."""
-        # Handle timestamp conversion
-        if "timestamp" in data and data["timestamp"]:
-            if isinstance(data["timestamp"], str):
-                data["timestamp"] = datetime.fromisoformat(data["timestamp"])
+        # Create a copy to avoid modifying the original
+        data_copy = data.copy()
+        
+        # Handle timestamp conversion (store in metadata if present)
+        if "timestamp" in data_copy:
+            timestamp = data_copy.pop("timestamp")
+            if isinstance(timestamp, str):
+                timestamp = datetime.fromisoformat(timestamp)
+            # Store timestamp in metadata if metadata exists
+            if "metadata" not in data_copy:
+                data_copy["metadata"] = {}
+            data_copy["metadata"]["timestamp"] = timestamp
 
         # Handle problem conversion if it's a dict
-        if isinstance(data.get("problem"), dict):
+        if isinstance(data_copy.get("problem"), dict):
             # This would require PhysicsProblem.from_dict() method
             # For now, we'll keep it as a dict
             pass
 
-        return cls(**data)
+        return cls(**data_copy)
 
     # ============================================================================
     # Summary and Statistics

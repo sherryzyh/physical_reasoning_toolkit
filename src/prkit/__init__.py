@@ -7,10 +7,6 @@ Package name: physical-reasoning-toolkit
 Import name: prkit
 """
 
-__version__ = "0.1.0"
-__author__ = "Yinghuan Zhang"
-__author_email__ = "yinghuan.flash@gmail.com"
-
 # Make subpackages importable at top level (e.g., `from prkit.prkit_datasets import DatasetHub` or `from prkit_datasets import DatasetHub`)
 # Note: PyPI package name is "physical-reasoning-toolkit", import name is "prkit"
 import sys

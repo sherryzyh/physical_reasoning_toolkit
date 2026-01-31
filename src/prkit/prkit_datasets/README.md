@@ -322,11 +322,15 @@ export DATASET_CACHE_DIR="/path/to/your/data"
 ## 🧪 Testing All Datasets
 
 ```python
-# Test all datasets with minimal logging
-python cookbooks/01_load_dataset.py --test-all
+from prkit.prkit_datasets import DatasetHub
 
-# Test specific dataset
-python cookbooks/01_load_dataset.py ugphysics
+# List all available datasets
+available = DatasetHub.list_available()
+print(f"Available datasets: {available}")
+
+# Test loading a specific dataset
+dataset = DatasetHub.load("ugphysics", sample_size=10)
+print(f"Loaded {len(dataset)} problems")
 ```
 
 

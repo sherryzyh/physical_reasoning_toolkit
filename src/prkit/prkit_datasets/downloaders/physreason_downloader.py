@@ -201,7 +201,10 @@ class PhysReasonDownloader(BaseDownloader):
 
             return download_dir
 
-        except (ImportError, ValueError, RuntimeError, OSError, Exception) as e:
+        except (ImportError, ValueError) as e:
+            # Re-raise ImportError and ValueError as-is (don't wrap)
+            raise
+        except (RuntimeError, OSError, Exception) as e:
             # Clean up on error
             if download_dir.exists():
                 try:

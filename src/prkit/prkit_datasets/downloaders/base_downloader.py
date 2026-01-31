@@ -152,21 +152,19 @@ class BaseDownloader(ABC):
         """
         # If data_dir is explicitly provided, use it
         if data_dir is not None:
-            resolved_dir = Path(data_dir)
-            if not resolved_dir.is_absolute():
-                resolved_dir = resolved_dir.resolve()
+            resolved_dir = Path(data_dir).resolve()
             return resolved_dir
 
         # Check for DATASET_CACHE_DIR environment variable
         dataset_cache_dir = os.getenv("DATASET_CACHE_DIR")
         if dataset_cache_dir:
-            base_dir = Path(dataset_cache_dir)
+            base_dir = Path(dataset_cache_dir).resolve()
             return base_dir / self.dataset_name
 
         # Fallback to ~/PHYSICAL_REASONING_DATASETS
         # Path.home() already returns an absolute path
         home_data_dir = Path.home() / "PHYSICAL_REASONING_DATASETS"
-        return home_data_dir / self.dataset_name
+        return home_data_dir.resolve() / self.dataset_name
 
     def is_downloaded(self, data_dir: Optional[Union[str, Path]] = None) -> bool:
         """

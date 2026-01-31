@@ -182,10 +182,10 @@ class SeePhysDownloader(BaseDownloader):
 
             return download_dir
 
-        except ImportError as e:
-            # Re-raise ImportError as-is
+        except (ImportError, ValueError) as e:
+            # Re-raise ImportError and ValueError as-is (don't wrap)
             raise
-        except (OSError, ValueError, RuntimeError) as e:
+        except (OSError, RuntimeError) as e:
             # Clean up on error
             if download_dir.exists():
                 try:

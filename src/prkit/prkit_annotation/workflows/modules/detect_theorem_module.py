@@ -195,7 +195,7 @@ class DetectTheoremModule(BaseWorkflowModule):
             PhysicsProblem object with theorem detection added
         """
         # Import here to avoid circular imports
-        from prkit_core.models.physics_problem import PhysicsProblem
+        from prkit.prkit_core.models.physics_problem import PhysicsProblem
 
         # Debug: log what we're receiving
         self.logger.info(
