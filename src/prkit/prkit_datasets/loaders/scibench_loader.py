@@ -133,6 +133,7 @@ class SciBenchLoader(BaseDatasetLoader):
             "total_problems": "160",
             "difficulty": "College level",
             "citation": "SciBench: A College-Level Scientific Reasoning Benchmark",
+            "modalities": self.modalities,
         }
 
     @property

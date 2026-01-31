@@ -61,6 +61,7 @@ class UGPhysicsLoader(BaseDatasetLoader):
             "total_problems": "~2000+",
             "difficulty": "undergraduate",
             "source": "UGPhysics Dataset",
+            "modalities": self.modalities,
         }
 
     @property

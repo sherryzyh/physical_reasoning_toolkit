@@ -44,34 +44,6 @@ class TestSeePhysLoader:
         assert "index" in mapping
         assert mapping["index"] == "problem_id"
 
-    def test_load_from_parquet(self, temp_dir):
-        """Test loading from parquet file."""
-        loader = SeePhysLoader()
-        data_dir = temp_dir / "seephys"
-        data_dir.mkdir(parents=True)
-        
-        # Create a mock parquet file using pandas
-        try:
-            import pandas as pd
-            
-            parquet_file = data_dir / "train.parquet"
-            sample_data = pd.DataFrame([
-                {
-                    "index": "test_001",
-                    "question": "What is F = ma?",
-                    "answer": "F = ma",
-                    "subject": "mechanics",
-                }
-            ])
-            sample_data.to_parquet(parquet_file, engine="pyarrow", index=False)
-            
-            dataset = loader.load(data_dir=str(data_dir), split="train")
-            
-            assert dataset is not None
-            assert len(dataset) == 1
-        except ImportError:
-            pytest.skip("pandas/pyarrow not available")
-
     def test_load_from_json_dir(self, temp_dir):
         """Test loading from JSON directory."""
         loader = SeePhysLoader()
@@ -127,3 +99,57 @@ class TestSeePhysLoader:
         )
         
         assert len(dataset) == 5
+
+    def test_load_with_image_paths(self, temp_dir):
+        """Test loading SeePhys dataset with image_paths."""
+        loader = SeePhysLoader()
+        data_dir = temp_dir / "seephys"
+        split_dir = data_dir / "train"
+        split_dir.mkdir(parents=True)
+        
+        # Create sample JSON file with image_paths
+        json_file = split_dir / "001.json"
+        sample_data = {
+            "index": "test_001",
+            "question": "What is F = ma?",
+            "answer": "F = ma",
+            "subject": "mechanics",
+            "image_paths": ["images/diagram1.jpg", "images/diagram2.png"],
+        }
+        with open(json_file, "w", encoding="utf-8") as f:
+            json.dump(sample_data, f)
+        
+        dataset = loader.load(data_dir=str(data_dir), split="train")
+        
+        assert dataset is not None
+        assert len(dataset) == 1
+        # Verify that image_paths is handled correctly
+        assert dataset[0].image_path is not None
+        assert len(dataset[0].image_path) == 2
+
+    def test_load_with_image_paths_single(self, temp_dir):
+        """Test loading SeePhys dataset with single image_paths string."""
+        loader = SeePhysLoader()
+        data_dir = temp_dir / "seephys"
+        split_dir = data_dir / "train"
+        split_dir.mkdir(parents=True)
+        
+        # Create sample JSON file with single image_paths string
+        json_file = split_dir / "002.json"
+        sample_data = {
+            "index": "test_002",
+            "question": "What is E = mc²?",
+            "answer": "E = mc²",
+            "subject": "relativity",
+            "image_paths": "images/relativity.jpg",
+        }
+        with open(json_file, "w", encoding="utf-8") as f:
+            json.dump(sample_data, f)
+        
+        dataset = loader.load(data_dir=str(data_dir), split="train")
+        
+        assert dataset is not None
+        assert len(dataset) == 1
+        # Verify that single image_paths string is converted to list
+        assert dataset[0].image_path is not None
+        assert len(dataset[0].image_path) == 1

@@ -73,6 +73,7 @@ class JEEBenchLoader(BaseDatasetLoader):
             "citation": "JEEBench dataset for JEE Advanced preparation",
             "license": "Research use",
             "repository": "Local dataset under data/JEEBench/",
+            "modalities": self.modalities,
         }
 
     @property
