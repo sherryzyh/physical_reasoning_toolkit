@@ -9,7 +9,12 @@ from typing import Any, Dict, List, Optional, Type, Union
 
 from prkit.prkit_core import PhysKitLogger
 from prkit.prkit_core.models import PhysicalDataset
-from prkit.prkit_datasets.downloaders import PhysReasonDownloader, SeePhysDownloader
+from prkit.prkit_datasets.downloaders import (
+    PHYBenchDownloader,
+    PhysReasonDownloader,
+    SeePhysDownloader,
+    UGPhysicsDownloader,
+)
 from prkit.prkit_datasets.downloaders.base_downloader import BaseDownloader
 from prkit.prkit_datasets.loaders import (
     JEEBenchLoader,
@@ -70,8 +75,10 @@ class DatasetHub:
     @classmethod
     def _register_default_downloaders(cls):
         """Register the default dataset downloaders."""
+        cls.register_downloader("phybench", PHYBenchDownloader)
         cls.register_downloader("physreason", PhysReasonDownloader)
         cls.register_downloader("seephys", SeePhysDownloader)
+        cls.register_downloader("ugphysics", UGPhysicsDownloader)
         # Add more downloaders as they are implemented
 
     @classmethod

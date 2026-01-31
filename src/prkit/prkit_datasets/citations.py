@@ -51,10 +51,28 @@ SEEPHYS_CITATION = """@article{seephys,
     note = "Paper available at https://openreview.net/pdf?id=APNWmytTCS",
 }"""
 
+# PHYBench citation
+PHYBENCH_CITATION = """@article{qiu2025phybench,
+    title = {Phybench: Holistic evaluation of physical perception and reasoning in large language models},
+    author = {Qiu, Shi and Guo, Shaoyang and Song, Zhuo-Yang and Sun, Yunbo and Cai, Zeyu and Wei, Jiashen and Luo, Tianyu and Yin, Yixuan and Zhang, Haoxu and Hu, Yi and others},
+    journal = {arXiv preprint arXiv:2504.16074},
+    year = {2025}
+}"""
+
+# UGPhysics citation
+UGPHYSICS_CITATION = """@article{xu2025ugphysics,
+    title = {UGPhysics: A Comprehensive Benchmark for Undergraduate Physics Reasoning with Large Language Models},
+    author = {Xu, Xin and Xu, Qiyun and Xiao, Tong and Chen, Tianhao and Yan, Yuchen and Zhang, Jiaxin and Diao, Shizhe and Yang, Can and Wang, Yang},
+    journal = {arXiv preprint arXiv:2502.00334},
+    year = {2025}
+}"""
+
 # Dictionary mapping dataset names to their citations
 CITATIONS: Dict[str, str] = {
     "physreason": PHYSREASON_CITATION,
     "seephys": SEEPHYS_CITATION,
+    "phybench": PHYBENCH_CITATION,
+    "ugphysics": UGPHYSICS_CITATION,
 }
 
 

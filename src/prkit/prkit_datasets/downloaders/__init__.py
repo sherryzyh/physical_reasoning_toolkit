@@ -11,11 +11,15 @@ __author__ = "Yinghuan Zhang"
 __author_email__ = "yinghuan.flash@gmail.com"
 
 from .base_downloader import BaseDownloader
+from .phybench_downloader import PHYBenchDownloader
 from .physreason_downloader import PhysReasonDownloader
 from .seephys_downloader import SeePhysDownloader
+from .ugphysics_downloader import UGPhysicsDownloader
 
 __all__ = [
     "BaseDownloader",
+    "PHYBenchDownloader",
     "PhysReasonDownloader",
     "SeePhysDownloader",
+    "UGPhysicsDownloader",
 ]

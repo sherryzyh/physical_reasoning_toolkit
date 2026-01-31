@@ -1,5 +1,10 @@
 """
-PHYBench dataset loader.
+PHYBench Dataset Loader
+
+This module provides a loader for the PHYBench dataset, which contains
+physics reasoning problems across various domains.
+
+For citation information, see prkit.prkit_datasets.citations.
 """
 
 import json
@@ -27,9 +32,12 @@ class PHYBenchLoader(BaseDatasetLoader):
     def get_info(self) -> Dict[str, Any]:
         return {
             "name": self.name,
-            "description": "PHYBench: A comprehensive physics benchmark dataset with problems across various physics domains",
-            "citation": "PHYBench: A Comprehensive Physics Benchmark Dataset",
+            "description": self.description,
+            "citation": "See prkit.prkit_datasets.citations for BibTeX citation",
             "paper_url": "https://arxiv.org/pdf/2504.16074",
+            "homepage": "https://www.phybench.cn/",
+            "repository_url": "https://huggingface.co/datasets/Eureka-Lab/PHYBench",
+            "license": "Research use",
             "domains": [
                 "mechanics",
                 "electricity",
@@ -40,7 +48,7 @@ class PHYBenchLoader(BaseDatasetLoader):
             ],
             "languages": ["en"],
             "variants": ["full", "fullques", "onlyques"],
-            "splits": ["test"],
+            "splits": ["train"],
             "problem_types": ["OE"],
             "total_problems": "500",
         }
@@ -91,7 +99,8 @@ class PHYBenchLoader(BaseDatasetLoader):
 
         Args:
             data_dir: Path to the PHYBench dataset (defaults to ~/PHYSICAL_REASONING_DATASETS/PHYBench)
-            variant: Dataset variant ("full" or "fullques")
+            variant: Dataset variant ("full", "fullques", or "onlyques")
+            split: Dataset split ("train" is the only available split)
             **kwargs: Additional loading parameters (unused, for compatibility)
 
         Returns:
@@ -103,8 +112,8 @@ class PHYBenchLoader(BaseDatasetLoader):
         if not data_dir.exists():
             raise FileNotFoundError(f"Data directory not found: {data_dir}")
 
-        if split != "test":
-            raise ValueError("PHYBench dataset only supports 'test' split")
+        if split != "train":
+            raise ValueError("PHYBench dataset only supports 'train' split")
 
         # Determine which file to use based on variant
         if variant == "full":
