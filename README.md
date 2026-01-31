@@ -14,11 +14,12 @@ The Physical Reasoning Toolkit is designed to support research and development i
 
 ### **📖 Documentation**
 
-For detailed information on each component, see:
-- **[DATASETS.md](DATASETS.md)**: Complete guide to supported datasets and benchmarks
-- **[LLM_PROVIDERS.md](LLM_PROVIDERS.md)**: LLM/VLM provider integration (OpenAI, Gemini, DeepSeek)
-- **[EVALUATION.md](EVALUATION.md)**: Evaluation metrics and comparison strategies
-- **[ANNOTATION.md](ANNOTATION.md)**: Annotation workflows and tools
+**Quick Links:**
+- 📚 **[DATASETS.md](DATASETS.md)** - Complete guide to supported datasets and benchmarks
+- 🤖 **[LLM_PROVIDERS.md](LLM_PROVIDERS.md)** - LLM/VLM provider integration (OpenAI, Gemini, DeepSeek)
+- 📊 **[EVALUATION.md](EVALUATION.md)** - Evaluation metrics and comparison strategies
+- 🏷️ **[DEVELOPER.md](DEVELOPER.md)** - Developer guide and contribution guidelines
+- 📝 **[CHANGELOG.md](CHANGELOG.md)** - Version history and release notes
 
 ## 🏗️ **Repository Structure**
 
