@@ -9,8 +9,8 @@ from typing import Any, Dict, List
 
 import pytest
 
-from prkit.prkit_core.definitions import AnswerType, PhysicsDomain
-from prkit.prkit_core.models import Answer, PhysicalDataset, PhysicsProblem
+from prkit.prkit_core.domain import AnswerType, PhysicsDomain
+from prkit.prkit_core.domain import Answer, PhysicalDataset, PhysicsProblem
 
 
 @pytest.fixture
@@ -119,6 +119,6 @@ def mock_llm_response(monkeypatch):
             return "TRUE"
         return "FALSE"
 
-    # This would need to be patched at the LLMClient level
+    # This would need to be patched at the model client level
     # For now, we'll handle it in individual test files
     return mock_chat

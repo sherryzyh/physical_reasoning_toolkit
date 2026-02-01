@@ -4,7 +4,7 @@ Tests for utility functions and helper modules.
 
 import pytest
 
-from prkit.prkit_core.definitions import AnswerType
+from prkit.prkit_core.domain import AnswerType
 from prkit.prkit_datasets.loaders.base_loader import (
     detect_answer_type,
     is_mathematical_expression,

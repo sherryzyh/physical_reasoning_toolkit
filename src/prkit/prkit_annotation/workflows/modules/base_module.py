@@ -11,7 +11,7 @@ from datetime import datetime
 from typing import Any, Dict, Optional, Union
 
 from prkit.prkit_core import PRKitLogger
-from prkit.prkit_core.models.physics_problem import PhysicsProblem
+from prkit.prkit_core.domain.physics_problem import PhysicsProblem
 
 
 class BaseWorkflowModule(ABC):

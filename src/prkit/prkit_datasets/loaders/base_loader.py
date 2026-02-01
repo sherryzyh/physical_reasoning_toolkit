@@ -14,9 +14,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from prkit.prkit_core import PRKitLogger
-from prkit.prkit_core.definitions.answer_types import AnswerType
-from prkit.prkit_core.models import PhysicalDataset, PhysicsProblem
-from prkit.prkit_core.models.answer import Answer
+from prkit.prkit_core.domain.answer_type import AnswerType
+from prkit.prkit_core.domain import PhysicalDataset, PhysicsProblem
+from prkit.prkit_core.domain.answer import Answer
 
 # Try to import PIL/Pillow for image loading
 try:

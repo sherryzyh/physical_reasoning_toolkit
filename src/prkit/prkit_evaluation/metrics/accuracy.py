@@ -7,8 +7,8 @@ answers against ground truth answers using appropriate comparison strategies.
 
 from typing import Any, Dict, List, Optional, Union
 
-from prkit.prkit_core.definitions.answer_types import AnswerType
-from prkit.prkit_core.models.answer import Answer
+from prkit.prkit_core.domain.answer_type import AnswerType
+from prkit.prkit_core.domain.answer import Answer
 
 from ..comparison import SmartAnswerComparator
 from .base import BaseMetric

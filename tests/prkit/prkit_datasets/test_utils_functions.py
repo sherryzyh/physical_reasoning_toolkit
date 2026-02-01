@@ -4,8 +4,8 @@ Tests for prkit_datasets/utils.py utility functions.
 
 import json
 
-from prkit.prkit_core.definitions import AnswerType
-from prkit.prkit_core.models import Answer, PhysicalDataset, PhysicsProblem
+from prkit.prkit_core.domain import AnswerType
+from prkit.prkit_core.domain import Answer, PhysicalDataset, PhysicsProblem
 from prkit.prkit_datasets import utils
 
 

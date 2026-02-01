@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from prkit.prkit_core.definitions import AnswerType, PhysicsDomain
-from prkit.prkit_core.models import Answer, PhysicalDataset, PhysicsProblem
+from prkit.prkit_core.domain import AnswerType, PhysicsDomain
+from prkit.prkit_core.domain import Answer, PhysicalDataset, PhysicsProblem
 
 
 class TestPhysicalDataset:

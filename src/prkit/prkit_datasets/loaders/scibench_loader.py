@@ -20,9 +20,9 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from prkit.prkit_core import PRKitLogger
-from prkit.prkit_core.definitions.answer_types import AnswerType
-from prkit.prkit_core.definitions.physics_domain import PhysicsDomain
-from prkit.prkit_core.models import PhysicalDataset, PhysicsProblem
+from prkit.prkit_core.domain.answer_type import AnswerType
+from prkit.prkit_core.domain.physics_domain import PhysicsDomain
+from prkit.prkit_core.domain import PhysicalDataset, PhysicsProblem
 
 from .base_loader import BaseDatasetLoader
 

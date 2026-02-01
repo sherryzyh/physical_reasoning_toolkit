@@ -5,7 +5,7 @@ This script demonstrates how to use the AccuracyMetric with different
 types of answers (symbolic, numerical, and textual).
 """
 
-from prkit.prkit_core.definitions.answer_types import (
+from prkit.prkit_core.domain.answer_type import (
     NumericalAnswer,
     SymbolicAnswer,
     TextualAnswer,

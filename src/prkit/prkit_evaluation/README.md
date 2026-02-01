@@ -65,7 +65,7 @@ Planned metrics:
 ### Basic Accuracy Evaluation
 
 ```python
-from prkit.prkit_core.definitions.answer_types import SymbolicAnswer, NumericalAnswer
+from prkit.prkit_core.domain.answer_type import SymbolicAnswer, NumericalAnswer
 from prkit.prkit_evaluation.metrics import AccuracyMetric
 
 # Create predictions and ground truths
@@ -142,7 +142,7 @@ class NewMetric(BaseMetric):
 
 ## Dependencies
 
-- **Core**: Uses `prkit.prkit_core.definitions.answer_types` for answer type definitions
+- **Core**: Uses `prkit.prkit_core.domain.answer_type` for answer type definitions
 - **Symbolic Comparison**: Uses local PhyBench LaTeX preprocessing for robust LaTeX parsing
   - **Primary**: Local PhyBench preprocessing script in `utils/phybench_latex_pre_process.py`
   - **Original Source**: [phybench-official/phybench](https://github.com/phybench-official/phybench/blob/main/EED/latex_pre_process.py)

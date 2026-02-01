@@ -8,7 +8,7 @@ through composition rather than inheritance.
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Union
 
-from ..definitions.answer_types import AnswerType
+from .answer_type import AnswerType
 
 
 @dataclass

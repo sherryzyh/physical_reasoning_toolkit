@@ -6,7 +6,7 @@ import os
 from abc import ABC, abstractmethod
 from typing import Any
 
-from prkit.prkit_core.llm import LLMClient
+from prkit.prkit_core.model_clients import create_model_client
 
 
 class BaseAnnotator(ABC):
@@ -20,7 +20,7 @@ class BaseAnnotator(ABC):
             model: LLM model name to use for annotation
         """
         self.model = model
-        self.llm_client = LLMClient.from_model(model)
+        self.llm_client = create_model_client(model)
 
     @abstractmethod
     def work(self, question: str, **kwargs) -> Any:
@@ -42,17 +42,24 @@ class BaseAnnotator(ABC):
 
         Args:
             prompt: Prompt text for the LLM
-            response_format: Expected response format specification
+            response_format: Expected response format specification (Pydantic model)
 
         Returns:
-            Structured response from LLM, or None if call fails
+            Parsed response object (instance of response_format), or None if call fails
         """
         try:
-            return self.llm_client.chat_structured(
-                system_prompt="You are a physics expert. Provide accurate, detailed analysis of physics problems. Always respond with valid JSON in the exact format requested.",
-                prompt=prompt,
-                response_format=response_format,
+            full_prompt = (
+                "You are a physics expert. Provide accurate, detailed analysis of physics problems. "
+                "Always respond with valid JSON in the exact format requested.\n\n"
+                f"{prompt}"
             )
+            response_text = self.llm_client.chat(full_prompt)
+            if response_text:
+                # Parse JSON response and create response_format instance
+                import json
+                response_dict = json.loads(response_text.strip())
+                return response_format(**response_dict)
+            return None
         except Exception as e:
             print(f"Error calling LLM API with structured output: {e}")
             return None
@@ -68,14 +75,12 @@ class BaseAnnotator(ABC):
             Response text from LLM, or empty JSON string if call fails
         """
         try:
-            messages = [
-                {
-                    "role": "system",
-                    "content": "You are a physics expert. Provide accurate, detailed analysis of physics problems. Always respond with valid JSON in the exact format requested.",
-                },
-                {"role": "user", "content": prompt},
-            ]
-            return self.llm_client.chat(messages).strip()
+            full_prompt = (
+                "You are a physics expert. Provide accurate, detailed analysis of physics problems. "
+                "Always respond with valid JSON in the exact format requested.\n\n"
+                f"{prompt}"
+            )
+            return self.llm_client.chat(full_prompt).strip()
         except Exception as e:
             print(f"Error calling LLM API: {e}")
             return "{}"

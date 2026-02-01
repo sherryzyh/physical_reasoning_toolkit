@@ -12,8 +12,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
 from prkit.prkit_core import PRKitLogger
-from prkit.prkit_core.models import PhysicalDataset
-from prkit.prkit_core.models.physics_problem import PhysicsProblem
+from prkit.prkit_core.domain import PhysicalDataset
+from prkit.prkit_core.domain.physics_problem import PhysicsProblem
 
 from .modules.base_module import BaseWorkflowModule
 

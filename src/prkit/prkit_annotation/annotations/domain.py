@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Any, Dict, List
 
-from prkit.prkit_core.definitions.physics_domain import PhysicsDomain
+from prkit.prkit_core.domain.physics_domain import PhysicsDomain
 
 
 @dataclass

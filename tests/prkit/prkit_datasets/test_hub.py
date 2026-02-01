@@ -6,7 +6,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from prkit.prkit_core.models import PhysicalDataset, PhysicsProblem
+from prkit.prkit_core.domain import PhysicalDataset, PhysicsProblem
 from prkit.prkit_datasets import DatasetHub
 from prkit.prkit_datasets.loaders.base_loader import BaseDatasetLoader
 

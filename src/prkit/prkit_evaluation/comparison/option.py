@@ -9,8 +9,8 @@ This comparator handles both single and multiple choice answers, with support fo
 
 from typing import Any, Dict, List
 
-from prkit.prkit_core.definitions.answer_types import AnswerType
-from prkit.prkit_core.models.answer import Answer
+from prkit.prkit_core.domain.answer_type import AnswerType
+from prkit.prkit_core.domain.answer import Answer
 
 from .base import BaseComparator
 

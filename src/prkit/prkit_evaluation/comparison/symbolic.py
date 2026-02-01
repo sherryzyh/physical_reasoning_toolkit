@@ -10,8 +10,8 @@ from typing import Any, Dict, Optional
 
 import sympy as sp
 
-from prkit.prkit_core.definitions.answer_types import AnswerType
-from prkit.prkit_core.models.answer import Answer
+from prkit.prkit_core.domain.answer_type import AnswerType
+from prkit.prkit_core.domain.answer import Answer
 
 from ..utils.phybench_latex_pre_process import master_convert, time_simplify
 from .base import BaseComparator

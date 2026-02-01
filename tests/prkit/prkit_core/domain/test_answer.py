@@ -4,8 +4,8 @@ Tests for Answer model.
 
 import pytest
 
-from prkit.prkit_core.definitions import AnswerType
-from prkit.prkit_core.models import Answer
+from prkit.prkit_core.domain import AnswerType
+from prkit.prkit_core.domain import Answer
 
 
 class TestAnswer:

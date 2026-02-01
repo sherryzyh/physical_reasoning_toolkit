@@ -23,8 +23,7 @@ try:
 
     # Import main components for easy access
     from .prkit_core import PRKitLogger
-    from .prkit_core.definitions import AnswerType, PhysicsDomain
-    from .prkit_core.models import PhysicalDataset, PhysicsProblem
+    from .prkit_core.domain import AnswerType, PhysicsDomain, PhysicalDataset, PhysicsProblem
 except ImportError:
     # Allow package to be imported even if subpackages aren't installed
     pass
