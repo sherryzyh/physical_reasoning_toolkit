@@ -106,3 +106,69 @@ class TestAnswerType:
         """Test string representation."""
         assert AnswerType.NUMERICAL.value == "numerical"
         assert AnswerType.SYMBOLIC.value == "symbolic"
+
+    def test_domain_from_string_lowercase(self):
+        """Test from_string with lowercase input."""
+        domain = PhysicsDomain.from_string("classical_mechanics")
+        assert domain == PhysicsDomain.CLASSICAL_MECHANICS
+
+    def test_domain_from_string_mixed_case(self):
+        """Test from_string with mixed case input."""
+        domain = PhysicsDomain.from_string("Classical_Mechanics")
+        assert domain == PhysicsDomain.CLASSICAL_MECHANICS
+
+    def test_domain_from_string_with_underscores(self):
+        """Test from_string handles underscores correctly."""
+        domain = PhysicsDomain.from_string("quantum_mechanics")
+        assert domain == PhysicsDomain.QUANTUM_MECHANICS
+
+    def test_domain_from_string_normalization_spaces(self):
+        """Test from_string normalizes spaces to underscores."""
+        domain = PhysicsDomain.from_string("quantum mechanics")
+        assert domain == PhysicsDomain.QUANTUM_MECHANICS
+
+    def test_domain_from_string_normalization_hyphens(self):
+        """Test from_string normalizes hyphens to underscores."""
+        domain = PhysicsDomain.from_string("quantum-mechanics")
+        assert domain == PhysicsDomain.QUANTUM_MECHANICS
+
+    def test_domain_from_string_completely_invalid(self):
+        """Test from_string with completely invalid string."""
+        domain = PhysicsDomain.from_string("xyz123abc")
+        assert domain == PhysicsDomain.OTHER
+
+    def test_domain_from_string_empty_string(self):
+        """Test from_string with empty string."""
+        domain = PhysicsDomain.from_string("")
+        # Should return OTHER for empty string
+        assert domain == PhysicsDomain.OTHER
+
+    def test_domain_from_value_same_as_from_string(self):
+        """Test that from_value behaves same as from_string."""
+        str1 = PhysicsDomain.from_string("classical_mechanics")
+        str2 = PhysicsDomain.from_value("classical_mechanics")
+        assert str1 == str2
+
+    def test_domain_str_method(self):
+        """Test __str__ method returns value."""
+        domain = PhysicsDomain.THERMODYNAMICS
+        assert str(domain) == "thermodynamics"
+
+    def test_domain_repr_method(self):
+        """Test __repr__ method includes name."""
+        domain = PhysicsDomain.CLASSICAL_MECHANICS
+        repr_str = repr(domain)
+        assert "CLASSICAL_MECHANICS" in repr_str
+        assert "PhysicsDomain" in repr_str
+
+    def test_answer_type_enum_comparison(self):
+        """Test AnswerType enum comparison."""
+        assert AnswerType.NUMERICAL == AnswerType.NUMERICAL
+        assert AnswerType.NUMERICAL != AnswerType.SYMBOLIC
+
+    def test_answer_type_value_access(self):
+        """Test accessing AnswerType values."""
+        assert AnswerType.NUMERICAL.value == "numerical"
+        assert AnswerType.SYMBOLIC.value == "symbolic"
+        assert AnswerType.TEXTUAL.value == "textual"
+        assert AnswerType.OPTION.value == "option"
