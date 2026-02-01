@@ -107,7 +107,7 @@ The `image_paths` parameter accepts three types of inputs:
 
 ## Adding New Providers
 
-### Adding a New LLM Provider
+### Adding a New Model Provider
 
 1. Create a new module (e.g., `anthropic.py`)
 2. Create a class inheriting from `BaseModelClient`:

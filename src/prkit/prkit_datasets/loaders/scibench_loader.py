@@ -410,7 +410,7 @@ class SciBenchLoader(BaseDatasetLoader):
         self.validate_variant(variant)
         self.validate_split(split)
         
-        data_dir = self.resolve_data_dir(data_dir, "scibench")
+        data_dir = self.resolve_data_dir(data_dir, "SciBench")
 
         all_problems = []
 

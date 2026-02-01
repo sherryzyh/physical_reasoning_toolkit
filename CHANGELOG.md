@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Initial release of Physical Reasoning Toolkit v0.1.0
-- Core package (`prkit_core`) with models and LLM integration
+- Core package (`prkit_core`) with models and provider integration
 - Dataset loaders (`prkit_datasets`) supporting 7 physics datasets
 - Annotation workflows (`prkit_annotation`) for automated and supervised annotation
 - Evaluation metrics (`prkit_evaluation`) for physics reasoning assessment
@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Experimental Datasets**: PHYBench, UGPhysics, JEEBench, SciBench, TPBench (available but require further testing)
 - Standardized `PhysicsProblem` and `PhysicalDataset` models
 - Domain classification and theorem detection workflows
-- Multiple LLM provider support (OpenAI, Google Gemini, DeepSeek)
+- Multiple model provider support (OpenAI, Google Gemini, DeepSeek, Ollama)
 - Professional logging with environment variable configuration
 - Flexible import system: supports both top-level (`from prkit_datasets import DatasetHub`) and package-level (`from prkit.prkit_datasets import DatasetHub`) imports
 

@@ -169,37 +169,79 @@ class DatasetHub:
         if variant is None:
             variant = loader.get_default_variant()
             if variant is not None:
-                cls._logger.debug(
+                cls._logger.info(
                     f"Using default variant '{variant}' for dataset '{dataset_name}'"
                 )
+            else:
+                cls._logger.error(f"No default variant set for dataset '{dataset_name}'")
+                raise ValueError(f"No default variant set and no variant provided for dataset '{dataset_name}'")
         else:
             # Validate explicitly provided variant
-            loader.validate_variant(variant)
+            try:
+                loader.validate_variant(variant)
+            except ValueError as e:
+                cls._logger.error(
+                    f"Invalid variant '{variant}' for dataset '{dataset_name}'. {e}"
+                )
+                raise
 
         # Handle split: use default if not provided, validate if provided
         split = kwargs.pop("split", None)
         if split is None:
             split = loader.get_default_split()
             if split is not None:
-                cls._logger.debug(
+                cls._logger.info(
                     f"Using default split '{split}' for dataset '{dataset_name}'"
                 )
+            else:
+                cls._logger.error(f"No default split set for dataset '{dataset_name}'")
+                raise ValueError(f"No default split set and no split provided for dataset '{dataset_name}'")
         else:
             # Validate explicitly provided split
-            loader.validate_split(split)
+            try:
+                loader.validate_split(split)
+            except ValueError as e:
+                cls._logger.error(
+                    f"Invalid split '{split}' for dataset '{dataset_name}'. {e}"
+                )
+                raise
 
-        # Prepare load arguments
-        load_kwargs = {"sample_size": sample_size, **kwargs}
+        # Resolve actual values for logging (including defaults)
+        if data_dir is None:
+            # Resolve default data directory
+            actual_data_dir = loader.resolve_data_dir(None, dataset_name)
+        else:
+            actual_data_dir = data_dir
+        
+        if variant is None:
+            actual_variant = loader.get_default_variant()
+        else:
+            actual_variant = variant
+        
+        if split is None:
+            actual_split = loader.get_default_split()
+        else:
+            actual_split = split
 
-        # Add variant and split if they were determined
-        if variant is not None:
-            load_kwargs["variant"] = variant
-        if split is not None:
-            load_kwargs["split"] = split
+        # Log detailed loading arguments with actual resolved values
+        cls._logger.info(f"Loading dataset '{dataset_name}' with the following arguments:")
+        cls._logger.info(f"  - dataset_name: {dataset_name}")
+        cls._logger.info(f"  - data_dir: {actual_data_dir}")
+        cls._logger.info(f"  - variant: {actual_variant}")
+        cls._logger.info(f"  - split: {actual_split}")
+        cls._logger.info(f"  - sample_size: {"full" if sample_size is None else sample_size}")
+        cls._logger.info(f"  - auto_download: {auto_download}")
+        if kwargs:
+            cls._logger.info(f"  - additional kwargs: {kwargs}")
 
-        # Add data_dir if specified
-        if data_dir is not None:
-            load_kwargs["data_dir"] = data_dir
+        load_kwargs = {
+            "data_dir": actual_data_dir,
+            "variant": actual_variant,
+            "split": actual_split,
+            "sample_size": sample_size,
+            "auto_download": auto_download,
+            **kwargs,
+        }
 
         # Try to load the dataset
         try:

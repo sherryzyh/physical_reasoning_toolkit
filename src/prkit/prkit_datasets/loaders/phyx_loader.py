@@ -148,7 +148,7 @@ class PhyXLoader(BaseDatasetLoader):
         Load PhyX dataset.
 
         Args:
-            data_dir: Path to the PhyX dataset (defaults to ~/PHYSICAL_REASONING_DATASETS/phyx)
+            data_dir: Path to the PhyX dataset (defaults to ~/PHYSICAL_REASONING_DATASETS/PhyX)
             variant: Dataset variant. Defaults to "test_mini" if available.
             split: Dataset split. Defaults to "test_mini" if available.
             sample_size: Number of problems to load (None = all)
@@ -168,7 +168,7 @@ class PhyXLoader(BaseDatasetLoader):
         self.validate_split(split)
 
         # Resolve data directory with environment variable support
-        data_dir = self.resolve_data_dir(data_dir, "phyx")
+        data_dir = self.resolve_data_dir(data_dir, "PhyX")
 
         if not data_dir.exists():
             raise FileNotFoundError(f"Data directory not found: {data_dir}")
