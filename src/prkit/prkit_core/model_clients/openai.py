@@ -62,6 +62,8 @@ def _is_o_family_model(model: str) -> bool:
     model_lower = model.lower()
     return len(model_lower) > 1 and model_lower[0] == "o" and model_lower[1].isdigit()
 
+
+
 def prepare_image_url_from_image_path(image_path: str) -> str:
     """
     Prepare an image URL from a file path, URL, or base64 data URL.
@@ -157,22 +159,26 @@ class OpenAIModel(BaseModelClient):
             FileNotFoundError: If any image_path is a file path that doesn't exist
             IOError: If there's an error reading any image file
         """
-        # Build content array with text and images
-        input_content = [{"type": "input_text", "text": user_prompt}]
+        # Build request parameters
+        request_params = {"model": self.model}
+        
+        # Use role/content format for all models
+        content = [{"type": "input_text", "text": user_prompt}]
         
         if image_paths:
             for image_path in image_paths:
                 image_url = prepare_image_url_from_image_path(image_path)
-                input_content.append({
+                content.append({
                     "type": "input_image",
                     "image_url": image_url
                 })
         
-        # Build request parameters
-        request_params = {
-            "model": self.model,
-            "input": input_content,
-        }
+        request_params["input"] = [
+            {
+                "role": "user",
+                "content": content
+            }
+        ]
         
         # Add reasoning parameter for o-family models
         if self.is_o_family:
