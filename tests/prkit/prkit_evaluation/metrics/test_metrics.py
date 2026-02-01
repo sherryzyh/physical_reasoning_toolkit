@@ -2,10 +2,12 @@
 Tests for evaluation metrics: AccuracyMetric.
 """
 
+from unittest.mock import Mock, patch
+
 import pytest
 
-from prkit.prkit_core.definitions import AnswerType
-from prkit.prkit_core.models import Answer
+from prkit.prkit_core.domain import AnswerType
+from prkit.prkit_core.domain import Answer
 from prkit.prkit_evaluation.comparison import SmartAnswerComparator
 from prkit.prkit_evaluation.metrics import AccuracyMetric, BaseMetric
 
@@ -107,21 +109,32 @@ class TestBaseMetric:
 class TestAccuracyMetric:
     """Test cases for AccuracyMetric."""
 
-    def test_accuracy_metric_initialization(self):
+    @patch("prkit.prkit_evaluation.comparison.textual.create_model_client")
+    def test_accuracy_metric_initialization(self, mock_create):
         """Test accuracy metric initialization."""
+        mock_client = Mock()
+        mock_create.return_value = mock_client
+        mock_client = Mock()
+        mock_create.return_value = mock_client
         metric = AccuracyMetric()
         assert metric.name == "Accuracy"
         assert metric.description == "Measures the proportion of correct predictions"
         assert isinstance(metric.comparator, SmartAnswerComparator)
 
-    def test_accuracy_metric_initialization_custom_comparator(self):
+    @patch("prkit.prkit_evaluation.comparison.textual.create_model_client")
+    def test_accuracy_metric_initialization_custom_comparator(self, mock_create):
         """Test accuracy metric with custom comparator."""
+        mock_client = Mock()
+        mock_create.return_value = mock_client
         comparator = SmartAnswerComparator()
         metric = AccuracyMetric(comparator=comparator)
         assert metric.comparator == comparator
 
-    def test_compute_all_correct(self):
+    @patch("prkit.prkit_evaluation.comparison.textual.create_model_client")
+    def test_compute_all_correct(self, mock_create):
         """Test computing accuracy with all correct predictions."""
+        mock_client = Mock()
+        mock_create.return_value = mock_client
         metric = AccuracyMetric()
         predictions = [
             Answer(value=1, answer_type=AnswerType.NUMERICAL),
@@ -140,8 +153,11 @@ class TestAccuracyMetric:
         assert result["correct_samples"] == 3
         assert result["incorrect_samples"] == 0
 
-    def test_compute_all_incorrect(self):
+    @patch("prkit.prkit_evaluation.comparison.textual.create_model_client")
+    def test_compute_all_incorrect(self, mock_create):
         """Test computing accuracy with all incorrect predictions."""
+        mock_client = Mock()
+        mock_create.return_value = mock_client
         metric = AccuracyMetric()
         predictions = [
             Answer(value=1, answer_type=AnswerType.NUMERICAL),
@@ -157,8 +173,11 @@ class TestAccuracyMetric:
         assert result["correct_samples"] == 0
         assert result["incorrect_samples"] == 2
 
-    def test_compute_partial_correct(self):
+    @patch("prkit.prkit_evaluation.comparison.textual.create_model_client")
+    def test_compute_partial_correct(self, mock_create):
         """Test computing accuracy with partial correctness."""
+        mock_client = Mock()
+        mock_create.return_value = mock_client
         metric = AccuracyMetric()
         predictions = [
             Answer(value=1, answer_type=AnswerType.NUMERICAL),
@@ -176,8 +195,11 @@ class TestAccuracyMetric:
         assert result["correct_samples"] == 2
         assert result["incorrect_samples"] == 1
 
-    def test_compute_with_details(self):
+    @patch("prkit.prkit_evaluation.comparison.textual.create_model_client")
+    def test_compute_with_details(self, mock_create):
         """Test computing accuracy with return_details=True."""
+        mock_client = Mock()
+        mock_create.return_value = mock_client
         metric = AccuracyMetric()
         predictions = [
             Answer(value=1, answer_type=AnswerType.NUMERICAL),
@@ -194,8 +216,11 @@ class TestAccuracyMetric:
         assert result["details"][0]["is_correct"] is True
         assert result["details"][1]["is_correct"] is False
 
-    def test_compute_single_correct(self):
+    @patch("prkit.prkit_evaluation.comparison.textual.create_model_client")
+    def test_compute_single_correct(self, mock_create):
         """Test computing accuracy for a single correct prediction."""
+        mock_client = Mock()
+        mock_create.return_value = mock_client
         metric = AccuracyMetric()
         prediction = Answer(value=42, answer_type=AnswerType.NUMERICAL)
         ground_truth = Answer(value=42, answer_type=AnswerType.NUMERICAL)
@@ -206,8 +231,11 @@ class TestAccuracyMetric:
         assert "prediction" in result
         assert "ground_truth" in result
 
-    def test_compute_single_incorrect(self):
+    @patch("prkit.prkit_evaluation.comparison.textual.create_model_client")
+    def test_compute_single_incorrect(self, mock_create):
         """Test computing accuracy for a single incorrect prediction."""
+        mock_client = Mock()
+        mock_create.return_value = mock_client
         metric = AccuracyMetric()
         prediction = Answer(value=42, answer_type=AnswerType.NUMERICAL)
         ground_truth = Answer(value=43, answer_type=AnswerType.NUMERICAL)
@@ -215,8 +243,11 @@ class TestAccuracyMetric:
         result = metric.compute_single(prediction, ground_truth)
         assert result["is_correct"] is False
 
-    def test_get_accuracy_by_type(self):
+    @patch("prkit.prkit_evaluation.comparison.textual.create_model_client")
+    def test_get_accuracy_by_type(self, mock_create):
         """Test computing accuracy broken down by answer type."""
+        mock_client = Mock()
+        mock_create.return_value = mock_client
         metric = AccuracyMetric()
         predictions = [
             Answer(value=1, answer_type=AnswerType.NUMERICAL),
@@ -235,14 +266,20 @@ class TestAccuracyMetric:
         assert result["numerical"]["accuracy"] == pytest.approx(0.5, rel=1e-6)
         assert result["option"]["accuracy"] == 1.0
 
-    def test_compute_empty_list(self):
+    @patch("prkit.prkit_evaluation.comparison.textual.create_model_client")
+    def test_compute_empty_list(self, mock_create):
         """Test computing accuracy with empty lists."""
+        mock_client = Mock()
+        mock_create.return_value = mock_client
         metric = AccuracyMetric()
         with pytest.raises(ValueError):
             metric.compute([], [])
 
-    def test_compute_mismatched_lengths(self):
+    @patch("prkit.prkit_evaluation.comparison.textual.create_model_client")
+    def test_compute_mismatched_lengths(self, mock_create):
         """Test computing accuracy with mismatched lengths."""
+        mock_client = Mock()
+        mock_create.return_value = mock_client
         metric = AccuracyMetric()
         predictions = [Answer(value=1, answer_type=AnswerType.NUMERICAL)]
         ground_truths = [
@@ -253,8 +290,11 @@ class TestAccuracyMetric:
         with pytest.raises(ValueError):
             metric.compute(predictions, ground_truths)
 
-    def test_compute_mixed_types(self):
+    @patch("prkit.prkit_evaluation.comparison.textual.create_model_client")
+    def test_compute_mixed_types(self, mock_create):
         """Test computing accuracy with mixed answer types."""
+        mock_client = Mock()
+        mock_create.return_value = mock_client
         metric = AccuracyMetric()
         predictions = [
             Answer(value=42, answer_type=AnswerType.NUMERICAL),

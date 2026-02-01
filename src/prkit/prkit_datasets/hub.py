@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Type, Union
 
 from prkit.prkit_core import PRKitLogger
-from prkit.prkit_core.models import PhysicalDataset
+from prkit.prkit_core.domain import PhysicalDataset
 from prkit.prkit_datasets.downloaders import (
     PHYBenchDownloader,
     PhyXDownloader,

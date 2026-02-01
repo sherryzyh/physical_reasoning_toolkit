@@ -10,7 +10,7 @@ The evaluation module provides standardized metrics and comparison strategies fo
 
 ```python
 from prkit.prkit_evaluation.metrics import AccuracyMetric
-from prkit.prkit_core.definitions.answer_types import SymbolicAnswer, NumericalAnswer
+from prkit.prkit_core.domain.answer_type import SymbolicAnswer, NumericalAnswer
 
 # Create predictions and ground truths
 predictions = [
@@ -39,7 +39,7 @@ Mathematical expressions and formulas.
 
 **Example:**
 ```python
-from prkit.prkit_core.definitions.answer_types import SymbolicAnswer
+from prkit.prkit_core.domain.answer_type import SymbolicAnswer
 
 pred = SymbolicAnswer("x^2 + 2x + 1")
 truth = SymbolicAnswer("(x + 1)^2")  # Equivalent expression
@@ -56,7 +56,7 @@ Numerical values with optional units.
 
 **Example:**
 ```python
-from prkit.prkit_core.definitions.answer_types import NumericalAnswer
+from prkit.prkit_core.domain.answer_type import NumericalAnswer
 
 pred = NumericalAnswer(3.14, units="m/s")
 truth = NumericalAnswer(3.14159, units="m/s", tolerance=0.01)
@@ -73,7 +73,7 @@ Natural language descriptions and explanations.
 
 **Example:**
 ```python
-from prkit.prkit_core.definitions.answer_types import TextualAnswer
+from prkit.prkit_core.domain.answer_type import TextualAnswer
 
 pred = TextualAnswer("The force is equal to mass times acceleration")
 truth = TextualAnswer("Force equals mass multiplied by acceleration")
@@ -90,7 +90,7 @@ Multiple choice selections.
 
 **Example:**
 ```python
-from prkit.prkit_core.definitions.answer_types import OptionAnswer
+from prkit.prkit_core.domain.answer_type import OptionAnswer
 
 pred = OptionAnswer(0)  # First option
 truth = OptionAnswer(0)  # Correct answer
@@ -282,7 +282,7 @@ for model, accuracy in results.items():
 ### Domain-Specific Evaluation
 
 ```python
-from prkit.prkit_core.definitions.physics_domain import PhysicsDomain
+from prkit.prkit_core.domain.physics_domain import PhysicsDomain
 
 # Group problems by domain
 domain_problems = {}
@@ -312,7 +312,7 @@ for domain, accuracy in domain_results.items():
 ### Custom Tolerance for Numerical Answers
 
 ```python
-from prkit.prkit_core.definitions.answer_types import NumericalAnswer
+from prkit.prkit_core.domain.answer_type import NumericalAnswer
 
 # Set tolerance for approximate matching
 pred = NumericalAnswer(3.14, units="m/s")
@@ -382,7 +382,7 @@ class PrecisionMetric(BaseMetric):
 
 ### Adding New Answer Types
 
-1. Create a new class inheriting from `BaseAnswer` in `prkit_core.definitions.answer_types`
+1. Create a new class inheriting from `BaseAnswer` in `prkit_core.domain.answer_type`
 2. Implement the `validate` method
 3. Add a corresponding comparator in `prkit_evaluation.comparison`
 4. Update the `SmartAnswerComparator` routing
@@ -408,7 +408,7 @@ class CustomComparator(BaseComparator):
 
 ## Dependencies
 
-- **Core**: Uses `prkit.prkit_core.definitions.answer_types` for answer type definitions
+- **Core**: Uses `prkit.prkit_core.domain.answer_type` for answer type definitions
 - **Symbolic Comparison**: Uses local PhyBench LaTeX preprocessing for robust LaTeX parsing
   - **Primary**: Local PhyBench preprocessing script in `utils/phybench_latex_pre_process.py`
   - **Original Source**: [phybench-official/phybench](https://github.com/phybench-official/phybench/blob/main/EED/latex_pre_process.py)
@@ -432,7 +432,7 @@ class CustomComparator(BaseComparator):
 
 ```python
 # Ensure predictions and ground truths have compatible types
-from prkit.prkit_core.definitions.answer_types import SymbolicAnswer
+from prkit.prkit_core.domain.answer_type import SymbolicAnswer
 
 pred = SymbolicAnswer("x^2")
 truth = SymbolicAnswer("x*x")  # Same type

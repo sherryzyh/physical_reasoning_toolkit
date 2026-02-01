@@ -7,8 +7,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from prkit.prkit_core.definitions import AnswerType
-from prkit.prkit_core.models import Answer
+from prkit.prkit_core.domain import AnswerType
+from prkit.prkit_core.domain import Answer
 from prkit.prkit_evaluation.comparison import (
     NumericalComparator,
     OptionComparator,
@@ -158,27 +158,33 @@ class TestSymbolicComparator:
 class TestTextualComparator:
     """Test cases for TextualComparator."""
 
-    def test_can_compare_textual(self):
+    @patch("prkit.prkit_evaluation.comparison.textual.create_model_client")
+    def test_can_compare_textual(self, mock_create):
         """Test can_compare with textual answers."""
+        mock_client = Mock()
+        mock_create.return_value = mock_client
         comparator = TextualComparator()
         answer1 = Answer(value="The answer is 42", answer_type=AnswerType.TEXTUAL)
         answer2 = Answer(value="42 is the answer", answer_type=AnswerType.TEXTUAL)
         assert comparator.can_compare(answer1, answer2) is True
 
-    def test_can_compare_non_textual(self):
+    @patch("prkit.prkit_evaluation.comparison.textual.create_model_client")
+    def test_can_compare_non_textual(self, mock_create):
         """Test can_compare with non-textual answers."""
+        mock_client = Mock()
+        mock_create.return_value = mock_client
         comparator = TextualComparator()
         answer1 = Answer(value="text", answer_type=AnswerType.TEXTUAL)
         answer2 = Answer(value=42, answer_type=AnswerType.NUMERICAL)
         assert comparator.can_compare(answer1, answer2) is False
 
-    @patch("prkit.prkit_evaluation.comparison.textual.LLMClient")
-    def test_compare_textual_with_mock(self, mock_llm_client_class):
+    @patch("prkit.prkit_evaluation.comparison.textual.create_model_client")
+    def test_compare_textual_with_mock(self, mock_create):
         """Test comparing textual answers with mocked LLM."""
         # Setup mock
         mock_client = Mock()
         mock_client.chat.return_value = "TRUE"
-        mock_llm_client_class.from_model.return_value = mock_client
+        mock_create.return_value = mock_client
 
         comparator = TextualComparator()
         answer1 = Answer(value="The answer is 42", answer_type=AnswerType.TEXTUAL)
@@ -266,8 +272,13 @@ class TestOptionComparator:
 class TestSmartAnswerComparator:
     """Test cases for SmartAnswerComparator."""
 
-    def test_initialization(self):
+    @patch("prkit.prkit_evaluation.comparison.textual.create_model_client")
+    def test_initialization(self, mock_create):
         """Test comparator initialization."""
+        mock_client = Mock()
+        mock_create.return_value = mock_client
+        mock_client = Mock()
+        mock_create.return_value = mock_client
         comparator = SmartAnswerComparator()
         assert len(comparator.comparators) == 4
         assert AnswerType.NUMERICAL in comparator.comparators
@@ -275,8 +286,11 @@ class TestSmartAnswerComparator:
         assert AnswerType.TEXTUAL in comparator.comparators
         assert AnswerType.OPTION in comparator.comparators
 
-    def test_compare_same_type_numerical(self):
+    @patch("prkit.prkit_evaluation.comparison.textual.create_model_client")
+    def test_compare_same_type_numerical(self, mock_create):
         """Test comparing same type (numerical)."""
+        mock_client = Mock()
+        mock_create.return_value = mock_client
         comparator = SmartAnswerComparator()
         answer1 = Answer(value=42.0, answer_type=AnswerType.NUMERICAL)
         answer2 = Answer(value=42.0, answer_type=AnswerType.NUMERICAL)
@@ -284,16 +298,22 @@ class TestSmartAnswerComparator:
         assert result["is_equal"] is True
         assert result["details"]["routing_method"] == "primary"
 
-    def test_compare_same_type_symbolic(self):
+    @patch("prkit.prkit_evaluation.comparison.textual.create_model_client")
+    def test_compare_same_type_symbolic(self, mock_create):
         """Test comparing same type (symbolic)."""
+        mock_client = Mock()
+        mock_create.return_value = mock_client
         comparator = SmartAnswerComparator()
         answer1 = Answer(value="x^2", answer_type=AnswerType.SYMBOLIC)
         answer2 = Answer(value="x^2", answer_type=AnswerType.SYMBOLIC)
         result = comparator.compare(answer1, answer2)
         assert "is_equal" in result
 
-    def test_compare_different_types(self):
+    @patch("prkit.prkit_evaluation.comparison.textual.create_model_client")
+    def test_compare_different_types(self, mock_create):
         """Test comparing different types (should use fallback)."""
+        mock_client = Mock()
+        mock_create.return_value = mock_client
         comparator = SmartAnswerComparator()
         answer1 = Answer(value=42, answer_type=AnswerType.NUMERICAL)
         answer2 = Answer(value="42", answer_type=AnswerType.TEXTUAL)
@@ -305,8 +325,11 @@ class TestSmartAnswerComparator:
             or "is_equal" in result
         )
 
-    def test_smart_type_conversion_string_to_answer(self):
+    @patch("prkit.prkit_evaluation.comparison.textual.create_model_client")
+    def test_smart_type_conversion_string_to_answer(self, mock_create):
         """Test smart type conversion with strings."""
+        mock_client = Mock()
+        mock_create.return_value = mock_client
         comparator = SmartAnswerComparator()
         answer1 = Answer(value=42, answer_type=AnswerType.NUMERICAL)
         answer2_str = "42"
@@ -318,8 +341,11 @@ class TestSmartAnswerComparator:
             converted2.answer_type == AnswerType.NUMERICAL
         )  # Should match answer1's type
 
-    def test_smart_type_conversion_both_strings(self):
+    @patch("prkit.prkit_evaluation.comparison.textual.create_model_client")
+    def test_smart_type_conversion_both_strings(self, mock_create):
         """Test smart type conversion with both strings."""
+        mock_client = Mock()
+        mock_create.return_value = mock_client
         comparator = SmartAnswerComparator()
         str1 = "answer1"
         str2 = "answer2"
@@ -330,16 +356,22 @@ class TestSmartAnswerComparator:
         assert converted1.answer_type == AnswerType.TEXTUAL
         assert converted2.answer_type == AnswerType.TEXTUAL
 
-    def test_get_available_comparators(self):
+    @patch("prkit.prkit_evaluation.comparison.textual.create_model_client")
+    def test_get_available_comparators(self, mock_create):
         """Test getting available comparators."""
+        mock_client = Mock()
+        mock_create.return_value = mock_client
         comparator = SmartAnswerComparator()
         comparators = comparator.get_available_comparators()
         assert len(comparators) == 4
         assert "NumericalComparator" in comparators
         assert "SymbolicComparator" in comparators
 
-    def test_get_supported_types(self):
+    @patch("prkit.prkit_evaluation.comparison.textual.create_model_client")
+    def test_get_supported_types(self, mock_create):
         """Test getting supported types."""
+        mock_client = Mock()
+        mock_create.return_value = mock_client
         comparator = SmartAnswerComparator()
         types = comparator.get_supported_types()
         assert len(types) == 4

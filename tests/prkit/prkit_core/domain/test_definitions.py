@@ -4,7 +4,7 @@ Tests for definitions: PhysicsDomain, AnswerType.
 
 import pytest
 
-from prkit.prkit_core.definitions import AnswerType, PhysicsDomain
+from prkit.prkit_core.domain import AnswerType, PhysicsDomain
 
 
 class TestPhysicsDomain:

@@ -8,7 +8,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
-from prkit.prkit_core.models.physics_dataset import PhysicalDataset
+from prkit.prkit_core.domain.physics_dataset import PhysicalDataset
 
 
 def sample_balanced(

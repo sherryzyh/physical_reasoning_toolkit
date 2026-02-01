@@ -8,7 +8,7 @@ that only classifies physics problems by domain.
 from pathlib import Path
 from typing import Any, Dict
 
-from prkit.prkit_core.models import PhysicalDataset
+from prkit.prkit_core.domain import PhysicalDataset
 
 from ..modules.domain_assessment_module import DomainAssessmentModule
 from ..workflow_composer import WorkflowComposer

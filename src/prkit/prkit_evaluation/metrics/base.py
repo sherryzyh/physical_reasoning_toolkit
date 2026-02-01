@@ -8,7 +8,7 @@ in the physical reasoning toolkit.
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
 
-from prkit.prkit_core.models.answer import Answer
+from prkit.prkit_core.domain.answer import Answer
 
 
 class BaseMetric(ABC):

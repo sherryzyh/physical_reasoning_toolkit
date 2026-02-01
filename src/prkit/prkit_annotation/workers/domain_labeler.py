@@ -8,7 +8,7 @@ from typing import Any, Dict, List
 from pydantic import BaseModel
 
 from prkit.prkit_annotation.annotations.domain import DomainAnnotation
-from prkit.prkit_core.definitions.physics_domain import PhysicsDomain
+from prkit.prkit_core.domain.physics_domain import PhysicsDomain
 
 from .base import BaseAnnotator
 

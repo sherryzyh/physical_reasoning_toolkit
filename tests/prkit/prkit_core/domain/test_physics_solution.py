@@ -7,7 +7,7 @@ from datetime import datetime
 
 import pytest
 
-from prkit.prkit_core.models import PhysicsProblem, PhysicsSolution
+from prkit.prkit_core.domain import PhysicsProblem, PhysicsSolution
 
 
 class TestPhysicsSolution:

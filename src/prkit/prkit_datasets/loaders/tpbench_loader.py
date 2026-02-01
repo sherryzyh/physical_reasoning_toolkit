@@ -13,8 +13,8 @@ from typing import Any, Dict, List, Optional, Union
 import pandas as pd
 
 from prkit.prkit_core import PRKitLogger
-from prkit.prkit_core.definitions import PhysicsDomain
-from prkit.prkit_core.models import PhysicalDataset
+from prkit.prkit_core.domain import PhysicsDomain
+from prkit.prkit_core.domain import PhysicalDataset
 from prkit.prkit_datasets.loaders.base_loader import BaseDatasetLoader
 
 

@@ -142,11 +142,11 @@ class PhysicalDataset:
             mechanics_dataset = dataset.filter_by_domains(["mechanics", "classical_mechanics"])
 
             # Filter by PhysicsDomain enum values
-            from prkit_core.definitions.physics_domain import PhysicsDomain
+            from prkit_core.domain.physics_domain import PhysicsDomain
             quantum_dataset = dataset.filter_by_domains([PhysicsDomain.QUANTUM_MECHANICS])
         """
         # Import here to avoid circular imports
-        from ..definitions.physics_domain import PhysicsDomain
+        from .physics_domain import PhysicsDomain
 
         # Normalize domains to strings for comparison
         normalized_domains = set()
@@ -203,7 +203,7 @@ class PhysicalDataset:
             mechanics_dataset = dataset.filter_by_domain("mechanics")
 
             # Filter by PhysicsDomain enum value
-            from prkit_core.definitions.physics_domain import PhysicsDomain
+            from prkit_core.domain.physics_domain import PhysicsDomain
             quantum_dataset = dataset.filter_by_domain(PhysicsDomain.QUANTUM_MECHANICS)
         """
         return self.filter_by_domains([domain])

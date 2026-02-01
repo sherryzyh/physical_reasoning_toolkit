@@ -8,9 +8,9 @@ including significant figure handling and unit conversion support.
 import math
 from typing import Any, Dict, Optional, Tuple
 
-from prkit.prkit_core.definitions.answer_types import AnswerType
-from prkit.prkit_core.llm import LLMClient
-from prkit.prkit_core.models.answer import Answer
+from prkit.prkit_core.domain.answer_type import AnswerType
+from prkit.prkit_core.model_clients import create_model_client
+from prkit.prkit_core.domain.answer import Answer
 
 from .base import BaseComparator
 
@@ -210,19 +210,13 @@ class NumericalComparator(BaseComparator):
         rounded_val1 = self._round_to_significant_figures(val1, comparison_sig_figs)
         rounded_val2 = self._round_to_significant_figures(val2, comparison_sig_figs)
 
-        comparison_client = LLMClient.from_model("gpt-4o")
-        response = comparison_client.chat(
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You are a physics expert. You are given two numerical values with units and you need to compare them.",
-                },
-                {
-                    "role": "user",
-                    "content": f"Compare the following two numerical values with units: {rounded_val1} {units1} and {rounded_val2} {units2}. Return TRUE if they are equal, FALSE otherwise.",
-                },
-            ]
+        comparison_client = create_model_client("gpt-5.1")
+        prompt = (
+            "You are a physics expert. You are given two numerical values with units and you need to compare them.\n\n"
+            f"Compare the following two numerical values with units: {rounded_val1} {units1} and {rounded_val2} {units2}. "
+            "Return TRUE if they are equal, FALSE otherwise."
         )
+        response = comparison_client.chat(prompt)
         return response == "TRUE", {
             "original_value1": val1,
             "original_value2": val2,

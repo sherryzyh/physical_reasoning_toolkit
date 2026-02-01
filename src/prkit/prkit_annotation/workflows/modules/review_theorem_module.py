@@ -10,7 +10,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from prkit.prkit_annotation.workers import TheoremDetector
-from prkit.prkit_core.models.physics_problem import PhysicsProblem
+from prkit.prkit_core.domain.physics_problem import PhysicsProblem
 
 from .base_module import BaseWorkflowModule
 

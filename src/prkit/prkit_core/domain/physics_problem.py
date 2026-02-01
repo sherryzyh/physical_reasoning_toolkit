@@ -14,8 +14,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
 from ..logging_config import PRKitLogger
-from ..definitions.answer_types import AnswerType
-from ..definitions.physics_domain import PhysicsDomain
+from .answer_type import AnswerType
+from .physics_domain import PhysicsDomain
 from .answer import Answer
 
 # Get logger for this module

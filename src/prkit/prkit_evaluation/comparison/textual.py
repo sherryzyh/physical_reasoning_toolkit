@@ -7,9 +7,9 @@ using semantic similarity and fuzzy matching techniques.
 
 from typing import Any, Dict
 
-from prkit.prkit_core.definitions.answer_types import AnswerType
-from prkit.prkit_core.llm import LLMClient
-from prkit.prkit_core.models.answer import Answer
+from prkit.prkit_core.domain.answer_type import AnswerType
+from prkit.prkit_core.model_clients import create_model_client
+from prkit.prkit_core.domain.answer import Answer
 
 from .base import BaseComparator
 
@@ -19,7 +19,7 @@ class TextualComparator(BaseComparator):
 
     def __init__(self):
         """Initialize the textual comparator."""
-        self.client = LLMClient.from_model("gpt-4o")
+        self.client = create_model_client("gpt-5.1")
 
     def compare(self, answer1: Answer, answer2: Answer) -> Dict[str, Any]:
         """
@@ -36,18 +36,12 @@ class TextualComparator(BaseComparator):
                 "Cannot compare non-textual answers with TextualComparator"
             )
 
-        response = self.client.chat(
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You are a physics expert. You are given two textual answers and you need to compare them. Return TRUE if they are equal, FALSE otherwise.",
-                },
-                {
-                    "role": "user",
-                    "content": f"Answer 1: {answer1.value}\nAnswer 2: {answer2.value}",
-                },
-            ]
+        prompt = (
+            "You are a physics expert. You are given two textual answers and you need to compare them. "
+            "Return TRUE if they are equal, FALSE otherwise.\n\n"
+            f"Answer 1: {answer1.value}\nAnswer 2: {answer2.value}"
         )
+        response = self.client.chat(prompt)
         return {
             "is_equal": response == "TRUE",
             "details": {

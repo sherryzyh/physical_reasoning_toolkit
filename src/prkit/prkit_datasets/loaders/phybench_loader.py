@@ -12,8 +12,8 @@ import random
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
-from prkit.prkit_core.definitions.physics_domain import PhysicsDomain
-from prkit.prkit_core.models import PhysicalDataset
+from prkit.prkit_core.domain.physics_domain import PhysicsDomain
+from prkit.prkit_core.domain import PhysicalDataset
 
 from .base_loader import BaseDatasetLoader
 
