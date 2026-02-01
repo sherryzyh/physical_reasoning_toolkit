@@ -230,3 +230,4 @@ PYPI_RELEASE_REVIEW.md
 check_*
 dev_tests/
 .pypirc
+.env
