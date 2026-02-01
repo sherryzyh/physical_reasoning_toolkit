@@ -153,3 +153,218 @@ class TestSeePhysLoader:
         # Verify that single image_paths string is converted to list
         assert dataset[0].image_path is not None
         assert len(dataset[0].image_path) == 1
+
+    def test_get_default_variant(self):
+        """Test get_default_variant method."""
+        loader = SeePhysLoader()
+        variant = loader.get_default_variant()
+        assert variant == "full"
+
+    def test_get_default_split(self):
+        """Test get_default_split method."""
+        loader = SeePhysLoader()
+        split = loader.get_default_split()
+        assert split == "train"
+
+    def test_validate_variant_valid(self):
+        """Test validate_variant with valid variant."""
+        loader = SeePhysLoader()
+        # Should not raise an error
+        loader.validate_variant("full")
+
+    def test_validate_variant_invalid(self):
+        """Test validate_variant with invalid variant."""
+        loader = SeePhysLoader()
+        with pytest.raises(ValueError, match="Unknown variant"):
+            loader.validate_variant("invalid")
+
+    def test_validate_split_valid(self):
+        """Test validate_split with valid split."""
+        loader = SeePhysLoader()
+        # Should not raise an error
+        loader.validate_split("train")
+
+    def test_validate_split_invalid(self):
+        """Test validate_split with invalid split."""
+        loader = SeePhysLoader()
+        with pytest.raises(ValueError, match="Unknown split"):
+            loader.validate_split("invalid")
+
+    def test_load_with_default_split(self, temp_dir):
+        """Test loading with default split when not provided."""
+        loader = SeePhysLoader()
+        data_dir = temp_dir / "seephys"
+        split_dir = data_dir / "train"
+        split_dir.mkdir(parents=True)
+        
+        json_file = split_dir / "001.json"
+        sample_data = {
+            "index": "test_001",
+            "question": "What is F = ma?",
+            "answer": "F = ma",
+        }
+        with open(json_file, "w", encoding="utf-8") as f:
+            json.dump(sample_data, f)
+        
+        # Load without specifying split - should use default
+        dataset = loader.load(data_dir=str(data_dir))
+        
+        assert dataset is not None
+        assert len(dataset) == 1
+
+    def test_load_images_from_paths_list(self, temp_dir):
+        """Test load_images_from_paths with list of paths."""
+        loader = SeePhysLoader()
+        data_dir = temp_dir / "seephys"
+        data_dir.mkdir(parents=True)
+        
+        # Create image files
+        images_dir = data_dir / "images"
+        images_dir.mkdir(parents=True)
+        img1 = images_dir / "test1.png"
+        img2 = images_dir / "test2.png"
+        
+        # Create simple image files (minimal PNG)
+        # Using PIL if available, otherwise skip test
+        try:
+            from PIL import Image
+            Image.new("RGB", (10, 10), color="red").save(img1)
+            Image.new("RGB", (10, 10), color="blue").save(img2)
+            
+            image_paths = ["images/test1.png", "images/test2.png"]
+            images = loader.load_images_from_paths(image_paths, data_dir=data_dir)
+            
+            assert len(images) == 2
+            assert all(img is not None for img in images)
+        except ImportError:
+            pytest.skip("PIL/Pillow not available")
+
+    def test_load_images_from_paths_single_string(self, temp_dir):
+        """Test load_images_from_paths with single string path."""
+        loader = SeePhysLoader()
+        data_dir = temp_dir / "seephys"
+        data_dir.mkdir(parents=True)
+        
+        images_dir = data_dir / "images"
+        images_dir.mkdir(parents=True)
+        img1 = images_dir / "test1.png"
+        
+        try:
+            from PIL import Image
+            Image.new("RGB", (10, 10), color="red").save(img1)
+            
+            images = loader.load_images_from_paths("images/test1.png", data_dir=data_dir)
+            
+            assert len(images) == 1
+            assert images[0] is not None
+        except ImportError:
+            pytest.skip("PIL/Pillow not available")
+
+    def test_load_images_from_paths_none(self):
+        """Test load_images_from_paths with None."""
+        loader = SeePhysLoader()
+        images = loader.load_images_from_paths(None)
+        assert images == []
+
+    def test_load_images_from_paths_empty_list(self):
+        """Test load_images_from_paths with empty list."""
+        loader = SeePhysLoader()
+        images = loader.load_images_from_paths([])
+        assert images == []
+
+    def test_process_metadata_image_paths_list(self):
+        """Test _process_metadata with image_paths as list."""
+        loader = SeePhysLoader()
+        metadata = {
+            "index": "test_001",
+            "question": "Test question",
+            "image_paths": ["image1.png", "image2.png"]
+        }
+        processed = loader._process_metadata(metadata)
+        assert isinstance(processed["image_paths"], list)
+        assert processed["image_paths"] == ["image1.png", "image2.png"]
+
+    def test_process_metadata_image_paths_string(self):
+        """Test _process_metadata with image_paths as string."""
+        loader = SeePhysLoader()
+        metadata = {
+            "index": "test_001",
+            "question": "Test question",
+            "image_paths": "image1.png"
+        }
+        processed = loader._process_metadata(metadata)
+        assert isinstance(processed["image_paths"], list)
+        assert processed["image_paths"] == ["image1.png"]
+
+    def test_process_metadata_image_paths_none(self):
+        """Test _process_metadata with image_paths as None."""
+        loader = SeePhysLoader()
+        metadata = {
+            "index": "test_001",
+            "question": "Test question",
+            "image_paths": None
+        }
+        processed = loader._process_metadata(metadata)
+        assert processed["image_paths"] is None
+
+    def test_process_metadata_image_paths_other_type(self):
+        """Test _process_metadata with image_paths as other type."""
+        loader = SeePhysLoader()
+        metadata = {
+            "index": "test_001",
+            "question": "Test question",
+            "image_paths": 123  # Invalid type
+        }
+        processed = loader._process_metadata(metadata)
+        # Should convert to list
+        assert isinstance(processed["image_paths"], list)
+        assert processed["image_paths"] == ["123"]
+
+    def test_modalities_property(self):
+        """Test modalities property."""
+        loader = SeePhysLoader()
+        modalities = loader.modalities
+        assert isinstance(modalities, list)
+        assert "text" in modalities
+        assert "image" in modalities
+
+    def test_get_info_comprehensive(self):
+        """Test get_info returns comprehensive information."""
+        loader = SeePhysLoader()
+        info = loader.get_info()
+        
+        assert info["name"] == "seephys"
+        assert "description" in info
+        assert "repository_url" in info
+        assert "license" in info
+        assert "homepage" in info
+        assert "paper_url" in info
+        assert "languages" in info
+        assert "variants" in info
+        assert "splits" in info
+        assert "problem_types" in info
+        assert "modalities" in info
+        assert "text" in info["modalities"]
+        assert "image" in info["modalities"]
+
+    def test_load_with_none_image_paths(self, temp_dir):
+        """Test loading with None image_paths."""
+        loader = SeePhysLoader()
+        data_dir = temp_dir / "seephys"
+        split_dir = data_dir / "train"
+        split_dir.mkdir(parents=True)
+        
+        json_file = split_dir / "003.json"
+        sample_data = {
+            "index": "test_003",
+            "question": "What is gravity?",
+            "answer": "Gravity",
+            "image_paths": None,
+        }
+        with open(json_file, "w", encoding="utf-8") as f:
+            json.dump(sample_data, f)
+        
+        dataset = loader.load(data_dir=str(data_dir), split="train")
+        
+        assert dataset is not None
+        assert len(dataset) == 1

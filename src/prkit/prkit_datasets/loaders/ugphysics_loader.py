@@ -150,7 +150,7 @@ class UGPhysicsLoader(BaseDatasetLoader):
         Load the UGPhysics dataset.
 
         Args:
-            data_dir: Path to the UGPhysics dataset (defaults to ~/PHYSICAL_REASONING_DATASETS/ugphysics)
+            data_dir: Path to the UGPhysics dataset (defaults to ~/PHYSICAL_REASONING_DATASETS/UGPhysics)
             split: Dataset split to load. Defaults to "test" if available.
             variant: Dataset variant. Defaults to "full" if available.
             sample_size: Number of problems to sample (None for all)
@@ -174,7 +174,7 @@ class UGPhysicsLoader(BaseDatasetLoader):
         self.validate_split(split)
 
         # Resolve data directory with environment variable support
-        data_dir = self.resolve_data_dir(data_dir, "ugphysics")
+        data_dir = self.resolve_data_dir(data_dir, "UGPhysics")
         self.logger.debug(f"Using data directory: {data_dir}")
 
         if not data_dir.exists():

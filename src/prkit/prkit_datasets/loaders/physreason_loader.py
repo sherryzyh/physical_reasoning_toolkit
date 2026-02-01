@@ -145,8 +145,7 @@ class PhysReasonLoader(BaseDatasetLoader):
         self.validate_split(split)
 
         # Resolve data directory with environment variable support
-        # Use lowercase "physreason" to match downloader's dataset_name
-        data_dir = self.resolve_data_dir(data_dir, "physreason")
+        data_dir = self.resolve_data_dir(data_dir, "PhysReason")
         self.logger.debug(f"Using data directory: {data_dir}")
 
         if not data_dir.exists():

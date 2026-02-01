@@ -1,24 +1,41 @@
 # Physical Reasoning Toolkit 🔬
 
-A comprehensive toolkit for **physical reasoning** and **physics-aware reasoning** in Large Language Models (LLMs) and Vision-Language Models (VLMs). This toolkit streamlines access to various physical reasoning datasets/benchmarks and provides a unified interface to different LLM/VLM providers, enabling researchers and developers to analyze, evaluate, and build applications in the physics reasoning domain.
+A unified toolkit for researchers and engineers working on **AI physical reasoning**. PRKit provides a shared foundation for representing physics problems, running inference with multiple model providers, evaluating outputs with physics-aware comparators, and building structured annotation workflows.
+
+PRKit applies a “unified interface” idea to the full physical-reasoning loop (data ↔ annotation ↔ inference ↔ evaluation), rather than focusing on datasets alone.
 
 ## 🎯 **Project Overview**
 
-The Physical Reasoning Toolkit is designed to support research and development in physics reasoning AI systems. It provides a unified framework for:
+PRKit is organized into one core package plus three integrated subpackages:
 
-- **Dataset Management**: Streamlined access to multiple physical reasoning datasets and benchmarks
-- **LLM/VLM Integration**: Unified interface for OpenAI, Google Gemini, DeepSeek, and more (coming soon)
-- **Annotation Workflows**: Automated and supervised annotation of physics problems
-- **Evaluation Metrics**: Comprehensive assessment of physics reasoning capabilities
-- **Core Models**: Standardized representations for physics problems and solutions
+- **`prkit_core`**: Shared data models, logging, and model-client abstractions.
+- **`prkit_datasets`**: A Datasets-like hub that downloads/loads benchmarks into a unified schema.
+- **`prkit_annotation`**: Workflow-oriented tools for structured, lower-level labels (e.g., domain/subdomain, theorem usage).
+- **`prkit_evaluation`**: Evaluate-like components for physics-oriented scoring and comparison (e.g., symbolic/numerical answer matching).
+
+### **💡 Quick Example**
+
+```python
+from prkit.prkit_datasets import DatasetHub
+from prkit.prkit_core.model_clients import create_model_client
+
+# Load any benchmark with a consistent interface
+dataset = DatasetHub.load("physreason", variant="full", split="test")
+
+# Run inference with a unified model client interface
+client = create_model_client("gpt-4.1-mini")
+for problem in dataset[:3]:
+    print(client.chat(problem.question)[:200])
+```
+
+The same pattern works across different datasets and model providers—swap the dataset name or model identifier.
 
 ### **📖 Documentation**
 
 **Quick Links:**
 - 📚 **[DATASETS.md](DATASETS.md)** - Complete guide to supported datasets and benchmarks
-- 🤖 **[LLM_PROVIDERS.md](LLM_PROVIDERS.md)** - LLM/VLM provider integration (OpenAI, Gemini, DeepSeek)
+- 🤖 **[MODEL_PROVIDERS.md](MODEL_PROVIDERS.md)** - Model provider integration (OpenAI, Gemini, DeepSeek, Ollama)
 - 📊 **[EVALUATION.md](EVALUATION.md)** - Evaluation metrics and comparison strategies
-- 🏷️ **[DEVELOPER.md](DEVELOPER.md)** - Developer guide and contribution guidelines
 - 📝 **[CHANGELOG.md](CHANGELOG.md)** - Version history and release notes
 
 ## 🏗️ **Repository Structure**
@@ -31,7 +48,6 @@ physical_reasoning_toolkit/
 │   ├── prkit_annotation/            # Annotation workflows and tools
 │   └── prkit_evaluation/            # Evaluation metrics and benchmarks
 ├── tests/                           # Unit tests
-├── showcase_output/                 # Example outputs and demonstrations
 ├── pyproject.toml                   # Package configuration
 ├── LICENSE                          # MIT License
 └── README.md                        # This file
@@ -44,17 +60,16 @@ physical_reasoning_toolkit/
 **In Repository (Code & Documentation):**
 - ✅ **src/prkit/**: Complete toolkit with 4 subpackages
 - ✅ **tests/**: Unit tests (for contributors)
-- ✅ **showcase_output/**: Example outputs and demonstrations
 
 **External (Data & Runtime):**
 - 📁 **Data Directory**: Dataset files (set via `DATASET_CACHE_DIR`)
-- 🔑 **API Keys**: LLM service credentials
+- 🔑 **API Keys**: Model provider credentials (if applicable)
 - 📊 **Log Files**: Runtime logs (default: `{cwd}/prkit_logs/prkit.log`, can be overridden via `PRKIT_LOG_FILE`)
 
 ## 🚀 **Quick Start**
 
 ### **Prerequisites**
-- **Python 3.12+** (required)
+- **Python 3.10+** (required)
 - **Git** (for cloning)
 - **Virtual environment** (recommended)
 
@@ -80,7 +95,7 @@ cd physical_reasoning_toolkit
 **Step 2: Set Up Virtual Environment**
 ```bash
 # Create virtual environment
-python3.12 -m venv venv
+python -m venv venv
 
 # Activate (macOS/Linux)
 source venv/bin/activate
@@ -102,7 +117,7 @@ python -c "import prkit; print('✅ Toolkit installed successfully!')"
 
 ### **Required Environment Variables**
 ```bash
-# For LLM integration (optional)
+# For model provider integration (optional)
 export OPENAI_API_KEY="your-openai-api-key"
 export GOOGLE_API_KEY="your-google-api-key"
 export DEEPSEEK_API_KEY="your-deepseek-api-key"
@@ -119,12 +134,14 @@ mkdir -p ~/data
 export DATASET_CACHE_DIR=~/data
 
 # Download datasets using DatasetHub with auto_download=True
-python3 -c "from prkit.prkit_datasets import DatasetHub; DatasetHub.load('ugphysics', auto_download=True)"
+python -c "from prkit.prkit_datasets import DatasetHub; DatasetHub.load('ugphysics', auto_download=True)"
 ```
 
 **Note**: The data directory is external to the repository and contains the actual dataset files. The default cache directory is `~/PHYSICAL_REASONING_DATASETS/` if `DATASET_CACHE_DIR` is not set. Use `auto_download=True` when loading datasets to automatically download them if they don't exist.
 
 ## 📦 **Package Overview**
+
+The toolkit is organized into four integrated subpackages, each providing a unified interface to its domain:
 
 ### **Import Style**
 
@@ -136,36 +153,50 @@ import prkit
 from prkit.prkit_datasets import DatasetHub
 from prkit.prkit_evaluation import AccuracyMetric
 from prkit.prkit_annotation.workflows import WorkflowComposer
-from prkit.prkit_core import PRKitLogger
-from prkit.prkit_core.llm import LLMClient
+from prkit.prkit_core.model_clients import create_model_client
 
 # Note: After installation, subpackages are also available as top-level modules
 # via sys.modules registration (e.g., `from prkit_datasets import DatasetHub`)
 ```
 
-### **prkit_core**
-The foundation package providing:
-- **PhysicsProblem**: Standardized representation of physics problems
-- **PhysicalDataset**: Container for collections of problems
-- **Centralized Logging**: Professional logging system across all packages
-- **LLM/VLM Integration**: Unified interface for various language and vision-language models (OpenAI, Gemini, DeepSeek)
-
-### **prkit_datasets**
-Dataset management with support for:
-- **Supported Datasets**: PHYBench, PhysReason, UGPhysics, SeePhys, PhyX (both downloader and loader available)
-- **Future Datasets**: JEEBench, SciBench, TPBench (loader available, downloader coming soon)
-- **Standardized Format**: Consistent API across all datasets
-- **Variant Support**: Full/mini versions where available
-- **Sampling**: Reproducible data sampling for development
+### **prkit_datasets** 📊
+**Unified dataset interface** (similar to Hugging Face Datasets):
+- **SOTA Benchmarks**: PHYBench, PhysReason, UGPhysics, SeePhys, PhyX (with downloaders)
+- **Additional Datasets**: JEEBench, SciBench, TPBench (loaders available)
+- **Consistent API**: Same interface across all datasets regardless of source format
+- **Smart Loading**: Automatic download, variant selection, and reproducible sampling
 
 📖 **See [DATASETS.md](DATASETS.md) for comprehensive dataset documentation.**
+
+### **prkit_core** 🔧
+**Foundation layer** providing:
+- **Standardized Models**: `PhysicsProblem` and `PhysicalDataset` representations
+- **Unified LLM/VLM Interface**: Single API for OpenAI, Gemini, DeepSeek, Ollama, and more
+- **Centralized Logging**: Professional logging system across all packages
+- **Type Safety**: Full type hints and Pydantic models
+
+### **prkit_annotation** 🏷️
+**Annotation workflows** for:
+- **Automated Annotation**: Model-assisted problem classification and analysis
+- **Domain Classification**: Physics domain identification
+- **Theorem Extraction**: Physical principle detection
+- **Supervised Workflows**: Human-in-the-loop annotation processes
+
+### **prkit_evaluation** 📈
+**Evaluation framework** with:
+- **Answer Comparison**: Symbolic, numerical, textual, and option-based answer matching
+- **Accuracy Metrics**: Standard evaluation metrics for physical reasoning
+- **Multi-Model Comparison**: Benchmark multiple models on the same datasets
+- **Domain-Specific Assessment**: Physics-focused evaluation protocols
+
+📖 **See [EVALUATION.md](EVALUATION.md) for comprehensive evaluation documentation.**
 
 #### **Supported Dataset Field Comparison**
 The following datasets have both downloader and loader available:
 
 | Dataset | Domain | Solution | Answer | Total Problems | Download Method |
 |---------|---------|----------|---------|----------------|-----------------|
-| **PHYBench** | ✅ Yes | ✅ Yes | ✅ Yes | 500 | datasets-server API |
+| **PHYBench** | ✅ Yes | ✅ Partial | ✅ Partial | 500 | Hugging |
 | **PhysReason** | ✅ Yes | ✅ Yes | ✅ Yes | 1,200 (full) / 200 (mini) | HuggingFace direct download |
 | **UGPhysics** | ✅ Yes | ✅ Yes | ✅ Yes | 11,040 | datasets library |
 | **SeePhys** | ✅ Yes | ❌ No | ✅ Yes | 6,200 | datasets library |
@@ -213,7 +244,7 @@ The following table shows which physics domains are available in each dataset:
 
 ### **prkit_annotation**
 Annotation workflows for:
-- **Automated Annotation**: LLM-powered problem annotation
+- **Automated Annotation**: Model-assisted problem annotation
 - **Supervised Workflows**: Human-in-the-loop annotation processes
 - **Domain Classification**: Physics domain identification
 - **Theorem Extraction**: Physical principle identification
@@ -230,14 +261,14 @@ Evaluation and benchmarking:
 
 📖 **See [EVALUATION.md](EVALUATION.md) for comprehensive evaluation documentation.**
 
-### **LLM/VLM Providers**
+### **Model Providers**
 Unified interface for multiple providers:
-- **OpenAI**: GPT-4o, GPT-4, GPT-3.5, and Reasoning API models
-- **Google Gemini**: Gemini Pro and other Gemini models
-- **DeepSeek**: DeepSeek Chat models
-- **More Coming Soon**: Additional providers will be added
+- **OpenAI**: GPT and o-family models (vision supported where available)
+- **Google Gemini**: Gemini models (text-only currently; vision support planned)
+- **DeepSeek**: DeepSeek chat/reasoning models (text-only)
+- **Ollama**: Local models such as Qwen-VL variants (vision depends on model)
 
-📖 **See [LLM_PROVIDERS.md](LLM_PROVIDERS.md) for provider-specific documentation.**
+📖 **See [MODEL_PROVIDERS.md](MODEL_PROVIDERS.md) for provider-specific documentation.**
 
 ## 🧪 **Testing & Verification**
 
@@ -271,26 +302,25 @@ print('Available datasets:', DatasetHub.list_available())
 ```
 
 
-## 🔍 **Repository Features**
+## 🔍 **Key Features**
 
-### **Research-Ready**
-- **Reproducible**: Seed-based sampling and consistent APIs
-- **Extensible**: Easy to add new datasets and evaluation metrics
-- **Professional**: Centralized logging and error handling
-- **Documented**: Comprehensive examples and documentation
+### **Unified Interface Design**
+- **Consistent APIs**: Same interface patterns across datasets, models, and evaluation
+- **Provider Agnostic**: Switch between model providers without changing your code
+- **Format Agnostic**: Work with datasets regardless of their original format (JSON, Parquet, CSV, etc.)
+- **Type Safe**: Full type hints and Pydantic validation throughout
 
-### **Dataset Support**
-- **4 Supported Datasets**: PHYBench, PhysReason, UGPhysics, SeePhys (both downloader and loader available)
-- **3 Future Datasets**: JEEBench, SciBench, TPBench (loader available, downloader coming soon)
-- **Multiple Formats**: JSON, Parquet, CSV, and custom formats
-- **Rich Metadata**: Preserves original dataset information
-- **Standardized Interface**: Consistent API across all datasets
+### **Research-Focused**
+- **Reproducible**: Seed-based sampling and deterministic workflows
+- **Extensible**: Easy to add new datasets, models, or evaluation metrics
+- **Professional**: Centralized logging, error handling, and comprehensive documentation
+- **Benchmark Coverage**: Access to multiple SOTA physical reasoning benchmarks through one interface
 
-### **Development Tools**
-- **Type Hints**: Full type safety and IDE support
-- **Error Handling**: Graceful error handling with detailed logging
-- **Testing**: Built-in testing and validation
-- **Documentation**: Comprehensive docstrings and examples
+### **Developer Experience**
+- **Flexible Imports**: Support for both package-level and top-level imports
+- **Rich Metadata**: Preserves original dataset information while providing standardized access
+- **Comprehensive Testing**: Built-in validation and extensive test coverage
+- **Clear Documentation**: Detailed docstrings, examples, and usage guides
 
 ## 🆘 **Troubleshooting**
 
@@ -299,10 +329,10 @@ print('Available datasets:', DatasetHub.list_available())
 #### **Python Version Problems**
 ```bash
 # Check Python version
-python3 --version  # Should be 3.12+
+python --version  # Should be 3.10+
 
 # If using wrong version
-python3.12 -m venv venv
+python -m venv venv
 source venv/bin/activate
 ```
 
@@ -332,20 +362,19 @@ ls -la $DATASET_CACHE_DIR/PhysReason/
 1. **Review logs**: Check logging output for detailed error information
 2. **Verify setup**: Run the testing commands above
 3. **Check data**: Ensure datasets are properly downloaded and accessible
-4. **Check documentation**: See package README files for detailed usage examples
+4. **Check documentation**: Start with the root docs linked below
 
 ## 📚 **Documentation & Resources**
 
 ### **Component Documentation**
 - **[DATASETS.md](DATASETS.md)**: Comprehensive guide to supported datasets and benchmarks
-- **[LLM_PROVIDERS.md](LLM_PROVIDERS.md)**: LLM/VLM provider integration and usage
+- **[MODEL_PROVIDERS.md](MODEL_PROVIDERS.md)**: Model provider integration and usage
 - **[EVALUATION.md](EVALUATION.md)**: Evaluation metrics and comparison strategies
 - **[ANNOTATION.md](ANNOTATION.md)**: Annotation workflows and tools
 
 ### **Learning Resources**
-- **Example Outputs**: [`showcase_output/`](showcase_output/) - Sample results and demonstrations
 - **API Documentation**: Comprehensive docstrings in package files
-- **Package READMEs**: See `src/prkit/*/README.md` for detailed usage examples
+- **Examples**: See `cookbooks/` for end-to-end examples (dataset loading, inference, evaluation)
 
 ### **Community & Support**
 - **GitHub Issues**: [Report bugs or request features](https://github.com/sherryzyh/physical_reasoning_toolkit/issues)
@@ -395,7 +424,7 @@ pytest tests/
 
 **For Developers:**
 - [ ] Clone repository
-- [ ] Set up Python 3.12+ environment
+- [ ] Set up Python 3.10+ environment
 - [ ] Install in dev mode: `pip install -e ".[dev]"`
 - [ ] Run tests: `pytest tests/`
 - [ ] Contribute improvements!

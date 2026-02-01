@@ -304,6 +304,9 @@ class PRKitLogger:
                         new_handler.setFormatter(handler.formatter)
 
                     logger.addHandler(new_handler)
+            
+            # Disable propagation to avoid duplicate logs when handlers are added
+            logger.propagate = False
 
         # Store logger
         cls._loggers[name] = logger

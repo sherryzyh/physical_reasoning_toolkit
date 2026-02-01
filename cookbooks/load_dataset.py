@@ -15,20 +15,17 @@ Usage:
     python cookbooks/load_dataset.py [dataset_name]
     
 Examples:
-    # Load default dataset (ugphysics)
-    python cookbooks/load_dataset.py
-
     # Load specific dataset
     python cookbooks/load_dataset.py physreason
 
     # Load with auto-download
-    python cookbooks/load_dataset.py phybench --split train --auto-download
+    python cookbooks/load_dataset.py phybench --auto-download
 
     # Load with sample size
     python cookbooks/load_dataset.py ugphysics --sample-size 3
 
     # Load and display images (requires Pillow and optionally matplotlib)
-    python cookbooks/load_dataset.py seephys --split train --display-image --sample-size 3
+    python cookbooks/load_dataset.py seephys --display-image --sample-size 3
 """
 
 import argparse
@@ -120,13 +117,13 @@ def main():
     )
     parser.add_argument(
         "--variant",
-        default="full",
-        help="Dataset variant (default: full)",
+        default=None,
+        help="Dataset variant (uses dataset default if not specified)",
     )
     parser.add_argument(
         "--split",
-        default="test",
-        help="Dataset split (default: test)",
+        default=None,
+        help="Dataset split (uses dataset default if not specified)",
     )
     parser.add_argument(
         "--sample-size",
@@ -170,49 +167,43 @@ def main():
         )
         sys.exit(1)
 
-    # 2. Get dataset information and validate split
+    # 2. Get dataset information (for display only, validation happens in hub)
     logger.info(f"\n🔍 Getting information for '{args.dataset_name}'...")
-    dataset_info = None
-    available_splits = []
     try:
         dataset_info = DatasetHub.get_info(args.dataset_name)
         logger.info(f"  Name: {dataset_info.get('name', 'N/A')}")
         logger.info(f"  Description: {dataset_info.get('description', 'N/A')[:80]}...")
         logger.info(f"  Variants: {dataset_info.get('variants', [])}")
-        available_splits = dataset_info.get('splits', [])
-        logger.info(f"  Splits: {available_splits}")
+        logger.info(f"  Splits: {dataset_info.get('splits', [])}")
         logger.info(f"  Total problems: {dataset_info.get('total_problems', 'N/A')}")
-        
-        # Validate split if splits information is available
-        if available_splits and isinstance(available_splits, list) and len(available_splits) > 0:
-            if args.split not in available_splits:
-                logger.error(f"\n❌ Invalid split '{args.split}' for dataset '{args.dataset_name}'")
-                logger.error(f"   Available splits: {', '.join(available_splits)}")
-                logger.info(f"\n💡 Tip: Use one of the available splits")
-                if available_splits:
-                    logger.info(f"   Example: python {sys.argv[0]} {args.dataset_name} --split {available_splits[0]}")
-                sys.exit(1)
     except Exception as e:
         logger.warning(f"Could not retrieve dataset info: {e}")
-        # Continue anyway - validation will happen during load if info wasn't available
+        # Continue anyway - validation will happen during load
 
     # 3. Load the dataset
     logger.info(f"\n📖 Loading '{args.dataset_name}' dataset...")
-    logger.info(f"  Variant: {args.variant}")
-    logger.info(f"  Split: {args.split}")
+    if args.variant:
+        logger.info(f"  Variant: {args.variant}")
+    if args.split:
+        logger.info(f"  Split: {args.split}")
     if args.sample_size:
         logger.info(f"  Sample size: {args.sample_size}")
     if args.auto_download:
         logger.info("  Auto-download: enabled")
 
     try:
-        dataset = DatasetHub.load(
-            dataset_name=args.dataset_name,
-            variant=args.variant,
-            split=args.split,
-            sample_size=args.sample_size,
-            auto_download=args.auto_download,
-        )
+        # Prepare load arguments - only include variant/split if explicitly provided
+        load_kwargs = {
+            "dataset_name": args.dataset_name,
+            "sample_size": args.sample_size,
+            "auto_download": args.auto_download,
+        }
+        if args.variant is not None:
+            load_kwargs["variant"] = args.variant
+        if args.split is not None:
+            load_kwargs["split"] = args.split
+        
+        dataset = DatasetHub.load(**load_kwargs)
         logger.info(f"✅ Successfully loaded {len(dataset)} problems")
 
         # 4. Explore sample problems
@@ -283,53 +274,18 @@ def main():
         logger.info("=" * 60)
 
     except FileNotFoundError as e:
-        error_msg = str(e)
         logger.error(f"❌ Dataset not found: {e}")
-        
-        # Check if this might be a split-related error
-        if "split" in error_msg.lower() or "not found" in error_msg.lower():
-            # Try to get available splits if we haven't already
-            if (not available_splits or len(available_splits) == 0) and dataset_info is None:
-                try:
-                    dataset_info = DatasetHub.get_info(args.dataset_name)
-                    available_splits = dataset_info.get('splits', [])
-                except Exception:
-                    pass
-            
-            if available_splits and len(available_splits) > 0:
-                logger.error(f"\n⚠️  This error might be due to an invalid split.")
-                logger.error(f"   Requested split: '{args.split}'")
-                logger.error(f"   Available splits for '{args.dataset_name}': {', '.join(available_splits)}")
-                logger.info(f"\n💡 Tip: Try using one of the available splits")
-                logger.info(f"   Example: python {sys.argv[0]} {args.dataset_name} --split {available_splits[0]}")
-        
         logger.info(
             "\n💡 Tip: Use --auto-download to automatically download the dataset"
         )
         logger.info(f"   Example: python {sys.argv[0]} {args.dataset_name} --auto-download")
         sys.exit(1)
+    except ValueError as e:
+        # Validation errors from hub (invalid variant/split)
+        logger.error(f"❌ {e}")
+        sys.exit(1)
     except Exception as e:
-        error_msg = str(e)
         logger.error(f"❌ Failed to load dataset: {e}")
-        
-        # Check if this might be a split-related error
-        if "split" in error_msg.lower() or "not found" in error_msg.lower():
-            # Try to get available splits if we haven't already
-            if (not available_splits or len(available_splits) == 0) and dataset_info is None:
-                try:
-                    dataset_info = DatasetHub.get_info(args.dataset_name)
-                    available_splits = dataset_info.get('splits', [])
-                except Exception:
-                    pass
-            
-            if available_splits and len(available_splits) > 0:
-                if args.split not in available_splits:
-                    logger.error(f"\n⚠️  This error might be due to an invalid split.")
-                    logger.error(f"   Requested split: '{args.split}'")
-                    logger.error(f"   Available splits for '{args.dataset_name}': {', '.join(available_splits)}")
-                    logger.info(f"\n💡 Tip: Try using one of the available splits")
-                    logger.info(f"   Example: python {sys.argv[0]} {args.dataset_name} --split {available_splits[0]}")
-        
         import traceback
         logger.debug(traceback.format_exc())
         sys.exit(1)

@@ -6,8 +6,6 @@ import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
-import pandas as pd
-
 from prkit.prkit_core import PRKitLogger
 from prkit.prkit_core.domain import PhysicalDataset
 
@@ -44,12 +42,21 @@ class SeePhysLoader(BaseDatasetLoader):
             "homepage": "https://seephys.github.io/",
             "paper_url": "https://openreview.net/pdf?id=APNWmytTCS",
             "languages": ["en", "zh"],
+            "variants": ["full"],  # Variant is kept as a property but not used for loading
             "splits": ["train"],
             "problem_types": ["OE"],
             "total_problems": "2000",
             "source": "SeePhys dataset from HuggingFace",
             "modalities": self.modalities,
         }
+
+    def get_default_variant(self) -> Optional[str]:
+        """Return default variant 'full' for SeePhys dataset."""
+        return "full"
+
+    def get_default_split(self) -> Optional[str]:
+        """Return default split 'train' for SeePhys dataset."""
+        return "train"
 
     def load(
         self,
@@ -60,13 +67,13 @@ class SeePhysLoader(BaseDatasetLoader):
         **kwargs,
     ) -> PhysicalDataset:
         """
-        Load SeePhys dataset from JSON files only.
+        Load SeePhys dataset.
 
         Args:
             data_dir: Path to the data directory containing SeePhys files
-            variant: Dataset variant (deprecated, kept for backward compatibility)
+            variant: Dataset variant (kept as property but not used for loading)
             sample_size: Number of problems to load
-            split: Dataset split to load. Defaults to "train" if available.
+            split: Dataset split to load. Defaults to "train".
             **kwargs: Additional loading parameters
 
         Returns:
@@ -76,39 +83,28 @@ class SeePhysLoader(BaseDatasetLoader):
         if split is None:
             split = self.get_default_split() or "train"
         
-        # Validate split if provided
-        if split is not None:
-            self.validate_split(split)
+        # Validate split
+        self.validate_split(split)
 
         # Resolve data directory with environment variable support
-        data_dir = self.resolve_data_dir(data_dir, "seephys")
+        data_dir = self.resolve_data_dir(data_dir, "SeePhys")
         self.logger.debug(f"Using data directory: {data_dir}")
 
         if not data_dir.exists():
             raise FileNotFoundError(f"Data directory not found: {data_dir}")
 
-        # Load only from JSON files
+        # Load from split directory
         split_dir = data_dir / split
 
-        if split_dir.exists():
-            return self._load_from_json_only(
-                data_dir, split, sample_size, **kwargs
+        if not split_dir.exists():
+            raise FileNotFoundError(
+                f"SeePhys dataset not found in {data_dir}. "
+                f"Expected '{split}/' directory. "
+                f"Use the downloader to download the dataset."
             )
 
-        # Fall back to old CSV format for backward compatibility
-        if variant is not None:
-            self.logger.warning(
-                "Variant parameter is deprecated. Loading from legacy CSV format."
-            )
-            return self._load_csv_format(
-                data_dir, variant, split, sample_size, **kwargs
-            )
-
-        # If JSON directory doesn't exist, raise error
-        raise FileNotFoundError(
-            f"SeePhys dataset not found in {data_dir}. "
-            f"Expected '{split}/' directory with JSON files. "
-            f"Use the downloader to download the dataset."
+        return self._load_from_json_only(
+            data_dir, split, sample_size, **kwargs
         )
 
     @property
@@ -128,23 +124,23 @@ class SeePhysLoader(BaseDatasetLoader):
         sample_size: Optional[int],
         **_kwargs,
     ) -> PhysicalDataset:
-        """Load from JSON files only."""
+        """Load from split directory."""
         split_dir = data_dir / split
 
         if not split_dir.exists():
             raise FileNotFoundError(
-                f"JSON directory not found: {split_dir}. "
+                f"Directory not found: {split_dir}. "
                 f"Use the downloader to download the dataset."
             )
 
-        # Load from JSON directory
-        self.logger.debug(f"Loading from JSON directory: {split_dir}")
+        # Load from split directory
+        self.logger.debug(f"Loading from directory: {split_dir}")
         problems = self._load_from_json_dir(split_dir, data_dir)
 
         if not problems:
             raise RuntimeError(
                 f"No problems loaded from: {data_dir}. "
-                f"Check if JSON files exist and are valid."
+                f"Check if files exist and are valid."
             )
 
         # Apply sample_size if specified
@@ -158,43 +154,24 @@ class SeePhysLoader(BaseDatasetLoader):
 
         # Log final loading result
         self.logger.info(
-            f"Successfully loaded {len(problems)} problems from SeePhys dataset (JSON format)"
+            f"Successfully loaded {len(problems)} problems from SeePhys dataset"
         )
 
         return PhysicalDataset(problems, info, split=split)
 
-    def _load_from_dataframe(
-        self, df: pd.DataFrame, data_dir: Path
-    ) -> List:
-        """Load problems from pandas DataFrame."""
-        problems = []
-
-        for _, row in df.iterrows():
-            problem_data = row.to_dict()
-            metadata = self.initialize_metadata(problem_data)
-            metadata = self._process_metadata(metadata)
-
-            problem = self.create_physics_problem(
-                metadata=metadata,
-                data_dir=data_dir,
-            )
-            problems.append(problem)
-
-        return problems
-
     def _load_from_json_dir(
         self, split_dir: Path, data_dir: Path
     ) -> List:
-        """Load problems from JSON files in a directory."""
+        """Load problems from files in a directory."""
         problems = []
 
         json_files = sorted(split_dir.glob("*.json"))
         if not json_files:
             raise FileNotFoundError(
-                f"No JSON files found in {split_dir}"
+                f"No files found in {split_dir}"
             )
 
-        self.logger.info(f"Found {len(json_files)} JSON files")
+        self.logger.info(f"Found {len(json_files)} files")
 
         for json_file in json_files:
             try:
@@ -216,56 +193,6 @@ class SeePhysLoader(BaseDatasetLoader):
                 continue
 
         return problems
-
-    def _load_csv_format(
-        self,
-        data_dir: Path,
-        variant: str,
-        split: str,
-        sample_size: Optional[int],
-        **_kwargs,
-    ) -> PhysicalDataset:
-        """Load from legacy CSV format (for backward compatibility)."""
-        if variant == "full":
-            seephys_file = data_dir / "seephys_train.csv"
-        elif variant == "mini":
-            seephys_file = data_dir / "seephys_train_mini.csv"
-        else:
-            raise ValueError(f"Unknown variant: {variant}. Choose 'full' or 'mini'")
-
-        if not seephys_file.exists():
-            raise FileNotFoundError(f"SeePhys CSV file not found: {seephys_file}")
-
-        df = pd.read_csv(seephys_file)
-
-        # Convert to unified format
-        problems = []
-
-        for _, row in df.iterrows():
-            problem_data = row.to_dict()
-            metadata = self.initialize_metadata(problem_data)
-            metadata = self._process_metadata(metadata)
-
-            problem = self.create_physics_problem(
-                metadata=metadata,
-                data_dir=data_dir,
-            )
-            problems.append(problem)
-
-        # Apply sample_size if specified
-        if sample_size is not None and sample_size < len(problems):
-            import random
-            problems = random.sample(problems, sample_size)
-
-        # Create dataset info
-        info = self.get_info()
-
-        # Log final loading result
-        self.logger.info(
-            f"Successfully loaded {len(problems)} problems from SeePhys dataset (CSV format)"
-        )
-
-        return PhysicalDataset(problems, info, split=split)
 
     def _process_metadata(self, metadata: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -324,7 +251,7 @@ class SeePhysLoader(BaseDatasetLoader):
         """
         # If data_dir is not provided, try to resolve default
         if data_dir is None:
-            data_dir = self.resolve_data_dir(None, "seephys")
+            data_dir = self.resolve_data_dir(None, "SeePhys")
         
         # Use the base class method
         return super().load_images_from_paths(image_paths, data_dir)
