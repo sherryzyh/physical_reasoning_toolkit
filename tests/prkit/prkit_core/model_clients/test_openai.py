@@ -99,8 +99,10 @@ class TestOpenAIModel:
         call_kwargs = mock_client.responses.create.call_args[1]
         assert call_kwargs["model"] == "gpt-5.1"
         assert len(call_kwargs["input"]) == 1
-        assert call_kwargs["input"][0]["type"] == "input_text"
-        assert call_kwargs["input"][0]["text"] == "Hello, world!"
+        assert call_kwargs["input"][0]["role"] == "user"
+        assert len(call_kwargs["input"][0]["content"]) == 1
+        assert call_kwargs["input"][0]["content"][0]["type"] == "input_text"
+        assert call_kwargs["input"][0]["content"][0]["text"] == "Hello, world!"
 
     @patch("prkit.prkit_core.model_clients.openai.OpenAI")
     def test_chat_with_images(self, mock_openai_class, tmp_path):
@@ -121,11 +123,13 @@ class TestOpenAIModel:
 
         assert response == "Image description"
         call_kwargs = mock_client.responses.create.call_args[1]
-        assert len(call_kwargs["input"]) == 2  # text + image
-        assert call_kwargs["input"][0]["type"] == "input_text"
-        assert call_kwargs["input"][1]["type"] == "input_image"
-        assert "image_url" in call_kwargs["input"][1]
-        assert call_kwargs["input"][1]["image_url"].startswith("data:image/png;base64,")
+        assert len(call_kwargs["input"]) == 1  # One message with role and content
+        assert call_kwargs["input"][0]["role"] == "user"
+        assert len(call_kwargs["input"][0]["content"]) == 2  # text + image
+        assert call_kwargs["input"][0]["content"][0]["type"] == "input_text"
+        assert call_kwargs["input"][0]["content"][1]["type"] == "input_image"
+        assert "image_url" in call_kwargs["input"][0]["content"][1]
+        assert call_kwargs["input"][0]["content"][1]["image_url"].startswith("data:image/png;base64,")
 
     @patch("prkit.prkit_core.model_clients.openai.OpenAI")
     def test_chat_with_http_url(self, mock_openai_class):
@@ -144,7 +148,8 @@ class TestOpenAIModel:
 
         assert response == "URL image description"
         call_kwargs = mock_client.responses.create.call_args[1]
-        assert call_kwargs["input"][1]["image_url"] == "https://example.com/image.jpg"
+        assert len(call_kwargs["input"][0]["content"]) == 2  # text + image
+        assert call_kwargs["input"][0]["content"][1]["image_url"] == "https://example.com/image.jpg"
 
     @patch("prkit.prkit_core.model_clients.openai.OpenAI")
     def test_chat_with_base64_data_url(self, mock_openai_class):
@@ -161,7 +166,8 @@ class TestOpenAIModel:
 
         assert response == "Base64 image description"
         call_kwargs = mock_client.responses.create.call_args[1]
-        assert call_kwargs["input"][1]["image_url"] == data_url
+        assert len(call_kwargs["input"][0]["content"]) == 2  # text + image
+        assert call_kwargs["input"][0]["content"][1]["image_url"] == data_url
 
     @patch("prkit.prkit_core.model_clients.openai.OpenAI")
     def test_chat_o_family_with_reasoning(self, mock_openai_class):
@@ -239,3 +245,106 @@ class TestPrepareImageURL:
         """Test FileNotFoundError for non-existent file."""
         with pytest.raises(FileNotFoundError):
             prepare_image_url_from_image_path("/nonexistent/image.jpg")
+
+    def test_prepare_image_url_different_mime_types(self, tmp_path):
+        """Test preparing URLs for different image MIME types."""
+        mime_tests = [
+            (".jpg", "image/jpeg"),
+            (".jpeg", "image/jpeg"),
+            (".png", "image/png"),
+            (".gif", "image/gif"),
+            (".webp", "image/webp"),
+        ]
+
+        for ext, expected_mime in mime_tests:
+            image_file = tmp_path / f"test{ext}"
+            image_file.write_bytes(b"fake image")
+            url = prepare_image_url_from_image_path(str(image_file))
+            assert url.startswith(f"data:{expected_mime};base64,")
+
+    def test_prepare_image_url_unknown_extension(self, tmp_path):
+        """Test preparing URL for file with unknown extension defaults to jpeg."""
+        image_file = tmp_path / "test.unknown"
+        image_file.write_bytes(b"fake image")
+        url = prepare_image_url_from_image_path(str(image_file))
+        assert url.startswith("data:image/jpeg;base64,")
+
+    def test_prepare_image_url_case_insensitive_extension(self, tmp_path):
+        """Test that file extension matching is case insensitive."""
+        image_file = tmp_path / "test.PNG"
+        image_file.write_bytes(b"fake image")
+        url = prepare_image_url_from_image_path(str(image_file))
+        assert url.startswith("data:image/png;base64,")
+
+    @patch("prkit.prkit_core.model_clients.openai.OpenAI")
+    def test_chat_with_multiple_images(self, mock_openai_class, tmp_path):
+        """Test chat with multiple images."""
+        images = []
+        for i in range(3):
+            img_file = tmp_path / f"image{i}.jpg"
+            img_file.write_bytes(b"fake image data")
+            images.append(str(img_file))
+
+        mock_client = MagicMock()
+        mock_openai_class.return_value = mock_client
+        mock_response = Mock()
+        mock_response.output_text = "Multi-image response"
+        mock_client.responses.create.return_value = mock_response
+
+        client = OpenAIModel("gpt-5.1")
+        response = client.chat("Describe these images", image_paths=images)
+
+        assert response == "Multi-image response"
+        call_kwargs = mock_client.responses.create.call_args[1]
+        # Should have 1 text + 3 images = 4 content items
+        assert len(call_kwargs["input"]) == 1  # One message
+        assert len(call_kwargs["input"][0]["content"]) == 4  # 1 text + 3 images
+
+    @patch("prkit.prkit_core.model_clients.openai.OpenAI")
+    def test_chat_with_empty_string_prompt(self, mock_openai_class):
+        """Test chat with empty string prompt."""
+        mock_client = MagicMock()
+        mock_openai_class.return_value = mock_client
+        mock_response = Mock()
+        mock_response.output_text = "Response"
+        mock_client.responses.create.return_value = mock_response
+
+        client = OpenAIModel("gpt-5.1")
+        response = client.chat("")
+
+        assert response == "Response"
+        call_kwargs = mock_client.responses.create.call_args[1]
+        assert call_kwargs["input"][0]["content"][0]["text"] == ""
+
+    @patch("prkit.prkit_core.model_clients.openai.OpenAI")
+    def test_chat_with_none_image_paths(self, mock_openai_class):
+        """Test chat with None image_paths."""
+        mock_client = MagicMock()
+        mock_openai_class.return_value = mock_client
+        mock_response = Mock()
+        mock_response.output_text = "Response"
+        mock_client.responses.create.return_value = mock_response
+
+        client = OpenAIModel("gpt-5.1")
+        response = client.chat("Hello", image_paths=None)
+
+        assert response == "Response"
+        call_kwargs = mock_client.responses.create.call_args[1]
+        # Should only have text content
+        assert len(call_kwargs["input"]) == 1  # One message
+        assert len(call_kwargs["input"][0]["content"]) == 1  # Only text
+
+    def test_is_supported_openai_model_case_insensitive(self):
+        """Test model validation is case insensitive."""
+        assert _is_supported_openai_model("GPT-5.1") is True
+        assert _is_supported_openai_model("O3") is True
+        assert _is_supported_openai_model("GPT-4.1-MINI") is True
+
+    def test_is_o_family_model_edge_cases(self):
+        """Test o-family detection with edge cases."""
+        assert _is_o_family_model("o1") is True
+        assert _is_o_family_model("o10") is True
+        assert _is_o_family_model("o1-mini") is True
+        assert _is_o_family_model("openai") is False  # 'o' but not followed by digit
+        assert _is_o_family_model("o") is False  # Too short
+        assert _is_o_family_model("oa") is False  # 'o' followed by letter

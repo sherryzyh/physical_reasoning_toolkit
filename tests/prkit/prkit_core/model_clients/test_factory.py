@@ -2,12 +2,15 @@
 Tests for model client factory function.
 """
 
+from unittest.mock import MagicMock, patch
+
 import pytest
 
 from prkit.prkit_core.model_clients import create_model_client
 from prkit.prkit_core.model_clients.base import BaseModelClient
 from prkit.prkit_core.model_clients.deepseek import DeepseekModel
 from prkit.prkit_core.model_clients.gemini import GeminiModel
+from prkit.prkit_core.model_clients.ollama import OllamaModel
 from prkit.prkit_core.model_clients.openai import OpenAIModel
 
 
@@ -89,6 +92,40 @@ class TestCreateModelClient:
         logger = logging.getLogger("test")
         client = create_model_client("gpt-5.1", logger=logger)
         assert client.logger == logger
+
+    @patch("prkit.prkit_core.model_clients.ollama.ollama")
+    def test_create_ollama_model(self, mock_ollama_module):
+        """Test creating Ollama model."""
+        mock_client = MagicMock()
+        mock_client.list.return_value = []
+        mock_ollama_module.Client.return_value = mock_client
+
+        client = create_model_client("qwen3-vl")
+        assert isinstance(client, OllamaModel)
+        assert client.model == "qwen3-vl"
+        assert client.provider == "ollama"
+
+    @patch("prkit.prkit_core.model_clients.ollama.ollama")
+    def test_create_ollama_model_with_tag(self, mock_ollama_module):
+        """Test creating Ollama model with tag."""
+        mock_client = MagicMock()
+        mock_client.list.return_value = []
+        mock_ollama_module.Client.return_value = mock_client
+
+        client = create_model_client("qwen3-vl:8b-instruct")
+        assert isinstance(client, OllamaModel)
+        assert client.model == "qwen3-vl:8b-instruct"
+
+    @patch("prkit.prkit_core.model_clients.ollama.ollama")
+    def test_create_qwen_model_variants(self, mock_ollama_module):
+        """Test creating different Qwen model variants."""
+        mock_client = MagicMock()
+        mock_client.list.return_value = []
+        mock_ollama_module.Client.return_value = mock_client
+
+        for model_name in ["qwen3-vl", "qwen2.5", "qwen"]:
+            client = create_model_client(model_name)
+            assert isinstance(client, OllamaModel)
 
     def test_all_clients_are_base_model_client(self):
         """Test that all created clients are instances of BaseModelClient."""
