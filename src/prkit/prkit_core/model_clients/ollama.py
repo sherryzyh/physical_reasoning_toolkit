@@ -132,7 +132,7 @@ class OllamaModel(BaseModelClient):
                     model=self.model,
                     messages=[message],
                     options={
-                        'temperature': 0.7,
+                        'temperature': 0,
                     }
                 )
             else:
@@ -140,7 +140,8 @@ class OllamaModel(BaseModelClient):
                     model=self.model,
                     messages=[message],
                     options={
-                        'temperature': 0.7,
+                        'temperature': 0,
+                        'num_gpu': 99,  # This forces layers to the GPU
                     }
                 )
             

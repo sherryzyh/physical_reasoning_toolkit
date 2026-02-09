@@ -3,6 +3,7 @@ Unit tests for SeePhys dataset loader.
 """
 
 import json
+import re
 
 import pytest
 
@@ -368,3 +369,150 @@ class TestSeePhysLoader:
         
         assert dataset is not None
         assert len(dataset) == 1
+
+    def test_load_files_in_ascending_order(self, temp_dir):
+        """Test that files are loaded in ascending numerical order (0.json, 1.json, ..., 100.json, 101.json, ..., 1000.json)."""
+        loader = SeePhysLoader()
+        data_dir = temp_dir / "seephys"
+        split_dir = data_dir / "train"
+        split_dir.mkdir(parents=True)
+        
+        # Create files in a non-sequential order to test sorting
+        # This simulates filesystem order which might not be sorted
+        file_numbers = [100, 0, 101, 1, 1000, 2, 10, 99, 1001]
+        
+        for num in file_numbers:
+            json_file = split_dir / f"{num}.json"
+            sample_data = {
+                "index": str(num),  # Use the file number as index for easy verification
+                "question": f"Question {num}?",
+                "answer": f"Answer {num}",
+            }
+            with open(json_file, "w", encoding="utf-8") as f:
+                json.dump(sample_data, f)
+        
+        # Load the dataset
+        dataset = loader.load(data_dir=str(data_dir), split="train")
+        
+        assert dataset is not None
+        assert len(dataset) == len(file_numbers)
+        
+        # Extract problem IDs and verify they're in ascending order
+        # The problem_id should correspond to the index field (which is the file number)
+        problem_ids = []
+        for problem in dataset:
+            # The problem_id comes from the "index" field in the JSON
+            # Since we set index to the file number as a string, problem_id should be that number
+            try:
+                problem_ids.append(int(problem.problem_id))
+            except ValueError:
+                # Fallback: extract number from question if problem_id is not numeric
+                match = re.search(r'Question (\d+)\?', problem.question)
+                if match:
+                    problem_ids.append(int(match.group(1)))
+        
+        # Verify ascending order
+        assert problem_ids == sorted(problem_ids), (
+            f"Problems not in ascending order. Got: {problem_ids}, "
+            f"Expected: {sorted(problem_ids)}"
+        )
+        
+        # Also verify the expected order explicitly
+        expected_order = sorted(file_numbers)
+        assert problem_ids == expected_order, (
+            f"Problems not in expected ascending order. Got: {problem_ids}, "
+            f"Expected: {expected_order}"
+        )
+
+    def test_load_files_in_ascending_order_large_range(self, temp_dir):
+        """Test that files are loaded in ascending order with a larger range including edge cases."""
+        loader = SeePhysLoader()
+        data_dir = temp_dir / "seephys"
+        split_dir = data_dir / "train"
+        split_dir.mkdir(parents=True)
+        
+        # Test with a wider range including single digits, double digits, triple digits, etc.
+        file_numbers = [999, 0, 1000, 1, 10, 100, 1001, 2, 11, 101, 9999, 3, 12, 102]
+        
+        for num in file_numbers:
+            json_file = split_dir / f"{num}.json"
+            sample_data = {
+                "index": str(num),
+                "question": f"Question {num}?",
+                "answer": f"Answer {num}",
+            }
+            with open(json_file, "w", encoding="utf-8") as f:
+                json.dump(sample_data, f)
+        
+        dataset = loader.load(data_dir=str(data_dir), split="train")
+        
+        assert dataset is not None
+        assert len(dataset) == len(file_numbers)
+        
+        # Extract problem IDs
+        problem_ids = [int(p.problem_id) for p in dataset]
+        
+        # Verify ascending order
+        expected_order = sorted(file_numbers)
+        assert problem_ids == expected_order, (
+            f"Problems not in expected ascending order. Got: {problem_ids}, "
+            f"Expected: {expected_order}"
+        )
+
+    def test_load_files_with_non_numeric_names(self, temp_dir):
+        """Test that non-numeric filenames are placed at the end after numeric ones."""
+        loader = SeePhysLoader()
+        data_dir = temp_dir / "seephys"
+        split_dir = data_dir / "train"
+        split_dir.mkdir(parents=True)
+        
+        # Create numeric files
+        numeric_files = [100, 0, 1, 50]
+        for num in numeric_files:
+            json_file = split_dir / f"{num}.json"
+            sample_data = {
+                "index": str(num),
+                "question": f"Question {num}?",
+                "answer": f"Answer {num}",
+            }
+            with open(json_file, "w", encoding="utf-8") as f:
+                json.dump(sample_data, f)
+        
+        # Create non-numeric files (should be sorted to the end)
+        non_numeric_files = ["abc.json", "xyz.json", "test.json"]
+        for filename in non_numeric_files:
+            json_file = split_dir / filename
+            sample_data = {
+                "index": filename.replace(".json", ""),
+                "question": f"Question from {filename}?",
+                "answer": f"Answer from {filename}",
+            }
+            with open(json_file, "w", encoding="utf-8") as f:
+                json.dump(sample_data, f)
+        
+        dataset = loader.load(data_dir=str(data_dir), split="train")
+        
+        assert dataset is not None
+        assert len(dataset) == len(numeric_files) + len(non_numeric_files)
+        
+        # First files should be numeric in ascending order
+        numeric_problem_ids = []
+        non_numeric_problem_ids = []
+        
+        for problem in dataset:
+            try:
+                numeric_problem_ids.append(int(problem.problem_id))
+            except ValueError:
+                non_numeric_problem_ids.append(problem.problem_id)
+        
+        # Verify numeric files are in ascending order
+        assert numeric_problem_ids == sorted(numeric_files), (
+            f"Numeric problems not in ascending order. Got: {numeric_problem_ids}, "
+            f"Expected: {sorted(numeric_files)}"
+        )
+        
+        # Verify non-numeric files come after numeric ones
+        assert len(non_numeric_problem_ids) == len(non_numeric_files), (
+            f"Expected {len(non_numeric_files)} non-numeric problems, "
+            f"got {len(non_numeric_problem_ids)}"
+        )
