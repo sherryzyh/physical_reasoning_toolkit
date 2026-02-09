@@ -222,6 +222,11 @@ class DatasetHub:
             actual_split = loader.get_default_split()
         else:
             actual_split = split
+        
+        if sample_size is None:
+            actual_sample_size = "full"
+        else:
+            actual_sample_size = sample_size
 
         # Log detailed loading arguments with actual resolved values
         cls._logger.info(f"Loading dataset '{dataset_name}' with the following arguments:")
@@ -229,7 +234,7 @@ class DatasetHub:
         cls._logger.info(f"  - data_dir: {actual_data_dir}")
         cls._logger.info(f"  - variant: {actual_variant}")
         cls._logger.info(f"  - split: {actual_split}")
-        cls._logger.info(f"  - sample_size: {"full" if sample_size is None else sample_size}")
+        cls._logger.info(f"  - sample_size: {actual_sample_size}")
         cls._logger.info(f"  - auto_download: {auto_download}")
         if kwargs:
             cls._logger.info(f"  - additional kwargs: {kwargs}")

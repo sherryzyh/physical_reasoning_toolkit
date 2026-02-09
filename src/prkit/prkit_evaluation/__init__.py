@@ -1,24 +1,17 @@
 """
-Physical Reasoning Evaluation Toolkit
+Physical Reasoning Evaluation Package.
 
-A comprehensive toolkit for evaluating physical reasoning models with support for
-multiple answer types and evaluation metrics.
+This package provides tools for evaluating answers in physical reasoning tasks,
+including comparators for comparing answers and evaluators for performing
+evaluations.
 """
 
-from .comparison import (
-    BaseComparator,
-    NumericalComparator,
-    SmartAnswerComparator,
-    SymbolicComparator,
-    TextualComparator,
-)
-from .metrics import AccuracyMetric
+from prkit.prkit_evaluation.comparator import BaseComparator, ExactMatchComparator
+from prkit.prkit_evaluation.evaluator import AccuracyEvaluator, BaseEvaluator
 
 __all__ = [
-    "AccuracyMetric",
     "BaseComparator",
-    "SymbolicComparator",
-    "NumericalComparator",
-    "TextualComparator",
-    "SmartAnswerComparator",
+    "ExactMatchComparator",
+    "BaseEvaluator",
+    "AccuracyEvaluator",
 ]

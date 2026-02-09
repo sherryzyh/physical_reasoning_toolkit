@@ -431,8 +431,38 @@ pytest tests/
 
 ---
 
+## 📄 **Citation**
+
+If you use PRKit in your research, please cite it as follows:
+
+**BibTeX:**
+```bibtex
+@software{zhang2026physicalreasoningtoolkit,
+  author = {Zhang, Yinghuan},
+  title = {Physical Reasoning Toolkit},
+  year = {2026},
+  license = {MIT},
+  url = {https://github.com/sherryzyh/physical_reasoning_toolkit},
+  abstract = {A unified toolkit for researchers and engineers working on AI physical reasoning. PRKit provides a shared foundation for representing physics problems, running inference with multiple model providers, evaluating outputs with physics-aware comparators, and building structured annotation workflows.}
+}
+```
+
+For citation files, see `CITATION.cff` and `CITATION.bib` in the repository root.
+
+## 🙏 **Acknowledgments**
+
+PRKit integrates and builds upon several excellent physics reasoning benchmarks and datasets. We thank the creators of:
+- **PhysReason**, **PHYBench**, **UGPhysics**, **SeePhys**, **PhyX**, and other benchmark datasets
+- The open-source community for their valuable contributions and feedback
+
+**Note:** For detailed citations and references to the original dataset papers, please see the [Citations section](DATASETS.md#citations) in `DATASETS.md`.
+
+## 📝 **License**
+
+This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+
+---
+
 **Ready to advance physics reasoning research! 🚀✨**
 
-**Package:** `pip install physical-reasoning-toolkit` | **Import:** `import prkit` | **Version:** 0.1.0 | **GitHub:** [sherryzyh/physical_reasoning_toolkit](https://github.com/sherryzyh/physical_reasoning_toolkit) | **License:** MIT
-
-**Author:** Yinghuan Zhang (yinghuan.flash@gmail.com)
+**Quick Links:** `pip install physical-reasoning-toolkit` | [GitHub](https://github.com/sherryzyh/physical_reasoning_toolkit) | [Documentation](https://github.com/sherryzyh/physical_reasoning_toolkit#readme) | [Issues](https://github.com/sherryzyh/physical_reasoning_toolkit/issues)

@@ -231,3 +231,7 @@ check_*
 dev_tests/
 .pypirc
 .env
+
+# Experiments
+results/
+experiment_books/

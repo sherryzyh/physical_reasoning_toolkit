@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "Physical Reasoning Toolkit"
+version: 0.1.0
+doi: 10.5281/zenodo.XXXXXXX
+date-released: 2026-02-01
+authors:
+  - given-names: Yinghuan
+    family-names: Zhang
+    email: yinghuan.flash@gmail.com
+license: MIT
+repository-code: "https://github.com/sherryzyh/physical_reasoning_toolkit"
+abstract: "A unified toolkit for researchers and engineers working on AI physical reasoning. PRKit provides a shared foundation for representing physics problems, running inference with multiple model providers, evaluating outputs with physics-aware comparators, and building structured annotation workflows."
+keywords:
+  - "artificial intelligence"
+  - "physical reasoning"
+  - "physics"
+  - "machine learning"
+  - "evaluation"
+  - "datasets"
+  - "python"
+type: software

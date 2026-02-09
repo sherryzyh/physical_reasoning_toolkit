@@ -165,11 +165,23 @@ class SeePhysLoader(BaseDatasetLoader):
         """Load problems from files in a directory."""
         problems = []
 
-        json_files = sorted(split_dir.glob("*.json"))
+        json_files = list(split_dir.glob("*.json"))
         if not json_files:
             raise FileNotFoundError(
                 f"No files found in {split_dir}"
             )
+
+        # Sort files numerically by filename (e.g., 0.json, 1.json, ..., 100.json, 101.json, ..., 1000.json)
+        def extract_number(file_path: Path) -> int:
+            """Extract numeric part from filename for sorting."""
+            stem = file_path.stem  # Gets filename without extension (e.g., "0", "100", "1000")
+            try:
+                return int(stem)
+            except ValueError:
+                # If filename is not a number, return a large value to put it at the end
+                return float('inf')
+
+        json_files.sort(key=extract_number)
 
         self.logger.info(f"Found {len(json_files)} files")
 
