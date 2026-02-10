@@ -9,6 +9,7 @@ import math
 import re
 from typing import Literal, Tuple, Union
 from latex2sympy2_extended import latex2sympy
+from prkit.prkit_evaluation.utils.latex_symbol_preprocess import _preprocess_latex
 
 
 def normalize_number(answer_str: str) -> float:
@@ -172,11 +173,16 @@ def normalize_expression(answer_str: str) -> Tuple[str, bool]:
     if had_latex_patterns:
         try:
             # Convert to SymPy symbolic expression
-            symbolic_expr = latex2sympy(clean_math)
-            # Convert SymPy expression to normalized string representation
-            # Use str() to get a canonical representation
+            # Pre-process the string before passing to latex2sympy
+            preprocessed_math = _preprocess_latex(clean_math)
+            
+            # Convert to SymPy symbolic expression
+            symbolic_expr = latex2sympy(preprocessed_math)
+            
+            # Convert SymPy expression back to string
             normalized_str = str(symbolic_expr)
-            # Normalize whitespace in the output
+            
+            
             normalized_str = re.sub(r'\s+', ' ', normalized_str).strip()
             return normalized_str, True
         except Exception:
