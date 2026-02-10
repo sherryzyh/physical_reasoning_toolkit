@@ -11,6 +11,8 @@ overriding _get_category_comparators() or by passing custom comparators.
 
 from typing import Callable, Dict, Optional, Tuple, Union
 
+from sympy import sympify
+
 from prkit.prkit_core.domain.answer import Answer
 from prkit.prkit_core.domain.answer_category import AnswerCategory
 from prkit.prkit_evaluation.utils.normalization import normalize_answer, normalize_text
@@ -134,15 +136,19 @@ def _compare_physical_quantity(
     if isinstance(predicted_norm, Answer):
         pred_num = predicted_norm.value
         pred_unit = predicted_norm.unit
-        pred_string = str(pred_num) + " " + pred_unit
+        pred_string = (
+            f"{pred_num} {pred_unit}" if pred_unit is not None else str(pred_num)
+        )
     else:
         pred_num, pred_unit = _parse_physical_quantity(predicted_norm)
         pred_string = predicted_norm
-    
+
     if isinstance(ground_truth_norm, Answer):
         gt_num = ground_truth_norm.value
         gt_unit = ground_truth_norm.unit
-        gt_string = str(gt_num) + " " + gt_unit
+        gt_string = (
+            f"{gt_num} {gt_unit}" if gt_unit is not None else str(gt_num)
+        )
     else:
         gt_num, gt_unit = _parse_physical_quantity(ground_truth_norm)
         gt_string = ground_truth_norm
@@ -155,24 +161,34 @@ def _compare_physical_quantity(
     return _compare_plain_text(pred_string, gt_string)
 
 
+def _formula_to_sympify(s: str) -> str:
+    """
+    Convert a formula string to sympify-compatible format.
+
+    Replaces ^ with ** so that expressions like "x^2" parse correctly.
+    Normalized output from latex2sympy already uses **, but raw strings may use ^.
+    """
+    return str(s).strip().replace("^", "**")
+
+
 def _compare_formula(
     predicted_norm: Union[str, Answer],
     ground_truth_norm: Union[str, Answer]
 ) -> bool:
     """
-    Compare two normalized formula expressions.
+    Compare two normalized formula expressions using SymPy.
+
+    Uses sympy.sympify to parse expressions and sympy's .equals() to check
+    mathematical equivalence. Structurally equivalent but superficially
+    different forms (e.g. x+y vs y+x, (x+1)**2 vs x**2+2*x+1) are treated
+    as equal. Falls back to plain text comparison if parsing fails.
 
     Args:
         predicted_norm: Normalized predicted answer (SymPy string from normalize_expression)
         ground_truth_norm: Normalized ground truth (SymPy string from normalize_expression)
 
-    Formulas may have structurally equivalent but superficially different forms
-    (e.g. reordered terms, different variable names).
-
-    TODO: implement formula comparison
-    - Consider symbolic equivalence (sympy.simplify, sympy.equals)
-    - Handle variable renaming / canonicalization
-    - Account for mathematically equivalent rearrangements
+    Returns:
+        True if expressions are mathematically equivalent, False otherwise.
     """
     if isinstance(predicted_norm, Answer):
         pred_expression = predicted_norm.value
@@ -183,8 +199,12 @@ def _compare_formula(
     else:
         gt_expression = ground_truth_norm
 
-    # TODO: implement
-    return _compare_plain_text(pred_expression, gt_expression)
+    try:
+        pred_sym = sympify(_formula_to_sympify(pred_expression))
+        gt_sym = sympify(_formula_to_sympify(gt_expression))
+        return pred_sym.equals(gt_sym)
+    except Exception:
+        return _compare_plain_text(pred_expression, gt_expression)
 
 
 class CategoryComparator(BaseComparator):

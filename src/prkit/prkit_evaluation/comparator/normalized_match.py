@@ -2,7 +2,7 @@
 Normalized Match Comparator for answer comparison.
 
 This comparator performs preprocessing and normalization before comparison:
-- number: normalized to float format, compared with tolerance
+- number: normalized to float format, compared for equality
 - physical_quantity: number + units (placeholder comparison; user will add later)
 - equation, formula, text: normalized and compared as identical strings
 """
@@ -12,10 +12,11 @@ from typing import Tuple, Union
 from prkit.prkit_core.domain.answer import Answer
 from prkit.prkit_core.domain.answer_category import AnswerCategory
 
-from prkit.prkit_evaluation.comparator.number_compare import compare_numbers
 from prkit.prkit_evaluation.utils.normalization import normalize_answer, normalize_text
+from prkit.prkit_evaluation.utils.number_utils import DEFAULT_NUMBER_EPSILON
 
 from .base import BaseComparator
+
 
 def _same_comparison_category(
     cat1: AnswerCategory, cat2: AnswerCategory
@@ -100,7 +101,7 @@ class NormalizedMatchComparator(BaseComparator):
         if cat1 == AnswerCategory.NUMBER:
             if not (isinstance(norm1, float) and isinstance(norm2, float)):
                 return False
-            return compare_numbers(norm1, norm2)
+            return abs(norm1 - norm2) < DEFAULT_NUMBER_EPSILON
         else:
             # equation, formula, physical_quantity, text: identical string comparison
             if not (isinstance(norm1, str) and isinstance(norm2, str)):

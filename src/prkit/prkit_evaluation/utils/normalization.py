@@ -251,7 +251,7 @@ def _parse_exponent(exp_str: str) -> int | None:
     if re.match(r"^[\d\s+\-*()]+$", s):
         try:
             return int(eval(s))
-        except (ValueError, TypeError, ZeroDivisionError):
+        except (ValueError, TypeError, ZeroDivisionError, SyntaxError):
             pass
     return None
 
@@ -331,17 +331,19 @@ def _normalize_symbolic_expression(
     """
     Convert equation or formula to SymPy symbolic format.
     Only equation and formula types should go through this path.
+
+    When latex2sympy fails, returns success=False so the caller can fall back
+    to text normalization.
     """
     if had_latex_patterns:
+        preprocessed_math = _preprocess_latex(clean_math)
         try:
-            preprocessed_math = _preprocess_latex(clean_math)
             symbolic_expr = latex2sympy(preprocessed_math)
             normalized_str = str(symbolic_expr)
             normalized_str = re.sub(r"\s+", " ", normalized_str).strip()
             return normalized_str, True
         except Exception:
-            normalized_str = re.sub(r"\s+", " ", clean_math).strip()
-            return normalized_str, True
+            return preprocessed_math, False
     else:
         normalized_str = re.sub(r"\s+", " ", clean_math).strip()
         return normalized_str, True
@@ -486,3 +488,4 @@ def normalize_answer(
     # Step 3: Fall back to text normalization
     clean_str, _ = _extract_math_content(answer_str)
     return (AnswerCategory.TEXT, normalize_text(clean_str))
+
