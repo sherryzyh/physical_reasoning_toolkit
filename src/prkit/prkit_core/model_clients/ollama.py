@@ -10,6 +10,7 @@ Prerequisites:
 """
 
 import os
+import types
 from typing import List, Optional
 import ollama
 
@@ -90,14 +91,24 @@ class OllamaModel(BaseModelClient):
             self.logger.error(error_msg)
             raise ConnectionError(error_msg) from e
 
-    def chat(self, user_prompt: str, image_paths: Optional[List[str]] = None) -> str:
+    def chat(
+        self,
+        user_prompt: str,
+        image_paths: Optional[List[str]] = None,
+        max_output_tokens: int = 8192,
+        *args,
+        **kwargs,
+    ) -> str:
         """
         Generate a response using the local Ollama service.
 
         Args:
             user_prompt: The user's prompt text.
-            image_paths: Optional list of file paths to images. 
+            image_paths: Optional list of file paths to images.
                          Ollama accepts local file paths.
+            *args: Additional positional arguments (ignored, kept for compatibility)
+            **kwargs: Additional keyword arguments for request parameters
+                     (e.g., max_tokens, etc.)
 
         Returns:
             Response text from the model.
@@ -123,6 +134,13 @@ class OllamaModel(BaseModelClient):
                 valid_images.append(path)
             
             message['images'] = valid_images
+        options = {
+            'temperature': 0,
+            'num_predict': max_output_tokens,
+            **kwargs,
+        }
+        # Note: Do NOT set num_gpu=99. It causes "memory layout cannot be allocated"
+        # errors. Let Ollama auto-determine GPU layer allocation based on VRAM.
 
         try:
             # Use Client if base_url is specified, otherwise use default
@@ -131,18 +149,13 @@ class OllamaModel(BaseModelClient):
                 response = client.chat(
                     model=self.model,
                     messages=[message],
-                    options={
-                        'temperature': 0,
-                    }
+                    options=options,
                 )
             else:
                 response = ollama.chat(
                     model=self.model,
                     messages=[message],
-                    options={
-                        'temperature': 0,
-                        'num_gpu': 99,  # This forces layers to the GPU
-                    }
+                    options=options,
                 )
             
             # Handle both dict-like and object-like response access

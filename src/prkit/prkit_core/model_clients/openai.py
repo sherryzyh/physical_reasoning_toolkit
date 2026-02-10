@@ -141,7 +141,13 @@ class OpenAIModel(BaseModelClient):
         self.provider = "openai"
         self.is_o_family = _is_o_family_model(model)
 
-    def chat(self, user_prompt: str, image_paths: Optional[List[str]] = None):
+    def chat(
+        self,
+        user_prompt: str,
+        image_paths: Optional[List[str]] = None,
+        *args,
+        **kwargs,
+    ) -> str:
         """
         Generate a response from OpenAI Responses API.
 
@@ -151,6 +157,9 @@ class OpenAIModel(BaseModelClient):
                        - File paths: ["/path/to/image.jpg", ...] - will be encoded to base64
                        - HTTP/HTTPS URLs: ["https://example.com/image.jpg", ...] - used as-is
                        - Base64 data URLs: ["data:image/jpeg;base64,...", ...] - used as-is
+            *args: Additional positional arguments (ignored, kept for compatibility)
+            **kwargs: Additional keyword arguments for request parameters
+                     (e.g., max_tokens, etc.)
 
         Returns:
             Response text from OpenAI model
@@ -185,4 +194,5 @@ class OpenAIModel(BaseModelClient):
             request_params["reasoning"] = {"effort": "medium"}
 
         response = self.client.responses.create(**request_params)
+        self.logger.info(f"Response: {response.output_text}")
         return response.output_text
