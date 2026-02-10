@@ -55,7 +55,7 @@ def create_model_client(model: str, logger=None) -> BaseModelClient:
         True
     """
     model_lower = model.lower()
-    
+
     if "deepseek" in model_lower:
         return DeepseekModel(model, logger)
     elif "qwen3-vl" in model_lower or model_lower.startswith("qwen"):

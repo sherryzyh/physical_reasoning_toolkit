@@ -3,6 +3,7 @@ Google Gemini API client implementation.
 """
 
 import os
+import PIL.Image
 from typing import List, Optional
 
 from dotenv import load_dotenv
@@ -35,7 +36,14 @@ class GeminiModel(BaseModelClient):
         self.provider = "google"
         self.client = None
 
-    def chat(self, user_prompt: str, image_paths: Optional[List[str]] = None, *args, **kwargs):
+    def chat(
+        self,
+        user_prompt: str,
+        image_paths: Optional[List[str]] = None,
+        max_output_tokens: int = 8192,
+        *args,
+        **kwargs,
+    ) -> str:
         """
         Generate a response from Gemini API.
 
@@ -51,11 +59,24 @@ class GeminiModel(BaseModelClient):
         Returns:
             Response text from Gemini model
         """
+        # Prepare content parts
+        # Start with the text prompt
+        contents_parts = [user_prompt]
+
+        # Process images if provided
         if image_paths:
-            self.logger.warning(
-                f"Gemini model {self.model} received {len(image_paths)} image(s), "
-                "but image support is not yet implemented. Images will be ignored."
-            )
+            for path in image_paths:
+                try:
+                    if os.path.exists(path):
+                        # Load image using PIL
+                        img = PIL.Image.open(path)
+                        contents_parts.append(img)
+                    else:
+                        if self.logger:
+                            self.logger.error(f"Image path not found: {path}")
+                except Exception as e:
+                    if self.logger:
+                        self.logger.error(f"Failed to load image at {path}: {str(e)}")
         
         # Build config with any additional kwargs
         config_dict = {}
@@ -66,8 +87,9 @@ class GeminiModel(BaseModelClient):
 
         response = self.genai_client.models.generate_content(
             model=self.model,
-            contents=[{"role": "user", "parts": [{"text": user_prompt}]}],
+            contents=contents_parts,
             config=config,
         )
 
+        self.logger.info(f"Response: {response.text}")
         return response.text

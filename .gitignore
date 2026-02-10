@@ -233,5 +233,6 @@ dev_tests/
 .env
 
 # Experiments
-results/
+experiment_results/
 experiment_books/
+prkit_logs/
