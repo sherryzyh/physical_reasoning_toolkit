@@ -9,20 +9,20 @@ from typing import Any, Dict, List
 
 import pytest
 
-from prkit.prkit_core.domain import AnswerType, PhysicsDomain
+from prkit.prkit_core.domain import AnswerCategory, PhysicsDomain
 from prkit.prkit_core.domain import Answer, PhysicalDataset, PhysicsProblem
 
 
 @pytest.fixture
 def sample_answer_numerical():
     """Create a sample numerical answer."""
-    return Answer(value=42.0, answer_type=AnswerType.NUMERICAL, unit="m/s")
+    return Answer(value=42.0, answer_category=AnswerCategory.PHYSICAL_QUANTITY, unit="m/s")
 
 
 @pytest.fixture
 def sample_answer_symbolic():
     """Create a sample symbolic answer."""
-    return Answer(value="x^2 + 2x + 1", answer_type=AnswerType.SYMBOLIC)
+    return Answer(value="x^2 + 2x + 1", answer_category=AnswerCategory.FORMULA)
 
 
 @pytest.fixture
@@ -30,14 +30,14 @@ def sample_answer_textual():
     """Create a sample textual answer."""
     return Answer(
         value="The force is equal to mass times acceleration",
-        answer_type=AnswerType.TEXTUAL,
+        answer_category=AnswerCategory.TEXT,
     )
 
 
 @pytest.fixture
 def sample_answer_option():
     """Create a sample option answer."""
-    return Answer(value="A", answer_type=AnswerType.OPTION)
+    return Answer(value="A", answer_category=AnswerCategory.OPTION)
 
 
 @pytest.fixture
@@ -46,7 +46,7 @@ def sample_physics_problem():
     return PhysicsProblem(
         problem_id="test_001",
         question="What is the speed of light?",
-        answer=Answer(value=3e8, answer_type=AnswerType.NUMERICAL, unit="m/s"),
+        answer=Answer(value=3e8, answer_category=AnswerCategory.PHYSICAL_QUANTITY, unit="m/s"),
         solution="The speed of light in vacuum is approximately 3 × 10^8 m/s",
         domain=PhysicsDomain.CLASSICAL_MECHANICS,
         language="en",
@@ -60,7 +60,7 @@ def sample_physics_problem_mc():
     return PhysicsProblem(
         problem_id="test_002",
         question="What is F = ma?",
-        answer=Answer(value="A", answer_type=AnswerType.OPTION),
+        answer=Answer(value="A", answer_category=AnswerCategory.OPTION),
         options=[
             "Newton's second law",
             "Newton's first law",
@@ -97,7 +97,7 @@ def sample_problems_list():
         problem = PhysicsProblem(
             problem_id=f"test_{i:03d}",
             question=f"Test question {i}",
-            answer=Answer(value=i, answer_type=AnswerType.NUMERICAL),
+            answer=Answer(value=i, answer_category=AnswerCategory.NUMBER),
             domain=(
                 PhysicsDomain.CLASSICAL_MECHANICS
                 if i % 2 == 0

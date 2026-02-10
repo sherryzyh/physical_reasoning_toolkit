@@ -67,9 +67,9 @@ class TestGeminiModel:
         mock_client.models.generate_content.assert_called_once()
         call_kwargs = mock_client.models.generate_content.call_args[1]
         assert call_kwargs["model"] == "gemini-pro"
+        # contents is a list of parts (text strings and/or PIL Images)
         assert len(call_kwargs["contents"]) == 1
-        assert call_kwargs["contents"][0]["role"] == "user"
-        assert call_kwargs["contents"][0]["parts"][0]["text"] == "Hello, world!"
+        assert call_kwargs["contents"][0] == "Hello, world!"
         # Verify config is None when no kwargs provided
         assert call_kwargs.get("config") is None
 
@@ -106,8 +106,8 @@ class TestGeminiModel:
         assert call_kwargs.get("config") is None
 
     @patch("prkit.prkit_core.model_clients.gemini.genai")
-    def test_chat_with_images_warning(self, mock_genai):
-        """Test chat with images logs warning."""
+    def test_chat_with_images_error(self, mock_genai):
+        """Test chat with non-existent image path logs error."""
         mock_client = MagicMock()
         mock_genai.Client.return_value = mock_client
         mock_response = Mock()
@@ -115,10 +115,11 @@ class TestGeminiModel:
         mock_client.models.generate_content.return_value = mock_response
 
         client = GeminiModel("gemini-pro")
-        with patch.object(client.logger, "warning") as mock_warning:
+        with patch.object(client.logger, "error") as mock_error:
             response = client.chat("Hello", image_paths=["image.jpg"])
 
         assert response == "Response"
-        mock_warning.assert_called_once()
-        assert "image support is not yet implemented" in mock_warning.call_args[0][0].lower()
+        mock_error.assert_called_once()
+        assert "Image path not found" in mock_error.call_args[0][0]
+        assert "image.jpg" in mock_error.call_args[0][0]
 

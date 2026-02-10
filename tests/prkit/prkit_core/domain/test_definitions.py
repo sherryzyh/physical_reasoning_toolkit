@@ -1,10 +1,10 @@
 """
-Tests for definitions: PhysicsDomain, AnswerType.
+Tests for definitions: PhysicsDomain, AnswerCategory.
 """
 
 import pytest
 
-from prkit.prkit_core.domain import AnswerType, PhysicsDomain
+from prkit.prkit_core.domain import AnswerCategory, PhysicsDomain
 
 
 class TestPhysicsDomain:
@@ -81,31 +81,35 @@ class TestPhysicsDomain:
         assert all(isinstance(d, PhysicsDomain) for d in domains)
 
 
-class TestAnswerType:
-    """Test cases for AnswerType enum."""
+class TestAnswerCategory:
+    """Test cases for AnswerCategory enum."""
 
-    def test_answer_type_enum_values(self):
-        """Test that answer type enum has expected values."""
-        assert AnswerType.NUMERICAL.value == "numerical"
-        assert AnswerType.SYMBOLIC.value == "symbolic"
-        assert AnswerType.TEXTUAL.value == "textual"
-        assert AnswerType.OPTION.value == "option"
+    def test_answer_category_enum_values(self):
+        """Test that answer category enum has expected values."""
+        assert AnswerCategory.NUMBER.value == "number"
+        assert AnswerCategory.EQUATION.value == "equation"
+        assert AnswerCategory.PHYSICAL_QUANTITY.value == "physical_quantity"
+        assert AnswerCategory.FORMULA.value == "formula"
+        assert AnswerCategory.TEXT.value == "text"
+        assert AnswerCategory.OPTION.value == "option"
 
-    def test_all_answer_types_accessible(self):
-        """Test that all answer types are accessible."""
+    def test_all_answer_categories_accessible(self):
+        """Test that all answer categories are accessible."""
         types = [
-            AnswerType.NUMERICAL,
-            AnswerType.SYMBOLIC,
-            AnswerType.TEXTUAL,
-            AnswerType.OPTION,
+            AnswerCategory.NUMBER,
+            AnswerCategory.EQUATION,
+            AnswerCategory.PHYSICAL_QUANTITY,
+            AnswerCategory.FORMULA,
+            AnswerCategory.TEXT,
+            AnswerCategory.OPTION,
         ]
-        assert len(types) == 4
-        assert all(isinstance(t, AnswerType) for t in types)
+        assert len(types) == 6
+        assert all(isinstance(t, AnswerCategory) for t in types)
 
-    def test_answer_type_str(self):
+    def test_answer_category_str(self):
         """Test string representation."""
-        assert AnswerType.NUMERICAL.value == "numerical"
-        assert AnswerType.SYMBOLIC.value == "symbolic"
+        assert AnswerCategory.NUMBER.value == "number"
+        assert AnswerCategory.FORMULA.value == "formula"
 
     def test_domain_from_string_lowercase(self):
         """Test from_string with lowercase input."""
@@ -161,14 +165,14 @@ class TestAnswerType:
         assert "CLASSICAL_MECHANICS" in repr_str
         assert "PhysicsDomain" in repr_str
 
-    def test_answer_type_enum_comparison(self):
-        """Test AnswerType enum comparison."""
-        assert AnswerType.NUMERICAL == AnswerType.NUMERICAL
-        assert AnswerType.NUMERICAL != AnswerType.SYMBOLIC
+    def test_answer_category_enum_comparison(self):
+        """Test AnswerCategory enum comparison."""
+        assert AnswerCategory.NUMBER == AnswerCategory.NUMBER
+        assert AnswerCategory.NUMBER != AnswerCategory.FORMULA
 
-    def test_answer_type_value_access(self):
-        """Test accessing AnswerType values."""
-        assert AnswerType.NUMERICAL.value == "numerical"
-        assert AnswerType.SYMBOLIC.value == "symbolic"
-        assert AnswerType.TEXTUAL.value == "textual"
-        assert AnswerType.OPTION.value == "option"
+    def test_answer_category_value_access(self):
+        """Test accessing AnswerCategory values."""
+        assert AnswerCategory.NUMBER.value == "number"
+        assert AnswerCategory.FORMULA.value == "formula"
+        assert AnswerCategory.TEXT.value == "text"
+        assert AnswerCategory.OPTION.value == "option"

@@ -88,8 +88,7 @@ class TPBenchLoader(BaseDatasetLoader):
 
     def _process_metadata(self, metadata: Dict[str, Any]):
         """Process metadata to create standardized problem fields."""
-        # Set answer type to symbolic
-        metadata["answer_type"] = "symbolic"
+        metadata["answer_category"] = "formula"
         domain = metadata.get("domain")
         if domain:
             metadata["domain"] = self.DOMAIN_MAPPING.get(domain, PhysicsDomain.OTHER)

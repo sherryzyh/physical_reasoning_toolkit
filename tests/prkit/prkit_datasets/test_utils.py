@@ -4,61 +4,60 @@ Tests for utility functions and helper modules.
 
 import pytest
 
-from prkit.prkit_core.domain import AnswerType
+from prkit.prkit_core.domain import AnswerCategory
 from prkit.prkit_datasets.loaders.base_loader import (
-    detect_answer_type,
+    detect_answer_category,
     is_mathematical_expression,
     is_pure_number,
 )
 
 
-class TestAnswerTypeDetection:
-    """Test cases for answer type detection utilities."""
+class TestAnswerCategoryDetection:
+    """Test cases for answer category detection utilities."""
 
-    def test_detect_answer_type_numerical(self):
-        """Test detecting numerical answer type."""
-        assert detect_answer_type("42") == AnswerType.NUMERICAL
-        assert detect_answer_type("3.14") == AnswerType.NUMERICAL
-        assert detect_answer_type("1e-5") == AnswerType.NUMERICAL
-        assert detect_answer_type("1.23e+10") == AnswerType.NUMERICAL
+    def test_detect_answer_category_numerical(self):
+        """Test detecting number answer category."""
+        assert detect_answer_category("42") == AnswerCategory.NUMBER
+        assert detect_answer_category("3.14") == AnswerCategory.NUMBER
+        assert detect_answer_category("1e-5") == AnswerCategory.NUMBER
+        assert detect_answer_category("1.23e+10") == AnswerCategory.NUMBER
 
-    def test_detect_answer_type_fraction(self):
-        """Test detecting fractions as numerical."""
-        assert detect_answer_type("3/4") == AnswerType.NUMERICAL
-        assert detect_answer_type("1/2") == AnswerType.NUMERICAL
+    def test_detect_answer_category_fraction(self):
+        """Test detecting fractions as number."""
+        assert detect_answer_category("3/4") == AnswerCategory.NUMBER
+        assert detect_answer_category("1/2") == AnswerCategory.NUMBER
 
-    def test_detect_answer_type_symbolic(self):
-        """Test detecting symbolic answer type."""
-        assert detect_answer_type("x^2 + 1") == AnswerType.SYMBOLIC
-        assert detect_answer_type("\\frac{a}{b}") == AnswerType.SYMBOLIC
-        assert detect_answer_type("$x^2$") == AnswerType.SYMBOLIC
-        assert detect_answer_type("\\boxed{x^2}") == AnswerType.SYMBOLIC
+    def test_detect_answer_category_formula(self):
+        """Test detecting formula/symbolic answer category."""
+        assert detect_answer_category("x^2 + 1") == AnswerCategory.FORMULA
+        assert detect_answer_category("\\frac{a}{b}") == AnswerCategory.FORMULA
+        assert detect_answer_category("$x^2$") == AnswerCategory.FORMULA
+        assert detect_answer_category("\\boxed{x^2}") == AnswerCategory.FORMULA
 
-    def test_detect_answer_type_textual(self):
-        """Test detecting textual answer type."""
-        # Note: "The answer is 42" contains "=" which might be detected as symbolic
-        # "Newton's second law" might match single letter regex patterns
-        # Use clearer textual examples without math operators or single letters that could be variables
-        assert detect_answer_type("This is a descriptive answer") == AnswerType.TEXTUAL
+    def test_detect_answer_category_text(self):
+        """Test detecting text answer category."""
         assert (
-            detect_answer_type("The solution involves multiple steps")
-            == AnswerType.TEXTUAL
+            detect_answer_category("This is a descriptive answer")
+            == AnswerCategory.TEXT
         )
-        # Test that pure text without math indicators is textual
         assert (
-            detect_answer_type("Explanation of the physics concept")
-            == AnswerType.TEXTUAL
+            detect_answer_category("The solution involves multiple steps")
+            == AnswerCategory.TEXT
+        )
+        assert (
+            detect_answer_category("Explanation of the physics concept")
+            == AnswerCategory.TEXT
         )
 
-    def test_detect_answer_type_with_boxed(self):
-        """Test detecting answer type with \\boxed{} wrapper."""
-        assert detect_answer_type("\\boxed{42}") == AnswerType.NUMERICAL
-        assert detect_answer_type("\\boxed{x^2}") == AnswerType.SYMBOLIC
+    def test_detect_answer_category_with_boxed(self):
+        """Test detecting answer category with \\boxed{} wrapper."""
+        assert detect_answer_category("\\boxed{42}") == AnswerCategory.NUMBER
+        assert detect_answer_category("\\boxed{x^2}") == AnswerCategory.FORMULA
 
-    def test_detect_answer_type_with_dollar_signs(self):
-        """Test detecting answer type with $ delimiters."""
-        assert detect_answer_type("$42$") == AnswerType.NUMERICAL
-        assert detect_answer_type("$$x^2$$") == AnswerType.SYMBOLIC
+    def test_detect_answer_category_with_dollar_signs(self):
+        """Test detecting answer category with $ delimiters."""
+        assert detect_answer_category("$42$") == AnswerCategory.NUMBER
+        assert detect_answer_category("$$x^2$$") == AnswerCategory.FORMULA
 
 
 class TestIsPureNumber:

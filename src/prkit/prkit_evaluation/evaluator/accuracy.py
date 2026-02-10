@@ -61,8 +61,8 @@ class AccuracyEvaluator(BaseEvaluator):
                 "comparison_result": None,
                 "details": {
                     "error": "Comparator cannot handle these answer types",
-                    "predicted_type": predicted_answer.answer_type.value,
-                    "ground_truth_type": ground_truth_answer.answer_type.value,
+                    "predicted_type": predicted_answer.answer_category.value,
+                    "ground_truth_type": ground_truth_answer.answer_category.value,
                 },
             }
 
@@ -80,8 +80,8 @@ class AccuracyEvaluator(BaseEvaluator):
             "details": {
                 "predicted_value": str(predicted_answer.value),
                 "ground_truth_value": str(ground_truth_answer.value),
-                "predicted_type": predicted_answer.answer_type.value,
-                "ground_truth_type": ground_truth_answer.answer_type.value,
+                "predicted_type": predicted_answer.answer_category.value,
+                "ground_truth_type": ground_truth_answer.answer_category.value,
                 "comparator_type": type(self.comparator).__name__,
             },
         }

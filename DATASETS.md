@@ -26,7 +26,7 @@ for problem in dataset[:5]:
     print(f"Domain: {problem.domain}")
     if problem.answer is not None:
         print(
-            f"Answer: {problem.answer.value} (Type: {problem.answer.answer_type.value})"
+            f"Answer: {problem.answer.value} (Category: {problem.answer.answer_category.value})"
         )
 ```
 
@@ -49,25 +49,27 @@ The `Answer` class is the foundational building block for representing answers i
 
 ```python
 Answer(
-    value: Any,                    # The answer value (type depends on answer_type)
-    answer_type: AnswerType,       # AnswerType enum (see below)
-    unit: Optional[str] = None,    # Unit string for numerical answers
-    metadata: Dict[str, Any] = {}  # Additional metadata
+    value: Any,                         # The answer value (type depends on answer_category)
+    answer_category: AnswerCategory,    # AnswerCategory enum (see below)
+    unit: Optional[str] = None,         # Unit string for number/physical_quantity answers
+    metadata: Dict[str, Any] = {}       # Additional metadata
 )
 ```
 
-#### Answer Types
+#### Answer Categories
 
-The `answer_type` field uses the `AnswerType` enum with the following values:
+The `answer_category` field uses the `AnswerCategory` enum with the following values:
 
-| Type | Enum Value | Description | Example |
-|------|------------|-------------|---------|
-| **Numerical** | `AnswerType.NUMERICAL` | Numerical values with optional units | `42.5`, `"3.14 m/s"` |
-| **Symbolic** | `AnswerType.SYMBOLIC` | Mathematical expressions (may include LaTeX) | `"\\frac{mv^2}{2}"`, `"E = mc^2"` |
-| **Option** | `AnswerType.OPTION` | Multiple choice selection | `"A"`, `"B"`, `"1"` |
-| **Textual** | `AnswerType.TEXTUAL` | Text-based answers | `"The force is upward"` |
+| Category | Enum Value | Description | Example |
+|----------|------------|-------------|---------|
+| **Number** | `AnswerCategory.NUMBER` | Dimensionless numeric value | `42.5`, `3.14` |
+| **Physical Quantity** | `AnswerCategory.PHYSICAL_QUANTITY` | Number with units | `"9.8 m/s^2"`, `42.5` + `"m/s"` |
+| **Equation** | `AnswerCategory.EQUATION` | Single-equation form | `"F = ma"` |
+| **Formula** | `AnswerCategory.FORMULA` | Mathematical expression | `"\\frac{mv^2}{2}"`, `"E = mc^2"` |
+| **Text** | `AnswerCategory.TEXT` | Text-based answers | `"The force is upward"` |
+| **Option** | `AnswerCategory.OPTION` | Multiple choice selection | `"A"`, `"B"`, `"1"` |
 
-**Note**: Answer type detection is automatic during dataset loading, but can be explicitly set.
+**Note**: Answer category detection is automatic during dataset loading, but can be explicitly set.
 
 ### Physics Domains
 
@@ -95,7 +97,7 @@ The `PhysicsProblem` class is the core data structure representing a physics pro
 |------|-------------|----------|
 | **MC** | Single multiple choice | JEEBench, PhyX |
 | **MultipleMC** | Multiple choice with multiple answers | JEEBench |
-| **OE** | Open-ended | UGPhysics, SeePhys, PHYBench, SciBench, PhysReason, TPBench, PhyX |
+| **OE** | Open-ended | UGPhysics, SeePhys, PHYBench, PhysReason, TPBench, PhyX |
 
 #### Required Fields
 
@@ -335,7 +337,6 @@ Package-level support for each dataset:
 | **UGPhysics** | ✅ Yes | ✅ Yes | ✅ Yes | HuggingFace Datasets |
 | **SeePhys** | ✅ Yes | ✅ Yes | ✅ Yes | HuggingFace Datasets |
 | **JEEBench** | ✅ Yes | ❌ No | ❌ No | HuggingFace Datasets |
-| **SciBench** | ✅ Yes | ❌ No | ❌ No | HuggingFace Datasets |
 | **TPBench** | ✅ Yes | ❌ No | ❌ No | HuggingFace Datasets |
 
 
@@ -351,7 +352,6 @@ High-level dataset metadata (size/splits/variants/modalities) plus whether the d
 | **UGPhysics** | 11,040 | test | mini, full | text | OE | ✅ Yes | ✅ Yes | ✅ Yes |
 | **SeePhys** | 6,200 | train | - | text, image | OE | ✅ Yes | ❌ No | ✅ Yes |
 | **JEEBench** | 123 | test | full | text | MC, OE | ❌ No | ❌ No | ✅ Yes |
-| **SciBench** | 160 | test | full | text | OE | ✅ Yes | ✅ Yes | ✅ Yes |
 | **TPBench** | 10 | public | full | text | OE | ✅ Yes | ✅ Yes | ✅ Yes |
 
 For domain-level breakdowns, see [Physics Domain Coverage](#physics-domain-coverage) below.
@@ -360,36 +360,35 @@ For domain-level breakdowns, see [Physics Domain Coverage](#physics-domain-cover
 
 The following table shows which physics domains are available in each dataset:
 
-| Physics Domain | UGPhysics | PHYBench | TPBench | SciBench | SeePhys | JEEBench | PhysReason | PhyX |
-|----------------|-----------|----------|---------|----------|---------|----------|------------|------|
-| **Advanced Physics** | ❌ | 18 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **Atomic Physics** | 915 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **Classical Electromagnetism** | 390 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| **Classical Mechanics** | 836 | ❌ | 1 | 56 | ❌ | ❌ | ✅ | ✅ |
-| **Cosmology** | ❌ | ❌ | 4 | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **Electricity** | ❌ | 142 | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| **Electrodynamics** | 184 | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ |
-| **Fundamental Physics** | ❌ | ❌ | ❌ | 71 | ❌ | ❌ | ❌ | ❌ |
-| **Geometrical Optics** | 58 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| **High Energy Theory** | ❌ | ❌ | 2 | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **Mechanics** | ❌ | 191 | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| **Modern Physics** | ❌ | 42 | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| **Optics** | ❌ | 41 | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ |
-| **Other** | ❌ | ❌ | ❌ | ❌ | 2000 | ❌ | ❌ | ❌ |
-| **Quantum Mechanics** | 1019 | ❌ | 2 | 33 | ❌ | ❌ | ✅ | ❌ |
-| **Relativity** | 207 | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ |
-| **Semiconductor Physics** | 186 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **Solid State Physics** | 172 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **Statistical Mechanics** | 560 | ❌ | 1 | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **Theoretical Mechanics** | 319 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **Thermodynamics** | 372 | 66 | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ |
-| **Wave Optics** | 302 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Physics Domain | UGPhysics | PHYBench | TPBench | SeePhys | JEEBench | PhysReason | PhyX |
+|----------------|-----------|----------|---------|---------|----------|------------|------|
+| **Advanced Physics** | ❌ | 18 | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Atomic Physics** | 915 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Classical Electromagnetism** | 390 | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| **Classical Mechanics** | 836 | ❌ | 1 | ❌ | ❌ | ✅ | ✅ |
+| **Cosmology** | ❌ | ❌ | 4 | ❌ | ❌ | ❌ | ❌ |
+| **Electricity** | ❌ | 142 | ❌ | ❌ | ❌ | ❌ | ✅ |
+| **Electrodynamics** | 184 | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ |
+| **Fundamental Physics** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Geometrical Optics** | 58 | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| **High Energy Theory** | ❌ | ❌ | 2 | ❌ | ❌ | ❌ | ❌ |
+| **Mechanics** | ❌ | 191 | ❌ | ❌ | ❌ | ❌ | ✅ |
+| **Modern Physics** | ❌ | 42 | ❌ | ❌ | ❌ | ❌ | ✅ |
+| **Optics** | ❌ | 41 | ❌ | ❌ | ❌ | ✅ | ✅ |
+| **Other** | ❌ | ❌ | ❌ | 2000 | ❌ | ❌ | ❌ |
+| **Quantum Mechanics** | 1019 | ❌ | 2 | ❌ | ❌ | ✅ | ❌ |
+| **Relativity** | 207 | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ |
+| **Semiconductor Physics** | 186 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Solid State Physics** | 172 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Statistical Mechanics** | 560 | ❌ | 1 | ❌ | ❌ | ❌ | ❌ |
+| **Theoretical Mechanics** | 319 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Thermodynamics** | 372 | 66 | ❌ | ❌ | ❌ | ✅ | ✅ |
+| **Wave Optics** | 302 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 
 **Domain Coverage Summary:**
 - **UGPhysics**: 13 domains (most comprehensive coverage) - 5,520 problems
 - **SeePhys**: 1 domain (Other - visual physics focus) - 2,000 problems  
 - **PHYBench**: 6 domains (focused on core physics areas) - 500 problems
-- **SciBench**: 3 domains (fundamental physics focus) - 160 problems
 - **TPBench**: 5 domains (specialized in theoretical physics) - 10 problems
 - **PhysReason**: 7 domains (comprehensive reasoning focus) - 1,200 problems
 - **PhyX**: 6 domains (visual reasoning focus) - 1,000 problems
@@ -466,7 +465,6 @@ Default locations:
 - `~/PHYSICAL_REASONING_DATASETS/UGPhysics/`
 - `~/PHYSICAL_REASONING_DATASETS/PHYBench/`
 - `~/PHYSICAL_REASONING_DATASETS/PhyX/`
-- `~/PHYSICAL_REASONING_DATASETS/SciBench/`
 - `~/PHYSICAL_REASONING_DATASETS/PhysReason/`
 - `~/PHYSICAL_REASONING_DATASETS/SeePhys/`
 - `~/PHYSICAL_REASONING_DATASETS/TPBench/`
@@ -524,7 +522,7 @@ All loaders inherit from `BaseDatasetLoader` and implement:
 - `load()`: Load and process the dataset
 - `get_info()`: Return dataset metadata
 
-Available loaders: `PHYBenchLoader`, `PhyXLoader`, `PhysReasonLoader`, `UGPhysicsLoader`, `SeePhysLoader`, `JEEBenchLoader`, `SciBenchLoader`, `TPBenchLoader`
+Available loaders: `PHYBenchLoader`, `PhyXLoader`, `PhysReasonLoader`, `UGPhysicsLoader`, `SeePhysLoader`, `JEEBenchLoader`, `TPBenchLoader`
 
 ### Downloaders
 

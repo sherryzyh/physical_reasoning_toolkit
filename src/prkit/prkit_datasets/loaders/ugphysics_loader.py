@@ -113,26 +113,26 @@ class UGPhysicsLoader(BaseDatasetLoader):
         # difficulty
         metadata["difficulty"] = "undergraduate"
 
-        # answer type and answer
-        answer_type = metadata.get("answer_type")
-        if "NV" in answer_type:
-            metadata["answer_type"] = "numerical"
+        # answer category and answer (UGPhysics uses answer_type: NV=numerical, EX=expression)
+        raw_answer_type = metadata.get("answer_type") or ""
+        if "NV" in raw_answer_type:
             answer_value = metadata.get("answers")
             answer_unit = metadata.get("unit")
-            answer = {
+            metadata["answer_category"] = "physical_quantity" if answer_unit else "number"
+            metadata["answer"] = {
                 "value": answer_value,
                 "unit": answer_unit,
             }
-            metadata["answer"] = answer
-        elif "EX" in answer_type:
-            metadata["answer_type"] = "symbolic"
+        elif "EX" in raw_answer_type:
+            metadata["answer_category"] = "formula"
             metadata["answer"] = metadata.get("answers")
         else:
-            metadata["answer_type"] = "textual"
+            metadata["answer_category"] = "text"
             metadata["answer"] = metadata.get("answers")
 
         metadata.pop("answers", None)
         metadata.pop("unit", None)
+        metadata.pop("answer_type", None)  # raw UGPhysics field; we use answer_category
 
         return metadata
 

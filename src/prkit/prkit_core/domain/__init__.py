@@ -6,11 +6,11 @@ for PRKit (physical-reasoning-toolkit).
 
 It consolidates:
 - Domain models: Answer, PhysicsProblem, PhysicalDataset, PhysicsSolution
-- Domain definitions: AnswerType, PhysicsDomain
+- Domain definitions: AnswerCategory, PhysicsDomain
 """
 
 # Domain definitions (enums/constants)
-from .answer_type import AnswerType
+from .answer_category import AnswerCategory
 from .physics_domain import PhysicsDomain
 
 # Domain models (data classes)
@@ -22,7 +22,7 @@ from .physics_solution import PhysicsSolution
 __all__ = [
     # Definitions
     "PhysicsDomain",
-    "AnswerType",
+    "AnswerCategory",
     # Models
     "Answer",
     "PhysicsProblem",

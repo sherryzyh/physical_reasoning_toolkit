@@ -240,13 +240,13 @@ class JEEBenchLoader(BaseDatasetLoader):
         # Set language to English (JEEBench is primarily in English)
         metadata["language"] = "en"
 
-        # Set answer type based on question type
+        # Set answer category based on question type
         if metadata["problem_type"] in ["Integer", "Numeric"]:
-            metadata["answer_type"] = "numerical"
+            metadata["answer_category"] = "number"
         elif metadata["problem_type"] in ["MC", "MultipleMC"]:
-            metadata["answer_type"] = "option"  # Multiple choice answers
+            metadata["answer_category"] = "option"
         else:
-            metadata["answer_type"] = "textual"  # Default fallback
+            metadata["answer_category"] = "text"
 
         metadata.pop("subject", None)
 

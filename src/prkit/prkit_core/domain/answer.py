@@ -1,22 +1,22 @@
 """
 Answer models for physical reasoning evaluation.
 
-This module provides a unified Answer class that handles all answer types
+This module provides a unified Answer class that handles all answer categories
 through composition rather than inheritance.
 """
 
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Union
 
-from .answer_type import AnswerType
+from .answer_category import AnswerCategory
 
 
 @dataclass
 class Answer:
-    """Unified answer class that handles all answer types through composition."""
+    """Unified answer class that handles all answer categories through composition."""
 
     value: Any
-    answer_type: AnswerType
+    answer_category: AnswerCategory
     unit: Optional[str] = None
     metadata: Dict[str, Any] = None
 
@@ -26,26 +26,24 @@ class Answer:
             self.metadata = {}
 
     def validate(self) -> bool:
-        """Validate the answer based on its type."""
+        """Validate the answer based on its category."""
         validators = {
-            AnswerType.NUMERICAL: self._validate_numerical,
-            AnswerType.SYMBOLIC: self._validate_symbolic,
-            AnswerType.TEXTUAL: self._validate_textual,
-            AnswerType.OPTION: self._validate_option,
+            AnswerCategory.NUMBER: self._validate_number,
+            AnswerCategory.EQUATION: self._validate_string,
+            AnswerCategory.PHYSICAL_QUANTITY: self._validate_string,
+            AnswerCategory.FORMULA: self._validate_string,
+            AnswerCategory.TEXT: self._validate_string,
+            AnswerCategory.OPTION: self._validate_option,
         }
-        validator = validators.get(self.answer_type)
+        validator = validators.get(self.answer_category)
         return validator() if validator else False
 
-    def _validate_numerical(self) -> bool:
-        """Validate numerical answers."""
+    def _validate_number(self) -> bool:
+        """Validate number answers."""
         return isinstance(self.value, (int, float)) and not isinstance(self.value, bool)
 
-    def _validate_symbolic(self) -> bool:
-        """Validate symbolic answers."""
-        return isinstance(self.value, str) and len(self.value.strip()) > 0
-
-    def _validate_textual(self) -> bool:
-        """Validate textual answers."""
+    def _validate_string(self) -> bool:
+        """Validate string-based answers (equation, formula, physical_quantity, text)."""
         return isinstance(self.value, str) and len(self.value.strip()) > 0
 
     def _validate_option(self) -> bool:
@@ -53,30 +51,55 @@ class Answer:
         return isinstance(self.value, str) and len(self.value.strip()) > 0
 
     # Type checking methods
-    def is_numerical(self) -> bool:
-        """Check if this is a numerical answer."""
-        return self.answer_type == AnswerType.NUMERICAL
+    def is_number(self) -> bool:
+        """Check if this is a dimensionless number answer."""
+        return self.answer_category == AnswerCategory.NUMBER
 
-    def is_symbolic(self) -> bool:
-        """Check if this is a symbolic answer."""
-        return self.answer_type == AnswerType.SYMBOLIC
+    def is_equation(self) -> bool:
+        """Check if this is an equation answer."""
+        return self.answer_category == AnswerCategory.EQUATION
 
-    def is_textual(self) -> bool:
-        """Check if this is a textual answer."""
-        return self.answer_type == AnswerType.TEXTUAL
+    def is_physical_quantity(self) -> bool:
+        """Check if this is a physical quantity (number + units) answer."""
+        return self.answer_category == AnswerCategory.PHYSICAL_QUANTITY
+
+    def is_formula(self) -> bool:
+        """Check if this is a formula answer."""
+        return self.answer_category == AnswerCategory.FORMULA
+
+    def is_text(self) -> bool:
+        """Check if this is a text answer."""
+        return self.answer_category == AnswerCategory.TEXT
 
     def is_option(self) -> bool:
         """Check if this is an option answer."""
-        return self.answer_type == AnswerType.OPTION
+        return self.answer_category == AnswerCategory.OPTION
+
+    def is_numerical(self) -> bool:
+        """Check if this has a numeric component (number or physical_quantity)."""
+        return self.answer_category in (
+            AnswerCategory.NUMBER,
+            AnswerCategory.PHYSICAL_QUANTITY,
+        )
+
+    def is_symbolic(self) -> bool:
+        """Check if this is a symbolic/math answer (equation, formula, or physical_quantity)."""
+        return self.answer_category in (
+            AnswerCategory.EQUATION,
+            AnswerCategory.FORMULA,
+            AnswerCategory.PHYSICAL_QUANTITY,
+        )
 
     # Numerical-specific methods
     def get_unit(self) -> Optional[str]:
-        """Get the unit for numerical answers."""
+        """Get the unit for numerical/physical quantity answers."""
         return self.unit if self.is_numerical() else None
 
     def has_unit(self) -> bool:
-        """Check if the numerical answer has a unit."""
-        return self.is_numerical() and self.unit is not None
+        """Check if the answer has a unit (physical quantity)."""
+        return self.is_physical_quantity() or (
+            self.is_number() and self.unit is not None
+        )
 
     def is_integer(self) -> bool:
         """Check if the numerical value is an integer."""
@@ -119,13 +142,13 @@ class Answer:
     # Textual-specific methods
     def word_count(self) -> int:
         """Get the number of words in the text."""
-        if not self.is_textual():
+        if not self.is_text():
             return 0
         return len(str(self.value).split())
 
     def char_count(self) -> int:
         """Get the number of characters in the text."""
-        if not self.is_textual():
+        if not self.is_text():
             return 0
         return len(str(self.value))
 
@@ -139,7 +162,7 @@ class Answer:
 
     def contains_keywords(self, keywords: List[str]) -> bool:
         """Check if the text contains any of the specified keywords."""
-        if not self.is_textual():
+        if not self.is_text():
             return False
         text_lower = str(self.value).lower()
         return any(keyword.lower() in text_lower for keyword in keywords)
@@ -189,11 +212,11 @@ class Answer:
 
     def __repr__(self) -> str:
         """Detailed string representation for debugging."""
-        return f"Answer(value={repr(self.value)}, answer_type={self.answer_type.value}, unit={repr(self.unit)})"
+        return f"Answer(value={repr(self.value)}, answer_category={self.answer_category.value}, unit={repr(self.unit)})"
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization."""
-        result = {"value": self.value, "answer_type": self.answer_type.value}
+        result = {"value": self.value, "answer_category": self.answer_category.value}
         if self.unit:
             result["unit"] = self.unit
         if self.metadata:
@@ -204,10 +227,10 @@ class Answer:
         """Get the answer value."""
         return self.value
 
-    def get_type(self) -> AnswerType:
-        """Get the answer type."""
-        return self.answer_type
+    def get_type(self) -> AnswerCategory:
+        """Get the answer category."""
+        return self.answer_category
 
     def get_type_name(self) -> str:
-        """Get the answer type as a string."""
-        return self.answer_type.value
+        """Get the answer category as a string."""
+        return self.answer_category.value

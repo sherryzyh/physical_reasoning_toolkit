@@ -235,7 +235,7 @@ class TestOllamaModel:
 
         call_kwargs = mock_ollama_module.chat.call_args[1]
         assert "options" in call_kwargs
-        assert call_kwargs["options"]["temperature"] == 0.7
+        assert call_kwargs["options"]["temperature"] == 0
 
     @patch("prkit.prkit_core.model_clients.ollama.ollama")
     def test_chat_with_custom_logger(self, mock_ollama_module):
