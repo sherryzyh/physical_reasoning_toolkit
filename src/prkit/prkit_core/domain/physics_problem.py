@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
 from ..logging_config import PRKitLogger
-from .answer_type import AnswerType
+from .answer_category import AnswerCategory
 from .physics_domain import PhysicsDomain
 from .answer import Answer
 
@@ -318,7 +318,7 @@ class PhysicsProblem:
             "image_path",
             "options",
             "correct_option",
-            "answer_type",
+            "answer_category",
         ]
 
         core_data = {}
@@ -328,27 +328,23 @@ class PhysicsProblem:
             if key in core_fields:
                 if key == "answer" and isinstance(value, dict):
                     # Convert answer dictionary to Answer object
-                    # Extract answer fields from dictionary
                     answer_value = value.get("value")
-                    answer_type_str = value.get("answer_type")
+                    answer_category_str = value.get("answer_category")
                     answer_unit = value.get("unit")
                     answer_metadata = value.get("metadata", {})
 
-                    # Convert answer_type string to AnswerType enum
-                    if answer_type_str:
+                    if answer_category_str:
                         try:
-                            answer_type = AnswerType(answer_type_str)
+                            answer_category = AnswerCategory(answer_category_str)
                         except ValueError:
-                            # Default to TEXTUAL if invalid type
-                            answer_type = AnswerType.TEXTUAL
+                            answer_category = AnswerCategory.TEXT
                     else:
-                        # Default to TEXTUAL if no type specified
-                        answer_type = AnswerType.TEXTUAL
+                        answer_category = AnswerCategory.TEXT
 
                     # Create Answer object
                     core_data[key] = Answer(
                         value=answer_value,
-                        answer_type=answer_type,
+                        answer_category=answer_category,
                         unit=answer_unit,
                         metadata=answer_metadata,
                     )

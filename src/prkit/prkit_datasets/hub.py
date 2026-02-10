@@ -22,7 +22,6 @@ from prkit.prkit_datasets.loaders import (
     PHYBenchLoader,
     PhyXLoader,
     PhysReasonLoader,
-    SciBenchLoader,
     SeePhysLoader,
     TPBenchLoader,
     UGPhysicsLoader,
@@ -71,7 +70,6 @@ class DatasetHub:
         cls.register("seephys", SeePhysLoader)
         cls.register("ugphysics", UGPhysicsLoader)
         cls.register("jeebench", JEEBenchLoader)
-        cls.register("scibench", SciBenchLoader)
         cls.register("tpbench", TPBenchLoader)
         cls.register("physreason", PhysReasonLoader)
 

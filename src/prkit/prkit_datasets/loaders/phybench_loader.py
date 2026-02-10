@@ -79,7 +79,7 @@ class PHYBenchLoader(BaseDatasetLoader):
     def _process_metadata(self, metadata: Dict[str, Any]) -> Dict[str, Any]:
         """Process metadata to create standardized problem fields."""
 
-        metadata["answer_type"] = "symbolic"  # according to the paper
+        metadata["answer_category"] = "formula"
 
         domain = metadata.get("domain")
         if domain:

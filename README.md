@@ -162,7 +162,7 @@ from prkit.prkit_core.model_clients import create_model_client
 ### **prkit_datasets** 📊
 **Unified dataset interface** (similar to Hugging Face Datasets):
 - **SOTA Benchmarks**: PHYBench, PhysReason, UGPhysics, SeePhys, PhyX (with downloaders)
-- **Additional Datasets**: JEEBench, SciBench, TPBench (loaders available)
+- **Additional Datasets**: JEEBench, TPBench (loaders available)
 - **Consistent API**: Same interface across all datasets regardless of source format
 - **Smart Loading**: Automatic download, variant selection, and reproducible sampling
 
@@ -203,42 +203,40 @@ The following datasets have both downloader and loader available:
 
 **Future Datasets** (loader available, downloader coming soon):
 - **JEEBench**: 123 problems (JSON format)
-- **SciBench**: 160 problems (JSON format)
 - **TPBench**: 10 problems (Parquet format)
 
 #### **Physics Domain Coverage by Dataset**
 The following table shows which physics domains are available in each dataset:
 
-| Physics Domain | UGPhysics | PHYBench | TPBench | SciBench | SeePhys | JEEBench | PhysReason |
-|----------------|-----------|----------|---------|----------|---------|----------|------------|
-| **Advanced Physics** | ❌ | 18 | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **Atomic Physics** | 915 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **Classical Electromagnetism** | 390 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **Classical Mechanics** | 836 | ❌ | 1 | 56 | ❌ | ❌ | ❌ |
-| **Cosmology** | ❌ | ❌ | 4 | ❌ | ❌ | ❌ | ❌ |
-| **Electricity** | ❌ | 142 | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **Electrodynamics** | 184 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **Fundamental Physics** | ❌ | ❌ | ❌ | 71 | ❌ | ❌ | ❌ |
-| **Geometrical Optics** | 58 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **High Energy Theory** | ❌ | ❌ | 2 | ❌ | ❌ | ❌ | ❌ |
-| **Mechanics** | ❌ | 191 | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **Modern Physics** | ❌ | 42 | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **Optics** | ❌ | 41 | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **Other** | ❌ | ❌ | ❌ | ❌ | 2000 | ❌ | ❌ |
-| **Quantum Mechanics** | 1019 | ❌ | 2 | 33 | ❌ | ❌ | ❌ |
-| **Relativity** | 207 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **Semiconductor Physics** | 186 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **Solid State Physics** | 172 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **Statistical Mechanics** | 560 | ❌ | 1 | ❌ | ❌ | ❌ | ❌ |
-| **Theoretical Mechanics** | 319 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **Thermodynamics** | 372 | 66 | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **Wave Optics** | 302 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Physics Domain | UGPhysics | PHYBench | TPBench | SeePhys | JEEBench | PhysReason |
+|----------------|-----------|----------|---------|---------|----------|------------|
+| **Advanced Physics** | ❌ | 18 | ❌ | ❌ | ❌ | ❌ |
+| **Atomic Physics** | 915 | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Classical Electromagnetism** | 390 | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Classical Mechanics** | 836 | ❌ | 1 | ❌ | ❌ | ❌ |
+| **Cosmology** | ❌ | ❌ | 4 | ❌ | ❌ | ❌ |
+| **Electricity** | ❌ | 142 | ❌ | ❌ | ❌ | ❌ |
+| **Electrodynamics** | 184 | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Fundamental Physics** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Geometrical Optics** | 58 | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **High Energy Theory** | ❌ | ❌ | 2 | ❌ | ❌ | ❌ |
+| **Mechanics** | ❌ | 191 | ❌ | ❌ | ❌ | ❌ |
+| **Modern Physics** | ❌ | 42 | ❌ | ❌ | ❌ | ❌ |
+| **Optics** | ❌ | 41 | ❌ | ❌ | ❌ | ❌ |
+| **Other** | ❌ | ❌ | ❌ | 2000 | ❌ | ❌ |
+| **Quantum Mechanics** | 1019 | ❌ | 2 | ❌ | ❌ | ❌ |
+| **Relativity** | 207 | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Semiconductor Physics** | 186 | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Solid State Physics** | 172 | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Statistical Mechanics** | 560 | ❌ | 1 | ❌ | ❌ | ❌ |
+| **Theoretical Mechanics** | 319 | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Thermodynamics** | 372 | 66 | ❌ | ❌ | ❌ | ❌ |
+| **Wave Optics** | 302 | ❌ | ❌ | ❌ | ❌ | ❌ |
 
 **Domain Coverage Summary:**
 - **UGPhysics**: 13 domains (most comprehensive coverage) - 5,520 problems
 - **SeePhys**: 1 domain (Other - visual physics focus) - 2,000 problems  
 - **PHYBench**: 6 domains (focused on core physics areas) - 500 problems
-- **SciBench**: 3 domains (fundamental physics focus) - 160 problems
 - **TPBench**: 5 domains (specialized in theoretical physics) - 10 problems
 - **JEEBench, PhysReason**: No domain classification - 123 and 3,117 problems respectively
 

@@ -201,5 +201,5 @@ class TestPHYBenchLoader:
         }
         # Accessing protected method for testing purposes
         processed = loader._process_metadata(metadata)  # pylint: disable=protected-access
-        assert processed["answer_type"] == "symbolic"
+        assert processed["answer_category"] == "formula"
         assert "domain" in processed

@@ -4,7 +4,7 @@ Tests for prkit_datasets/utils.py utility functions.
 
 import json
 
-from prkit.prkit_core.domain import AnswerType
+from prkit.prkit_core.domain import AnswerCategory
 from prkit.prkit_core.domain import Answer, PhysicalDataset, PhysicsProblem
 from prkit.prkit_datasets import utils
 
@@ -124,7 +124,7 @@ class TestFilterByKeywords:
         problem_with_keyword = PhysicsProblem(
             problem_id="keyword_test",
             question="What is the speed of light?",
-            answer=Answer(value=3e8, answer_type=AnswerType.NUMERICAL),
+            answer=Answer(value=3e8, answer_category=AnswerCategory.PHYSICAL_QUANTITY, unit="m/s"),
         )
         all_problems = list(sample_problems_list) + [problem_with_keyword]
         dataset = PhysicalDataset(problems=all_problems)
@@ -139,7 +139,7 @@ class TestFilterByKeywords:
         problem = PhysicsProblem(
             problem_id="test_case",
             question="What is the SPEED of light?",
-            answer=Answer(value=3e8, answer_type=AnswerType.NUMERICAL),
+            answer=Answer(value=3e8, answer_category=AnswerCategory.PHYSICAL_QUANTITY, unit="m/s"),
         )
         all_problems = list(sample_problems_list) + [problem]
         dataset = PhysicalDataset(problems=all_problems)
@@ -155,7 +155,7 @@ class TestFilterByKeywords:
         problem = PhysicsProblem(
             problem_id="test_case",
             question="What is the speed of light?",
-            answer=Answer(value=3e8, answer_type=AnswerType.NUMERICAL),
+            answer=Answer(value=3e8, answer_category=AnswerCategory.PHYSICAL_QUANTITY, unit="m/s"),
         )
         all_problems = list(sample_problems_list) + [problem]
         dataset = PhysicalDataset(problems=all_problems)
@@ -173,7 +173,7 @@ class TestFilterByKeywords:
             problem_id="test_multi",
             question="Test question",
             solution="The answer involves force calculation",
-            answer=Answer(value=1, answer_type=AnswerType.NUMERICAL),
+            answer=Answer(value=1, answer_category=AnswerCategory.NUMBER),
         )
         all_problems = list(sample_problems_list) + [problem]
         dataset = PhysicalDataset(problems=all_problems)

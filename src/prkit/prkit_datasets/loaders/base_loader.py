@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from prkit.prkit_core import PRKitLogger
-from prkit.prkit_core.domain.answer_type import AnswerType
+from prkit.prkit_core.domain.answer_category import AnswerCategory
 from prkit.prkit_core.domain import PhysicalDataset, PhysicsProblem
 from prkit.prkit_core.domain.answer import Answer
 
@@ -45,19 +45,19 @@ CORE_FIELDS = [
     "problem_type",  # problem type in OE, MC, MMC, etc.
     "domain",  # domain in physics
     "language",  # language
-    "answer_type",  # answer type in symbolic, numerical, or textual
+    "answer_category",  # answer category for comparison
     "image_paths",  # paths to associated image files (for visual problems)
 ]
 
 
-def detect_answer_type(value: str) -> AnswerType:
+def detect_answer_category(value: str) -> AnswerCategory:
     """
-    Intelligently detect answer type from a string value.
+    Infer answer category from a string value when dataset does not specify it.
 
     Strategy:
-    1. Try to parse as pure number first
-    2. Check for mathematical expression patterns
-    3. Fall back to textual if unclear
+    1. Try to parse as pure number first -> NUMBER
+    2. Check for mathematical expression patterns -> FORMULA
+    3. Fall back to TEXT if unclear
     """
     value = str(value).strip()
 
@@ -70,14 +70,14 @@ def detect_answer_type(value: str) -> AnswerType:
 
     # Step 1: Check if it's a pure number (including scientific notation)
     if is_pure_number(value):
-        return AnswerType.NUMERICAL
+        return AnswerCategory.NUMBER
 
     # Step 2: Check if it's a mathematical expression
     if is_mathematical_expression(value):
-        return AnswerType.SYMBOLIC
+        return AnswerCategory.FORMULA
 
-    # Step 3: Default to textual
-    return AnswerType.TEXTUAL
+    # Step 3: Default to text
+    return AnswerCategory.TEXT
 
 
 def is_pure_number(value: str) -> bool:
@@ -506,16 +506,16 @@ class BaseDatasetLoader(ABC):
         metadata: Dict[str, Any],
     ) -> Answer:
         answer = metadata.get("answer")
-        answer_type = metadata.get("answer_type", "")
+        answer_category = metadata.get("answer_category", "")
         problem_type = metadata.get("problem_type", "")
 
         if "MC" in problem_type:
-            return Answer(value=answer, answer_type=AnswerType.OPTION)
+            return Answer(value=answer, answer_category=AnswerCategory.OPTION)
 
-        if answer_type == AnswerType.NUMERICAL or answer_type == "numerical":
+        if answer_category in ("number", "physical_quantity"):
             if isinstance(answer, dict):
                 value = answer.get("value")
-                unit = answer.get("unit", "")
+                unit = answer.get("unit", "") or ""
             else:
                 value = answer
                 unit = ""
@@ -527,17 +527,20 @@ class BaseDatasetLoader(ABC):
             value = re.sub(r"\$\$(.*?)\$\$", r"\1", value)
             value = re.sub(r"\$([^$]+)\$", r"\1", value)
 
-            return Answer(value=value, answer_type=AnswerType.NUMERICAL, unit=unit)
-        elif answer_type == AnswerType.SYMBOLIC or answer_type == "symbolic":
-            return Answer(value=answer, answer_type=AnswerType.SYMBOLIC)
-        elif answer_type == AnswerType.TEXTUAL or answer_type == "textual":
-            return Answer(value=answer, answer_type=AnswerType.TEXTUAL)
-        elif answer_type == AnswerType.OPTION or answer_type == "option":
-            return Answer(value=answer, answer_type=AnswerType.OPTION)
+            category = (
+                AnswerCategory.PHYSICAL_QUANTITY if unit else AnswerCategory.NUMBER
+            )
+            return Answer(value=value, answer_category=category, unit=unit or None)
+        elif answer_category in ("formula", "equation"):
+            return Answer(value=answer, answer_category=AnswerCategory.FORMULA)
+        elif answer_category == "text":
+            return Answer(value=answer, answer_category=AnswerCategory.TEXT)
+        elif answer_category == "option":
+            return Answer(value=answer, answer_category=AnswerCategory.OPTION)
         else:
-            # fallback to auto-detect
-            answer_type = detect_answer_type(answer)
-            return Answer(value=answer, answer_type=answer_type)
+            # fallback to auto-detect when answer_category not specified
+            detected = detect_answer_category(answer)
+            return Answer(value=answer, answer_category=detected)
 
     def create_physics_problem(
         self,
@@ -615,7 +618,7 @@ class BaseDatasetLoader(ABC):
         # Create Answer object from answer
         answer_obj = self._create_answer_from_raw(metadata)
         metadata.pop("answer", None)
-        metadata.pop("answer_type", None)
+        metadata.pop("answer_category", None)
         metadata.pop("unit", None)
 
         # collect all other fields as additional fields

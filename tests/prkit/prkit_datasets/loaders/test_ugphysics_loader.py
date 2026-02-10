@@ -164,7 +164,7 @@ class TestUGPhysicsLoader:
         }
         # Accessing protected method for testing purposes
         processed = loader._process_metadata(metadata, "ClassicalMechanics")  # pylint: disable=protected-access
-        assert processed["answer_type"] == "numerical"
+        assert processed["answer_category"] == "physical_quantity"
         assert processed["answer"]["value"] == "42.0"
         assert processed["answer"]["unit"] == "m/s"
 
@@ -178,7 +178,7 @@ class TestUGPhysicsLoader:
         }
         # Accessing protected method for testing purposes
         processed = loader._process_metadata(metadata, "ClassicalMechanics")  # pylint: disable=protected-access
-        assert processed["answer_type"] == "symbolic"
+        assert processed["answer_category"] == "formula"
         assert processed["answer"] == "x^2 + 2x + 1"
 
     def test_get_domains(self, temp_dir):

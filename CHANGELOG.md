@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 - **Supported Datasets**: PhysReason and SeePhys (fully tested and validated)
-- **Experimental Datasets**: PHYBench, UGPhysics, JEEBench, SciBench, TPBench (available but require further testing)
+- **Experimental Datasets**: PHYBench, UGPhysics, JEEBench, TPBench (available but require further testing)
 - Standardized `PhysicsProblem` and `PhysicalDataset` models
 - Domain classification and theorem detection workflows
 - Multiple model provider support (OpenAI, Google Gemini, DeepSeek, Ollama)

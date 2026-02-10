@@ -11,7 +11,7 @@ class PhysicsDomain(Enum):
 
     SOLID_STATE_PHYSICS = "solid_state_physics"  # UGPhysics
     RELATIVITY = "relativity"  # UGPhysics
-    QUANTUM_MECHANICS = "quantum_mechanics"  # UGPhysics # TPBench # SciBench
+    QUANTUM_MECHANICS = "quantum_mechanics"  # UGPhysics # TPBench
     CLASSICAL_ELECTROMAGNETISM = "classical_electromagnetism"  # UGPhysics
     ELECTRODYNAMICS = "electrodynamics"  # UGPhysics
     THERMODYNAMICS = "thermodynamics"  # UGPhysics # PHYBench
@@ -21,10 +21,10 @@ class PhysicsDomain(Enum):
     GEOMETRICAL_OPTICS = "geometrical_optics"  # UGPhysics
     WAVE_OPTICS = "wave_optics"  # UGPhysics
     SEMICONDUCTOR_PHYSICS = "semiconductor_physics"  # UGPhysics
-    CLASSICAL_MECHANICS = "classical_mechanics"  # UGPhysics # TPBench # SciBench
+    CLASSICAL_MECHANICS = "classical_mechanics"  # UGPhysics # TPBench
     HIGH_ENERGY_THEORY = "high_energy_theory"  # TPBench
     COSMOLOGY = "cosmology"  # TPBench
-    FUNDAMENTAL_PHYSICS = "fundamental_physics"  # SciBench
+    FUNDAMENTAL_PHYSICS = "fundamental_physics"
     MECHANICS = "mechanics"  # PHYBench
     ELECTRICITY = "electricity"  # PHYBench
     OPTICS = "optics"  # PHYBench

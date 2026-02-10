@@ -6,19 +6,19 @@
 
 ```python
 from prkit.prkit_core.domain.answer import Answer
-from prkit.prkit_core.domain.answer_type import AnswerType
+from prkit.prkit_core.domain.answer_category import AnswerCategory
 from prkit.prkit_evaluation import AccuracyMetric
 
 predictions = [
-    Answer(value=r"x^2 + 2x + 1", answer_type=AnswerType.SYMBOLIC),
-    Answer(value=3.14, answer_type=AnswerType.NUMERICAL, unit="m/s"),
-    Answer(value="A", answer_type=AnswerType.OPTION),
+    Answer(value=r"x^2 + 2x + 1", answer_category=AnswerCategory.FORMULA),
+    Answer(value=3.14, answer_category=AnswerCategory.PHYSICAL_QUANTITY, unit="m/s"),
+    Answer(value="A", answer_category=AnswerCategory.OPTION),
 ]
 
 ground_truths = [
-    Answer(value=r"(x+1)^2", answer_type=AnswerType.SYMBOLIC),
-    Answer(value=3.14159, answer_type=AnswerType.NUMERICAL, unit="m/s"),
-    Answer(value="A", answer_type=AnswerType.OPTION),
+    Answer(value=r"(x+1)^2", answer_category=AnswerCategory.FORMULA),
+    Answer(value=3.14159, answer_category=AnswerCategory.PHYSICAL_QUANTITY, unit="m/s"),
+    Answer(value="A", answer_category=AnswerCategory.OPTION),
 ]
 
 metric = AccuracyMetric()
@@ -28,11 +28,13 @@ print(result["accuracy"])
 
 ## Answer Representation
 
-PRKit uses a single `Answer` dataclass with an `AnswerType` enum:
+PRKit uses a single `Answer` dataclass with an `AnswerCategory` enum:
 
-- **Symbolic**: strings (often LaTeX)
-- **Numerical**: numbers with optional `unit`
-- **Textual**: free-form strings
+- **Number**: dimensionless numeric values
+- **Physical Quantity**: numbers with `unit`
+- **Equation**: single-equation form (e.g., F = ma)
+- **Formula**: mathematical expressions (often LaTeX)
+- **Text**: free-form strings
 - **Option**: strings like `"A"` or `"AC"` (multi-select supported via normalization)
 
 ## Comparators
@@ -43,7 +45,7 @@ Comparators live in `prkit.prkit_evaluation.comparison` and return structured re
 - **`NumericalComparator`**: compares numbers with significant-figure handling; may compare units
 - **`OptionComparator`**: normalizes option strings and supports multi-select comparisons
 - **`TextualComparator`**: fuzzy/semantic matching (implementation-dependent)
-- **`SmartAnswerComparator`**: routes to the right comparator based on `AnswerType`
+- **`SmartAnswerComparator`**: routes to the right comparator based on `AnswerCategory`
 
 ## Metrics
 

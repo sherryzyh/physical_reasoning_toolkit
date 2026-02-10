@@ -4,7 +4,7 @@ Tests for PhysicsProblem model.
 
 import pytest
 
-from prkit.prkit_core.domain import AnswerType, PhysicsDomain
+from prkit.prkit_core.domain import AnswerCategory, PhysicsDomain
 from prkit.prkit_core.domain import Answer, PhysicsProblem
 
 
@@ -22,7 +22,7 @@ class TestPhysicsProblem:
 
     def test_problem_creation_full(self):
         """Test creating a full physics problem."""
-        answer = Answer(value=42, answer_type=AnswerType.NUMERICAL)
+        answer = Answer(value=42, answer_category=AnswerCategory.NUMBER)
         problem = PhysicsProblem(
             problem_id="test_001",
             question="What is the answer?",
@@ -192,7 +192,7 @@ class TestPhysicsProblem:
 
     def test_problem_to_dict(self):
         """Test problem serialization."""
-        answer = Answer(value=42, answer_type=AnswerType.NUMERICAL)
+        answer = Answer(value=42, answer_category=AnswerCategory.NUMBER)
         problem = PhysicsProblem(
             problem_id="test_001",
             question="Test",
@@ -209,14 +209,14 @@ class TestPhysicsProblem:
         data = {
             "problem_id": "test_001",
             "question": "Test question",
-            "answer": {"value": 42, "answer_type": "numerical", "unit": "m/s"},
+            "answer": {"value": 42, "answer_category": "number", "unit": "m/s"},
             "domain": "classical_mechanics",
         }
         problem = PhysicsProblem.from_dict(data)
         assert problem.problem_id == "test_001"
         assert problem.question == "Test question"
         assert problem.answer.value == 42
-        assert problem.answer.answer_type == AnswerType.NUMERICAL
+        assert problem.answer.answer_category == AnswerCategory.NUMBER
 
     def test_problem_copy(self):
         """Test problem copying."""
