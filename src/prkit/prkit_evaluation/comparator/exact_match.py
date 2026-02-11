@@ -2,9 +2,13 @@
 Exact Match Comparator for answer comparison.
 
 This comparator performs exact string matching between two answers.
+Accepts either Answer objects or raw strings.
 """
 
+from typing import Any, Union
+
 from prkit.prkit_core.domain.answer import Answer
+from prkit.prkit_evaluation.utils.answer_utils import to_str
 
 from .base import BaseComparator
 
@@ -12,24 +16,30 @@ from .base import BaseComparator
 class ExactMatchComparator(BaseComparator):
     """Comparator that performs exact string matching between answers."""
 
-    def compare(self, answer1: Answer, answer2: Answer) -> bool:
+    def compare(
+        self,
+        answer1: Union[str, Answer],
+        answer2: Union[str, Answer],
+        **kwargs: Any
+    ) -> bool:
         """
         Compare two answers exactly.
         
         Args:
-            answer1: First answer to compare (typically predicted/student answer)
-            answer2: Second answer to compare (typically ground truth/correct answer)
+            answer1: First answer to compare (string or Answer)
+            answer2: Second answer to compare (string or Answer)
             
         Returns:
             True if answers match exactly, False otherwise
         """
-        # Convert both answers to strings and compare
-        ans1_str = str(answer1.value).strip()
-        ans2_str = str(answer2.value).strip()
-        
-        return ans1_str == ans2_str
+        return to_str(answer1) == to_str(answer2)
 
-    def accuracy_score(self, answer1: Answer, answer2: Answer) -> float:
+    def accuracy_score(
+        self,
+        answer1: Union[str, Answer],
+        answer2: Union[str, Answer],
+        **kwargs: Any
+    ) -> float:
         """
         Compute accuracy score for exact match comparison.
         
@@ -42,5 +52,4 @@ class ExactMatchComparator(BaseComparator):
         Returns:
             1.0 if answers match exactly, 0.0 otherwise
         """
-        is_match = self.compare(answer1, answer2)
-        return 1.0 if is_match else 0.0
+        return 1.0 if self.compare(answer1, answer2) else 0.0

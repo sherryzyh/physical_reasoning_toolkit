@@ -2,7 +2,7 @@
 Unit tests for category_match module.
 
 Tests cover:
-- _same_comparison_category
+- same_comparison_category (from answer_utils)
 - _compare_number (float, Answer, epsilon, decimal rounding)
 - _compare_plain_text (str, Answer)
 - _formula_to_sympify
@@ -23,23 +23,23 @@ from prkit.prkit_evaluation.comparator.category_match import (
     _compare_plain_text,
     _formula_to_sympify,
     _parse_physical_quantity,
-    _same_comparison_category,
 )
+from prkit.prkit_evaluation.utils.answer_utils import same_comparison_category
 from prkit.prkit_evaluation.utils.number_utils import DEFAULT_NUMBER_EPSILON
 
 
 class TestSameComparisonCategory:
-    """Tests for _same_comparison_category."""
+    """Tests for same_comparison_category."""
 
     def test_same_category_returns_true(self):
         """Same category should return True."""
-        assert _same_comparison_category(AnswerCategory.NUMBER, AnswerCategory.NUMBER) is True
-        assert _same_comparison_category(AnswerCategory.TEXT, AnswerCategory.TEXT) is True
+        assert same_comparison_category(AnswerCategory.NUMBER, AnswerCategory.NUMBER) is True
+        assert same_comparison_category(AnswerCategory.TEXT, AnswerCategory.TEXT) is True
 
     def test_different_category_returns_false(self):
         """Different categories should return False."""
-        assert _same_comparison_category(AnswerCategory.NUMBER, AnswerCategory.TEXT) is False
-        assert _same_comparison_category(AnswerCategory.FORMULA, AnswerCategory.EQUATION) is False
+        assert same_comparison_category(AnswerCategory.NUMBER, AnswerCategory.TEXT) is False
+        assert same_comparison_category(AnswerCategory.FORMULA, AnswerCategory.EQUATION) is False
 
 
 class TestCompareNumber:
@@ -310,20 +310,8 @@ class TestCategoryComparator:
     def test_init_default(self):
         """Default init uses DEFAULT_COMPARATORS."""
         comp = CategoryComparator()
-        comparators = comp._get_category_comparators()
-        assert AnswerCategory.NUMBER in comparators
-        assert AnswerCategory.TEXT in comparators
-
-    def test_init_custom_comparators(self):
-        """Custom comparators override defaults."""
-        def custom_cmp(a, b):
-            return a == b
-
-        comp = CategoryComparator(
-            custom_comparators={AnswerCategory.NUMBER: custom_cmp}
-        )
-        comparators = comp._get_category_comparators()
-        assert comparators[AnswerCategory.NUMBER] is custom_cmp
+        assert AnswerCategory.NUMBER in comp._comparators
+        assert AnswerCategory.TEXT in comp._comparators
 
     def test_compare_two_answers_same_category(self):
         """Two Answer objects, same category -> category compare."""
@@ -414,18 +402,6 @@ class TestCategoryComparator:
         comp = CategoryComparator()
         assert comp.accuracy_score("42", "43") == 0.0
 
-    def test_normalize_answer_delegation(self):
-        """_normalize_answer delegates to normalize_answer."""
-        comp = CategoryComparator()
-        cat, val = comp._normalize_answer("42")
-        assert cat == AnswerCategory.NUMBER
-        assert val == 42.0
-
-    def test_normalize_as_text(self):
-        """_normalize_as_text strips whitespace."""
-        comp = CategoryComparator()
-        assert comp._normalize_as_text("  hello  ") == "hello"
-
     def test_option_answers_case_sensitive(self):
         """Option answers use plain text compare (case-sensitive)."""
         comp = CategoryComparator()
@@ -449,15 +425,16 @@ class TestCategoryComparator:
 
 
 class TestCategoryComparatorSubclass:
-    """Tests for CategoryComparator subclass overriding _get_category_comparators."""
+    """Tests for CategoryComparator subclass customizing comparators."""
 
-    def test_subclass_override_get_category_comparators(self):
-        """Subclass can override _get_category_comparators."""
+    def test_subclass_override_comparators(self):
+        """Subclass can customize _comparators; unknown category falls back to plain text."""
 
         class CustomComparator(CategoryComparator):
-            def _get_category_comparators(self):
-                # Return only TEXT comparator - NUMBER falls back to plain text
-                return {AnswerCategory.TEXT: _compare_plain_text}
+            def __init__(self):
+                super().__init__()
+                # Only TEXT comparator - NUMBER falls back to _compare_plain_text
+                self._comparators = {AnswerCategory.TEXT: _compare_plain_text}
 
         comp = CustomComparator()
         # NUMBER not in comparators -> fallback to _compare_plain_text

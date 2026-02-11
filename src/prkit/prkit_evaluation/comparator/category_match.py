@@ -6,7 +6,7 @@ strategies. For the same category, a dedicated comparison function is used;
 for different categories, both answers are normalized as text and compared.
 
 Category-specific comparison details can be customized by subclassing and
-overriding _get_category_comparators() or by passing custom comparators.
+overriding _get_category_comparators().
 """
 
 from typing import Callable, Dict, Optional, Tuple, Union
@@ -22,18 +22,12 @@ from prkit.prkit_evaluation.utils.number_utils import (
     round_to_decimal_places,
     DEFAULT_NUMBER_EPSILON,
 )
+from prkit.prkit_evaluation.utils.answer_utils import same_comparison_category
 
 from .base import BaseComparator
 
 # Type alias for category comparison function: (predicted_norm, ground_truth_norm) -> bool
 CategoryCompareFn = Callable[[Union[float, str], Union[float, str]], bool]
-
-
-def _same_comparison_category(
-    cat1: AnswerCategory, cat2: AnswerCategory
-) -> bool:
-    """True if both answers should be compared using the same comparison strategy."""
-    return cat1 == cat2
 
 
 def _compare_number(
@@ -212,9 +206,8 @@ class CategoryComparator(BaseComparator):
     Comparator that normalizes answers first, then applies category-specific
     comparison strategies.
 
-    Category-specific comparators can be customized via:
-    1. Subclassing and overriding _get_category_comparators()
-    2. Passing custom_comparators to __init__()
+    Category-specific comparators can be customized by subclassing and
+    overriding _get_category_comparators().
 
     Categories: number, equation, physical_quantity, formula, text
     """
@@ -229,59 +222,9 @@ class CategoryComparator(BaseComparator):
         AnswerCategory.OPTION: _compare_plain_text,
     }
 
-    def __init__(
-        self,
-        custom_comparators: Optional[Dict[AnswerCategory, CategoryCompareFn]] = None,
-    ):
-        """
-        Args:
-            custom_comparators: Optional dict mapping category name to comparison
-                function. Merged with defaults; custom entries override defaults.
-        """
+    def __init__(self):
+        """Initialize with default category comparators."""
         self._comparators = dict(self.DEFAULT_COMPARATORS)
-        if custom_comparators:
-            self._comparators.update(custom_comparators)
-
-    def _get_category_comparators(self) -> Dict[AnswerCategory, CategoryCompareFn]:
-        """
-        Return the category -> comparator mapping.
-
-        Override this in subclasses to customize category-based comparison
-        without passing custom_comparators at init.
-        """
-        return self._comparators
-
-    def _normalize_answer(
-        self,
-        answer_str: str,
-    ) -> Tuple[AnswerCategory, Union[float, str]]:
-        """
-        Normalize an answer string based on its category.
-
-        Args:
-            answer_str: The answer string to normalize
-
-        Returns:
-            Tuple of (category, normalized_value)
-        """
-        return normalize_answer(answer_str)
-
-    def _normalize_as_text(
-        self,
-        answer_str: str
-    ) -> str:
-        """
-        Normalize an answer string as text (strip whitespace).
-
-        Used when comparing answers from different categories.
-
-        Args:
-            answer_str: The answer string to normalize as text
-
-        Returns:
-            Normalized text string
-        """
-        return normalize_text(answer_str)
 
     def _compare_by_category(
         self,
@@ -300,10 +243,7 @@ class CategoryComparator(BaseComparator):
         Returns:
             True if answers match according to category rules, False otherwise
         """
-        comparators = self._get_category_comparators()
-        comparator = comparators.get(category)
-        if comparator is None:
-            return _compare_plain_text(predicted_norm, ground_truth_norm)
+        comparator = self._comparators.get(category, _compare_plain_text)
         return comparator(predicted_norm, ground_truth_norm)
 
     def compare(
@@ -329,11 +269,11 @@ class CategoryComparator(BaseComparator):
         if isinstance(answer1, Answer) and isinstance(answer2, Answer):
             cat1 = answer1.answer_category
             cat2 = answer2.answer_category
-            if _same_comparison_category(cat1, cat2):
+            if same_comparison_category(cat1, cat2):
                 return self._compare_by_category(cat1, answer1.value, answer2.value)
             else:
-                text1 = self._normalize_as_text(answer1.value)
-                text2 = self._normalize_as_text(answer2.value)
+                text1 = normalize_text(answer1.value)
+                text2 = normalize_text(answer2.value)
                 return text1 == text2
         else:
             ans1_str = (
@@ -343,12 +283,12 @@ class CategoryComparator(BaseComparator):
                 str(answer2.value) if isinstance(answer2, Answer) else str(answer2)
             )
 
-            cat1, predicted_norm = self._normalize_answer(ans1_str)
-            cat2, ground_truth_norm = self._normalize_answer(ans2_str)
+            cat1, predicted_norm = normalize_answer(ans1_str)
+            cat2, ground_truth_norm = normalize_answer(ans2_str)
 
-            if not _same_comparison_category(cat1, cat2):
-                text1 = self._normalize_as_text(ans1_str)
-                text2 = self._normalize_as_text(ans2_str)
+            if not same_comparison_category(cat1, cat2):
+                text1 = normalize_text(ans1_str)
+                text2 = normalize_text(ans2_str)
                 return text1 == text2
 
             return self._compare_by_category(cat1, predicted_norm, ground_truth_norm)
