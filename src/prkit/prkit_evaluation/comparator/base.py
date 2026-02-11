@@ -15,7 +15,12 @@ class BaseComparator(ABC):
     """Base class for answer comparison strategies."""
 
     @abstractmethod
-    def compare(self, answer1: Answer, answer2: Answer) -> Union[bool, float]:
+    def compare(
+        self,
+        answer1: Union[str, Answer],
+        answer2: Union[str, Answer],
+        **kwargs: Any
+    ) -> Any:
         """
         Compare two answers and return comparison result.
         

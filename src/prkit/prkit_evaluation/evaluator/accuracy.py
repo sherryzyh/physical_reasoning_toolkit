@@ -5,7 +5,7 @@ This evaluator uses a comparator to evaluate answers and can evaluate
 entire datasets, returning dataset-level statistics.
 """
 
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Union
 
 from prkit.prkit_core.domain.answer import Answer
 from prkit.prkit_core.domain.physics_dataset import PhysicalDataset
@@ -33,16 +33,16 @@ class AccuracyEvaluator(BaseEvaluator):
 
     def evaluate(
         self,
-        predicted_answer: Answer,
-        ground_truth_answer: Answer,
+        predicted_answer: Union[str, Answer],
+        ground_truth_answer: Union[str, Answer],
         **kwargs: Any
     ) -> Dict[str, Any]:
         """
         Evaluate a predicted answer against a ground truth answer.
         
         Args:
-            predicted_answer: The predicted/student answer to evaluate
-            ground_truth_answer: The ground truth/correct answer
+            predicted_answer: The predicted/student answer (string or Answer)
+            ground_truth_answer: The ground truth/correct answer (string or Answer)
             **kwargs: Additional arguments (currently unused)
             
         Returns:
@@ -54,18 +54,6 @@ class AccuracyEvaluator(BaseEvaluator):
         if self.comparator is None:
             raise ValueError("Comparator must be set before evaluation")
 
-        # Check if comparator can handle these answer types
-        if not self.comparator.can_compare(predicted_answer, ground_truth_answer):
-            return {
-                "accuracy_score": 0.0,
-                "comparison_result": None,
-                "details": {
-                    "error": "Comparator cannot handle these answer types",
-                    "predicted_type": predicted_answer.answer_category.value,
-                    "ground_truth_type": ground_truth_answer.answer_category.value,
-                },
-            }
-
         # Perform comparison
         comparison_result = self.comparator.compare(
             predicted_answer, ground_truth_answer
@@ -74,14 +62,19 @@ class AccuracyEvaluator(BaseEvaluator):
             predicted_answer, ground_truth_answer
         )
 
+        pred_val = str(predicted_answer.value) if isinstance(predicted_answer, Answer) else str(predicted_answer)
+        gt_val = str(ground_truth_answer.value) if isinstance(ground_truth_answer, Answer) else str(ground_truth_answer)
+        pred_type = predicted_answer.answer_category.value if isinstance(predicted_answer, Answer) else "string"
+        gt_type = ground_truth_answer.answer_category.value if isinstance(ground_truth_answer, Answer) else "string"
+
         return {
             "accuracy_score": accuracy_score,
             "comparison_result": comparison_result,
             "details": {
-                "predicted_value": str(predicted_answer.value),
-                "ground_truth_value": str(ground_truth_answer.value),
-                "predicted_type": predicted_answer.answer_category.value,
-                "ground_truth_type": ground_truth_answer.answer_category.value,
+                "predicted_value": pred_val,
+                "ground_truth_value": gt_val,
+                "predicted_type": pred_type,
+                "ground_truth_type": gt_type,
                 "comparator_type": type(self.comparator).__name__,
             },
         }
