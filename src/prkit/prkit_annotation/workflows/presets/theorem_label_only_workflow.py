@@ -19,7 +19,7 @@ class TheoremLabelOnlyWorkflow:
     def __init__(
         self,
         output_dir: str = "theorem_label_only_output",
-        model: str = "o3-mini",
+        model: str = "gpt-5-mini",
         config: Dict[str, Any] = None,
     ):
         self.output_dir = Path(output_dir)

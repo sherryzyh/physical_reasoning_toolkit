@@ -6,10 +6,10 @@ PRKit applies a “unified interface” idea to the full physical-reasoning loop
 
 ## 🎯 Project Overview
 
-PRKit is organized into one core package plus three integrated subpackages:
+PRKit centers on **core components** that define the physical reasoning ontology. Three integrated subpackages build on this foundation:
 
-- **`prkit_core`**: Shared data models, logging, and model-client abstractions.
-- **`prkit_datasets`**: A Datasets-like hub that downloads/loads benchmarks into a unified schema.
+- **Core components**: `PhysicsDomain`, `AnswerCategory`, `PhysicsProblem`, `Answer`, `PhysicalDataset`, `PhysicsSolution`, `BaseModelClient`, `create_model_client`, `PRKitLogger`—the shared abstractions used across the toolkit.
+- **`prkit_datasets`**: A Datasets-like hub that downloads/loads benchmarks into the unified schema (`PhysicsProblem`, `PhysicalDataset`).
 - **`prkit_annotation`**: Workflow-oriented tools for structured, lower-level labels (e.g., domain/subdomain, theorem usage).
 - **`prkit_evaluation`**: Evaluate-like components for physics-oriented scoring and comparison (e.g., symbolic/numerical answer matching).
 
@@ -19,10 +19,10 @@ PRKit is organized into one core package plus three integrated subpackages:
 from prkit.prkit_datasets import DatasetHub
 from prkit.prkit_core.model_clients import create_model_client
 
-# Load any benchmark with a consistent interface
+# Load any benchmark into the unified schema (PhysicsProblem, PhysicalDataset)
 dataset = DatasetHub.load("physreason", variant="full", split="test")
 
-# Run inference with a unified model client interface
+# Run inference with the unified model client (core component)
 client = create_model_client("gpt-4.1-mini")
 for problem in dataset[:3]:
     print(client.chat(problem.question)[:200])
@@ -33,8 +33,8 @@ The same pattern works across different datasets and model providers—swap the 
 ### 📖 Documentation
 
 **Quick Links:**
+- 🔧 **[CORE.md](CORE.md)** - Core components: domain model, model client, logger, and definitions
 - 📚 **[DATASETS.md](DATASETS.md)** - Complete guide to supported datasets and benchmarks
-- 🤖 **[MODEL_PROVIDERS.md](MODEL_PROVIDERS.md)** - Model provider integration (OpenAI, Gemini, DeepSeek, Ollama)
 - 📊 **[EVALUATION.md](EVALUATION.md)** - Evaluation metrics and comparison strategies
 - 📝 **[CHANGELOG.md](CHANGELOG.md)** - Version history and release notes
 
@@ -43,7 +43,7 @@ The same pattern works across different datasets and model providers—swap the 
 ```
 physical_reasoning_toolkit/
 ├── src/prkit/                       # Main package (modern src-layout)
-│   ├── prkit_core/                  # Core models and interfaces
+│   ├── prkit_core/                  # Core components (domain models, model clients, logging)
 │   ├── prkit_datasets/              # Dataset loading and management
 │   ├── prkit_annotation/            # Annotation workflows and tools
 │   └── prkit_evaluation/            # Evaluation metrics and benchmarks
@@ -58,7 +58,7 @@ physical_reasoning_toolkit/
 ### What's Included vs. External
 
 **In Repository (Code & Documentation):**
-- ✅ **src/prkit/**: Complete toolkit with 4 subpackages
+- ✅ **src/prkit/**: Complete toolkit with core components and 3 subpackages
 - ✅ **tests/**: Unit tests (for contributors)
 
 **External (Data & Runtime):**
@@ -132,7 +132,7 @@ export DEEPSEEK_API_KEY="your-deepseek-api-key"
 export PRKIT_LOG_LEVEL=INFO
 export PRKIT_LOG_FILE=/var/log/prkit.log  # Optional: defaults to {cwd}/prkit_logs/prkit.log if not set
 ```
-📖 **See [MODEL_PROVIDERS.md](MODEL_PROVIDERS.md) for provider-specific documentation.**
+📖 **See [CORE.md](CORE.md) (Model Client section) for supported providers and usage.**
 
 ### Data Directory Setup
 ```bash
@@ -159,18 +159,31 @@ print(f'PRKit version: {prkit.__version__}')
 
 ## 📦 Package Overview
 
-The toolkit is organized into four integrated subpackages:
+The toolkit is organized around **core components** and three subpackages that use them. Subpackages depend only on `prkit_core`; there are no direct dependencies between `prkit_datasets`, `prkit_annotation`, and `prkit_evaluation`.
 
-| Subpackage | Purpose |
-|------------|---------|
-| `prkit_core` | Data models, logging, model clients |
+| Component | Purpose |
+|-----------|---------|
+| `prkit_core` | Core components, see below |
 | `prkit_datasets` | Dataset hub: loaders, downloaders, unified schema |
 | `prkit_evaluation` | Comparators and accuracy metrics |
 | `prkit_annotation` | Workflow pipelines for domain/theorem annotation |
 
 
-### prkit_core 🔧
-Foundation interfaces: `PhysicsProblem` / `PhysicalDataset` models, unified model client API (OpenAI, Gemini, DeepSeek, Ollama), centralized logging, Pydantic validation.
+### Core Components 🔧
+
+The essential building blocks of the physical-reasoning-toolkit. All datasets, inference, evaluation, and annotation workflows use these components.
+
+* **PhysicsDomain** — Enumeration of physics subfields (mechanics, thermodynamics, quantum mechanics, optics, etc.) for problem classification. Aligned with UGPhysics, PHYBench, TPBench. Use `PhysicsDomain.from_string()` for flexible parsing.
+* **AnswerCategory** — Enumeration of answer types for normalization and evaluation: `NUMBER`, `PHYSICAL_QUANTITY`, `EQUATION`, `FORMULA`, `TEXT`, `OPTION`. Drives how answers are compared (numerical precision, symbolic equivalence, exact match).
+* **PhysicsProblem** — The canonical representation of a physics problem. Required: `problem_id`, `question`. Optional: `answer` (Answer), `solution`, `domain`, `image_path`, `problem_type` (MC/OE), `options`, `correct_option`. Supports dictionary-like access and `load_images()` for visual problems.
+* **Answer** — Unified answer model. `value` holds the number (NUMBER), numeric part (PHYSICAL_QUANTITY), option string (OPTION), or plain string (EQUATION, FORMULA, TEXT). `unit` is optional and used only for PHYSICAL_QUANTITY. Type checks, unit helpers, LaTeX handling, option indexing.
+* **PhysicalDataset** — Collection of `PhysicsProblem` instances. Indexing, slicing, `get_by_id()`, `filter_by_domain()`, `take()`, `sample()`, `save_to_json()` / `from_json()`. Provides `get_statistics()` for domain and problem-type distribution.
+* **PhysicsSolution** — Bundles a `PhysicsProblem`, model `agent_answer`, and optional `intermediate_steps`. Captures the full solution trace for evaluation and analysis.
+* **BaseModelClient** — Abstract base for model clients. Subclasses implement `chat(user_prompt, image_paths=None)`.
+* **PRKitLogger** — Centralized logging with colored output, file logging, and env config (`PRKIT_LOG_LEVEL`, `PRKIT_LOG_FILE`, etc.).
+
+📖 See [CORE.md](CORE.md) for the full domain model, entity relationships, subpackage dependency diagram, and import reference.
+
 
 ### prkit_evaluation 📈
 Answer comparators (symbolic, numerical, textual, option-based), accuracy evaluator, and physics-focused assessment protocols.
@@ -186,27 +199,6 @@ Dataset hub with a Datasets-like interface: `DatasetHub.load()` for PHYBench, Ph
 Modular workflows (domain classification, theorem extraction) via `WorkflowComposer` and presets. Model-assisted and human-in-the-loop.
 
 📖 [ANNOTATION.md](ANNOTATION.md)
-
-
-## 🔍 Key Features
-
-### Unified Interface Design
-- **Consistent APIs**: Same interface patterns across datasets, models, and evaluation
-- **Provider Agnostic**: Switch between model providers without changing your code
-- **Format Agnostic**: Work with datasets regardless of their original format (JSON, Parquet, CSV, etc.)
-- **Type Safe**: Full type hints and Pydantic validation throughout
-
-### Research-Focused
-- **Reproducible**: Seed-based sampling and deterministic workflows
-- **Extensible**: Easy to add new datasets, models, or evaluation metrics
-- **Professional**: Centralized logging, error handling, and comprehensive documentation
-- **Benchmark Coverage**: Access to multiple SOTA physical reasoning benchmarks through one interface
-
-### Developer Experience
-- **Flexible Imports**: Support for both package-level and top-level imports
-- **Rich Metadata**: Preserves original dataset information while providing standardized access
-- **Comprehensive Testing**: Built-in validation and extensive test coverage
-- **Clear Documentation**: Detailed docstrings, examples, and usage guides
 
 ## 🆘 Troubleshooting
 
@@ -250,24 +242,12 @@ ls -la $DATASET_CACHE_DIR/PhysReason/
 3. **Check data**: Ensure datasets are properly downloaded and accessible
 4. **Check documentation**: Start with the root docs linked below
 
-## 📚 Documentation & Resources
 
-### Component Documentation
-- **[DATASETS.md](DATASETS.md)**: Comprehensive guide to supported datasets and benchmarks
-- **[MODEL_PROVIDERS.md](MODEL_PROVIDERS.md)**: Model provider integration and usage
-- **[EVALUATION.md](EVALUATION.md)**: Evaluation metrics and comparison strategies
-- **[ANNOTATION.md](ANNOTATION.md)**: Annotation workflows and tools
-
-### Learning Resources
-- **API Documentation**: Comprehensive docstrings in package files
-- **Examples**: See `cookbooks/` for end-to-end examples (dataset loading, inference, evaluation)
+## 🤝 Contributing
 
 ### Community & Support
 - **GitHub Issues**: [Report bugs or request features](https://github.com/sherryzyh/physical_reasoning_toolkit/issues)
 - **Discussions**: Share ideas and get help
-- **Contributing**: See the Contributing section above
-
-## 🤝 Contributing
 
 ### Development Setup
 ```bash
