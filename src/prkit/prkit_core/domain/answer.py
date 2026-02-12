@@ -15,9 +15,9 @@ from .answer_category import AnswerCategory
 class Answer:
     """Unified answer class that handles all answer categories through composition."""
 
-    value: Any
+    value: Any  # NUMBER: actual number; PHYSICAL_QUANTITY: numeric part; OPTION: option string; EQUATION/FORMULA/TEXT: plain string
     answer_category: AnswerCategory
-    unit: Optional[str] = None
+    unit: Optional[str] = None  # Used only for PHYSICAL_QUANTITY (e.g., "m/s²", "N")
     metadata: Dict[str, Any] = None
 
     def __post_init__(self):

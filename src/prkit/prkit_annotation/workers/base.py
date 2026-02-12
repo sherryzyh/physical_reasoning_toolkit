@@ -12,7 +12,7 @@ from prkit.prkit_core.model_clients import create_model_client
 class BaseAnnotator(ABC):
     """Base class for all annotators."""
 
-    def __init__(self, model: str = "gpt-4o"):
+    def __init__(self, model: str = "gpt-5-mini"):
         """
         Initialize base annotator.
 

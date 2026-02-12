@@ -23,7 +23,7 @@ class BaseWorkflowModule(ABC):
     """
 
     def __init__(
-        self, name: str, model: str = "o3-mini", config: Optional[Dict[str, Any]] = None
+        self, name: str, model: str = "gpt-5-mini", config: Optional[Dict[str, Any]] = None
     ):
         # Setup module logging - the workflow will configure this properly
         self.logger = PRKitLogger.get_logger(f"{__name__}.{name}")

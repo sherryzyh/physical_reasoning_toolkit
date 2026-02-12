@@ -5,28 +5,50 @@ All notable changes to Physical Reasoning Toolkit (physical-reasoning-toolkit) w
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.0] - 2026-01-30
+## [0.1.0] - 2026-02-11
 
 ### Added
-- Initial release of Physical Reasoning Toolkit v0.1.0
-- Core package (`prkit_core`) with models and provider integration
-- Dataset loaders (`prkit_datasets`) supporting 7 physics datasets
-- Annotation workflows (`prkit_annotation`) for automated and supervised annotation
-- Evaluation metrics (`prkit_evaluation`) for physics reasoning assessment
-- Centralized logging system across all packages
-- Comprehensive documentation and examples
-- Standardized package structure with consistent `__init__.py` formatting across all subpackages
 
-### Features
-- **Supported Datasets**: PhysReason and SeePhys (fully tested and validated)
-- **Experimental Datasets**: PHYBench, UGPhysics, JEEBench, TPBench (available but require further testing)
-- Standardized `PhysicsProblem` and `PhysicalDataset` models
-- Domain classification and theorem detection workflows
-- Multiple model provider support (OpenAI, Google Gemini, DeepSeek, Ollama)
-- Professional logging with environment variable configuration
-- Flexible import system: supports both top-level (`from prkit_datasets import DatasetHub`) and package-level (`from prkit.prkit_datasets import DatasetHub`) imports
+Initial release of Physical Reasoning Toolkit (PRKit)—a unified toolkit for AI physical reasoning research.
 
-### Metadata
-- Package version: 0.1.0
-- Author: Yinghuan Zhang (yinghuan.flash@gmail.com)
-- License: MIT
+#### Core (`prkit_core`)
+- **Domain model**: `PhysicsDomain`, `AnswerCategory`, `Answer`, `PhysicsProblem`, `PhysicalDataset`, `PhysicsSolution`
+- **Physics domains**: 20+ domains (mechanics, thermodynamics, quantum mechanics, optics, electromagnetism, etc.)
+- **Answer categories**: `NUMBER`, `PHYSICAL_QUANTITY`, `EQUATION`, `FORMULA`, `TEXT`, `OPTION` for normalization and comparison
+- **Model client**: `create_model_client()` with provider auto-detection from model name
+  - OpenAI (GPT-4.1-mini, o3-mini, etc.)
+  - Google Gemini (gemini-pro, gemini-1.5-pro)
+  - DeepSeek (deepseek-chat, deepseek-reasoner)
+  - Ollama (local models, e.g. qwen3-vl)
+- **Vision support**: Image inputs via `image_paths` for vision-capable providers
+- **PRKitLogger**: Centralized logging with colored output, file logging, env config (`PRKIT_LOG_LEVEL`, `PRKIT_LOG_FILE`)
+
+#### Datasets (`prkit_datasets`)
+- **DatasetHub**: Datasets-like API—`DatasetHub.load(name)`, `list_available()`, `get_info()`
+- **7 datasets**: phybench, phyx, seephys, ugphysics, physreason, jeebench, tpbench
+- **Auto-download**: PHYBench, PhyX, PhysReason, UGPhysics, SeePhys (with `auto_download=True`)
+- **Unified schema**: All datasets map to `PhysicsProblem` and `PhysicalDataset`
+- **Operations**: `filter`, `filter_by_domain`, `sample`, `take`, `get_statistics`, `save_to_json`, `from_json`
+
+#### Annotation (`prkit_annotation`)
+- **WorkflowComposer**: Modular workflow orchestration over datasets
+- **Presets**: `DomainOnlyWorkflow`, `TheoremLabelOnlyWorkflow`
+- **Modules**: Domain assessment, theorem detection, variable locator
+- **Workers**: Domain labeler, theorem detector (LLM-assisted annotation)
+- **Artifacts**: Per-problem traces and workflow outputs to configurable `output_dir`
+
+#### Evaluation (`prkit_evaluation`)
+- **Comparators**: `ExactMatchComparator`, `NormalizedMatchComparator`, `CategoryComparator` (answer-category-aware)
+- **Evaluator**: `AccuracyEvaluator` for predictions vs ground truth
+- **Utilities**: LaTeX preprocessing, numerical normalization, symbolic equivalence checks
+
+#### Documentation
+- **CORE.md**: Domain model, entity relationships, import reference
+- **DATASETS.md**: Dataset support matrix, loaders, downloaders
+- **EVALUATION.md**: Comparators and metrics
+- **ANNOTATION.md**: Workflow presets and custom pipelines
+- **DEVELOPER.md**: Development setup and guidelines
+
+#### Infrastructure
+- Python 3.10+ support
+- MIT license
