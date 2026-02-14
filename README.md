@@ -25,7 +25,7 @@ dataset = DatasetHub.load("physreason", variant="full", split="test")
 # Run inference with the unified model client (core component)
 client = create_model_client("gpt-4.1-mini")
 for problem in dataset[:3]:
-    print(client.chat(problem.question)[:200])
+    print(client.chat(problem.question)[:200)
 ```
 
 The same pattern works across different datasets and model providers—swap the dataset name or model identifier.
@@ -37,6 +37,75 @@ The same pattern works across different datasets and model providers—swap the 
 - 📚 **[DATASETS.md](DATASETS.md)** - Complete guide to supported datasets and benchmarks
 - 📊 **[EVALUATION.md](EVALUATION.md)** - Evaluation metrics and comparison strategies
 - 📝 **[CHANGELOG.md](CHANGELOG.md)** - Version history and release notes
+
+## 🚀 Quick Start
+
+### Prerequisites
+- **Python 3.10+** (required)
+
+### Installation
+
+#### Option 1: Install from PyPI (Recommended)
+```bash
+# Install the latest stable version
+pip install physical-reasoning-toolkit
+
+# Verify installation
+python -c "import prkit; print(prkit.__version__)"
+```
+
+#### Option 2: Install from Source
+
+**Step 1: Clone the Repository**
+```bash
+git clone https://github.com/sherryzyh/physical_reasoning_toolkit.git
+cd physical_reasoning_toolkit
+```
+
+**Step 2: Install**
+```bash
+# Install the package (regular install for end users)
+pip install .
+
+# Verify installation
+python -c "import prkit; print('✅ Toolkit installed successfully!')"
+```
+
+<!-- #### Option 3: Install from Source (For Development)
+
+If you plan to contribute or modify the code, install in editable mode with dev dependencies:
+
+```bash
+# After cloning and activating venv (see Steps 1–2 above)
+pip install -e ".[dev]"
+``` -->
+
+
+### Provider API Key Setup
+**Option 1**: Export as environmental variable
+```bash
+# For model provider integration (optional)
+export OPENAI_API_KEY="your-openai-api-key"
+export GEMINI_API_KEY="your-gemini-api-key"
+export DEEPSEEK_API_KEY="your-deepseek-api-key"
+
+# For logging configuration (optional)
+export PRKIT_LOG_LEVEL=INFO
+export PRKIT_LOG_FILE=/var/log/prkit.log  # Optional: defaults to {cwd}/prkit_logs/prkit.log if not set
+```
+**Option 2**: Create a `.env` file at your project root
+📖 **See [CORE.md](CORE.md) (Model Client section) for supported providers and usage.**
+
+### Validate Setup
+```bash
+python -c "
+import prkit
+from prkit.prkit_datasets import DatasetHub
+from prkit.prkit_annotation.workflows import WorkflowComposer
+print('✅ All packages imported successfully!')
+print(f'PRKit version: {prkit.__version__}')
+"
+```
 
 ## 🏗️ Repository Structure
 
@@ -65,97 +134,6 @@ physical_reasoning_toolkit/
 - 📁 **Data Directory**: Dataset files (set via `DATASET_CACHE_DIR`)
 - 🔑 **API Keys**: Model provider credentials (if applicable)
 - 📊 **Log Files**: Runtime logs (default: `{cwd}/prkit_logs/prkit.log`, can be overridden via `PRKIT_LOG_FILE`)
-
-## 🚀 Quick Start
-
-### Prerequisites
-- **Python 3.10+** (required)
-
-### Installation
-
-#### Option 1: Install from PyPI (Recommended, not available yet)
-```bash
-# Install the latest stable version
-pip install physical-reasoning-toolkit
-
-# Verify installation
-python -c "import prkit; print(prkit.__version__)"
-```
-
-#### Option 2: Install from Source
-
-**Step 1: Clone the Repository**
-```bash
-git clone https://github.com/sherryzyh/physical_reasoning_toolkit.git
-cd physical_reasoning_toolkit
-```
-
-**Step 2: Set Up Virtual Environment**
-```bash
-# Create virtual environment
-python -m venv venv
-
-# Activate (macOS/Linux)
-source venv/bin/activate
-
-# Activate (Windows)
-venv\Scripts\activate
-```
-
-**Step 3: Install**
-```bash
-# Install the package (regular install for end users)
-pip install .
-
-# Verify installation
-python -c "import prkit; print('✅ Toolkit installed successfully!')"
-```
-
-<!-- #### Option 3: Install from Source (For Development)
-
-If you plan to contribute or modify the code, install in editable mode with dev dependencies:
-
-```bash
-# After cloning and activating venv (see Steps 1–2 above)
-pip install -e ".[dev]"
-``` -->
-
-
-### Provider API Key Setup
-```bash
-# For model provider integration (optional)
-export OPENAI_API_KEY="your-openai-api-key"
-export GEMINI_API_KEY="your-gemini-api-key"
-export DEEPSEEK_API_KEY="your-deepseek-api-key"
-
-# For logging configuration (optional)
-export PRKIT_LOG_LEVEL=INFO
-export PRKIT_LOG_FILE=/var/log/prkit.log  # Optional: defaults to {cwd}/prkit_logs/prkit.log if not set
-```
-📖 **See [CORE.md](CORE.md) (Model Client section) for supported providers and usage.**
-
-### Data Directory Setup
-```bash
-# Set up data directory structure (external to repository)
-mkdir -p ~/data
-export DATASET_CACHE_DIR=~/data
-
-# Download datasets using DatasetHub with auto_download=True
-python -c "from prkit.prkit_datasets import DatasetHub; DatasetHub.load('ugphysics', auto_download=True)"
-```
-
-**Note**: The data directory is external to the repository and contains the actual dataset files. The default cache directory is `~/PHYSICAL_REASONING_DATASETS/` if `DATASET_CACHE_DIR` is not set. Use `auto_download=True` when loading datasets to automatically download them if they don't exist.
-
-### Validate Setup
-```bash
-python -c "
-import prkit
-from prkit.prkit_datasets import DatasetHub
-from prkit.prkit_annotation.workflows import WorkflowComposer
-print('✅ All packages imported successfully!')
-print(f'PRKit version: {prkit.__version__}')
-"
-```
 
 ## 📦 Package Overview
 
