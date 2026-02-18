@@ -3,28 +3,23 @@ Unit tests for category_match module.
 
 Tests cover:
 - same_comparison_category (from answer_utils)
-- _compare_number (float, Answer, epsilon, decimal rounding)
-- _compare_plain_text (str, Answer)
-- _formula_to_sympify
-- _parse_physical_quantity (valid, fraction, parse failure, comma)
-- _compare_physical_quantity (same units, different units, Answer, mixed, epsilon)
-- _compare_formula (str, Answer, ^ conversion, parse failure)
+- compare_by_type functions (compare_number, compare_plain_text, etc.)
 - CategoryComparator (init, compare, accuracy_score, mixed input types)
 """
 
 import pytest
 
 from prkit.prkit_core.domain import Answer, AnswerCategory
-from prkit.prkit_evaluation.comparator.category_match import (
-    CategoryComparator,
-    _compare_formula,
-    _compare_number,
-    _compare_physical_quantity,
-    _compare_plain_text,
+from prkit.prkit_evaluation.comparator.category_match import CategoryComparator
+from prkit.prkit_evaluation.utils.answer_utils import same_comparison_category
+from prkit.prkit_evaluation.utils.compare_by_type import (
     _formula_to_sympify,
     _parse_physical_quantity,
+    compare_formula,
+    compare_number,
+    compare_physical_quantity,
+    compare_plain_text,
 )
-from prkit.prkit_evaluation.utils.answer_utils import same_comparison_category
 from prkit.prkit_evaluation.utils.number_utils import DEFAULT_NUMBER_EPSILON
 
 
@@ -43,64 +38,64 @@ class TestSameComparisonCategory:
 
 
 class TestCompareNumber:
-    """Tests for _compare_number."""
+    """Tests for compare_number."""
 
     def test_equal_floats(self):
         """Equal floats should match."""
-        assert _compare_number(3.14, 3.14) is True
-        assert _compare_number(0.0, 0.0) is True
+        assert compare_number(3.14, 3.14) is True
+        assert compare_number(0.0, 0.0) is True
 
     def test_floats_within_epsilon(self):
         """Floats within epsilon should match."""
-        assert _compare_number(1.0, 1.0 + DEFAULT_NUMBER_EPSILON / 2) is True
-        assert _compare_number(1e-10, 1e-10 + 1e-20) is True
+        assert compare_number(1.0, 1.0 + DEFAULT_NUMBER_EPSILON / 2) is True
+        assert compare_number(1e-10, 1e-10 + 1e-20) is True
 
     def test_floats_outside_epsilon(self):
         """Floats outside epsilon should not match."""
-        assert _compare_number(1.0, 1.0 + 1e-5) is False
-        assert _compare_number(0.0, 0.001) is False
+        assert compare_number(1.0, 1.0 + 1e-5) is False
+        assert compare_number(0.0, 0.001) is False
 
     def test_custom_epsilon(self):
         """Custom epsilon should be respected."""
-        assert _compare_number(1.0, 1.0001, epsilon=0.001) is True
-        assert _compare_number(1.0, 1.0001, epsilon=0.00001) is False
+        assert compare_number(1.0, 1.0001, epsilon=0.001) is True
+        assert compare_number(1.0, 1.0001, epsilon=0.00001) is False
 
     def test_decimal_place_rounding(self):
         """Predicted with more decimals should be rounded to GT precision."""
         # 9.8 has 1 decimal place; 9.86 rounds to 9.9, which matches 9.9
-        assert _compare_number(9.86, 9.9) is True
+        assert compare_number(9.86, 9.9) is True
         # 9.8 vs 9.9 - different
-        assert _compare_number(9.8, 9.9) is False
+        assert compare_number(9.8, 9.9) is False
         # 9.84 vs 9.8 - 9.84 rounds to 9.8 (1 decimal)
-        assert _compare_number(9.84, 9.8) is True
+        assert compare_number(9.84, 9.8) is True
 
     def test_with_answer_objects(self):
         """Should handle Answer objects by extracting value."""
         ans1 = Answer(value=3.14, answer_category=AnswerCategory.NUMBER)
         ans2 = Answer(value=3.14, answer_category=AnswerCategory.NUMBER)
-        assert _compare_number(ans1, ans2) is True
-        assert _compare_number(ans1, 3.14) is True
-        assert _compare_number(3.14, ans2) is True
+        assert compare_number(ans1, ans2) is True
+        assert compare_number(ans1, 3.14) is True
+        assert compare_number(3.14, ans2) is True
 
 
 class TestComparePlainText:
-    """Tests for _compare_plain_text."""
+    """Tests for compare_plain_text."""
 
     def test_equal_strings(self):
         """Equal strings should match."""
-        assert _compare_plain_text("hello", "hello") is True
+        assert compare_plain_text("hello", "hello") is True
 
     def test_unequal_strings(self):
         """Unequal strings should not match."""
-        assert _compare_plain_text("hello", "world") is False
+        assert compare_plain_text("hello", "world") is False
 
     def test_with_answer_objects(self):
         """Should handle Answer objects by extracting value."""
         a1 = Answer(value="foo", answer_category=AnswerCategory.TEXT)
         a2 = Answer(value="foo", answer_category=AnswerCategory.TEXT)
-        assert _compare_plain_text(a1, a2) is True
-        assert _compare_plain_text(a1, "foo") is True
-        assert _compare_plain_text("foo", a2) is True
+        assert compare_plain_text(a1, a2) is True
+        assert compare_plain_text(a1, "foo") is True
+        assert compare_plain_text("foo", a2) is True
 
 
 class TestParsePhysicalQuantity:
@@ -173,29 +168,29 @@ class TestFormulaToSympify:
 
 
 class TestComparePhysicalQuantity:
-    """Tests for _compare_physical_quantity."""
+    """Tests for compare_physical_quantity."""
 
     def test_same_units_numeric_match(self):
         """Same units: compare numeric part with epsilon."""
-        assert _compare_physical_quantity("9.8 m/s^2", "9.8 m/s^2") is True
+        assert compare_physical_quantity("9.8 m/s^2", "9.8 m/s^2") is True
         # Values within epsilon (1e-10)
-        assert _compare_physical_quantity(
+        assert compare_physical_quantity(
             "9.8 m/s^2", "9.80000000001 m/s^2"
         ) is True
 
     def test_same_units_numeric_mismatch(self):
         """Same units but different numeric values (even after decimal rounding)."""
         # 9.8 vs 15 - no rounding makes them equal
-        assert _compare_physical_quantity("9.8 m/s^2", "15 m/s^2") is False
+        assert compare_physical_quantity("9.8 m/s^2", "15 m/s^2") is False
         # 9.8 rounds to 10 when GT has 0 decimals, so 9.8 matches 10
-        assert _compare_physical_quantity("9.8 m/s^2", "10.0 m/s^2") is True
+        assert compare_physical_quantity("9.8 m/s^2", "10.0 m/s^2") is True
 
     def test_different_units_fallback_to_text(self):
         """Different units: fall back to plain text (no unit conversion)."""
         # Same number, different units - text compare fails
-        assert _compare_physical_quantity("9.8 m/s^2", "9.8 km/h") is False
+        assert compare_physical_quantity("9.8 m/s^2", "9.8 km/h") is False
         # Same string would match
-        assert _compare_physical_quantity("9.8 m/s^2", "9.8 m/s^2") is True
+        assert compare_physical_quantity("9.8 m/s^2", "9.8 m/s^2") is True
 
     def test_with_answer_objects(self):
         """Answer objects with value and unit."""
@@ -209,12 +204,12 @@ class TestComparePhysicalQuantity:
             answer_category=AnswerCategory.PHYSICAL_QUANTITY,
             unit="A/s",
         )
-        assert _compare_physical_quantity(ans1, ans2) is True
+        assert compare_physical_quantity(ans1, ans2) is True
 
     def test_parse_failure_fallback(self):
         """When parse fails, fall back to plain text comparison."""
         # Both unparseable - compare as text
-        result = _compare_physical_quantity("invalid m", "invalid m")
+        result = compare_physical_quantity("invalid m", "invalid m")
         assert result is True
 
     def test_mixed_answer_and_string(self):
@@ -224,15 +219,15 @@ class TestComparePhysicalQuantity:
             answer_category=AnswerCategory.PHYSICAL_QUANTITY,
             unit="A/s",
         )
-        assert _compare_physical_quantity(ans, "-10000 A/s") is True
-        assert _compare_physical_quantity("-10000 A/s", ans) is True
+        assert compare_physical_quantity(ans, "-10000 A/s") is True
+        assert compare_physical_quantity("-10000 A/s", ans) is True
 
     def test_custom_epsilon(self):
         """Custom epsilon is passed to numeric comparison."""
-        assert _compare_physical_quantity(
+        assert compare_physical_quantity(
             "1.0 m", "1.001 m", epsilon=0.01
         ) is True
-        assert _compare_physical_quantity(
+        assert compare_physical_quantity(
             "1.0 m", "1.001 m", epsilon=0.0001
         ) is False
 
@@ -245,62 +240,62 @@ class TestComparePhysicalQuantity:
         )
         # pred_unit is None, gt_unit is "m/s^2" - differ, so fall back to text
         # pred_string = "9.8 None", gt_string = "9.8 m/s^2"
-        assert _compare_physical_quantity(ans, "9.8 m/s^2") is False
+        assert compare_physical_quantity(ans, "9.8 m/s^2") is False
 
 
 class TestCompareFormula:
-    """Tests for _compare_formula."""
+    """Tests for compare_formula."""
 
     def test_string_args_equal(self):
         """Two equal strings should match."""
-        assert _compare_formula("x^2 + 1", "x^2 + 1") is True
+        assert compare_formula("x^2 + 1", "x^2 + 1") is True
 
     def test_caret_converted_to_double_star(self):
         """Formula with ^ is converted and compares correctly via sympify."""
         # x^2 becomes x**2; x**2 equals x*x
-        assert _compare_formula("x^2", "x**2") is True
-        assert _compare_formula("x^2", "x*x") is True
+        assert compare_formula("x^2", "x**2") is True
+        assert compare_formula("x^2", "x*x") is True
 
     def test_string_args_unequal(self):
         """Two different strings should not match."""
-        assert _compare_formula("x^2", "y^2") is False
+        assert compare_formula("x^2", "y^2") is False
 
     def test_with_answer_objects(self):
         """Answer objects: extract value and compare."""
         a1 = Answer(value="a + b", answer_category=AnswerCategory.FORMULA)
         a2 = Answer(value="a + b", answer_category=AnswerCategory.FORMULA)
-        assert _compare_formula(a1, a2) is True
+        assert compare_formula(a1, a2) is True
 
     def test_mixed_string_and_answer(self):
         """One string, one Answer."""
         a = Answer(value="x + 1", answer_category=AnswerCategory.FORMULA)
-        assert _compare_formula("x + 1", a) is True
-        assert _compare_formula(a, "x + 1") is True
+        assert compare_formula("x + 1", a) is True
+        assert compare_formula(a, "x + 1") is True
 
     def test_sympy_structurally_equivalent_expressions(self):
         """Mathematically equivalent but structurally different expressions should match."""
         # Reordered terms (commutativity)
-        assert _compare_formula("x + y", "y + x") is True
-        assert _compare_formula("a*b", "b*a") is True
+        assert compare_formula("x + y", "y + x") is True
+        assert compare_formula("a*b", "b*a") is True
         # Expanded vs factored form
-        assert _compare_formula("(x + 1)**2", "x**2 + 2*x + 1") is True
+        assert compare_formula("(x + 1)**2", "x**2 + 2*x + 1") is True
         # Simplified form (x/2 vs 0.5*x)
-        assert _compare_formula("x/2", "0.5*x") is True
+        assert compare_formula("x/2", "0.5*x") is True
         # Same expression with different representation
-        assert _compare_formula("x**2", "x*x") is True
+        assert compare_formula("x**2", "x*x") is True
 
     def test_sympy_different_expressions(self):
         """Mathematically different expressions should not match."""
-        assert _compare_formula("x + 1", "x + 2") is False
-        assert _compare_formula("x**2", "x**3") is False
-        assert _compare_formula("x + y", "x - y") is False
+        assert compare_formula("x + 1", "x + 2") is False
+        assert compare_formula("x**2", "x**3") is False
+        assert compare_formula("x + y", "x - y") is False
 
     def test_sympy_parse_failure_fallback(self):
         """On parse failure, fall back to plain text comparison."""
         # Invalid sympy syntax - falls back to text compare
-        result = _compare_formula("invalid formula {{", "invalid formula {{")
+        result = compare_formula("invalid formula {{", "invalid formula {{")
         assert result is True
-        result = _compare_formula("valid", "invalid formula {{")
+        result = compare_formula("valid", "invalid formula {{")
         assert result is False
 
 
@@ -368,10 +363,10 @@ class TestCategoryComparator:
         assert comp.compare("  foo  ", "foo") is True
 
     def test_compare_by_category_unknown_fallback(self):
-        """Unknown category falls back to _compare_plain_text."""
+        """Unknown category falls back to compare_plain_text."""
         comp = CategoryComparator()
         # Remove NUMBER from comparators to simulate unknown
-        comp._comparators = {AnswerCategory.TEXT: _compare_plain_text}
+        comp._comparators = {AnswerCategory.TEXT: compare_plain_text}
         # NUMBER not in comparators -> fallback
         result = comp._compare_by_category(
             AnswerCategory.NUMBER, "42", "42"
@@ -409,6 +404,13 @@ class TestCategoryComparator:
         a2 = Answer(value="a", answer_category=AnswerCategory.OPTION)
         assert comp.compare(a1, a2) is False
 
+    def test_compare_formula_answer_objects(self):
+        """Answer objects with FORMULA category use compare_formula."""
+        comp = CategoryComparator()
+        a1 = Answer(value="x + y", answer_category=AnswerCategory.FORMULA)
+        a2 = Answer(value="y + x", answer_category=AnswerCategory.FORMULA)
+        assert comp.compare(a1, a2) is True
+
     def test_option_answers_exact_match(self):
         """Option answers with same value match."""
         comp = CategoryComparator()
@@ -433,8 +435,8 @@ class TestCategoryComparatorSubclass:
         class CustomComparator(CategoryComparator):
             def __init__(self):
                 super().__init__()
-                # Only TEXT comparator - NUMBER falls back to _compare_plain_text
-                self._comparators = {AnswerCategory.TEXT: _compare_plain_text}
+                # Only TEXT comparator - NUMBER falls back to compare_plain_text
+                self._comparators = {AnswerCategory.TEXT: compare_plain_text}
 
         comp = CustomComparator()
         # NUMBER not in comparators -> fallback to _compare_plain_text

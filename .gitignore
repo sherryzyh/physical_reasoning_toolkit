@@ -234,5 +234,6 @@ dev_tests/
 
 # Experiments
 experiment_results/
-experiment_books/
+scripts/
 prkit_logs/
+uncertainty_*/

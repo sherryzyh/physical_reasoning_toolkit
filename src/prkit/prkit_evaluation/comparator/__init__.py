@@ -9,10 +9,12 @@ from .base import BaseComparator
 from .category_match import CategoryComparator
 from .exact_match import ExactMatchComparator
 from .normalized_match import NormalizedMatchComparator
+from .smart_match import SmartMatchComparator
 
 __all__ = [
     "BaseComparator",
     "CategoryComparator",
     "ExactMatchComparator",
     "NormalizedMatchComparator",
+    "SmartMatchComparator",
 ]
