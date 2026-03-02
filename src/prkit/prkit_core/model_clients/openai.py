@@ -10,11 +10,12 @@ Supported OpenAI models:
 """
 
 import os
-from typing import List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from openai import OpenAI
 
 from .base import BaseModelClient
+from .structured_output import normalize_response_format
 from .utils import encode_image_to_base64
 
 def _is_supported_openai_model(model: str) -> bool:
@@ -145,8 +146,9 @@ class OpenAIModel(BaseModelClient):
         self,
         user_prompt: str,
         image_paths: Optional[List[str]] = None,
-        *args,
-        **kwargs,
+        response_format: Optional[Union[Dict[str, Any], type]] = None,
+        *args: Any,
+        **kwargs: Any,
     ) -> str:
         """
         Generate a response from OpenAI Responses API.
@@ -157,38 +159,48 @@ class OpenAIModel(BaseModelClient):
                        - File paths: ["/path/to/image.jpg", ...] - will be encoded to base64
                        - HTTP/HTTPS URLs: ["https://example.com/image.jpg", ...] - used as-is
                        - Base64 data URLs: ["data:image/jpeg;base64,...", ...] - used as-is
+            response_format: Optional structured output format (OpenAI-style dict or Pydantic
+                           model). Ensures response adheres to JSON Schema.
             *args: Additional positional arguments (ignored, kept for compatibility)
             **kwargs: Additional keyword arguments for request parameters
                      (e.g., max_tokens, etc.)
 
         Returns:
-            Response text from OpenAI model
-            
+            Response text from OpenAI model (JSON string when response_format is used)
+
         Raises:
             FileNotFoundError: If any image_path is a file path that doesn't exist
             IOError: If there's an error reading any image file
         """
         # Build request parameters
         request_params = {"model": self.model}
-        
+
+        # Add structured output if requested
+        if response_format is not None:
+            normalized = normalize_response_format(response_format)
+            request_params["text"] = {
+                "format": {
+                    "type": "json_schema",
+                    "name": normalized["name"],
+                    "schema": normalized["schema"],
+                    "strict": normalized["strict"],
+                }
+            }
+            if normalized.get("description") is not None:
+                request_params["text"]["format"]["description"] = normalized["description"]
+
         # Use role/content format for all models
         content = [{"type": "input_text", "text": user_prompt}]
-        
+
         if image_paths:
             for image_path in image_paths:
                 image_url = prepare_image_url_from_image_path(image_path)
-                content.append({
-                    "type": "input_image",
-                    "image_url": image_url
-                })
-        
-        request_params["input"] = [
-            {
-                "role": "user",
-                "content": content
-            }
-        ]
-        
+                content.append(
+                    {"type": "input_image", "image_url": image_url}
+                )
+
+        request_params["input"] = [{"role": "user", "content": content}]
+
         # Add reasoning parameter for o-family models
         if self.is_o_family:
             request_params["reasoning"] = {"effort": "medium"}

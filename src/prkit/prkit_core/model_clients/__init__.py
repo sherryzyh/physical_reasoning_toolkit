@@ -9,16 +9,17 @@ Architecture:
   - All models support text input
   - Models that support vision handle image_paths parameter
   - Models that don't support vision ignore images with a warning
+  - Structured output (response_format) supported by OpenAI and Gemini
 
 Currently supports:
-- OpenAI (Responses API) - supports vision (gpt-4.1, gpt-5xxxx, o-family)
-- Google Gemini - vision support planned (currently text-only)
-- DeepSeek - text-only
-- Ollama - supports vision (qwen3-vl, qwen*)
+- OpenAI (Responses API) - supports vision, structured output (gpt-4.1, gpt-5xxxx, o-family)
+- Google Gemini - vision support, structured output
+- DeepSeek - text-only (structured output not supported, warns if used)
+- Ollama - supports vision (structured output not supported, warns if used)
 
 The package is designed to be extensible - you can add new providers by:
 1. Creating a new module (e.g., `anthropic.py`) with a class inheriting from `BaseModelClient`
-2. Implementing the `chat(user_prompt, image_paths=None)` method
+2. Implementing the `chat(user_prompt, image_paths=None, response_format=None)` method
 3. Registering it in the factory function in `factory.py`
 """
 

@@ -40,12 +40,17 @@ class BaseAnnotator(ABC):
         """
         Make a structured call to the LLM API.
 
+        Uses native structured output when supported (OpenAI, Gemini); otherwise
+        prompts for JSON and parses the response.
+
         Args:
             prompt: Prompt text for the LLM
-            response_format: Expected response format specification (Pydantic model)
+            response_format: Expected response format - Pydantic model class or
+                           OpenAI-style dict {"type": "json_schema", "name": ..., "schema": ...}
 
         Returns:
-            Parsed response object (instance of response_format), or None if call fails
+            Parsed response object (instance of response_format when Pydantic),
+            or None if call fails
         """
         try:
             full_prompt = (
@@ -53,7 +58,9 @@ class BaseAnnotator(ABC):
                 "Always respond with valid JSON in the exact format requested.\n\n"
                 f"{prompt}"
             )
-            response_text = self.llm_client.chat(full_prompt)
+            response_text = self.llm_client.chat(
+                full_prompt, response_format=response_format
+            )
             if response_text:
                 # Parse JSON response and create response_format instance
                 import json

@@ -10,8 +10,8 @@ Prerequisites:
 """
 
 import os
-import types
-from typing import List, Optional
+from typing import Any, List, Optional, Union
+
 import ollama
 
 from .base import BaseModelClient
@@ -95,9 +95,10 @@ class OllamaModel(BaseModelClient):
         self,
         user_prompt: str,
         image_paths: Optional[List[str]] = None,
+        response_format: Optional[Union[dict, type]] = None,
         max_output_tokens: int = 8192,
-        *args,
-        **kwargs,
+        *args: Any,
+        **kwargs: Any,
     ) -> str:
         """
         Generate a response using the local Ollama service.
@@ -106,6 +107,7 @@ class OllamaModel(BaseModelClient):
             user_prompt: The user's prompt text.
             image_paths: Optional list of file paths to images.
                          Ollama accepts local file paths.
+            response_format: Not supported. If provided, a warning is logged and it is ignored.
             *args: Additional positional arguments (ignored, kept for compatibility)
             **kwargs: Additional keyword arguments for request parameters
                      (e.g., max_tokens, etc.)
@@ -118,6 +120,12 @@ class OllamaModel(BaseModelClient):
             ConnectionError: If Ollama service becomes unreachable during inference
             ValueError: If the model is not found (not pulled in Ollama)
         """
+        if response_format is not None:
+            self.logger.warning(
+                f"Structured output (response_format) is not supported by Ollama model {self.model}. "
+                "Ignoring response_format and returning plain text. "
+                "Use OpenAI or Gemini for structured output support."
+            )
         message = {
             'role': 'user',
             'content': user_prompt,
