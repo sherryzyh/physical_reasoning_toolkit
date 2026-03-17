@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from prkit.prkit_core.model_clients import create_model_client
+from prkit.prkit_core.model_clients.anthropic import AnthropicModel
 from prkit.prkit_core.model_clients.base import BaseModelClient
 from prkit.prkit_core.model_clients.deepseek import DeepseekModel
 from prkit.prkit_core.model_clients.gemini import GeminiModel
@@ -76,6 +77,27 @@ class TestCreateModelClient:
         assert isinstance(client, DeepseekModel)
         assert client.model == "DEEPSEEK-CHAT"
 
+    @patch("prkit.prkit_core.model_clients.anthropic.Anthropic")
+    def test_create_anthropic_model(self, mock_anthropic_class):
+        """Test creating Anthropic Claude model."""
+        mock_client = MagicMock()
+        mock_anthropic_class.return_value = mock_client
+
+        client = create_model_client("claude-sonnet-4-6")
+        assert isinstance(client, AnthropicModel)
+        assert client.model == "claude-sonnet-4-6"
+        assert client.provider == "anthropic"
+
+    @patch("prkit.prkit_core.model_clients.anthropic.Anthropic")
+    def test_create_anthropic_model_case_insensitive(self, mock_anthropic_class):
+        """Test creating Anthropic model with different case."""
+        mock_client = MagicMock()
+        mock_anthropic_class.return_value = mock_client
+
+        client = create_model_client("CLAUDE-SONNET-4-6")
+        assert isinstance(client, AnthropicModel)
+        assert client.model == "CLAUDE-SONNET-4-6"
+
     def test_unsupported_openai_model(self):
         """Test that unsupported OpenAI models raise ValueError."""
         with pytest.raises(ValueError, match="Unsupported OpenAI model"):
@@ -94,20 +116,20 @@ class TestCreateModelClient:
         assert client.logger == logger
 
     @patch("prkit.prkit_core.model_clients.ollama.ollama")
-    def test_create_ollama_model(self, mock_ollama_module):
-        """Test creating Ollama model."""
+    def test_create_ollama_model_with_provider_prefix(self, mock_ollama_module):
+        """Test creating Ollama model from provider-prefixed identifier."""
         mock_client = MagicMock()
         mock_client.list.return_value = []
         mock_ollama_module.Client.return_value = mock_client
 
-        client = create_model_client("qwen3-vl")
+        client = create_model_client("ollama/qwen3-vl:8b")
         assert isinstance(client, OllamaModel)
-        assert client.model == "qwen3-vl"
+        assert client.model == "qwen3-vl:8b"
         assert client.provider == "ollama"
 
     @patch("prkit.prkit_core.model_clients.ollama.ollama")
     def test_create_ollama_model_with_tag(self, mock_ollama_module):
-        """Test creating Ollama model with tag."""
+        """Test creating Ollama model with legacy non-prefixed identifier."""
         mock_client = MagicMock()
         mock_client.list.return_value = []
         mock_ollama_module.Client.return_value = mock_client
@@ -127,12 +149,17 @@ class TestCreateModelClient:
             client = create_model_client(model_name)
             assert isinstance(client, OllamaModel)
 
-    def test_all_clients_are_base_model_client(self):
+    @patch("prkit.prkit_core.model_clients.anthropic.Anthropic")
+    def test_all_clients_are_base_model_client(self, mock_anthropic_class):
         """Test that all created clients are instances of BaseModelClient."""
+        mock_client = MagicMock()
+        mock_anthropic_class.return_value = mock_client
+
         clients = [
             create_model_client("gpt-5.1"),
             create_model_client("gemini-pro"),
             create_model_client("deepseek-chat"),
+            create_model_client("claude-sonnet-4-6"),
         ]
         for client in clients:
             assert isinstance(client, BaseModelClient)

@@ -4,8 +4,6 @@ Tests for Gemini model client.
 
 from unittest.mock import MagicMock, Mock, patch
 
-import pytest
-
 from prkit.prkit_core.model_clients.gemini import GeminiModel
 
 
@@ -28,26 +26,30 @@ class TestGeminiModel:
     @patch("prkit.prkit_core.model_clients.gemini.genai")
     @patch("prkit.prkit_core.model_clients.gemini.load_dotenv")
     @patch("prkit.prkit_core.model_clients.base.load_dotenv")
-    def test_init_with_google_api_key_fallback(self, mock_base_load_dotenv, mock_load_dotenv, mock_genai):
+    def test_init_with_google_api_key_fallback(
+        self, _mock_base_load_dotenv, _mock_load_dotenv, mock_genai
+    ):
         """Test initializing with GOOGLE_API_KEY as fallback."""
         mock_client = MagicMock()
         mock_genai.Client.return_value = mock_client
 
         with patch.dict("os.environ", {"GOOGLE_API_KEY": "google-key"}, clear=True):
-            client = GeminiModel("gemini-pro")
+            GeminiModel("gemini-pro")
 
         mock_genai.Client.assert_called_once_with(api_key="google-key")
 
     @patch("prkit.prkit_core.model_clients.gemini.genai")
     @patch("prkit.prkit_core.model_clients.gemini.load_dotenv")
     @patch("prkit.prkit_core.model_clients.base.load_dotenv")
-    def test_init_without_api_key(self, mock_base_load_dotenv, mock_load_dotenv, mock_genai):
+    def test_init_without_api_key(
+        self, _mock_base_load_dotenv, _mock_load_dotenv, mock_genai
+    ):
         """Test initializing without API key (uses default)."""
         mock_client = MagicMock()
         mock_genai.Client.return_value = mock_client
 
         with patch.dict("os.environ", {}, clear=True):
-            client = GeminiModel("gemini-pro")
+            GeminiModel("gemini-pro")
 
         mock_genai.Client.assert_called_once_with()
 
@@ -70,8 +72,9 @@ class TestGeminiModel:
         # contents is a list of parts (text strings and/or PIL Images)
         assert len(call_kwargs["contents"]) == 1
         assert call_kwargs["contents"][0] == "Hello, world!"
-        # Verify config is None when no kwargs provided
-        assert call_kwargs.get("config") is None
+        config = call_kwargs["config"]
+        assert config is not None
+        assert config.max_output_tokens == 8192
 
     @patch("prkit.prkit_core.model_clients.gemini.genai")
     def test_chat_with_kwargs(self, mock_genai):
@@ -89,10 +92,11 @@ class TestGeminiModel:
         assert "config" in call_kwargs
         config = call_kwargs["config"]
         assert config.temperature == 0.7
+        assert config.max_output_tokens == 8192
 
     @patch("prkit.prkit_core.model_clients.gemini.genai")
     def test_chat_without_config_kwargs(self, mock_genai):
-        """Test chat without config kwargs passes None."""
+        """Test chat without explicit config kwargs still passes default config."""
         mock_client = MagicMock()
         mock_genai.Client.return_value = mock_client
         mock_response = Mock()
@@ -103,7 +107,9 @@ class TestGeminiModel:
         client.chat("Hello")
 
         call_kwargs = mock_client.models.generate_content.call_args[1]
-        assert call_kwargs.get("config") is None
+        config = call_kwargs["config"]
+        assert config is not None
+        assert config.max_output_tokens == 8192
 
     @patch("prkit.prkit_core.model_clients.gemini.genai")
     def test_chat_with_images_error(self, mock_genai):

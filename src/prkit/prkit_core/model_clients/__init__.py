@@ -13,9 +13,11 @@ Architecture:
 
 Currently supports:
 - OpenAI (Responses API) - supports vision, structured output (gpt-4.1, gpt-5xxxx, o-family)
+- Anthropic Claude - supports text and vision (structured output not supported, warns if used)
 - Google Gemini - vision support, structured output
 - DeepSeek - text-only (structured output not supported, warns if used)
-- Ollama - supports vision (structured output not supported, warns if used)
+- Ollama - supports vision (structured output not supported, warns if used);
+  use `ollama/<model_name>` (preferred) or legacy `qwen*`
 
 The package is designed to be extensible - you can add new providers by:
 1. Creating a new module (e.g., `anthropic.py`) with a class inheriting from `BaseModelClient`
@@ -23,6 +25,7 @@ The package is designed to be extensible - you can add new providers by:
 3. Registering it in the factory function in `factory.py`
 """
 
+from .anthropic import AnthropicModel
 from .base import BaseModelClient
 from .deepseek import DeepseekModel
 from .factory import create_model_client
@@ -34,6 +37,7 @@ from .openai import OpenAIModel
 __all__ = [
     "BaseModelClient",
     "create_model_client",
+    "AnthropicModel",
     "DeepseekModel",
     "GeminiModel",
     "OllamaModel",
