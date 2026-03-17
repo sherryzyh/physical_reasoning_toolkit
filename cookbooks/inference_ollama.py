@@ -22,10 +22,10 @@ Examples:
     python cookbooks/inference_ollama.py --check
     
     # Text inference
-    python cookbooks/inference_ollama.py qwen3 --prompt "What is quantum mechanics?"
+    python cookbooks/inference_ollama.py ollama/qwen3 --prompt "What is quantum mechanics?"
     
     # Vision inference with image
-    python cookbooks/inference_ollama.py qwen3-vl --prompt "Describe this image" --image cookbooks/data/sample.webp
+    python cookbooks/inference_ollama.py ollama/qwen3-vl --prompt "Describe this image" --image cookbooks/data/sample.webp
 """
 
 import argparse
@@ -38,6 +38,13 @@ from prkit.prkit_core import PRKitLogger
 
 # Set up logger
 logger = PRKitLogger.get_logger(__name__)
+
+
+def _strip_ollama_prefix(model_name: str) -> str:
+    """Return raw Ollama model name without optional 'ollama/' prefix."""
+    if model_name.lower().startswith("ollama/"):
+        return model_name.split("/", 1)[1]
+    return model_name
 
 
 def check_ollama_status():
@@ -100,7 +107,9 @@ def run_inference(model_name: str, prompt: str, image_path: str = None):
         sys.exit(1)
     except ValueError as e:
         logger.error(f"❌ Model error: {e}")
-        logger.info(f"\n💡 Tip: Pull the model first: `ollama pull {model_name}`")
+        logger.info(
+            f"\n💡 Tip: Pull the model first: `ollama pull {_strip_ollama_prefix(model_name)}`"
+        )
         sys.exit(1)
     except Exception as e:
         logger.error(f"❌ Failed to create client: {e}")
@@ -117,7 +126,7 @@ def run_inference(model_name: str, prompt: str, image_path: str = None):
         logger.info(f"📷 Using image: {image_path}")
     
     # Run inference
-    logger.info(f"\n💬 Running inference...")
+    logger.info("\n💬 Running inference...")
     logger.info(f"   Prompt: {prompt}")
     if image_paths:
         logger.info(f"   Images: {len(image_paths)} image(s)")
@@ -164,18 +173,21 @@ Examples:
   python cookbooks/inference_ollama.py
   
   # Custom prompt
-  python cookbooks/inference_ollama.py qwen3-vl --prompt "Explain quantum physics"
+  python cookbooks/inference_ollama.py ollama/qwen3-vl --prompt "Explain quantum physics"
   
   # Vision inference
-  python cookbooks/inference_ollama.py qwen3-vl --prompt "What's in this image?" --image image.jpg
+  python cookbooks/inference_ollama.py ollama/qwen3-vl --prompt "What's in this image?" --image image.jpg
         """
     )
     
     parser.add_argument(
         "model",
         nargs="?",
-        default="qwen3-vl",
-        help="Model name (default: qwen3-vl). Must be pulled in Ollama first.",
+        default="ollama/qwen3-vl",
+        help=(
+            "Model name (default: ollama/qwen3-vl). "
+            "Preferred format: ollama/<model_name>."
+        ),
     )
     parser.add_argument(
         "--prompt",

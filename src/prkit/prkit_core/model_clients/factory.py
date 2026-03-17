@@ -6,6 +6,7 @@ model client implementation based on the model name.
 """
 
 from .base import BaseModelClient
+from .anthropic import AnthropicModel
 from .deepseek import DeepseekModel
 from .gemini import GeminiModel
 from .ollama import OllamaModel
@@ -19,12 +20,13 @@ def create_model_client(model: str, logger=None) -> BaseModelClient:
     This factory function automatically selects the correct client implementation
     based on the model name pattern. It currently supports:
     - OpenAI Chat models: gpt-4.1, gpt-5xxxx (gpt-5.1, gpt-5.2, etc.), o-family (o3, o4, etc.)
+    - Anthropic Claude models (claude-*)
     - Google Gemini models (gemini-*)
     - DeepSeek models (deepseek-*)
-    - Ollama models (qwen3-vl, qwen3-vl:*, etc.)
+    - Ollama models (ollama/<model_name>, and backward-compatible qwen*)
 
     Args:
-        model: Model name (e.g., 'gpt-5.1', 'gpt-4.1-mini', 'o3-mini', 'gemini-pro', 'deepseek-chat', 'qwen3-vl')
+        model: Model name (e.g., 'gpt-5.1', 'gpt-4.1-mini', 'o3-mini', 'claude-sonnet-4-6', 'gemini-pro', 'deepseek-chat', 'ollama/qwen3-vl:8b')
         logger: Optional logger instance
 
     Returns:
@@ -50,7 +52,7 @@ def create_model_client(model: str, logger=None) -> BaseModelClient:
         >>> isinstance(client, DeepseekModel)
         True
 
-        >>> client = create_model_client("qwen3-vl")
+        >>> client = create_model_client("ollama/qwen3-vl:8b")
         >>> isinstance(client, OllamaModel)
         True
     """
@@ -58,8 +60,13 @@ def create_model_client(model: str, logger=None) -> BaseModelClient:
 
     if "deepseek" in model_lower:
         return DeepseekModel(model, logger)
+    elif "claude" in model_lower:
+        return AnthropicModel(model, logger)
+    elif model_lower.startswith("ollama/"):
+        # Explicit provider prefix for Ollama models.
+        return OllamaModel(model, logger)
     elif "qwen3-vl" in model_lower or model_lower.startswith("qwen"):
-        # Ollama models (qwen3-vl, qwen3-vl:8b-instruct, etc.)
+        # Backward-compatible shorthand for common Ollama models.
         return OllamaModel(model, logger)
     elif len(model_lower) > 1 and model_lower[0] == "o" and model_lower[1].isdigit():
         # o-family models (o3, o4, o4-mini, etc.)
@@ -79,7 +86,8 @@ def create_model_client(model: str, logger=None) -> BaseModelClient:
         raise ValueError(
             f"Unknown model: {model}. "
             "Supported models: OpenAI (gpt-4.1, gpt-5xxxx, o-family), "
-            "Google (gemini-*), DeepSeek (deepseek-*), Ollama (qwen3-vl, qwen*)"
+            "Anthropic (claude-*), Google (gemini-*), DeepSeek (deepseek-*), "
+            "Ollama (ollama/<model_name>, qwen*)"
         )
 
 

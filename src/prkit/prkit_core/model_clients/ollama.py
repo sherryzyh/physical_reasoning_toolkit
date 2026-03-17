@@ -15,7 +15,18 @@ from typing import Any, List, Optional, Union
 import ollama
 
 from .base import BaseModelClient
-from .utils import encode_image_to_base64
+
+
+def normalize_ollama_model_name(model: str) -> str:
+    """
+    Normalize Ollama model identifiers.
+
+    Accepts either raw Ollama model names (e.g., "qwen3-vl:8b")
+    or provider-prefixed form (e.g., "ollama/qwen3-vl:8b").
+    """
+    if model.lower().startswith("ollama/"):
+        return model.split("/", 1)[1]
+    return model
 
 
 class OllamaModel(BaseModelClient):
@@ -47,14 +58,16 @@ class OllamaModel(BaseModelClient):
         Initialize Ollama model client.
 
         Args:
-            model: The name of the model pulled in Ollama (e.g., 'qwen3-vl', 'qwen2.5', 'llava')
+            model: Ollama model identifier. Supports either:
+                - Raw model name: 'qwen3-vl', 'qwen2.5', 'llava'
+                - Prefixed form: 'ollama/qwen3-vl:8b'
             logger: Optional logger instance
             base_url: Optional base URL for Ollama API (defaults to http://localhost:11434)
             
         Raises:
             ConnectionError: If Ollama service is not running or unreachable
         """
-        super().__init__(model, logger)
+        super().__init__(normalize_ollama_model_name(model), logger)
         self.provider = "ollama"
         self.base_url = base_url
         # The ollama-python library uses a default client pointing to localhost:11434

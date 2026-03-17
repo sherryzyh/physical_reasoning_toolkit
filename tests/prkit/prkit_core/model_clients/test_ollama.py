@@ -2,17 +2,21 @@
 Tests for Ollama model client.
 """
 
-import os
-from pathlib import Path
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from prkit.prkit_core.model_clients.ollama import OllamaModel
+from prkit.prkit_core.model_clients.ollama import OllamaModel, normalize_ollama_model_name
 
 
 class TestOllamaModel:
-    """Test cases for OllamaModel class."""
+    def test_normalize_ollama_model_name_prefixed(self):
+        """Test prefixed Ollama identifiers are normalized."""
+        assert normalize_ollama_model_name("ollama/qwen3-vl:8b") == "qwen3-vl:8b"
+
+    def test_normalize_ollama_model_name_plain(self):
+        """Test plain Ollama identifiers are preserved."""
+        assert normalize_ollama_model_name("llava:latest") == "llava:latest"
 
     @patch("prkit.prkit_core.model_clients.ollama.ollama")
     def test_check_ollama_running_success(self, mock_ollama_module):
@@ -72,6 +76,18 @@ class TestOllamaModel:
         assert client.base_url == "http://custom:11434"
 
     @patch("prkit.prkit_core.model_clients.ollama.ollama")
+    def test_init_with_prefixed_model_name(self, mock_ollama_module):
+        """Test initialization normalizes provider-prefixed model names."""
+        mock_client = MagicMock()
+        mock_client.list.return_value = []
+        mock_ollama_module.Client.return_value = mock_client
+        mock_ollama_module.chat = MagicMock()
+
+        client = OllamaModel("ollama/qwen3-vl:8b")
+        assert client.model == "qwen3-vl:8b"
+        assert client.provider == "ollama"
+
+    @patch("prkit.prkit_core.model_clients.ollama.ollama")
     def test_init_connection_error(self, mock_ollama_module):
         """Test initialization when Ollama is not running."""
         mock_client = MagicMock()
@@ -103,6 +119,25 @@ class TestOllamaModel:
         assert len(call_kwargs["messages"]) == 1
         assert call_kwargs["messages"][0]["role"] == "user"
         assert call_kwargs["messages"][0]["content"] == "Hello, world!"
+
+    @patch("prkit.prkit_core.model_clients.ollama.ollama")
+    def test_chat_uses_normalized_prefixed_model_name(self, mock_ollama_module):
+        """Test chat strips ollama/ prefix before API call."""
+        mock_client = MagicMock()
+        mock_client.list.return_value = []
+        mock_ollama_module.Client.return_value = mock_client
+
+        mock_response = Mock()
+        mock_response.message = Mock()
+        mock_response.message.content = "Response"
+        mock_ollama_module.chat.return_value = mock_response
+
+        client = OllamaModel("ollama/qwen3-vl:8b")
+        response = client.chat("Hello")
+
+        assert response == "Response"
+        call_kwargs = mock_ollama_module.chat.call_args[1]
+        assert call_kwargs["model"] == "qwen3-vl:8b"
 
     @patch("prkit.prkit_core.model_clients.ollama.ollama")
     def test_chat_with_images(self, mock_ollama_module, tmp_path):
