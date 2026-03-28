@@ -2,6 +2,78 @@
 
 Comprehensive guide to physical reasoning datasets and benchmarks supported by the Physical Reasoning Toolkit.
 
+## Supported Datasets
+
+### PRKit support matrix
+
+Package-level support for each dataset:
+
+| Dataset | Loader | Downloader | Auto-download (`auto_download=True`) | Internal method |
+|---------|--------|------------|--------------------------------------|-----------------|
+| **PHYBench** | ✅ Yes | ✅ Yes | ✅ Yes | HuggingFace Datasets |
+| **PhyX** | ✅ Yes | ✅ Yes | ✅ Yes | HuggingFace Datasets |
+| **PhysReason** | ✅ Yes | ✅ Yes | ✅ Yes | HuggingFace Datasets |
+| **UGPhysics** | ✅ Yes | ✅ Yes | ✅ Yes | HuggingFace Datasets |
+| **SeePhys** | ✅ Yes | ✅ Yes | ✅ Yes | HuggingFace Datasets |
+| **JEEBench** | ✅ Yes | ❌ No | ❌ No | HuggingFace Datasets |
+| **TPBench** | ✅ Yes | ❌ No | ❌ No | HuggingFace Datasets |
+
+
+### Dataset metadata
+
+High-level dataset metadata (size/splits/variants/modalities) plus whether the dataset **provides** key standardized fields when loaded by PRKit:
+
+| Dataset | Problems | Splits | Variants | Modalities | Problem Types | Domain | Solution | Answer |
+|---------|----------|--------|----------|------------|---------------|--------|----------|--------|
+| **PHYBench** | 500 | train | full, fullques, onlyques | text | OE | ✅ Yes | ⚠️ Partial | ⚠️ Partial |
+| **PhyX** | 1,000 (test_mini) | test_mini | test_mini | text, image | MC | ✅ Yes | ❌ No | ✅ Yes |
+| **PhysReason** | 1,200 (full) / 200 (mini) | test | full, mini | text, image | OE | ❌ No | ✅ Yes | ✅ Yes |
+| **UGPhysics** | 11,040 | test | mini, full | text | OE | ✅ Yes | ✅ Yes | ✅ Yes |
+| **SeePhys** | 6,200 | train | - | text, image | OE | ✅ Yes | ❌ No | ✅ Yes |
+| **JEEBench** | 123 | test | full | text | MC, OE | ❌ No | ❌ No | ✅ Yes |
+| **TPBench** | 10 | public | full | text | OE | ✅ Yes | ✅ Yes | ✅ Yes |
+
+For domain-level breakdowns, see [Physics Domain Coverage](#physics-domain-coverage) in this section.
+
+### Physics Domain Coverage
+
+The following table shows which physics domains are available in each dataset:
+
+| Physics Domain | UGPhysics | PHYBench | TPBench | SeePhys | JEEBench | PhysReason | PhyX |
+|----------------|-----------|----------|---------|---------|----------|------------|------|
+| **Advanced Physics** | ❌ | 18 | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Atomic Physics** | 915 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Classical Electromagnetism** | 390 | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| **Classical Mechanics** | 836 | ❌ | 1 | ❌ | ❌ | ✅ | ✅ |
+| **Cosmology** | ❌ | ❌ | 4 | ❌ | ❌ | ❌ | ❌ |
+| **Electricity** | ❌ | 142 | ❌ | ❌ | ❌ | ❌ | ✅ |
+| **Electrodynamics** | 184 | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ |
+| **Fundamental Physics** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Geometrical Optics** | 58 | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| **High Energy Theory** | ❌ | ❌ | 2 | ❌ | ❌ | ❌ | ❌ |
+| **Mechanics** | ❌ | 191 | ❌ | ❌ | ❌ | ❌ | ✅ |
+| **Modern Physics** | ❌ | 42 | ❌ | ❌ | ❌ | ❌ | ✅ |
+| **Optics** | ❌ | 41 | ❌ | ❌ | ❌ | ✅ | ✅ |
+| **Other** | ❌ | ❌ | ❌ | 2000 | ❌ | ❌ | ❌ |
+| **Quantum Mechanics** | 1019 | ❌ | 2 | ❌ | ❌ | ✅ | ❌ |
+| **Relativity** | 207 | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ |
+| **Semiconductor Physics** | 186 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Solid State Physics** | 172 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Statistical Mechanics** | 560 | ❌ | 1 | ❌ | ❌ | ❌ | ❌ |
+| **Theoretical Mechanics** | 319 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Thermodynamics** | 372 | 66 | ❌ | ❌ | ❌ | ✅ | ✅ |
+| **Wave Optics** | 302 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+
+**Domain Coverage Summary:**
+- **UGPhysics**: 13 domains (most comprehensive coverage) - 5,520 problems
+- **SeePhys**: 1 domain (Other - visual physics focus) - 2,000 problems  
+- **PHYBench**: 6 domains (focused on core physics areas) - 500 problems
+- **TPBench**: 5 domains (specialized in theoretical physics) - 10 problems
+- **PhysReason**: 7 domains (comprehensive reasoning focus) - 1,200 problems
+- **PhyX**: 6 domains (visual reasoning focus), MC only — 1,000 problems
+- **JEEBench**: No domain classification - 123 problems
+
+
 ## Overview
 
 `prkit_datasets` provides streamlined access to multiple physical reasoning datasets with a unified API. All datasets are converted to a standardized format, making it easy to switch between benchmarks and compose them for analysis.
@@ -97,7 +169,7 @@ The `PhysicsProblem` class is the core data structure representing a physics pro
 |------|-------------|----------|
 | **MC** | Single multiple choice | JEEBench, PhyX |
 | **MultipleMC** | Multiple choice with multiple answers | JEEBench |
-| **OE** | Open-ended | UGPhysics, SeePhys, PHYBench, PhysReason, TPBench, PhyX |
+| **OE** | Open-ended | UGPhysics, SeePhys, PHYBench, PhysReason, TPBench |
 
 #### Required Fields
 
@@ -322,78 +394,6 @@ steps = solution.get_all_step_names()
 solution_dict = solution.to_dict()
 solution_json = solution.to_json()
 ```
-
-## Supported Datasets
-
-### PRKit support matrix
-
-Package-level support for each dataset:
-
-| Dataset | Loader | Downloader | Auto-download (`auto_download=True`) | Internal method |
-|---------|--------|------------|--------------------------------------|-----------------|
-| **PHYBench** | ✅ Yes | ✅ Yes | ✅ Yes | HuggingFace Datasets |
-| **PhyX** | ✅ Yes | ✅ Yes | ✅ Yes | HuggingFace Datasets |
-| **PhysReason** | ✅ Yes | ✅ Yes | ✅ Yes | HuggingFace Datasets |
-| **UGPhysics** | ✅ Yes | ✅ Yes | ✅ Yes | HuggingFace Datasets |
-| **SeePhys** | ✅ Yes | ✅ Yes | ✅ Yes | HuggingFace Datasets |
-| **JEEBench** | ✅ Yes | ❌ No | ❌ No | HuggingFace Datasets |
-| **TPBench** | ✅ Yes | ❌ No | ❌ No | HuggingFace Datasets |
-
-
-### Dataset metadata
-
-High-level dataset metadata (size/splits/variants/modalities) plus whether the dataset **provides** key standardized fields when loaded by PRKit:
-
-| Dataset | Problems | Splits | Variants | Modalities | Problem Types | Domain | Solution | Answer |
-|---------|----------|--------|----------|------------|---------------|--------|----------|--------|
-| **PHYBench** | 500 | train | full, fullques, onlyques | text | OE | ✅ Yes | ⚠️ Partial | ⚠️ Partial |
-| **PhyX** | 1,000 (test_mini) | test_mini | test_mini | text, image | MC, OE | ✅ Yes | ❌ No | ✅ Yes |
-| **PhysReason** | 1,200 (full) / 200 (mini) | test | full, mini | text, image | OE | ❌ No | ✅ Yes | ✅ Yes |
-| **UGPhysics** | 11,040 | test | mini, full | text | OE | ✅ Yes | ✅ Yes | ✅ Yes |
-| **SeePhys** | 6,200 | train | - | text, image | OE | ✅ Yes | ❌ No | ✅ Yes |
-| **JEEBench** | 123 | test | full | text | MC, OE | ❌ No | ❌ No | ✅ Yes |
-| **TPBench** | 10 | public | full | text | OE | ✅ Yes | ✅ Yes | ✅ Yes |
-
-For domain-level breakdowns, see [Physics Domain Coverage](#physics-domain-coverage) below.
-
-### Physics Domain Coverage
-
-The following table shows which physics domains are available in each dataset:
-
-| Physics Domain | UGPhysics | PHYBench | TPBench | SeePhys | JEEBench | PhysReason | PhyX |
-|----------------|-----------|----------|---------|---------|----------|------------|------|
-| **Advanced Physics** | ❌ | 18 | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **Atomic Physics** | 915 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **Classical Electromagnetism** | 390 | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| **Classical Mechanics** | 836 | ❌ | 1 | ❌ | ❌ | ✅ | ✅ |
-| **Cosmology** | ❌ | ❌ | 4 | ❌ | ❌ | ❌ | ❌ |
-| **Electricity** | ❌ | 142 | ❌ | ❌ | ❌ | ❌ | ✅ |
-| **Electrodynamics** | 184 | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ |
-| **Fundamental Physics** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **Geometrical Optics** | 58 | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| **High Energy Theory** | ❌ | ❌ | 2 | ❌ | ❌ | ❌ | ❌ |
-| **Mechanics** | ❌ | 191 | ❌ | ❌ | ❌ | ❌ | ✅ |
-| **Modern Physics** | ❌ | 42 | ❌ | ❌ | ❌ | ❌ | ✅ |
-| **Optics** | ❌ | 41 | ❌ | ❌ | ❌ | ✅ | ✅ |
-| **Other** | ❌ | ❌ | ❌ | 2000 | ❌ | ❌ | ❌ |
-| **Quantum Mechanics** | 1019 | ❌ | 2 | ❌ | ❌ | ✅ | ❌ |
-| **Relativity** | 207 | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ |
-| **Semiconductor Physics** | 186 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **Solid State Physics** | 172 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **Statistical Mechanics** | 560 | ❌ | 1 | ❌ | ❌ | ❌ | ❌ |
-| **Theoretical Mechanics** | 319 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **Thermodynamics** | 372 | 66 | ❌ | ❌ | ❌ | ✅ | ✅ |
-| **Wave Optics** | 302 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-
-**Domain Coverage Summary:**
-- **UGPhysics**: 13 domains (most comprehensive coverage) - 5,520 problems
-- **SeePhys**: 1 domain (Other - visual physics focus) - 2,000 problems  
-- **PHYBench**: 6 domains (focused on core physics areas) - 500 problems
-- **TPBench**: 5 domains (specialized in theoretical physics) - 10 problems
-- **PhysReason**: 7 domains (comprehensive reasoning focus) - 1,200 problems
-- **PhyX**: 6 domains (visual reasoning focus) - 1,000 problems
-- **JEEBench**: No domain classification - 123 problems
-
 
 ## Usage Examples
 

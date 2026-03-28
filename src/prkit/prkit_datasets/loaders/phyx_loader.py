@@ -22,6 +22,11 @@ from .base_loader import BaseDatasetLoader
 class PhyXLoader(BaseDatasetLoader):
     """Loader for PhyX dataset."""
 
+    def __init__(self):
+        """Initialize the PhyX loader with a logger."""
+        super().__init__()
+        self.logger = PRKitLogger.get_logger(__name__)
+        
     @property
     def modalities(self) -> List[str]:
         """PhyX supports both text and image modalities."""
@@ -64,7 +69,6 @@ class PhyXLoader(BaseDatasetLoader):
     def field_mapping(self) -> Dict[str, str]:
         return {
             "id": "problem_id",
-            "question": "question",
             "answer": "answer",
             "domain": "domain",
             "image": "image_paths",
@@ -97,6 +101,14 @@ class PhyXLoader(BaseDatasetLoader):
 
     def _process_metadata(self, metadata: Dict[str, Any]) -> Dict[str, Any]:
         """Process metadata to create standardized problem fields."""
+        
+        # Combine question and question_description
+        question = metadata.get("question", "")
+        question_description = metadata.get("question_description", "")
+        if question_description and question_description.strip():
+            question = question_description.strip() + "\n\n" + question 
+        metadata["question"] = question
+        
         # Map domain
         domain = metadata.get("domain")
         if domain:
@@ -109,6 +121,7 @@ class PhyXLoader(BaseDatasetLoader):
         options = metadata.get("options", [])
         if options and len(options) > 1:
             metadata["problem_type"] = "MC"
+            metadata["options"] = options
         else:
             metadata["problem_type"] = "OE"
 
@@ -200,8 +213,9 @@ class PhyXLoader(BaseDatasetLoader):
         for idx, problem_data in enumerate(data):
             try:
                 metadata = self.initialize_metadata(problem_data)
+                
                 metadata = self._process_metadata(metadata)
-
+                
                 # Ensure problem_id exists
                 if "problem_id" not in metadata or not metadata["problem_id"]:
                     metadata["problem_id"] = f"phyx_{split}_{idx}"
@@ -213,8 +227,7 @@ class PhyXLoader(BaseDatasetLoader):
                 problems.append(problem)
             except Exception as e:
                 # Log warning but continue processing
-                logger = PRKitLogger.get_logger(__name__)
-                logger.warning(
+                self.logger.warning(
                     f"Failed to process problem at index {idx}: {e}. Skipping..."
                 )
                 continue

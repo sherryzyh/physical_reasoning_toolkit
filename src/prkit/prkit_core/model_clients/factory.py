@@ -1,78 +1,45 @@
 """
 Factory for creating model client instances based on model names.
 
-This module provides a factory function that automatically selects the appropriate
-model client implementation based on the model name.
+Provider classes are imported lazily so callers only need dependencies for the
+backend they use (e.g. Ollama scripts do not require OpenAI/Anthropic packages).
 """
 
 from .base import BaseModelClient
-from .anthropic import AnthropicModel
-from .deepseek import DeepseekModel
-from .gemini import GeminiModel
-from .ollama import OllamaModel
-from .openai import OpenAIModel, _is_supported_openai_model
 
 
 def create_model_client(model: str, logger=None) -> BaseModelClient:
     """
     Create appropriate model client instance based on model name.
 
-    This factory function automatically selects the correct client implementation
-    based on the model name pattern. It currently supports:
-    - OpenAI Chat models: gpt-4.1, gpt-5xxxx (gpt-5.1, gpt-5.2, etc.), o-family (o3, o4, etc.)
-    - Anthropic Claude models (claude-*)
-    - Google Gemini models (gemini-*)
-    - DeepSeek models (deepseek-*)
-    - Ollama models (ollama/<model_name>, and backward-compatible qwen*)
-
     Args:
-        model: Model name (e.g., 'gpt-5.1', 'gpt-4.1-mini', 'o3-mini', 'claude-sonnet-4-6', 'gemini-pro', 'deepseek-chat', 'ollama/qwen3-vl:8b')
+        model: Model name (e.g. 'gpt-5.1', 'ollama/qwen3-vl:8b')
         logger: Optional logger instance
 
     Returns:
         Appropriate BaseModelClient subclass instance
-
-    Raises:
-        ValueError: If model type is not recognized or OpenAI model is not supported
-
-    Examples:
-        >>> client = create_model_client("gpt-5.1")
-        >>> isinstance(client, OpenAIModel)
-        True
-
-        >>> client = create_model_client("o3-mini")
-        >>> isinstance(client, OpenAIModel)
-        True
-
-        >>> client = create_model_client("gemini-pro")
-        >>> isinstance(client, GeminiModel)
-        True
-
-        >>> client = create_model_client("deepseek-chat")
-        >>> isinstance(client, DeepseekModel)
-        True
-
-        >>> client = create_model_client("ollama/qwen3-vl:8b")
-        >>> isinstance(client, OllamaModel)
-        True
     """
     model_lower = model.lower()
 
     if "deepseek" in model_lower:
+        from .deepseek import DeepseekModel
+
         return DeepseekModel(model, logger)
-    elif "claude" in model_lower:
+    if "claude" in model_lower:
+        from .anthropic import AnthropicModel
+
         return AnthropicModel(model, logger)
-    elif model_lower.startswith("ollama/"):
-        # Explicit provider prefix for Ollama models.
+    if model_lower.startswith("ollama/"):
+        from .ollama import OllamaModel
+
         return OllamaModel(model, logger)
-    elif "qwen3-vl" in model_lower or model_lower.startswith("qwen"):
-        # Backward-compatible shorthand for common Ollama models.
-        return OllamaModel(model, logger)
-    elif len(model_lower) > 1 and model_lower[0] == "o" and model_lower[1].isdigit():
-        # o-family models (o3, o4, o4-mini, etc.)
+    if len(model_lower) > 1 and model_lower[0] == "o" and model_lower[1].isdigit():
+        from .openai import OpenAIModel
+
         return OpenAIModel(model, logger)
-    elif model_lower.startswith("gpt"):
-        # Validate OpenAI GPT models
+    if model_lower.startswith("gpt"):
+        from .openai import OpenAIModel, _is_supported_openai_model
+
         if not _is_supported_openai_model(model):
             raise ValueError(
                 f"Unsupported OpenAI model: {model}. "
@@ -80,15 +47,16 @@ def create_model_client(model: str, logger=None) -> BaseModelClient:
                 "and o-family (o3, o4, o4-mini, etc.)"
             )
         return OpenAIModel(model, logger)
-    elif model_lower.startswith("gemini"):
+    if model_lower.startswith("gemini"):
+        from .gemini import GeminiModel
+
         return GeminiModel(model, logger)
-    else:
-        raise ValueError(
-            f"Unknown model: {model}. "
-            "Supported models: OpenAI (gpt-4.1, gpt-5xxxx, o-family), "
-            "Anthropic (claude-*), Google (gemini-*), DeepSeek (deepseek-*), "
-            "Ollama (ollama/<model_name>, qwen*)"
-        )
+    raise ValueError(
+        f"Unknown model: {model}. "
+        "Supported models: OpenAI (gpt-4.1, gpt-5xxxx, o-family), "
+        "Anthropic (claude-*), Google (gemini-*), DeepSeek (deepseek-*), "
+        "Ollama (ollama/<model_name>, qwen*)"
+    )
 
 
 # Alias for backward compatibility
