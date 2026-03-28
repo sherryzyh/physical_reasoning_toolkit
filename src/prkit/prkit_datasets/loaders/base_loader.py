@@ -47,6 +47,8 @@ CORE_FIELDS = [
     "language",  # language
     "answer_category",  # answer category for comparison
     "image_paths",  # paths to associated image files (for visual problems)
+    "options",  # MC answer choices
+    "correct_option",  # MC index or key (dataset-specific)
 ]
 
 
@@ -564,6 +566,8 @@ class BaseDatasetLoader(ABC):
         problem_type = metadata.get("problem_type", "OE")
         domain = metadata.get("domain")
         language = metadata.get("language")
+        options = metadata.get("options")
+        correct_option = metadata.get("correct_option")
         # Support both image_paths (preferred) and image_path (legacy) for backward compatibility
         image_paths = metadata.get("image_paths") or metadata.get("image_path")
 
@@ -634,6 +638,8 @@ class BaseDatasetLoader(ABC):
             language=language,
             problem_type=problem_type,
             image_path=image_paths,  # Note: PhysicsProblem model uses image_path field name
+            options=options,
+            correct_option=correct_option,
             additional_fields=additional_fields,
         )
 

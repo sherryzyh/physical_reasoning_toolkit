@@ -237,3 +237,4 @@ experiment_results/
 scripts/
 prkit_logs/
 uncertainty_*/
+*.tex

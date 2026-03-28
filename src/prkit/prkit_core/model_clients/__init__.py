@@ -1,45 +1,47 @@
 """
 Model Clients Package
 
-This package provides a unified interface for interacting with various AI model providers.
-All models inherit from BaseModelClient and handle image inputs according to their capabilities.
-
-Architecture:
-- BaseModelClient: Abstract base class for all model clients
-  - All models support text input
-  - Models that support vision handle image_paths parameter
-  - Models that don't support vision ignore images with a warning
-  - Structured output (response_format) supported by OpenAI and Gemini
-
-Currently supports:
-- OpenAI (Responses API) - supports vision, structured output (gpt-4.1, gpt-5xxxx, o-family)
-- Anthropic Claude - supports text and vision (structured output not supported, warns if used)
-- Google Gemini - vision support, structured output
-- DeepSeek - text-only (structured output not supported, warns if used)
-- Ollama - supports vision (structured output not supported, warns if used);
-  use `ollama/<model_name>` (preferred) or legacy `qwen*`
-
-The package is designed to be extensible - you can add new providers by:
-1. Creating a new module (e.g., `anthropic.py`) with a class inheriting from `BaseModelClient`
-2. Implementing the `chat(user_prompt, image_paths=None, response_format=None)` method
-3. Registering it in the factory function in `factory.py`
+Provider modules are loaded lazily (see ``__getattr__``) so importing
+``create_model_client`` does not require every optional SDK (OpenAI, Anthropic,
+Gemini, Ollama, etc.) to be installed.
 """
 
-from .anthropic import AnthropicModel
 from .base import BaseModelClient
-from .deepseek import DeepseekModel
 from .factory import create_model_client
-from .gemini import GeminiModel
-from .ollama import OllamaModel
-from .openai import OpenAIModel
 
+create_llm_client = create_model_client
 
 __all__ = [
     "BaseModelClient",
     "create_model_client",
+    "create_llm_client",
     "AnthropicModel",
     "DeepseekModel",
     "GeminiModel",
     "OllamaModel",
     "OpenAIModel",
 ]
+
+
+def __getattr__(name: str):
+    if name == "AnthropicModel":
+        from .anthropic import AnthropicModel
+
+        return AnthropicModel
+    if name == "DeepseekModel":
+        from .deepseek import DeepseekModel
+
+        return DeepseekModel
+    if name == "GeminiModel":
+        from .gemini import GeminiModel
+
+        return GeminiModel
+    if name == "OllamaModel":
+        from .ollama import OllamaModel
+
+        return OllamaModel
+    if name == "OpenAIModel":
+        from .openai import OpenAIModel
+
+        return OpenAIModel
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
