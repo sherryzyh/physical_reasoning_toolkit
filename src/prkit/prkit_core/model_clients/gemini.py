@@ -6,16 +6,24 @@ import os
 from typing import Any, Dict, List, Optional, Union
 
 import PIL.Image
-from dotenv import load_dotenv
 from google import genai
 from google.genai import types
+from pydantic import BaseModel
 
 from .base import BaseModelClient
-from .structured_output import extract_schema_for_gemini, normalize_response_format
+from .structured_output import (
+    StructuredOutputPlan,
+    StructuredOutputPolicy,
+    StructuredOutputSpec,
+    extract_schema_for_gemini,
+    normalize_response_format,
+)
 
 
 class GeminiModel(BaseModelClient):
     """Google Gemini API client implementation."""
+
+    supports_response_format_json_schema = True
 
     def __init__(self, model: str, logger=None):
         """
@@ -26,7 +34,6 @@ class GeminiModel(BaseModelClient):
             logger: Optional logger instance
         """
         super().__init__(model, logger)
-        load_dotenv()
         # The new SDK uses GEMINI_API_KEY, but we support GOOGLE_API_KEY for backward compatibility
         api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
         if api_key:
@@ -42,7 +49,7 @@ class GeminiModel(BaseModelClient):
         user_prompt: str,
         image_paths: Optional[List[str]] = None,
         response_format: Optional[Union[Dict[str, Any], type]] = None,
-        max_output_tokens: int = 8192,
+        max_output_tokens: int = 65535,
         *args: Any,
         **kwargs: Any,
     ) -> str:
@@ -112,6 +119,75 @@ class GeminiModel(BaseModelClient):
         self.logger.info(f"Response: {text}")
         return text
 
+    def _resolve_structured_output_plan(
+        self,
+        spec: StructuredOutputSpec,
+        *,
+        structured_policy: StructuredOutputPolicy,
+    ) -> StructuredOutputPlan:
+        del structured_policy
+        return StructuredOutputPlan(
+            mode="json_schema",
+            strategy="gemini_response_json_schema",
+            native_schema_enforced=True,
+            accepted_artifact_modes=("json_schema",),
+            accepted_artifact_strategies=("gemini_response_json_schema",),
+            response_format=spec.source_model or normalize_response_format(
+                {
+                    "type": "json_schema",
+                    "name": spec.name,
+                    "schema": spec.schema,
+                    "strict": spec.strict,
+                    "description": spec.description,
+                }
+            ),
+        )
+
+    def _build_batch_structured_request(
+        self,
+        *,
+        request_id: str,
+        user_prompt: str,
+        response_model: type[BaseModel],
+        image_paths: tuple[str, ...],
+        max_output_tokens: int | None,
+        plan: StructuredOutputPlan,
+        **kwargs: Any,
+    ) -> dict[str, Any]:
+        del response_model, kwargs
+        if plan.mode != "json_schema":
+            raise ValueError(
+                f"Gemini batch structured requests require json_schema mode. Got {plan.mode!r}."
+            )
+
+        parts: list[dict[str, Any]] = []
+        for image_path in image_paths:
+            parts.append(
+                {
+                    "inline_data": {
+                        "mime_type": _guess_mime_type(image_path),
+                        "data": _encode_image_file_base64(image_path),
+                    }
+                }
+            )
+        parts.append({"text": user_prompt})
+
+        normalized = normalize_response_format(plan.response_format or {})
+        generation_config: dict[str, Any] = {
+            "response_mime_type": "application/json",
+            "response_json_schema": extract_schema_for_gemini(normalized),
+        }
+        if max_output_tokens is not None:
+            generation_config["max_output_tokens"] = max_output_tokens
+
+        return {
+            "key": request_id,
+            "request": {
+                "contents": [{"parts": parts, "role": "user"}],
+                "generation_config": generation_config,
+            },
+        }
+
 
 def _extract_gemini_error_details(response: object) -> Optional[str]:
     """Extract block reason and error details from Gemini response when text is empty."""
@@ -134,3 +210,21 @@ def _extract_gemini_error_details(response: object) -> Optional[str]:
     except Exception:
         parts.append("empty_response")
     return "; ".join(parts) if parts else None
+
+
+def _guess_mime_type(path: str) -> str:
+    ext = os.path.splitext(path)[1].lower()
+    return {
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".png": "image/png",
+        ".gif": "image/gif",
+        ".webp": "image/webp",
+    }.get(ext, "image/jpeg")
+
+
+def _encode_image_file_base64(path: str) -> str:
+    import base64
+
+    with open(path, "rb") as handle:
+        return base64.b64encode(handle.read()).decode("utf-8")

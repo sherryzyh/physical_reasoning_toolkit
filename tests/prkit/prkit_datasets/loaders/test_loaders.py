@@ -81,3 +81,19 @@ class TestBaseDatasetLoader:
         problem = loader.create_physics_problem(metadata=metadata)
         assert problem is not None
         assert len(problem.image_path) == 1
+
+    def test_create_physics_problem_without_answer(self):
+        """Test that missing answers remain unlabeled instead of becoming string 'None'."""
+        loader = SeePhysLoader()
+
+        metadata = {
+            "problem_id": "test_005",
+            "question": "Which option is correct?",
+            "problem_type": "MC",
+            "options": ["A: One", "B: Two", "C: Three", "D: Four"],
+        }
+        problem = loader.create_physics_problem(metadata=metadata)
+
+        assert problem is not None
+        assert problem.answer is None
+        assert problem.options is not None

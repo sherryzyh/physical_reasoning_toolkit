@@ -42,18 +42,24 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+    "build>=1.2.2",
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
     "black>=23.0.0",
     "isort>=5.12.0",
     "mypy>=1.0.0",
+    "twine>=6.0.0",
 ]
 docs = [
     "sphinx>=5.0.0",
     "myst-parser>=1.0.0",
     "sphinx-rtd-theme>=1.0.0",
 ]
+annotation = [
+    "streamlit>=1.28.0",
+]
 all = [
+    "build>=1.2.2",
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
     "black>=23.0.0",
@@ -62,6 +68,7 @@ all = [
     "sphinx>=5.0.0",
     "myst-parser>=1.0.0",
     "sphinx-rtd-theme>=1.0.0",
+    "twine>=6.0.0",
 ]
 
 [project.urls]
@@ -102,6 +109,7 @@ addopts = [
     "--strict-markers",
     "--strict-config",
     "--cov=prkit",
+    "--cov-fail-under=60",
     "--cov-report=term-missing",
     "--cov-report=html",
 ]

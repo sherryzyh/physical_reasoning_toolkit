@@ -11,27 +11,33 @@ import math
 DEFAULT_NUMBER_EPSILON = 1e-10
 
 
-def decimal_places(x: float) -> int:
+def decimal_places(x) -> int:
     """
-    Infer the number of decimal places from a float's canonical representation.
+    Infer the number of decimal places.
 
-    Unlike significant digits, this can be derived from a float by formatting
-    and stripping trailing zeros.
+    Accepts a float **or** a string.  When a string is provided, trailing
+    zeros are preserved (e.g. ``"0.50"`` → 2).  When a float is provided,
+    trailing zeros are indistinguishable so we strip them (``0.5`` → 1).
 
     Args:
-        x: Float value
+        x: Float or string representation of a number
 
     Returns:
         Number of digits after the decimal point (0 for integers)
 
     Examples:
-        9.8 -> 1, 9.87 -> 2, 500.0 -> 0, 0.00123 -> 5
+        ``9.8`` → 1, ``"0.50"`` → 2, ``500.0`` → 0, ``0.00123`` → 5
     """
+    if isinstance(x, str):
+        s = x.strip()
+        if "." in s:
+            return len(s.split(".")[1])
+        return 0
+
     if x == 0 or math.isnan(x) or math.isinf(x):
         return 0
     s = format(x, ".15g")
     if "e" in s.lower():
-        # Scientific notation: use f format with limited precision
         s = format(x, ".15f").rstrip("0").rstrip(".")
     else:
         s = s.rstrip("0").rstrip(".")

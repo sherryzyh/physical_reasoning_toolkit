@@ -210,24 +210,23 @@ class JEEBenchLoader(BaseDatasetLoader):
         """Process metadata to create standardized problem fields."""
 
         # Determine problem type based on JEEBench question type
-        problem_type = metadata.get("type", "")
-        if problem_type == "MCQ":
+        original_type = metadata.get("type", "")
+        if original_type == "MCQ":
             metadata["problem_type"] = "MC"
             # Extract options from question text for MCQ problems
             question_text = metadata.get("question", "")
             options = self._extract_options_from_question(question_text)
             if options:
                 metadata["options"] = options
-        elif problem_type == "MCQ(multiple)":
+        elif original_type == "MCQ(multiple)":
             metadata["problem_type"] = "MultipleMC"
             # Extract options from question text for MCQ(multiple) problems
             question_text = metadata.get("question", "")
             options = self._extract_options_from_question(question_text)
             if options:
                 metadata["options"] = options
-        elif problem_type == "Integer" or problem_type == "Numeric":
+        elif original_type == "Integer" or original_type == "Numeric":
             metadata["problem_type"] = "OE"
-        metadata.pop("type", None)
 
         # Construct the problem_id
         metadata["problem_id"] = (
@@ -235,20 +234,17 @@ class JEEBenchLoader(BaseDatasetLoader):
         )
         metadata.pop("description", None)
         metadata.pop("index", None)
-        metadata.pop("subject", None)
 
         # Set language to English (JEEBench is primarily in English)
         metadata["language"] = "en"
 
         # Set answer category based on question type
-        if metadata["problem_type"] in ["Integer", "Numeric"]:
+        if original_type in ["Integer", "Numeric"]:
             metadata["answer_category"] = "number"
         elif metadata["problem_type"] in ["MC", "MultipleMC"]:
             metadata["answer_category"] = "option"
         else:
             metadata["answer_category"] = "text"
-
-        metadata.pop("subject", None)
 
         return metadata
 

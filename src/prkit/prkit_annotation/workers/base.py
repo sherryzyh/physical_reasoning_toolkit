@@ -58,14 +58,27 @@ class BaseAnnotator(ABC):
                 "Always respond with valid JSON in the exact format requested.\n\n"
                 f"{prompt}"
             )
-            response_text = self.llm_client.chat(
-                full_prompt, response_format=response_format
-            )
+            if hasattr(response_format, "model_validate"):
+                result = self.llm_client.chat_structured(
+                    full_prompt,
+                    response_model=response_format,
+                    structured_policy="best_effort",
+                )
+                if result.parsed is not None:
+                    return result.parsed
+                if result.raw_text:
+                    import json
+
+                    response_dict = json.loads(result.raw_text.strip())
+                    return response_format(**response_dict)
+                return None
+
+            response_text = self.llm_client.chat(full_prompt, response_format=response_format)
             if response_text:
-                # Parse JSON response and create response_format instance
                 import json
+
                 response_dict = json.loads(response_text.strip())
-                return response_format(**response_dict)
+                return response_dict
             return None
         except Exception as e:
             print(f"Error calling LLM API with structured output: {e}")

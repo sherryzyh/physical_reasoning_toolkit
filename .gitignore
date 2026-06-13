@@ -238,3 +238,7 @@ scripts/
 prkit_logs/
 uncertainty_*/
 *.tex
+.cursor/
+
+
+**/perturbations/

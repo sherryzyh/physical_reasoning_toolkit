@@ -2,6 +2,7 @@
 Tests for DatasetHub.
 """
 
+import json
 from unittest.mock import Mock, patch
 
 import pytest
@@ -22,6 +23,7 @@ class TestDatasetHub:
         # Check for known datasets
         assert (
             "ugphysics" in datasets
+            or "physbench" in datasets
             or "phybench" in datasets
             or "jeebench" in datasets
             or "phyx" in datasets
@@ -102,6 +104,8 @@ class TestDatasetHub:
         """Test loading with additional kwargs."""
 
         class MockLoader(BaseDatasetLoader):
+            last_loaded_data_dir = None
+
             @property
             def field_mapping(self):
                 return {}
@@ -143,6 +147,16 @@ class TestDatasetHub:
         available = DatasetHub.list_available()
         assert "phyx" in available
 
+    def test_physics_loader_registered(self):
+        """Test that PHYSICS loader is registered in DatasetHub."""
+        available = DatasetHub.list_available()
+        assert "physics" in available
+
+    def test_physbench_loader_registered(self):
+        """Test that PhysBench loader is registered in DatasetHub."""
+        available = DatasetHub.list_available()
+        assert "physbench" in available
+
     def test_phyx_get_info(self):
         """Test getting info for PhyX dataset."""
         info = DatasetHub.get_info("phyx")
@@ -152,6 +166,43 @@ class TestDatasetHub:
         assert "modalities" in info
         assert "text" in info["modalities"]
         assert "image" in info["modalities"]
+
+    def test_physics_get_info(self):
+        """Test getting info for PHYSICS dataset."""
+        info = DatasetHub.get_info("physics")
+        assert isinstance(info, dict)
+        assert info["name"] == "physics"
+        assert "variants" in info
+        assert "full" in info["variants"]
+
+    def test_load_physics_uses_loader_default_cache_dir(self, temp_dir, monkeypatch):
+        """PHYSICS should use the loader/downloader on-disk name, not the lowercase hub key."""
+        monkeypatch.setenv("DATASET_CACHE_DIR", str(temp_dir))
+
+        data_dir = temp_dir / "PHYSICS"
+        data_dir.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "id": "mechanics/1_1",
+            "questions": "What is the acceleration?",
+            "solutions": "Apply Newton's second law.",
+            "final_answers": ["a = F/m"],
+            "graphs": [],
+        }
+        with open(data_dir / "mechanics_dataset.jsonl", "w", encoding="utf-8") as handle:
+            handle.write(json.dumps(payload) + "\n")
+
+        dataset = DatasetHub.load("physics")
+
+        assert len(dataset) == 1
+        assert dataset[0].problem_id == "mechanics/1_1"
+
+    def test_physbench_get_info(self):
+        """Test getting info for PhysBench dataset."""
+        info = DatasetHub.get_info("physbench")
+        assert isinstance(info, dict)
+        assert info["name"] == "physbench"
+        assert "variants" in info
+        assert "image_video" in info["variants"]
 
     def test_phyx_get_loader_info(self):
         """Test getting detailed loader info for PhyX."""
@@ -172,6 +223,25 @@ class TestDatasetHub:
         assert downloader is not None
         assert downloader.dataset_name == "phyx"
 
+    def test_physics_downloader_registered(self):
+        """Test that PHYSICS downloader is registered in DatasetHub."""
+        if not DatasetHub._downloaders:
+            DatasetHub._register_default_downloaders()
+
+        assert "physics" in DatasetHub._downloaders
+        downloader = DatasetHub._get_downloader("physics")
+        assert downloader is not None
+        assert downloader.dataset_name == "PHYSICS"
+
+    def test_physbench_downloader_registered(self):
+        """Test that PhysBench downloader is registered in DatasetHub."""
+        if not DatasetHub._downloaders:
+            DatasetHub._register_default_downloaders()
+
+        assert "physbench" in DatasetHub._downloaders
+        downloader = DatasetHub._get_downloader("physbench")
+        assert downloader is not None
+        assert downloader.dataset_name == "PhysBench"
 
     def test_load_with_default_variant_and_split(self):
         """Test loading with default variant and split."""
@@ -470,11 +540,12 @@ class TestDatasetHub:
                     self._loaded_once = True
                     raise FileNotFoundError("Dataset not found")
                 # Second call succeeds
+                self.__class__.last_loaded_data_dir = data_dir
                 return PhysicalDataset(problems=[], info={"name": "mock"})
 
         # Mock downloader
         mock_downloader = Mock()
-        mock_downloader.download.return_value = Path("/tmp/mock_data")
+        mock_downloader.download.return_value = Path("/tmp/downloaded_mock_data")
         mock_downloader_class.return_value = mock_downloader
 
         DatasetHub.register("mock_auto_download", MockLoader)
@@ -484,6 +555,7 @@ class TestDatasetHub:
             dataset = DatasetHub.load("mock_auto_download", auto_download=True)
             assert dataset is not None
             mock_downloader.download.assert_called_once()
+            assert MockLoader.last_loaded_data_dir == Path("/tmp/downloaded_mock_data")
         finally:
             if "mock_auto_download" in DatasetHub._loaders:
                 del DatasetHub._loaders["mock_auto_download"]

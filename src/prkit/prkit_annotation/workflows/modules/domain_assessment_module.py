@@ -104,8 +104,10 @@ class DomainAssessmentModule(BaseWorkflowModule):
                     "model_used": self.model,
                     "labeling_type": "domain",
                     "timestamp": (
-                        self.module_status["metadata"]["start_time"].isoformat()
-                        if self.module_status["metadata"]["start_time"]
+                        self.module_status.get("metadata", {})
+                        .get("start_time")
+                        .isoformat()
+                        if self.module_status.get("metadata", {}).get("start_time")
                         else None
                     ),
                 },
@@ -139,3 +141,20 @@ class DomainAssessmentModule(BaseWorkflowModule):
         self.module_status.setdefault("successful_problems", 0)
         self.module_status.setdefault("failed_problems", 0)
         return super().get_status()
+
+    def _form_output_as_a_problem(self, result: Any, problem: Any) -> Any:
+        """Attach domain-labeling output to a copied ``PhysicsProblem`` instance."""
+        from prkit.prkit_core.domain.physics_problem import PhysicsProblem
+
+        if not isinstance(problem, PhysicsProblem):
+            return result
+
+        updated_problem = problem.copy()
+        updated_problem.additional_fields = dict(updated_problem.additional_fields or {})
+        updated_problem.additional_fields["domain_labeling"] = result.get(
+            "domain_labeling"
+        )
+        updated_problem.additional_fields["domain_labeling_metadata"] = result.get(
+            "metadata"
+        )
+        return updated_problem

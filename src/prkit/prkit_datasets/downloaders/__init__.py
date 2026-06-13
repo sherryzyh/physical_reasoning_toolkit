@@ -7,7 +7,9 @@ specific download mechanism (GitHub repos, HuggingFace, direct URLs, etc.).
 """
 
 from .base_downloader import BaseDownloader
+from .physbench_downloader import PhysBenchDownloader
 from .phybench_downloader import PHYBenchDownloader
+from .physics_downloader import PhysicsDownloader
 from .phyx_downloader import PhyXDownloader
 from .physreason_downloader import PhysReasonDownloader
 from .seephys_downloader import SeePhysDownloader
@@ -15,7 +17,9 @@ from .ugphysics_downloader import UGPhysicsDownloader
 
 __all__ = [
     "BaseDownloader",
+    "PhysBenchDownloader",
     "PHYBenchDownloader",
+    "PhysicsDownloader",
     "PhyXDownloader",
     "PhysReasonDownloader",
     "SeePhysDownloader",

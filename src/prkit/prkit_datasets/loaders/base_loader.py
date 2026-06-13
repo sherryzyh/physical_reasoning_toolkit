@@ -52,6 +52,23 @@ CORE_FIELDS = [
 ]
 
 
+def raw_answer_to_text(value: Any) -> str:
+    """Render a raw dataset answer payload as a single surface string."""
+
+    if value is None:
+        return ""
+    if isinstance(value, dict):
+        value_text = "" if value.get("value") is None else str(value.get("value")).strip()
+        unit_text = "" if value.get("unit") is None else str(value.get("unit")).strip()
+        if value_text and unit_text:
+            return f"{value_text} {unit_text}"
+        return value_text or unit_text
+    if isinstance(value, list):
+        parts = [raw_answer_to_text(part) for part in value]
+        return "; ".join(part for part in parts if part)
+    return str(value).strip()
+
+
 def detect_answer_category(value: str) -> AnswerCategory:
     """
     Infer answer category from a string value when dataset does not specify it.
@@ -506,10 +523,13 @@ class BaseDatasetLoader(ABC):
     def _create_answer_from_raw(
         self,
         metadata: Dict[str, Any],
-    ) -> Answer:
+    ) -> Optional[Answer]:
         answer = metadata.get("answer")
         answer_category = metadata.get("answer_category", "")
         problem_type = metadata.get("problem_type", "")
+
+        if answer is None:
+            return None
 
         if "MC" in problem_type:
             return Answer(value=answer, answer_category=AnswerCategory.OPTION)
@@ -618,6 +638,11 @@ class BaseDatasetLoader(ABC):
                         # Keep absolute paths as-is
                         resolved_paths.append(path)
                 image_paths = resolved_paths if resolved_paths else None
+
+        if "source_answer_text" not in metadata:
+            source_answer_text = raw_answer_to_text(metadata.get("answer"))
+            if source_answer_text:
+                metadata["source_answer_text"] = source_answer_text
 
         # Create Answer object from answer
         answer_obj = self._create_answer_from_raw(metadata)

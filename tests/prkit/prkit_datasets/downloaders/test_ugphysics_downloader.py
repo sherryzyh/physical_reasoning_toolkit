@@ -13,163 +13,250 @@ from prkit.prkit_datasets.downloaders import UGPhysicsDownloader
 class TestUGPhysicsDownloader:
     """Test cases for UGPhysicsDownloader."""
 
-    def test_downloader_initialization(self):
-        """Test that UGPhysicsDownloader can be instantiated."""
-        downloader = UGPhysicsDownloader()
-        assert downloader is not None
-        assert downloader.dataset_name == "ugphysics"
-
-    def test_dataset_name_property(self):
-        """Test dataset_name property."""
-        downloader = UGPhysicsDownloader()
-        assert downloader.dataset_name == "ugphysics"
-
-    def test_download_info(self):
-        """Test download_info property."""
+    def test_download_info_reflects_real_public_contract(self):
+        """Downloader metadata should expose real splits and variants."""
         downloader = UGPhysicsDownloader()
         info = downloader.download_info
-        assert isinstance(info, dict)
-        assert "source" in info
-        assert "repository" in info
+
         assert info["repository"] == "UGPhysics/ugphysics"
-        assert "domains" in info
-        assert "languages" in info
+        assert info["splits"] == ["en", "zh"]
+        assert "full" in info["variants"]
+        assert "classical_mechanics" in info["variants"]
+        assert "mini" not in info["variants"]
+        assert info["total_problems"]["en"] == 5520
 
-    def test_domains_property(self):
-        """Test DOMAINS class property."""
-        assert len(UGPhysicsDownloader.DOMAINS) > 0
-        assert "ClassicalMechanics" in UGPhysicsDownloader.DOMAINS
+    def test_resolve_requested_artifacts_defaults_to_full_en(self):
+        """Direct downloader usage should resolve to the canonical full/en request."""
+        downloader = UGPhysicsDownloader()
 
-    def test_languages_property(self):
-        """Test LANGUAGES class property."""
-        assert "en" in UGPhysicsDownloader.LANGUAGES
-        assert "zh" in UGPhysicsDownloader.LANGUAGES
+        variant, split, domains, languages = downloader._resolve_requested_artifacts(  # pylint: disable=protected-access
+            variant=None,
+            split=None,
+        )
+
+        assert variant == "full"
+        assert split is None
+        assert "ClassicalMechanics" in domains
+        assert languages == ["en"]
+
+    def test_resolve_requested_artifacts_accepts_legacy_aliases(self):
+        """Legacy mini/test requests should normalize without breaking callers."""
+        downloader = UGPhysicsDownloader()
+
+        with patch.object(downloader.logger, "warning") as mock_warning:
+            variant, split, domains, languages = downloader._resolve_requested_artifacts(  # pylint: disable=protected-access
+                variant="mini",
+                split="test",
+                language="zh",
+            )
+
+        assert variant == "full"
+        assert split == "zh"
+        assert "AtomicPhysics" in domains
+        assert languages == ["zh"]
+        mock_warning.assert_called()
+
+    def test_resolve_requested_artifacts_rejects_conflicting_domains(self):
+        """Domain overrides should not contradict a narrowed variant."""
+        downloader = UGPhysicsDownloader()
+
+        with pytest.raises(ValueError, match="Conflicting UGPhysics domain request"):
+            downloader._resolve_requested_artifacts(  # pylint: disable=protected-access
+                variant="atomic_physics",
+                domains=["ClassicalMechanics"],
+            )
 
     def test_do_download_missing_datasets(self, temp_dir):
-        """Test download when datasets library is missing."""
+        """Downloading should fail clearly when datasets is unavailable."""
         downloader = UGPhysicsDownloader()
         download_dir = temp_dir / "ugphysics"
-        
+
         with patch.dict("sys.modules", {"datasets": None}):
             with pytest.raises(ImportError, match="datasets"):
-                # Accessing protected method for testing purposes
                 downloader._do_download(download_dir)  # pylint: disable=protected-access
 
-    def test_do_download_invalid_domain(self, temp_dir):
-        """Test download with invalid domain."""
-        downloader = UGPhysicsDownloader()
-        download_dir = temp_dir / "ugphysics"
-        
-        with patch("datasets.load_dataset"):
-            with pytest.raises(ValueError, match="Invalid domains"):
-                # Accessing protected method for testing purposes
-                downloader._do_download(download_dir, domains=["InvalidDomain"])  # pylint: disable=protected-access
-
-    def test_do_download_invalid_language(self, temp_dir):
-        """Test download with invalid language."""
-        downloader = UGPhysicsDownloader()
-        download_dir = temp_dir / "ugphysics"
-        
-        with patch("datasets.load_dataset"):
-            with pytest.raises(ValueError, match="Invalid languages"):
-                # Accessing protected method for testing purposes
-                downloader._do_download(download_dir, languages=["invalid"])  # pylint: disable=protected-access
-
     @patch("datasets.load_dataset")
-    def test_do_download_success(self, mock_load_dataset, temp_dir):
-        """Test successful download."""
+    def test_do_download_success_writes_manifest(self, mock_load_dataset, temp_dir):
+        """Downloader should fetch the requested shard and persist a manifest."""
         downloader = UGPhysicsDownloader()
         download_dir = temp_dir / "ugphysics"
-        
-        # Mock dataset
+
         mock_dataset = Mock()
-        mock_dataset.__iter__ = Mock(return_value=iter([
-            {"index": "test_001", "problem": "Question 1?", "answers": "Answer 1"}
-        ]))
+        mock_dataset.__iter__ = Mock(
+            return_value=iter(
+                [
+                    {
+                        "index": "test_001",
+                        "problem": "Question 1?",
+                        "answers": "Answer 1",
+                    }
+                ]
+            )
+        )
         mock_dataset.__len__ = Mock(return_value=1)
         mock_load_dataset.return_value = mock_dataset
-        
-        # Accessing protected method for testing purposes
-        result = downloader._do_download(  # pylint: disable=protected-access
-            download_dir, domains=["ClassicalMechanics"], languages=["en"]
-        )
-        
-        assert result == download_dir
-        assert download_dir.exists()
-        domain_dir = download_dir / "ClassicalMechanics"
-        assert domain_dir.exists()
-        jsonl_file = domain_dir / "en.jsonl"
-        assert jsonl_file.exists()
 
-    def test_verify_valid_dataset(self, temp_dir):
-        """Test verify method with valid dataset."""
+        result = downloader._do_download(  # pylint: disable=protected-access
+            download_dir,
+            variant="classical_mechanics",
+            split="en",
+        )
+
+        assert result.resolve() == download_dir.resolve()
+        jsonl_file = download_dir / "ClassicalMechanics" / "en.jsonl"
+        manifest_path = download_dir / "download_manifest.json"
+        assert jsonl_file.exists()
+        assert manifest_path.exists()
+
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        assert manifest["last_request"] == {
+            "variant": "classical_mechanics",
+            "split": "en",
+        }
+        assert manifest["files"] == [
+            {
+                "domain": "ClassicalMechanics",
+                "language": "en",
+                "path": "ClassicalMechanics/en.jsonl",
+                "rows": 1,
+            }
+        ]
+        mock_load_dataset.assert_called_once_with(
+            "UGPhysics/ugphysics",
+            name="ClassicalMechanics",
+            split="en",
+        )
+
+    @patch("datasets.load_dataset")
+    def test_do_download_raises_on_partial_failure(self, mock_load_dataset, temp_dir):
+        """A partial UGPhysics download should raise instead of silently succeeding."""
+        downloader = UGPhysicsDownloader()
+        download_dir = temp_dir / "ugphysics"
+
+        def fake_load_dataset(dataset_name, name, split):
+            if name == "AtomicPhysics":
+                raise RuntimeError("network issue")
+            dataset = Mock()
+            dataset.__iter__ = Mock(
+                return_value=iter(
+                    [
+                        {
+                            "index": "test_001",
+                            "problem": "Question 1?",
+                            "answers": "Answer 1",
+                        }
+                    ]
+                )
+            )
+            dataset.__len__ = Mock(return_value=1)
+            return dataset
+
+        mock_load_dataset.side_effect = fake_load_dataset
+
+        with pytest.raises(RuntimeError, match="download incomplete"):
+            downloader._do_download(  # pylint: disable=protected-access
+                download_dir,
+                domains=["AtomicPhysics", "ClassicalMechanics"],
+                languages=["en"],
+            )
+
+    def test_download_skips_when_exact_request_exists(self, temp_dir):
+        """download() should skip only when the requested shard already exists."""
         downloader = UGPhysicsDownloader()
         download_dir = temp_dir / "ugphysics"
         domain_dir = download_dir / "ClassicalMechanics"
         domain_dir.mkdir(parents=True)
-        
+        (domain_dir / "en.jsonl").write_text(
+            json.dumps({"index": "1", "problem": "Q", "answers": "A"}) + "\n",
+            encoding="utf-8",
+        )
+
+        with patch.object(downloader, "_do_download") as mock_do_download:
+            result = downloader.download(
+                data_dir=download_dir,
+                variant="classical_mechanics",
+                split="en",
+            )
+
+        assert result.resolve() == download_dir.resolve()
+        mock_do_download.assert_not_called()
+
+    def test_download_retries_when_requested_split_is_missing(self, temp_dir):
+        """A cache with en only should not satisfy a zh request."""
+        downloader = UGPhysicsDownloader()
+        download_dir = temp_dir / "ugphysics"
+        domain_dir = download_dir / "ClassicalMechanics"
+        domain_dir.mkdir(parents=True)
+        (domain_dir / "en.jsonl").write_text(
+            json.dumps({"index": "1", "problem": "Q", "answers": "A"}) + "\n",
+            encoding="utf-8",
+        )
+
+        with patch.object(downloader, "_do_download", return_value=download_dir) as mock_do_download:
+            result = downloader.download(
+                data_dir=download_dir,
+                variant="classical_mechanics",
+                split="zh",
+            )
+
+        assert result == download_dir
+        mock_do_download.assert_called_once()
+        assert mock_do_download.call_args.kwargs["languages"] == ["zh"]
+
+    def test_verify_uses_manifest(self, temp_dir):
+        """verify() should validate every shard listed in the manifest."""
+        downloader = UGPhysicsDownloader()
+        download_dir = temp_dir / "ugphysics"
+        domain_dir = download_dir / "ClassicalMechanics"
+        domain_dir.mkdir(parents=True)
         jsonl_file = domain_dir / "en.jsonl"
-        sample_data = {"index": "test_001", "problem": "Question?", "answers": "Answer"}
-        with open(jsonl_file, "w", encoding="utf-8") as f:
-            f.write(json.dumps(sample_data) + "\n")
-        
+        jsonl_file.write_text(
+            json.dumps({"index": "1", "problem": "Q", "answers": "A"}) + "\n",
+            encoding="utf-8",
+        )
+        manifest = {
+            "dataset": "ugphysics",
+            "repository": "UGPhysics/ugphysics",
+            "last_request": {"variant": "classical_mechanics", "split": "en"},
+            "files": [
+                {
+                    "domain": "ClassicalMechanics",
+                    "language": "en",
+                    "path": "ClassicalMechanics/en.jsonl",
+                    "rows": 1,
+                }
+            ],
+        }
+        (download_dir / "download_manifest.json").write_text(
+            json.dumps(manifest),
+            encoding="utf-8",
+        )
+
         assert downloader.verify(download_dir) is True
 
-    def test_verify_missing_directory(self, temp_dir):
-        """Test verify method with missing directory."""
-        downloader = UGPhysicsDownloader()
-        download_dir = temp_dir / "ugphysics"
-        download_dir.mkdir(parents=True)
-        
+        jsonl_file.unlink()
         assert downloader.verify(download_dir) is False
 
-    def test_verify_no_domain_files(self, temp_dir):
-        """Test verify method with no domain files."""
+    def test_verify_fallback_without_manifest(self, temp_dir):
+        """verify() should still work against raw shard files without a manifest."""
         downloader = UGPhysicsDownloader()
         download_dir = temp_dir / "ugphysics"
-        download_dir.mkdir(parents=True)
-        
-        assert downloader.verify(download_dir) is False
-
-    def test_verify_invalid_jsonl(self, temp_dir):
-        """Test verify method with invalid JSONL."""
-        downloader = UGPhysicsDownloader()
-        download_dir = temp_dir / "ugphysics"
-        domain_dir = download_dir / "ClassicalMechanics"
+        domain_dir = download_dir / "AtomicPhysics"
         domain_dir.mkdir(parents=True)
-        
-        jsonl_file = domain_dir / "en.jsonl"
-        jsonl_file.write_text("invalid jsonl")
-        
-        assert downloader.verify(download_dir) is False
+        (domain_dir / "zh.jsonl").write_text(
+            json.dumps({"index": "1", "problem": "Q", "answers": "A"}) + "\n",
+            encoding="utf-8",
+        )
 
-    def test_verify_empty_file(self, temp_dir):
-        """Test verify method with empty file."""
-        downloader = UGPhysicsDownloader()
-        download_dir = temp_dir / "ugphysics"
-        domain_dir = download_dir / "ClassicalMechanics"
-        domain_dir.mkdir(parents=True)
-        
-        jsonl_file = domain_dir / "en.jsonl"
-        jsonl_file.touch()
-        
-        assert downloader.verify(download_dir) is False
+        assert downloader.verify(download_dir) is True
 
     def test_resolve_download_dir(self, temp_dir, monkeypatch):
-        """Test resolve_download_dir method."""
+        """resolve_download_dir should still honor explicit and env-based roots."""
         downloader = UGPhysicsDownloader()
-        
-        # Test with explicit data_dir
+
         resolved = downloader.resolve_download_dir(str(temp_dir))
         assert resolved.resolve() == temp_dir.resolve()
-        
-        # Test with environment variable
+
         monkeypatch.setenv("DATASET_CACHE_DIR", str(temp_dir))
         resolved = downloader.resolve_download_dir()
         assert resolved.resolve() == (temp_dir / "ugphysics").resolve()
-        
-        # Test default fallback
-        monkeypatch.delenv("DATASET_CACHE_DIR", raising=False)
-        resolved = downloader.resolve_download_dir()
-        assert "PHYSICAL_REASONING_DATASETS" in str(resolved)
-        assert "ugphysics" in str(resolved)

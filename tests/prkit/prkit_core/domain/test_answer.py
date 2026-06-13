@@ -279,6 +279,26 @@ class TestAnswer:
         answer = Answer(value="test", answer_category=AnswerCategory.TEXT)
         assert answer.get_type_name() == "text"
 
+    def test_answer_additional_false_paths_and_option_validation(self):
+        text_answer = Answer(value="text", answer_category=AnswerCategory.TEXT)
+        option_answer = Answer(value=" ", answer_category=AnswerCategory.OPTION)
+        numeric_answer = Answer(value=3.5, answer_category=AnswerCategory.NUMBER)
+        symbolic_answer = Answer(value="plain", answer_category=AnswerCategory.TEXT)
+        invalid_option = Answer(value="Z", answer_category=AnswerCategory.OPTION)
+
+        assert option_answer.validate() is False
+        assert text_answer.is_number() is False
+        assert text_answer.is_equation() is False
+        assert text_answer.is_physical_quantity() is False
+        assert text_answer.is_formula() is False
+        assert text_answer.get_unit() is None
+        assert numeric_answer.has_unit() is False
+        assert numeric_answer.is_integer() is False
+        assert symbolic_answer.is_latex() is False
+        assert symbolic_answer.get_clean_expression() == "plain"
+        assert invalid_option.is_true_false() is False
+        assert invalid_option.get_option_index() is None
+
     def test_answer_str_without_unit(self):
         """Test __str__ without unit."""
         answer = Answer(value=42, answer_category=AnswerCategory.NUMBER)

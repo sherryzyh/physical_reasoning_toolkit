@@ -1,0 +1,1187 @@
+"""Recursive comparison engine for protocol-level physics answers."""
+
+from __future__ import annotations
+
+import re
+
+from ..part_labels import infer_multi_part_part_labels
+from ..schema import (
+    AnswerComparison,
+    AnswerObjectKind,
+    AnswerStructure,
+    ComparisonPolicyMode,
+    ContractValidationStatus,
+    OrderingPolicy,
+    PhysicsAnswerSemantics,
+    PhysicsEvaluationContract,
+    PhysicsQuestionSemantics,
+    QuestionSymbolicMode,
+)
+from .bridge_registry import bridge_enabled_for_policy, bridge_spec_for
+from .common import available_texts, context_symbol_alias_map, reparse_sources
+from .contract import (
+    build_evaluation_contract,
+    coerce_policy_mode,
+    validate_answer_against_contract,
+)
+from .coercion import (
+    coerce_evaluation_contract,
+    coerce_protocol_answer,
+    coerce_question_semantics,
+)
+from .different_object_kind import compare_different_object_kinds
+from .label_family_fallback import compare_label_family_fallback
+from .same_object_kind import compare_same_object_kind
+from .semantics import canonicalize_qualitative_label, normalize_plain_text
+
+
+def compare_protocol_answers(
+    pred: PhysicsAnswerSemantics | dict,
+    ref: PhysicsAnswerSemantics | dict,
+    *,
+    contract: PhysicsEvaluationContract | dict | None = None,
+    context: PhysicsQuestionSemantics | dict | None = None,
+    policy_mode: ComparisonPolicyMode | str | None = None,
+    _validate_top_level: bool = True,
+    _allow_cross_kind_identical_text: bool = False,
+) -> AnswerComparison:
+    """Compare two protocol answers under a policy-controlled evaluation contract."""
+
+    resolved_policy = coerce_policy_mode(policy_mode)
+    resolved_context = coerce_question_semantics(context)
+    pred_answer = _repair_answer_for_comparison(
+        coerce_protocol_answer(pred),
+        context=resolved_context,
+    )
+    ref_answer = _repair_answer_for_comparison(
+        coerce_protocol_answer(ref),
+        context=resolved_context,
+    )
+    resolved_contract = _resolve_comparison_contract(
+        contract=contract,
+        context=resolved_context,
+        ref_answer=ref_answer,
+    )
+    resolved_context = resolved_contract.comparison_context
+
+    pred_validation = None
+    if _validate_top_level:
+        pred_validation = validate_answer_against_contract(pred_answer, resolved_contract)
+        ref_validation = validate_answer_against_contract(ref_answer, resolved_contract)
+        if resolved_policy != ComparisonPolicyMode.PERMISSIVE:
+            if ref_validation.status == ContractValidationStatus.VIOLATING:
+                return AnswerComparison(
+                    equivalent=False,
+                    comparison_mode="reference_contract_violation",
+                    diagnostics=ref_validation.diagnostics,
+                    validation_status=ref_validation.status,
+                    policy_mode=resolved_policy,
+                )
+            if pred_validation.status == ContractValidationStatus.VIOLATING:
+                return AnswerComparison(
+                    equivalent=False,
+                    comparison_mode="contract_violation",
+                    diagnostics=pred_validation.diagnostics,
+                    validation_status=pred_validation.status,
+                    policy_mode=resolved_policy,
+                )
+            if (
+                resolved_policy == ComparisonPolicyMode.STRICT
+                and pred_validation.status == ContractValidationStatus.COERCIBLE
+            ):
+                return AnswerComparison(
+                    equivalent=False,
+                    comparison_mode="contract_violation",
+                    diagnostics=pred_validation.diagnostics,
+                    validation_status=pred_validation.status,
+                    policy_mode=resolved_policy,
+                )
+
+    if pred_answer.structure != ref_answer.structure:
+        return _finalize_comparison(
+            AnswerComparison(
+                equivalent=False,
+                comparison_mode="structure_mismatch",
+                diagnostics=(
+                    f"pred_structure={pred_answer.structure.value}",
+                    f"ref_structure={ref_answer.structure.value}",
+                ),
+            ),
+            validation_status=pred_validation.status if pred_validation is not None else None,
+            policy_mode=resolved_policy,
+        )
+
+    if pred_answer.structure == AnswerStructure.ATOMIC:
+        result = _compare_atomic(
+            pred_answer,
+            ref_answer,
+            context=resolved_context,
+            contract=resolved_contract,
+            policy_mode=resolved_policy,
+            allow_cross_kind_identical_text=_allow_cross_kind_identical_text,
+        )
+        return _finalize_result(
+            result,
+            pred=pred_answer,
+            ref=ref_answer,
+            context=resolved_context,
+            contract=resolved_contract,
+            validation_status=pred_validation.status if pred_validation is not None else None,
+            policy_mode=resolved_policy,
+        )
+
+    if pred_answer.structure == AnswerStructure.MULTI_PART:
+        if resolved_context.ordering == OrderingPolicy.UNORDERED:
+            result = _compare_unordered_children(
+                pred_answer,
+                ref_answer,
+                context=resolved_context,
+                contract=resolved_contract,
+                policy_mode=resolved_policy,
+                mode="multi_part",
+            )
+        elif resolved_context.ordering == OrderingPolicy.PER_PART:
+            result = _compare_per_part_children(
+                pred_answer,
+                ref_answer,
+                context=resolved_context,
+                contract=resolved_contract,
+                policy_mode=resolved_policy,
+                mode="multi_part",
+            )
+        else:
+            result = _compare_ordered_children(
+                pred_answer,
+                ref_answer,
+                context=resolved_context,
+                contract=resolved_contract,
+                policy_mode=resolved_policy,
+                mode="multi_part",
+            )
+        return _finalize_result(
+            result,
+            pred=pred_answer,
+            ref=ref_answer,
+            context=resolved_context,
+            contract=resolved_contract,
+            validation_status=pred_validation.status if pred_validation is not None else None,
+            policy_mode=resolved_policy,
+        )
+
+    if pred_answer.structure == AnswerStructure.TUPLE:
+        result = _compare_ordered_children(
+            pred_answer,
+            ref_answer,
+            context=resolved_context,
+            contract=resolved_contract,
+            policy_mode=resolved_policy,
+            mode="tuple",
+        )
+        return _finalize_result(
+            result,
+            pred=pred_answer,
+            ref=ref_answer,
+            context=resolved_context,
+            contract=resolved_contract,
+            validation_status=pred_validation.status if pred_validation is not None else None,
+            policy_mode=resolved_policy,
+        )
+
+    if pred_answer.structure == AnswerStructure.SET:
+        result = _compare_unordered_children(
+            pred_answer,
+            ref_answer,
+            context=resolved_context,
+            contract=resolved_contract,
+            policy_mode=resolved_policy,
+            mode="set",
+        )
+        return _finalize_result(
+            result,
+            pred=pred_answer,
+            ref=ref_answer,
+            context=resolved_context,
+            contract=resolved_contract,
+            validation_status=pred_validation.status if pred_validation is not None else None,
+            policy_mode=resolved_policy,
+        )
+
+    if pred_answer.structure == AnswerStructure.INTERVAL:
+        result = _compare_interval(
+            pred_answer,
+            ref_answer,
+            context=resolved_context,
+            contract=resolved_contract,
+            policy_mode=resolved_policy,
+        )
+        return _finalize_result(
+            result,
+            pred=pred_answer,
+            ref=ref_answer,
+            context=resolved_context,
+            contract=resolved_contract,
+            validation_status=pred_validation.status if pred_validation is not None else None,
+            policy_mode=resolved_policy,
+        )
+
+    if pred_answer.structure in {
+        AnswerStructure.VECTOR,
+        AnswerStructure.MATRIX,
+        AnswerStructure.TENSOR,
+    }:
+        result = _compare_shaped(
+            pred_answer,
+            ref_answer,
+            context=resolved_context,
+            contract=resolved_contract,
+            policy_mode=resolved_policy,
+        )
+        return _finalize_result(
+            result,
+            pred=pred_answer,
+            ref=ref_answer,
+            context=resolved_context,
+            contract=resolved_contract,
+            validation_status=pred_validation.status if pred_validation is not None else None,
+            policy_mode=resolved_policy,
+        )
+
+    if pred_answer.structure == AnswerStructure.PIECEWISE:
+        result = _compare_piecewise(
+            pred_answer,
+            ref_answer,
+            context=resolved_context,
+            contract=resolved_contract,
+            policy_mode=resolved_policy,
+        )
+        return _finalize_result(
+            result,
+            pred=pred_answer,
+            ref=ref_answer,
+            context=resolved_context,
+            contract=resolved_contract,
+            validation_status=pred_validation.status if pred_validation is not None else None,
+            policy_mode=resolved_policy,
+        )
+
+    return _finalize_comparison(
+        AnswerComparison(False, "unsupported_structure", (pred_answer.structure.value,)),
+        validation_status=pred_validation.status if pred_validation is not None else None,
+        policy_mode=resolved_policy,
+    )
+
+
+def compare_protocol_answers_legacy(
+    pred: PhysicsAnswerSemantics | dict,
+    ref: PhysicsAnswerSemantics | dict,
+    *,
+    context: PhysicsQuestionSemantics | dict | None = None,
+) -> AnswerComparison:
+    """Legacy v1 comparison path kept for head-to-head benchmarking."""
+
+    return compare_protocol_answers(
+        pred,
+        ref,
+        context=context,
+        policy_mode=ComparisonPolicyMode.PERMISSIVE,
+        _allow_cross_kind_identical_text=True,
+    )
+
+
+def _compare_atomic(
+    pred: PhysicsAnswerSemantics,
+    ref: PhysicsAnswerSemantics,
+    *,
+    context: PhysicsQuestionSemantics,
+    contract: PhysicsEvaluationContract,
+    policy_mode: ComparisonPolicyMode,
+    allow_cross_kind_identical_text: bool,
+) -> AnswerComparison:
+    """Compare two atomic answers using strict, bridged, and fallback logic."""
+
+    if pred.object_kind == ref.object_kind:
+        strict = compare_same_object_kind(pred, ref, context=context)
+        if strict.equivalent:
+            return strict
+        fallback = compare_label_family_fallback(pred, ref, context=context)
+        if fallback is not None:
+            return _apply_bridge_policy(
+                fallback,
+                pred=pred,
+                ref=ref,
+                contract=contract,
+                policy_mode=policy_mode,
+            )
+        identical_text = _compare_identical_atomic_text(pred, ref)
+        if identical_text is not None:
+            return identical_text
+        return strict
+
+    if allow_cross_kind_identical_text:
+        identical_text = _compare_identical_atomic_text(pred, ref)
+        if identical_text is not None:
+            return identical_text
+
+    coerced = compare_different_object_kinds(pred, ref, context=context)
+    if coerced is not None:
+        return _apply_bridge_policy(
+            coerced,
+            pred=pred,
+            ref=ref,
+            contract=contract,
+            policy_mode=policy_mode,
+        )
+
+    fallback = compare_label_family_fallback(pred, ref, context=context)
+    if fallback is not None:
+        return _apply_bridge_policy(
+            fallback,
+            pred=pred,
+            ref=ref,
+            contract=contract,
+            policy_mode=policy_mode,
+        )
+
+    return AnswerComparison(
+        equivalent=False,
+        comparison_mode="object_kind_mismatch",
+        diagnostics=(
+            f"pred_kind={pred.object_kind.value}",
+            f"ref_kind={ref.object_kind.value}",
+        ),
+    )
+
+
+def _compare_identical_atomic_text(
+    pred: PhysicsAnswerSemantics,
+    ref: PhysicsAnswerSemantics,
+) -> AnswerComparison | None:
+    """Rescue exact canonical-text matches regardless of auxiliary metadata."""
+
+    pred_text = pred.canonical_text
+    ref_text = ref.canonical_text
+    if pred_text and pred_text == ref_text:
+        return AnswerComparison(True, "identical_text", surface_shortcut_used=True)
+    return None
+
+
+def _compare_ordered_children(
+    pred: PhysicsAnswerSemantics,
+    ref: PhysicsAnswerSemantics,
+    *,
+    context: PhysicsQuestionSemantics,
+    contract: PhysicsEvaluationContract,
+    policy_mode: ComparisonPolicyMode,
+    mode: str,
+) -> AnswerComparison:
+    """Compare structured children position by position."""
+
+    if len(pred.children) != len(ref.children):
+        return AnswerComparison(False, mode, ("different_child_count",))
+
+    for index, (pred_child, ref_child) in enumerate(zip(pred.children, ref.children)):
+        result = compare_protocol_answers(
+            pred_child,
+            ref_child,
+            contract=contract,
+            context=context,
+            policy_mode=policy_mode,
+            _validate_top_level=False,
+        )
+        if not result.equivalent:
+            return AnswerComparison(
+                False,
+                mode,
+                (f"child_{index}",) + result.diagnostics,
+            )
+    return AnswerComparison(True, mode)
+
+
+def _compare_unordered_children(
+    pred: PhysicsAnswerSemantics,
+    ref: PhysicsAnswerSemantics,
+    *,
+    context: PhysicsQuestionSemantics,
+    contract: PhysicsEvaluationContract,
+    policy_mode: ComparisonPolicyMode,
+    mode: str,
+) -> AnswerComparison:
+    """Compare structured children as an order-insensitive multiset."""
+
+    if len(pred.children) != len(ref.children):
+        return AnswerComparison(False, mode, ("different_child_count",))
+
+    unused = list(pred.children)
+    for ref_child in ref.children:
+        match_index = None
+        for index, pred_child in enumerate(unused):
+            result = compare_protocol_answers(
+                pred_child,
+                ref_child,
+                contract=contract,
+                context=context,
+                policy_mode=policy_mode,
+                _validate_top_level=False,
+            )
+            if result.equivalent:
+                match_index = index
+                break
+        if match_index is None:
+            return AnswerComparison(False, mode, ("unmatched_child",))
+        unused.pop(match_index)
+    return AnswerComparison(True, mode)
+
+
+def _compare_per_part_children(
+    pred: PhysicsAnswerSemantics,
+    ref: PhysicsAnswerSemantics,
+    *,
+    context: PhysicsQuestionSemantics,
+    contract: PhysicsEvaluationContract,
+    policy_mode: ComparisonPolicyMode,
+    mode: str,
+) -> AnswerComparison:
+    """Compare children using inferred or explicit ``part_label`` alignment."""
+
+    if len(pred.children) != len(ref.children):
+        return AnswerComparison(False, mode, ("different_child_count",))
+
+    pred_map = _part_child_map(pred, context=context)
+    ref_map = _part_child_map(ref, context=context)
+    if pred_map is None or ref_map is None or tuple(pred_map) != tuple(ref_map):
+        return _compare_ordered_children(
+            pred,
+            ref,
+            context=context,
+            contract=contract,
+            policy_mode=policy_mode,
+            mode=mode,
+        )
+
+    for label in pred_map:
+        result = compare_protocol_answers(
+            pred_map[label],
+            ref_map[label],
+            contract=contract,
+            context=context,
+            policy_mode=policy_mode,
+            _validate_top_level=False,
+        )
+        if not result.equivalent:
+            return AnswerComparison(False, mode, (f"part={label}",) + result.diagnostics)
+    return AnswerComparison(True, mode)
+
+
+def _compare_interval(
+    pred: PhysicsAnswerSemantics,
+    ref: PhysicsAnswerSemantics,
+    *,
+    context: PhysicsQuestionSemantics,
+    contract: PhysicsEvaluationContract,
+    policy_mode: ComparisonPolicyMode,
+) -> AnswerComparison:
+    """Compare interval endpoints after checking endpoint openness flags."""
+
+    if (
+        pred.interval_open_left != ref.interval_open_left
+        or pred.interval_open_right != ref.interval_open_right
+    ):
+        return AnswerComparison(False, "interval", ("endpoint_openness_mismatch",))
+    return _compare_ordered_children(
+        pred,
+        ref,
+        context=context,
+        contract=contract,
+        policy_mode=policy_mode,
+        mode="interval",
+    )
+
+
+def _compare_shaped(
+    pred: PhysicsAnswerSemantics,
+    ref: PhysicsAnswerSemantics,
+    *,
+    context: PhysicsQuestionSemantics,
+    contract: PhysicsEvaluationContract,
+    policy_mode: ComparisonPolicyMode,
+) -> AnswerComparison:
+    """Compare vector-, matrix-, or tensor-like answers with shape metadata."""
+
+    if pred.shape != ref.shape:
+        return AnswerComparison(
+            False,
+            pred.structure.value,
+            (f"shape_mismatch:{pred.shape}!={ref.shape}",),
+        )
+
+    if not pred.children or not ref.children:
+        if pred.children != ref.children:
+            return AnswerComparison(
+                False,
+                pred.structure.value,
+                ("unparsed_shaped_answer",),
+            )
+        matched = pred.canonical_text == ref.canonical_text
+        return AnswerComparison(
+            matched,
+            pred.structure.value,
+            () if matched else ("unparsed_shaped_answer",),
+        )
+
+    pred_frame = pred.coordinate_frame or context.coordinate_frame
+    ref_frame = ref.coordinate_frame or context.coordinate_frame
+    if pred_frame and ref_frame and not _metadata_text_compatible(pred_frame, ref_frame):
+        return AnswerComparison(False, pred.structure.value, ("coordinate_frame_mismatch",))
+
+    pred_sign = pred.sign_convention or context.sign_convention
+    ref_sign = ref.sign_convention or context.sign_convention
+    if pred_sign and ref_sign and not _metadata_text_compatible(pred_sign, ref_sign):
+        return AnswerComparison(False, pred.structure.value, ("sign_convention_mismatch",))
+
+    return _compare_ordered_children(
+        pred,
+        ref,
+        context=context,
+        contract=contract,
+        policy_mode=policy_mode,
+        mode=pred.structure.value,
+    )
+
+
+def _compare_piecewise(
+    pred: PhysicsAnswerSemantics,
+    ref: PhysicsAnswerSemantics,
+    *,
+    context: PhysicsQuestionSemantics,
+    contract: PhysicsEvaluationContract,
+    policy_mode: ComparisonPolicyMode,
+) -> AnswerComparison:
+    """Compare piecewise answers case by case."""
+
+    if len(pred.cases) != len(ref.cases):
+        return AnswerComparison(False, "piecewise", ("different_case_count",))
+
+    for index, (pred_case, ref_case) in enumerate(zip(pred.cases, ref.cases)):
+        expr_result = compare_protocol_answers(
+            pred_case.expression,
+            ref_case.expression,
+            contract=contract,
+            context=context,
+            policy_mode=policy_mode,
+            _validate_top_level=False,
+        )
+        cond_result = compare_protocol_answers(
+            pred_case.condition,
+            ref_case.condition,
+            contract=contract,
+            context=context,
+            policy_mode=policy_mode,
+            _validate_top_level=False,
+        )
+        if not expr_result.equivalent or not cond_result.equivalent:
+            return AnswerComparison(False, "piecewise", (f"case_{index}_mismatch",))
+    return AnswerComparison(True, "piecewise")
+
+
+_COMPARISON_STOPWORDS = frozenset(
+    {
+        "a",
+        "an",
+        "and",
+        "as",
+        "at",
+        "in",
+        "of",
+        "shown",
+        "the",
+        "to",
+        "with",
+    }
+)
+
+
+def _repair_answer_for_comparison(
+    answer: PhysicsAnswerSemantics,
+    *,
+    context: PhysicsQuestionSemantics,
+) -> PhysicsAnswerSemantics:
+    """Repair lightly malformed answers before comparison dispatch."""
+
+    from ..normalization import enrich_answer_quantity_views
+
+    repaired = enrich_answer_quantity_views(answer, context=context)
+    repaired = _hydrate_structured_answer(repaired, context=context)
+    repaired = _backfill_subject_to(repaired, context=context)
+    if repaired.structure != AnswerStructure.ATOMIC:
+        return repaired
+    return _repair_atomic_answer(repaired, context=context)
+
+
+def _hydrate_structured_answer(
+    answer: PhysicsAnswerSemantics,
+    *,
+    context: PhysicsQuestionSemantics,
+) -> PhysicsAnswerSemantics:
+    """Reparse structured answers whose child payloads were not persisted."""
+
+    if answer.structure == AnswerStructure.ATOMIC or answer.children or answer.cases:
+        return answer
+
+    from ..normalization import normalize_physics_answer
+
+    for source_text in reparse_sources(answer):
+        reparsed = normalize_physics_answer(source_text, context=context)
+        if reparsed.structure != answer.structure and answer.structure in {
+            AnswerStructure.VECTOR,
+            AnswerStructure.MATRIX,
+            AnswerStructure.TENSOR,
+        }:
+            reparsed = _coerce_tuple_shaped_answer(reparsed) or reparsed
+        if reparsed.structure != answer.structure or (not reparsed.children and not reparsed.cases):
+            continue
+
+        return reparsed.model_copy(
+            update={
+                "canonical_text": (
+                    answer.canonical_text
+                    if answer.object_kind
+                    in {AnswerObjectKind.EXPRESSION, AnswerObjectKind.RELATION}
+                    and answer.canonical_text
+                    else reparsed.canonical_text
+                ),
+                "canonical_latex": answer.canonical_latex or reparsed.canonical_latex,
+                "raw_text": answer.raw_text or reparsed.raw_text,
+                "target_variable": answer.target_variable or reparsed.target_variable,
+                "coordinate_frame": (
+                    answer.coordinate_frame or reparsed.coordinate_frame
+                ),
+                "sign_convention": (
+                    answer.sign_convention or reparsed.sign_convention
+                ),
+                "provenance": dict(answer.provenance) or dict(reparsed.provenance),
+                "diagnostics": answer.diagnostics or reparsed.diagnostics,
+                "quantity_view": answer.quantity_view or reparsed.quantity_view,
+                "subject_to": answer.subject_to or reparsed.subject_to,
+            }
+        )
+
+    return answer
+
+
+def _coerce_tuple_shaped_answer(answer: PhysicsAnswerSemantics) -> PhysicsAnswerSemantics | None:
+    """Promote tuple-shaped payloads into vector/matrix/tensor semantics."""
+
+    if answer.structure != AnswerStructure.TUPLE:
+        return answer if answer.structure in {
+            AnswerStructure.ATOMIC,
+            AnswerStructure.VECTOR,
+            AnswerStructure.MATRIX,
+            AnswerStructure.TENSOR,
+        } else None
+
+    coerced_children: list[PhysicsAnswerSemantics] = []
+    for child in answer.children:
+        coerced_child = _coerce_tuple_shaped_answer(child)
+        if coerced_child is None:
+            return None
+        coerced_children.append(coerced_child)
+
+    child_tuple = tuple(coerced_children)
+    if child_tuple and all(child.structure == AnswerStructure.ATOMIC for child in child_tuple):
+        return answer.model_copy(
+            update={
+                "structure": AnswerStructure.VECTOR,
+                "shape": (len(child_tuple),),
+                "children": child_tuple,
+            }
+        )
+
+    if not child_tuple or not all(
+        child.structure in {
+            AnswerStructure.VECTOR,
+            AnswerStructure.MATRIX,
+            AnswerStructure.TENSOR,
+        }
+        for child in child_tuple
+    ):
+        return None
+
+    child_shapes = {child.shape for child in child_tuple}
+    if len(child_shapes) != 1:
+        return None
+
+    inner_shape = next(iter(child_shapes))
+    if len(inner_shape) == 1:
+        structure = AnswerStructure.MATRIX
+    else:
+        structure = AnswerStructure.TENSOR
+
+    return answer.model_copy(
+        update={
+            "structure": structure,
+            "shape": (len(child_tuple),) + inner_shape,
+            "children": child_tuple,
+        }
+    )
+
+
+def _repair_atomic_answer(
+    answer: PhysicsAnswerSemantics,
+    *,
+    context: PhysicsQuestionSemantics,
+) -> PhysicsAnswerSemantics:
+    """Reparse atomic answers when persisted fields look incomplete or mislabeled."""
+
+    if (
+        answer.object_kind == AnswerObjectKind.PHYSICAL_QUANTITY
+        and answer.numeric_value is not None
+        and answer.unit
+    ):
+        return answer
+
+    if answer.object_kind not in {
+        AnswerObjectKind.NUMBER,
+        AnswerObjectKind.PHYSICAL_QUANTITY,
+        AnswerObjectKind.EXPRESSION,
+        AnswerObjectKind.RELATION,
+        AnswerObjectKind.QUALITATIVE_LABEL,
+    }:
+        return answer
+
+    source_texts = list(reparse_sources(answer))
+    if not source_texts:
+        return answer
+    if (
+        answer.object_kind == AnswerObjectKind.QUALITATIVE_LABEL
+        and not any(
+            _is_symbol_like_salvage_text(source_text, context=context)
+            for source_text in source_texts
+        )
+    ):
+        return answer
+
+    from ..normalization import normalize_physics_answer
+
+    for source_text in source_texts:
+        reparsed = normalize_physics_answer(source_text, context=context)
+        if reparsed.structure != AnswerStructure.ATOMIC:
+            continue
+        if reparsed.object_kind not in {
+            AnswerObjectKind.NUMBER,
+            AnswerObjectKind.PHYSICAL_QUANTITY,
+            AnswerObjectKind.EXPRESSION,
+            AnswerObjectKind.RELATION,
+        }:
+            continue
+        update = {
+            "canonical_text": (
+                reparsed.canonical_text
+                if reparsed.subject_to and not answer.subject_to
+                else (
+                    answer.canonical_text
+                    if answer.object_kind
+                    in {AnswerObjectKind.EXPRESSION, AnswerObjectKind.RELATION}
+                    and answer.canonical_text
+                    else reparsed.canonical_text
+                )
+            ),
+            "raw_text": answer.raw_text or reparsed.raw_text,
+            "canonical_latex": (
+                reparsed.canonical_latex
+                if reparsed.subject_to and not answer.subject_to
+                else answer.canonical_latex or reparsed.canonical_latex
+            ),
+            "target_variable": answer.target_variable or reparsed.target_variable,
+            "dimension": answer.dimension or reparsed.dimension,
+            "provenance": dict(answer.provenance) or dict(reparsed.provenance),
+            "diagnostics": answer.diagnostics or reparsed.diagnostics,
+            "subject_to": answer.subject_to or reparsed.subject_to,
+        }
+        if reparsed.object_kind == AnswerObjectKind.PHYSICAL_QUANTITY:
+            update.update(
+                {
+                    "unit": reparsed.unit,
+                    "quantity_view": reparsed.quantity_view,
+                }
+            )
+        else:
+            update.update(
+                {
+                    "unit": answer.unit or reparsed.unit,
+                    "quantity_view": answer.quantity_view or reparsed.quantity_view,
+                }
+            )
+        return reparsed.model_copy(update=update)
+
+    return answer
+
+
+def _backfill_subject_to(
+    answer: PhysicsAnswerSemantics,
+    *,
+    context: PhysicsQuestionSemantics,
+) -> PhysicsAnswerSemantics:
+    """Populate legacy side conditions from reparsed text surfaces when missing."""
+
+    if answer.subject_to:
+        return answer
+
+    from ..normalization import normalize_physics_answer
+
+    for source_text in available_texts(
+        answer.raw_text,
+        answer.canonical_latex,
+        answer.canonical_text,
+    ):
+        reparsed = normalize_physics_answer(source_text, context=context)
+        if reparsed.structure != answer.structure or not reparsed.subject_to:
+            continue
+
+        update = {
+            "canonical_text": reparsed.canonical_text,
+            "raw_text": answer.raw_text or reparsed.raw_text,
+            "canonical_latex": reparsed.canonical_latex,
+            "target_variable": answer.target_variable or reparsed.target_variable,
+            "provenance": dict(answer.provenance) or dict(reparsed.provenance),
+            "diagnostics": answer.diagnostics or reparsed.diagnostics,
+            "subject_to": reparsed.subject_to,
+        }
+        if answer.object_kind == AnswerObjectKind.PHYSICAL_QUANTITY:
+            update["unit"] = answer.unit or reparsed.unit
+            update["quantity_view"] = answer.quantity_view or reparsed.quantity_view
+        return answer.model_copy(update=update)
+
+    return answer
+
+
+def _subject_to_context(context: PhysicsQuestionSemantics) -> PhysicsQuestionSemantics:
+    """Derive the comparison context used for one subject-to conjunction."""
+
+    return context.model_copy(
+        update={
+            "question_symbolic_mode": QuestionSymbolicMode.RELATION,
+            "required_parts": (),
+        }
+    )
+
+
+def _compare_subject_to(
+    result: AnswerComparison,
+    *,
+    pred: PhysicsAnswerSemantics,
+    ref: PhysicsAnswerSemantics,
+    context: PhysicsQuestionSemantics,
+    contract: PhysicsEvaluationContract,
+    policy_mode: ComparisonPolicyMode,
+) -> AnswerComparison:
+    """Enforce order-insensitive equivalence for conjunctive side conditions."""
+
+    if not result.equivalent:
+        return result
+    if not pred.subject_to and not ref.subject_to:
+        return result
+    if len(pred.subject_to) != len(ref.subject_to):
+        return AnswerComparison(
+            False,
+            result.comparison_mode,
+            result.diagnostics + ("subject_to_count_mismatch",),
+        )
+
+    subject_context = _subject_to_context(context)
+    unused = list(pred.subject_to)
+    for index, ref_constraint in enumerate(ref.subject_to):
+        match_index = None
+        for candidate_index, pred_constraint in enumerate(unused):
+            constraint_result = compare_protocol_answers(
+                pred_constraint,
+                ref_constraint,
+                contract=contract,
+                context=subject_context,
+                policy_mode=policy_mode,
+                _validate_top_level=False,
+            )
+            if constraint_result.equivalent:
+                match_index = candidate_index
+                break
+        if match_index is None:
+            return AnswerComparison(
+                False,
+                result.comparison_mode,
+                result.diagnostics + (f"subject_to_unmatched:{index}",),
+            )
+        unused.pop(match_index)
+
+    return result
+
+
+_SYMBOL_LIKE_TEXT_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_\\]*$")
+_MATH_LIKE_SALVAGE_RE = re.compile(r"[=<>+\-*/^()\[\]{}]")
+
+
+def _is_symbol_like_salvage_text(
+    text: str,
+    *,
+    context: PhysicsQuestionSemantics,
+) -> bool:
+    """Return whether a qualitative label is safe to reinterpret as symbolic."""
+
+    stripped = text.strip()
+    if not stripped:
+        return False
+    normalized = normalize_plain_text(stripped)
+    if not normalized:
+        return False
+    if canonicalize_qualitative_label(stripped) != normalized:
+        return False
+    if _MATH_LIKE_SALVAGE_RE.search(stripped):
+        return True
+
+    compact = stripped.replace(" ", "")
+    if not _SYMBOL_LIKE_TEXT_RE.fullmatch(compact):
+        return False
+    if len(stripped.split()) > 1:
+        return False
+
+    normalized_compact = normalize_plain_text(stripped).replace(" ", "")
+    expected_symbols = _expected_symbol_tokens(context)
+    if compact in expected_symbols or normalized_compact in expected_symbols:
+        return True
+
+    if "\\" in compact or any(char.isdigit() for char in compact):
+        return True
+    if any(char.isupper() for char in compact):
+        return True
+    return len(normalized_compact) <= 2
+
+
+def _expected_symbol_tokens(context: PhysicsQuestionSemantics) -> set[str]:
+    """Collect target-variable and alias tokens expected by the question."""
+
+    expected: set[str] = set()
+
+    def _add(text: str | None) -> None:
+        if not text:
+            return
+        stripped = text.strip()
+        normalized = normalize_plain_text(stripped).replace(" ", "")
+        compact = stripped.replace(" ", "")
+        if stripped:
+            expected.add(stripped)
+        if compact:
+            expected.add(compact)
+        if normalized:
+            expected.add(normalized)
+
+    _add(context.target_variable)
+    for alias, canonical in context_symbol_alias_map(context).items():
+        _add(alias)
+        _add(canonical)
+    return expected
+
+
+def _metadata_text_compatible(left: str, right: str) -> bool:
+    """Compare metadata strings by exact match or token containment."""
+
+    if left == right:
+        return True
+
+    left_tokens = _metadata_tokens(left)
+    right_tokens = _metadata_tokens(right)
+    if not left_tokens or not right_tokens:
+        return normalize_plain_text(left) == normalize_plain_text(right)
+
+    smaller, larger = (
+        (left_tokens, right_tokens)
+        if len(left_tokens) <= len(right_tokens)
+        else (right_tokens, left_tokens)
+    )
+    return smaller <= larger
+
+
+def _metadata_tokens(text: str) -> set[str]:
+    """Tokenize metadata text into a comparison-friendly normalized set."""
+
+    normalized = normalize_plain_text(text).replace("axes", "axis").replace("centre", "center")
+    return {
+        token
+        for token in normalized.split()
+        if token and token not in _COMPARISON_STOPWORDS
+    }
+
+
+def _part_child_map(
+    answer: PhysicsAnswerSemantics,
+    *,
+    context: PhysicsQuestionSemantics,
+) -> dict[str, PhysicsAnswerSemantics] | None:
+    """Map structured children by part label when per-part comparison is viable."""
+
+    if not answer.children:
+        return None
+
+    surfaces = tuple(child.raw_text or child.canonical_text for child in answer.children)
+    inferred_labels = infer_multi_part_part_labels(surfaces, context.required_parts)
+    labels: list[str | None] = []
+    for index, child in enumerate(answer.children):
+        label = child.part_label or inferred_labels[index]
+        if label is None and len(context.required_parts) == len(answer.children):
+            label = context.required_parts[index]
+        labels.append(label)
+
+    if any(label is None for label in labels):
+        return None
+
+    canonical_labels = tuple(str(label) for label in labels if label is not None)
+    if len(set(canonical_labels)) != len(canonical_labels):
+        return None
+
+    preferred_order = tuple(part for part in context.required_parts if part in canonical_labels)
+    order = preferred_order or canonical_labels
+    child_by_label = {
+        str(label): child for label, child in zip(labels, answer.children) if label is not None
+    }
+    return {label: child_by_label[label] for label in order if label in child_by_label}
+
+
+def _resolve_comparison_contract(
+    *,
+    contract: PhysicsEvaluationContract | dict | None,
+    context: PhysicsQuestionSemantics,
+    ref_answer: PhysicsAnswerSemantics,
+) -> PhysicsEvaluationContract:
+    """Resolve a comparison contract from explicit input or build one on the fly."""
+
+    if contract is not None:
+        return coerce_evaluation_contract(contract)
+    return build_evaluation_contract(
+        question_semantics=context,
+        reference_answer_semantics=ref_answer,
+    )
+
+
+def _apply_bridge_policy(
+    result: AnswerComparison,
+    *,
+    pred: PhysicsAnswerSemantics,
+    ref: PhysicsAnswerSemantics,
+    contract: PhysicsEvaluationContract,
+    policy_mode: ComparisonPolicyMode,
+) -> AnswerComparison:
+    """Accept or reject a bridged comparison under the active evaluation policy."""
+
+    if not result.equivalent:
+        return result
+
+    spec = bridge_spec_for(result.comparison_mode)
+    if spec is None:
+        return result
+
+    if policy_mode == ComparisonPolicyMode.PERMISSIVE:
+        return result.model_copy(
+            update={
+                "bridge_id": spec.bridge_id,
+                "bridge_tier": spec.tier,
+                "bridge_evidence": _bridge_evidence(spec.bridge_id, pred, ref, contract),
+            }
+        )
+
+    if contract.enabled_bridge_ids and spec.bridge_id not in contract.enabled_bridge_ids:
+        return AnswerComparison(
+            equivalent=False,
+            comparison_mode="bridge_blocked",
+            diagnostics=(f"bridge_not_enabled:{spec.bridge_id}",),
+        )
+    if not bridge_enabled_for_policy(
+        spec,
+        contract=contract,
+        policy_mode=policy_mode,
+    ):
+        return AnswerComparison(
+            equivalent=False,
+            comparison_mode="bridge_blocked",
+            diagnostics=(f"bridge_disallowed_by_policy:{spec.bridge_id}",),
+        )
+    if not spec.predicate(pred, ref, contract):
+        return AnswerComparison(
+            equivalent=False,
+            comparison_mode="bridge_blocked",
+            diagnostics=(f"bridge_precondition_failed:{spec.bridge_id}",),
+        )
+
+    return result.model_copy(
+        update={
+            "bridge_id": spec.bridge_id,
+            "bridge_tier": spec.tier,
+            "bridge_evidence": _bridge_evidence(spec.bridge_id, pred, ref, contract),
+        }
+    )
+
+
+def _bridge_evidence(
+    bridge_id: str,
+    pred: PhysicsAnswerSemantics,
+    ref: PhysicsAnswerSemantics,
+    contract: PhysicsEvaluationContract,
+) -> dict[str, str]:
+    """Build a compact evidence payload for one accepted bridge."""
+
+    evidence = {
+        "pred_kind": pred.object_kind.value,
+        "ref_kind": ref.object_kind.value,
+        "expected_object_kind": contract.expected_object_kind.value,
+        "expected_structure": contract.expected_structure.value,
+    }
+    if contract.target_variable:
+        evidence["target_variable"] = contract.target_variable
+    if contract.question_semantics.question_unit_policy.value != "not_applicable":
+        evidence["question_unit_policy"] = contract.question_semantics.question_unit_policy.value
+    if contract.question_semantics.question_symbolic_mode.value != "either":
+        evidence["question_symbolic_mode"] = (
+            contract.question_semantics.question_symbolic_mode.value
+        )
+    if bridge_id in {"choice", "terminal_polarity_choice"} and contract.question_semantics.choice_space:
+        evidence["choice_space"] = ",".join(contract.question_semantics.choice_space)
+    return evidence
+
+
+def _finalize_comparison(
+    result: AnswerComparison,
+    *,
+    validation_status: ContractValidationStatus | None,
+    policy_mode: ComparisonPolicyMode,
+) -> AnswerComparison:
+    """Attach policy and validation metadata to a comparison result."""
+
+    update: dict[str, object] = {"policy_mode": policy_mode}
+    if validation_status is not None:
+        update["validation_status"] = validation_status
+    return result.model_copy(update=update)
+
+
+def _finalize_result(
+    result: AnswerComparison,
+    *,
+    pred: PhysicsAnswerSemantics,
+    ref: PhysicsAnswerSemantics,
+    context: PhysicsQuestionSemantics,
+    contract: PhysicsEvaluationContract,
+    validation_status: ContractValidationStatus | None,
+    policy_mode: ComparisonPolicyMode,
+) -> AnswerComparison:
+    """Attach side-condition checks before policy and validation metadata."""
+
+    return _finalize_comparison(
+        _compare_subject_to(
+            result,
+            pred=pred,
+            ref=ref,
+            context=context,
+            contract=contract,
+            policy_mode=policy_mode,
+        ),
+        validation_status=validation_status,
+        policy_mode=policy_mode,
+    )
+
+
+compare_physics_answers = compare_protocol_answers

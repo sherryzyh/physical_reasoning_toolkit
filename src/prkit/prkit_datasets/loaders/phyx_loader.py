@@ -69,6 +69,7 @@ class PhyXLoader(BaseDatasetLoader):
     def field_mapping(self) -> Dict[str, str]:
         return {
             "id": "problem_id",
+            "question": "question",
             "answer": "answer",
             "domain": "domain",
             "image": "image_paths",

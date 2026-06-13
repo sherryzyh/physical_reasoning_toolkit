@@ -7,7 +7,8 @@ including answer normalization, formatting, and other helper functions.
 
 from prkit.prkit_core.domain.answer_category import AnswerCategory
 
-from .compare_by_type import (
+from .category_dispatch import compare_by_category
+from .compare_same_type import (
     compare_formula,
     compare_number,
     compare_physical_quantity,
@@ -28,6 +29,7 @@ from .number_utils import (
 __all__ = [
     "AnswerCategory",
     "classify_expression",
+    "compare_by_category",
     "compare_formula",
     "compare_number",
     "compare_physical_quantity",

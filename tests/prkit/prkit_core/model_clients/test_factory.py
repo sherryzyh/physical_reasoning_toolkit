@@ -9,10 +9,22 @@ import pytest
 from prkit.prkit_core.model_clients import create_model_client
 from prkit.prkit_core.model_clients.anthropic import AnthropicModel
 from prkit.prkit_core.model_clients.base import BaseModelClient
+from prkit.prkit_core.model_clients.dashscope import DashscopeModel
 from prkit.prkit_core.model_clients.deepseek import DeepseekModel
 from prkit.prkit_core.model_clients.gemini import GeminiModel
 from prkit.prkit_core.model_clients.ollama import OllamaModel
 from prkit.prkit_core.model_clients.openai import OpenAIModel
+from prkit.prkit_core.model_clients.xai import XAIModel
+
+OPENAI_TEST_MODEL = "gpt-5.4-mini"
+GEMINI_TEST_MODEL = "gemini-2.5-pro"
+ANTHROPIC_TEST_MODEL = "claude-sonnet-4-6"
+OLLAMA_QWEN_TEST_MODEL = "ollama/qwen3.5:397b-cloud"
+OLLAMA_MISTRAL_TEST_MODEL = "ollama/mistral-large-3:675b-cloud"
+DEEPSEEK_CHAT_TEST_MODEL = "deepseek-chat"
+DEEPSEEK_REASONER_TEST_MODEL = "deepseek-reasoner"
+XAI_TEST_MODEL = "grok-4-1-fast-reasoning"
+DASHSCOPE_TEST_MODEL = "qwen3.6-plus"
 
 
 class TestCreateModelClient:
@@ -25,11 +37,11 @@ class TestCreateModelClient:
         assert client.model == "gpt-4.1"
         assert client.provider == "openai"
 
-    def test_create_openai_gpt_5_1(self):
-        """Test creating OpenAI gpt-5.1 model."""
-        client = create_model_client("gpt-5.1")
+    def test_create_openai_gpt_5_4_mini(self):
+        """Test creating OpenAI gpt-5.4-mini model."""
+        client = create_model_client(OPENAI_TEST_MODEL)
         assert isinstance(client, OpenAIModel)
-        assert client.model == "gpt-5.1"
+        assert client.model == OPENAI_TEST_MODEL
 
     def test_create_openai_gpt_5_2_mini(self):
         """Test creating OpenAI gpt-5.2-mini model."""
@@ -53,29 +65,55 @@ class TestCreateModelClient:
 
     def test_create_gemini_model(self):
         """Test creating Gemini model."""
-        client = create_model_client("gemini-pro")
+        client = create_model_client(GEMINI_TEST_MODEL)
         assert isinstance(client, GeminiModel)
-        assert client.model == "gemini-pro"
+        assert client.model == GEMINI_TEST_MODEL
         assert client.provider == "google"
 
     def test_create_gemini_model_case_insensitive(self):
         """Test creating Gemini model with different case."""
-        client = create_model_client("GEMINI-PRO")
+        client = create_model_client(GEMINI_TEST_MODEL.upper())
         assert isinstance(client, GeminiModel)
-        assert client.model == "GEMINI-PRO"
+        assert client.model == GEMINI_TEST_MODEL.upper()
 
     def test_create_deepseek_model(self):
         """Test creating DeepSeek model."""
-        client = create_model_client("deepseek-chat")
+        client = create_model_client(DEEPSEEK_CHAT_TEST_MODEL)
         assert isinstance(client, DeepseekModel)
-        assert client.model == "deepseek-chat"
+        assert client.model == DEEPSEEK_CHAT_TEST_MODEL
         assert client.provider == "deepseek"
 
     def test_create_deepseek_model_case_insensitive(self):
         """Test creating DeepSeek model with different case."""
-        client = create_model_client("DEEPSEEK-CHAT")
+        client = create_model_client(DEEPSEEK_REASONER_TEST_MODEL.upper())
         assert isinstance(client, DeepseekModel)
-        assert client.model == "DEEPSEEK-CHAT"
+        assert client.model == DEEPSEEK_REASONER_TEST_MODEL.upper()
+
+    def test_create_deepseek_model_with_provider_prefix(self):
+        """Test provider-prefixed DeepSeek identifiers normalize to raw model names."""
+        client = create_model_client("deepseek/deepseek-reasoner")
+        assert isinstance(client, DeepseekModel)
+        assert client.model == "deepseek-reasoner"
+
+    @patch("prkit.prkit_core.model_clients.openai_compatible_chat.OpenAI")
+    def test_create_xai_model(self, mock_openai_class):
+        """Test creating xAI Grok model."""
+        mock_openai_class.return_value = MagicMock()
+
+        client = create_model_client(XAI_TEST_MODEL)
+        assert isinstance(client, XAIModel)
+        assert client.model == XAI_TEST_MODEL
+        assert client.provider == "xai"
+
+    @patch("prkit.prkit_core.model_clients.openai_compatible_chat.OpenAI")
+    def test_create_dashscope_model(self, mock_openai_class):
+        """Test creating DashScope model."""
+        mock_openai_class.return_value = MagicMock()
+
+        client = create_model_client(DASHSCOPE_TEST_MODEL)
+        assert isinstance(client, DashscopeModel)
+        assert client.model == DASHSCOPE_TEST_MODEL
+        assert client.provider == "dashscope"
 
     @patch("prkit.prkit_core.model_clients.anthropic.Anthropic")
     def test_create_anthropic_model(self, mock_anthropic_class):
@@ -83,9 +121,9 @@ class TestCreateModelClient:
         mock_client = MagicMock()
         mock_anthropic_class.return_value = mock_client
 
-        client = create_model_client("claude-sonnet-4-6")
+        client = create_model_client(ANTHROPIC_TEST_MODEL)
         assert isinstance(client, AnthropicModel)
-        assert client.model == "claude-sonnet-4-6"
+        assert client.model == ANTHROPIC_TEST_MODEL
         assert client.provider == "anthropic"
 
     @patch("prkit.prkit_core.model_clients.anthropic.Anthropic")
@@ -94,9 +132,9 @@ class TestCreateModelClient:
         mock_client = MagicMock()
         mock_anthropic_class.return_value = mock_client
 
-        client = create_model_client("CLAUDE-SONNET-4-6")
+        client = create_model_client(ANTHROPIC_TEST_MODEL.upper())
         assert isinstance(client, AnthropicModel)
-        assert client.model == "CLAUDE-SONNET-4-6"
+        assert client.model == ANTHROPIC_TEST_MODEL.upper()
 
     def test_unsupported_openai_model(self):
         """Test that unsupported OpenAI models raise ValueError."""
@@ -112,7 +150,7 @@ class TestCreateModelClient:
         """Test creating model client with custom logger."""
         import logging
         logger = logging.getLogger("test")
-        client = create_model_client("gpt-5.1", logger=logger)
+        client = create_model_client(OPENAI_TEST_MODEL, logger=logger)
         assert client.logger == logger
 
     @patch("prkit.prkit_core.model_clients.ollama.ollama")
@@ -122,21 +160,21 @@ class TestCreateModelClient:
         mock_client.list.return_value = []
         mock_ollama_module.Client.return_value = mock_client
 
-        client = create_model_client("ollama/qwen3-vl:8b")
+        client = create_model_client(OLLAMA_QWEN_TEST_MODEL)
         assert isinstance(client, OllamaModel)
-        assert client.model == "qwen3-vl:8b"
+        assert client.model == "qwen3.5:397b-cloud"
         assert client.provider == "ollama"
 
     @patch("prkit.prkit_core.model_clients.ollama.ollama")
-    def test_create_ollama_model_with_tag(self, mock_ollama_module):
-        """Test creating Ollama model with legacy non-prefixed identifier."""
+    def test_create_second_ollama_model_with_provider_prefix(self, mock_ollama_module):
+        """Test creating a second Ollama provider test model."""
         mock_client = MagicMock()
         mock_client.list.return_value = []
         mock_ollama_module.Client.return_value = mock_client
 
-        client = create_model_client("qwen3-vl:8b-instruct")
+        client = create_model_client(OLLAMA_MISTRAL_TEST_MODEL)
         assert isinstance(client, OllamaModel)
-        assert client.model == "qwen3-vl:8b-instruct"
+        assert client.model == "mistral-large-3:675b-cloud"
 
     @patch("prkit.prkit_core.model_clients.ollama.ollama")
     def test_create_qwen_model_variants(self, mock_ollama_module):
@@ -156,10 +194,10 @@ class TestCreateModelClient:
         mock_anthropic_class.return_value = mock_client
 
         clients = [
-            create_model_client("gpt-5.1"),
-            create_model_client("gemini-pro"),
-            create_model_client("deepseek-chat"),
-            create_model_client("claude-sonnet-4-6"),
+            create_model_client(OPENAI_TEST_MODEL),
+            create_model_client(GEMINI_TEST_MODEL),
+            create_model_client(DEEPSEEK_CHAT_TEST_MODEL),
+            create_model_client(ANTHROPIC_TEST_MODEL),
         ]
         for client in clients:
             assert isinstance(client, BaseModelClient)

@@ -10,7 +10,9 @@ from typing import Any, Dict, List, Optional, Type, Union
 from prkit.prkit_core import PRKitLogger
 from prkit.prkit_core.domain import PhysicalDataset
 from prkit.prkit_datasets.downloaders import (
+    PhysBenchDownloader,
     PHYBenchDownloader,
+    PhysicsDownloader,
     PhyXDownloader,
     PhysReasonDownloader,
     SeePhysDownloader,
@@ -19,7 +21,9 @@ from prkit.prkit_datasets.downloaders import (
 from prkit.prkit_datasets.downloaders.base_downloader import BaseDownloader
 from prkit.prkit_datasets.loaders import (
     JEEBenchLoader,
+    PhysBenchLoader,
     PHYBenchLoader,
+    PhysicsLoader,
     PhyXLoader,
     PhysReasonLoader,
     SeePhysLoader,
@@ -41,10 +45,10 @@ class DatasetHub:
         dataset = DatasetHub.load("ugphysics")
 
         # With options
-        dataset = DatasetHub.load("ugphysics", split="test", sample_size=100)
+        dataset = DatasetHub.load("ugphysics", split="en", sample_size=100)
 
-        # With variant
-        dataset = DatasetHub.load("ugphysics", variant="mini", split="test")
+        # With a domain variant
+        dataset = DatasetHub.load("ugphysics", variant="classical_mechanics", split="en")
 
         # List available datasets
         print(DatasetHub.list_available())
@@ -65,7 +69,9 @@ class DatasetHub:
     @classmethod
     def _register_default_loaders(cls):
         """Register the default dataset loaders."""
+        cls.register("physbench", PhysBenchLoader)
         cls.register("phybench", PHYBenchLoader)
+        cls.register("physics", PhysicsLoader)
         cls.register("phyx", PhyXLoader)
         cls.register("seephys", SeePhysLoader)
         cls.register("ugphysics", UGPhysicsLoader)
@@ -76,7 +82,9 @@ class DatasetHub:
     @classmethod
     def _register_default_downloaders(cls):
         """Register the default dataset downloaders."""
+        cls.register_downloader("physbench", PhysBenchDownloader)
         cls.register_downloader("phybench", PHYBenchDownloader)
+        cls.register_downloader("physics", PhysicsDownloader)
         cls.register_downloader("phyx", PhyXDownloader)
         cls.register_downloader("physreason", PhysReasonDownloader)
         cls.register_downloader("seephys", SeePhysDownloader)
@@ -153,8 +161,8 @@ class DatasetHub:
             >>> # Load with sample size
             >>> dataset = DatasetHub.load("ugphysics", sample_size=50)
 
-            >>> # Load specific split
-            >>> dataset = DatasetHub.load("ugphysics", split="test")
+            >>> # Load a specific language split
+            >>> dataset = DatasetHub.load("ugphysics", split="en")
 
             >>> # Load with variant and auto-download
             >>> dataset = DatasetHub.load("physreason", variant="full", auto_download=True)
@@ -204,12 +212,18 @@ class DatasetHub:
                 )
                 raise
 
-        # Resolve actual values for logging (including defaults)
+        # Resolve actual values for logging (including defaults).
+        # Do not pass a pre-resolved default path into loader.load() when data_dir is None:
+        # several loaders intentionally use a dataset-specific on-disk directory name
+        # (for example "PHYSICS"), which can differ from the lowercase registry key.
         if data_dir is None:
-            # Resolve default data directory
-            actual_data_dir = loader.resolve_data_dir(None, dataset_name)
+            downloader = cls._get_downloader(dataset_name)
+            if downloader is not None:
+                actual_data_dir = downloader.resolve_download_dir(None)
+            else:
+                actual_data_dir = "(loader default)"
         else:
-            actual_data_dir = data_dir
+            actual_data_dir = Path(data_dir).resolve()
         
         if variant is None:
             actual_variant = loader.get_default_variant()
@@ -238,7 +252,7 @@ class DatasetHub:
             cls._logger.info(f"  - additional kwargs: {kwargs}")
 
         load_kwargs = {
-            "data_dir": actual_data_dir,
+            "data_dir": data_dir,
             "variant": actual_variant,
             "split": actual_split,
             "sample_size": sample_size,
@@ -295,6 +309,7 @@ class DatasetHub:
                     )
 
                     # Retry loading after download
+                    load_kwargs["data_dir"] = download_path
                     dataset = loader.load(**load_kwargs)
                     return dataset
                 except Exception as download_error:

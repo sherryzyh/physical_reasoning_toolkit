@@ -93,17 +93,16 @@ class BaseWorkflowModule(ABC):
         Returns:
             Dictionary containing result and statistics for this problem
         """
-        # Module execution started - workflow level logging handles the rest
-        self.logger.info(f"Starting module execution for problem: {problem.problem_id}")
-
-        execution_start = datetime.now()
-
         # Validate input problem
         if not isinstance(problem, PhysicsProblem):
             error_msg = f"Problem must be a PhysicsProblem object, got {type(problem)}"
             self.logger.error(error_msg)
             raise ValueError(error_msg)
 
+        # Module execution started - workflow level logging handles the rest
+        self.logger.info(f"Starting module execution for problem: {problem.problem_id}")
+
+        execution_start = datetime.now()
         problem_id = problem.problem_id
 
         # Process the single problem

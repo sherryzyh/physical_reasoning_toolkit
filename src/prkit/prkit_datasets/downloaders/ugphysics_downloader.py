@@ -7,9 +7,21 @@ For citation information, see prkit.prkit_datasets.citations.
 """
 
 import json
-import shutil
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
+
+from prkit.prkit_datasets.ugphysics_common import (
+    UGPHYSICS_DOMAIN_COUNTS,
+    UGPHYSICS_DOMAIN_VARIANTS,
+    UGPHYSICS_PUBLIC_VARIANTS,
+    UGPHYSICS_SPLIT_TOTALS,
+    UGPHYSICS_SUPPORTED_SPLITS,
+    get_requested_domain_dirs,
+    normalize_domain_dir_name,
+    normalize_language_code,
+    normalize_split,
+    normalize_variant,
+)
 
 from .base_downloader import BaseDownloader
 
@@ -24,25 +36,8 @@ class UGPhysicsDownloader(BaseDownloader):
     - Paper: https://openreview.net/pdf?id=EmLiyZGvrR
     """
 
-    # List of all domains/configs in UGPhysics
-    DOMAINS = [
-        "AtomicPhysics",
-        "ClassicalElectromagnetism",
-        "ClassicalMechanics",
-        "Electrodynamics",
-        "GeometricalOptics",
-        "QuantumMechanics",
-        "Relativity",
-        "SemiconductorPhysics",
-        "Solid-StatePhysics",
-        "StatisticalMechanics",
-        "TheoreticalMechanics",
-        "Thermodynamics",
-        "WaveOptics",
-    ]
-
-    # Supported languages
-    LANGUAGES = ["en", "zh"]
+    DOMAINS = list(UGPHYSICS_DOMAIN_VARIANTS.values())
+    LANGUAGES = UGPHYSICS_SUPPORTED_SPLITS
 
     @property
     def dataset_name(self) -> str:
@@ -59,19 +54,30 @@ class UGPhysicsDownloader(BaseDownloader):
             "paper_url": "https://openreview.net/pdf?id=EmLiyZGvrR",
             "huggingface_url": "https://huggingface.co/datasets/UGPhysics/ugphysics",
             "format": "JSONL",
+            "variants": UGPHYSICS_PUBLIC_VARIANTS,
+            "splits": UGPHYSICS_SUPPORTED_SPLITS,
             "domains": self.DOMAINS,
             "languages": self.LANGUAGES,
-            "size_bytes": None,  # Size varies
-            "license": "Research use",
+            "size_bytes": None,
+            "license": "cc-by-nc-sa-4.0",
             "download_method": "datasets library",
+            "total_problems": {
+                "en": UGPHYSICS_SPLIT_TOTALS["en"],
+                "zh": UGPHYSICS_SPLIT_TOTALS["zh"],
+                "all": sum(UGPHYSICS_SPLIT_TOTALS.values()),
+            },
+            "problems_by_domain": UGPHYSICS_DOMAIN_COUNTS["en"],
         }
 
     def download(
         self,
         data_dir: Optional[Union[str, Path]] = None,
         force: bool = False,
+        variant: Optional[str] = None,
+        split: Optional[str] = None,
         domains: Optional[List[str]] = None,
         languages: Optional[List[str]] = None,
+        language: Optional[str] = None,
         **kwargs,
     ) -> Path:
         """
@@ -80,30 +86,64 @@ class UGPhysicsDownloader(BaseDownloader):
         Args:
             data_dir: Target directory for download (None = auto-detect)
             force: If True, clean existing dataset directory and re-download.
-                  If False, skip download if dataset already exists.
-            domains: List of domains to download (None = all domains)
-            languages: List of languages to download (None = all languages)
+            variant: Public UGPhysics variant ("full" or one domain variant)
+            split: Public UGPhysics split ("en" or "zh")
+            domains: Optional explicit list of domains to download
+            languages: Optional explicit list of languages to download
+            language: Backward-compatible alias used with legacy split="test"
             **kwargs: Additional download parameters
 
         Returns:
             Path to the downloaded dataset directory
-
-        Raises:
-            FileExistsError: If dataset already exists and force=False
-            RuntimeError: If download fails
         """
-        # Call parent download method which handles force logic
-        return super().download(
-            data_dir=data_dir,
-            force=force,
+        (
+            normalized_variant,
+            normalized_split,
+            requested_domains,
+            requested_languages,
+        ) = self._resolve_requested_artifacts(
+            variant=variant,
+            split=split,
             domains=domains,
             languages=languages,
+            language=language,
+        )
+
+        download_dir = self.resolve_download_dir(data_dir)
+
+        if force and download_dir.exists():
+            self.clean_directory(download_dir)
+
+        if not force and self._is_request_downloaded(
+            download_dir,
+            domains=requested_domains,
+            languages=requested_languages,
+        ):
+            self.logger.info(
+                "Requested UGPhysics artifacts already exist at %s "
+                "(variant=%s, split=%s, domains=%s, languages=%s)",
+                download_dir,
+                normalized_variant,
+                normalized_split,
+                requested_domains,
+                requested_languages,
+            )
+            return download_dir
+
+        return self._do_download(
+            download_dir=download_dir,
+            variant=normalized_variant,
+            split=normalized_split,
+            domains=requested_domains,
+            languages=requested_languages,
             **kwargs,
         )
 
     def _do_download(
         self,
         download_dir: Path,
+        variant: str = "full",
+        split: Optional[str] = None,
         domains: Optional[List[str]] = None,
         languages: Optional[List[str]] = None,
         **kwargs,
@@ -112,23 +152,8 @@ class UGPhysicsDownloader(BaseDownloader):
         Perform the actual UGPhysics dataset download.
 
         Downloads data from HuggingFace using the datasets library, which downloads
-        entire configs/splits at once, avoiding pagination limits and rate limiting issues.
-
-        Args:
-            download_dir: Resolved download directory path
-            domains: List of domains to download (None = all domains)
-            languages: List of languages to download (None = all languages)
-            **kwargs: Additional download parameters
-
-        Returns:
-            Path to the downloaded dataset directory
-
-        Raises:
-            ImportError: If datasets library is not installed
-            ValueError: If invalid domain or language is specified
-            RuntimeError: If download fails
+        entire configs/splits at once.
         """
-        # Check if datasets library is available
         try:
             from datasets import load_dataset
         except ImportError as exc:
@@ -137,29 +162,23 @@ class UGPhysicsDownloader(BaseDownloader):
                 "Install it with: pip install datasets"
             ) from exc
 
-        # Validate domains and languages
-        if domains is None:
-            domains = self.DOMAINS
-        else:
-            invalid_domains = [d for d in domains if d not in self.DOMAINS]
-            if invalid_domains:
-                raise ValueError(
-                    f"Invalid domains: {invalid_domains}. "
-                    f"Valid domains: {self.DOMAINS}"
-                )
-
-        if languages is None:
-            languages = self.LANGUAGES
-        else:
-            invalid_languages = [l for l in languages if l not in self.LANGUAGES]
-            if invalid_languages:
-                raise ValueError(
-                    f"Invalid languages: {invalid_languages}. "
-                    f"Valid languages: {self.LANGUAGES}"
-                )
+        (
+            normalized_variant,
+            normalized_split,
+            domains,
+            languages,
+        ) = self._resolve_requested_artifacts(
+            variant=variant,
+            split=split,
+            domains=domains,
+            languages=languages,
+        )
 
         self.logger.info("Downloading UGPhysics dataset...")
         self.logger.info("Target directory: %s", download_dir)
+        self.logger.info("Variant: %s", normalized_variant)
+        if normalized_split is not None:
+            self.logger.info("Split: %s", normalized_split)
         self.logger.info("Domains: %s", domains)
         self.logger.info("Languages: %s", languages)
         self.logger.info(
@@ -167,90 +186,227 @@ class UGPhysicsDownloader(BaseDownloader):
         )
 
         try:
-            # Create download directory
             download_dir.mkdir(parents=True, exist_ok=True)
 
             dataset_name = "UGPhysics/ugphysics"
             total_problems = 0
+            file_records = []
+            failures = []
 
-            # Download each domain and language combination
             for domain in domains:
                 domain_dir = download_dir / domain
                 domain_dir.mkdir(parents=True, exist_ok=True)
 
-                for language in languages:
-                    output_file = domain_dir / f"{language}.jsonl"
+                for language_name in languages:
+                    output_file = domain_dir / f"{language_name}.jsonl"
                     self.logger.info(
-                        "Downloading %s (%s) using datasets library...", domain, language
+                        "Downloading %s (%s) using datasets library...",
+                        domain,
+                        language_name,
                     )
 
                     try:
-                        # Load entire dataset config/split at once using datasets library
-                        # This downloads the entire dataset in one go, avoiding pagination limits
                         dataset = load_dataset(
                             dataset_name,
-                            name=domain,  # config name
-                            split=language,  # split name (en or zh)
+                            name=domain,
+                            split=language_name,
                         )
 
                         self.logger.info(
-                            "Loaded %d examples for %s/%s", len(dataset), domain, language
+                            "Loaded %d examples for %s/%s",
+                            len(dataset),
+                            domain,
+                            language_name,
                         )
 
                         if len(dataset) == 0:
-                            self.logger.warning(
-                                "No data found for %s/%s, skipping...",
-                                domain,
-                                language,
-                            )
+                            failures.append(f"{domain}/{language_name}: empty dataset")
                             continue
 
-                        # Convert to list of dictionaries and save as JSONL
-                        self.logger.info(
-                            "Saving %d problems to %s...", len(dataset), output_file
-                        )
-                        with open(output_file, "w", encoding="utf-8") as f:
+                        with open(output_file, "w", encoding="utf-8") as file_obj:
                             for example in dataset:
-                                # Convert example to dict (handles Arrow format)
-                                row_dict = dict(example)
-                                json.dump(row_dict, f, ensure_ascii=False)
-                                f.write("\n")
+                                json.dump(dict(example), file_obj, ensure_ascii=False)
+                                file_obj.write("\n")
+
+                        total_problems += len(dataset)
+                        file_records.append(
+                            {
+                                "domain": domain,
+                                "language": language_name,
+                                "path": str(Path(domain) / f"{language_name}.jsonl"),
+                                "rows": len(dataset),
+                            }
+                        )
 
                         self.logger.info(
                             "Successfully saved %s (%d problems)",
                             output_file,
                             len(dataset),
                         )
-                        total_problems += len(dataset)
-
-                    except Exception as e:
+                    except Exception as error:
                         self.logger.error(
-                            "Failed to download %s/%s: %s", domain, language, e
+                            "Failed to download %s/%s: %s",
+                            domain,
+                            language_name,
+                            error,
                         )
-                        # Continue with other domains/languages instead of failing completely
-                        continue
+                        failures.append(f"{domain}/{language_name}: {error}")
+
+            if failures:
+                raise RuntimeError(
+                    "UGPhysics download incomplete. Failures: " + "; ".join(failures)
+                )
+
+            self._write_manifest(
+                download_dir=download_dir,
+                variant=normalized_variant,
+                split=normalized_split,
+                file_records=file_records,
+            )
 
             self.logger.info(
                 "Successfully downloaded UGPhysics dataset to %s",
                 download_dir,
             )
             self.logger.info("Total problems: %d", total_problems)
-
             return download_dir
 
         except (ImportError, ValueError):
-            # Re-raise ImportError and ValueError as-is (don't wrap)
             raise
-        except (OSError, RuntimeError) as e:
-            # Clean up on error
-            if download_dir.exists():
-                try:
-                    shutil.rmtree(download_dir)
-                except OSError:
-                    pass
+        except (OSError, RuntimeError) as error:
+            self.logger.error("Failed to download UGPhysics dataset: %s", error)
+            raise RuntimeError(f"Download failed: {error}") from error
 
-            self.logger.error("Failed to download UGPhysics dataset: %s", e)
-            raise RuntimeError(f"Download failed: {e}") from e
+    def _resolve_requested_artifacts(
+        self,
+        variant: Optional[str] = None,
+        split: Optional[str] = None,
+        domains: Optional[List[str]] = None,
+        languages: Optional[List[str]] = None,
+        language: Optional[str] = None,
+    ) -> tuple[str, Optional[str], List[str], List[str]]:
+        """Normalize downloader requests to concrete domains and languages."""
+        normalized_variant = normalize_variant(variant, logger=self.logger)
+        normalized_split = (
+            normalize_split(split, language=language, logger=self.logger)
+            if split is not None or language is not None
+            else None
+        )
+
+        if domains is None:
+            requested_domains = get_requested_domain_dirs(normalized_variant)
+        else:
+            requested_domains = [normalize_domain_dir_name(domain) for domain in domains]
+            if normalized_variant != "full":
+                expected_domains = set(get_requested_domain_dirs(normalized_variant))
+                if set(requested_domains) != expected_domains:
+                    raise ValueError(
+                        "Conflicting UGPhysics domain request: "
+                        f"variant='{variant}' does not match domains={domains}"
+                    )
+
+        if languages is None:
+            requested_languages = [normalized_split or "en"]
+        else:
+            requested_languages = []
+            for raw_language in languages:
+                normalized_language = normalize_language_code(raw_language)
+                if normalized_language not in UGPHYSICS_SUPPORTED_SPLITS:
+                    raise ValueError(
+                        f"Invalid languages: {languages}. "
+                        f"Valid languages: {UGPHYSICS_SUPPORTED_SPLITS}"
+                    )
+                requested_languages.append(normalized_language)
+            requested_languages = sorted(set(requested_languages))
+            if normalized_split is not None and requested_languages != [normalized_split]:
+                raise ValueError(
+                    "Conflicting UGPhysics language request: "
+                    f"split='{split}' does not match languages={languages}"
+                )
+
+        return (
+            normalized_variant,
+            normalized_split,
+            requested_domains,
+            requested_languages,
+        )
+
+    def _is_request_downloaded(
+        self,
+        download_dir: Path,
+        domains: List[str],
+        languages: List[str],
+    ) -> bool:
+        """Check whether the exact requested UGPhysics artifacts already exist."""
+        if not download_dir.exists():
+            return False
+
+        for domain in domains:
+            for language_name in languages:
+                jsonl_file = download_dir / domain / f"{language_name}.jsonl"
+                if not self._verify_jsonl_file(jsonl_file):
+                    return False
+
+        return True
+
+    def _verify_jsonl_file(self, jsonl_file: Path) -> bool:
+        """Verify that a single UGPhysics JSONL shard exists and is readable."""
+        if not jsonl_file.exists() or not jsonl_file.is_file():
+            return False
+
+        if jsonl_file.stat().st_size == 0:
+            return False
+
+        checked_rows = 0
+        try:
+            with open(jsonl_file, "r", encoding="utf-8") as file_obj:
+                for line in file_obj:
+                    if not line.strip():
+                        continue
+                    json.loads(line)
+                    checked_rows += 1
+                    if checked_rows >= 3:
+                        break
+        except (OSError, json.JSONDecodeError):
+            return False
+
+        return checked_rows > 0
+
+    def _write_manifest(
+        self,
+        download_dir: Path,
+        variant: str,
+        split: Optional[str],
+        file_records: List[Dict[str, Any]],
+    ) -> None:
+        """Persist a lightweight manifest for deterministic verification."""
+        manifest_path = download_dir / "download_manifest.json"
+        existing_files = {}
+
+        if manifest_path.exists():
+            try:
+                with open(manifest_path, "r", encoding="utf-8") as file_obj:
+                    manifest = json.load(file_obj)
+                for record in manifest.get("files", []):
+                    existing_files[record["path"]] = record
+            except (OSError, json.JSONDecodeError, KeyError):
+                existing_files = {}
+
+        for record in file_records:
+            existing_files[record["path"]] = record
+
+        manifest = {
+            "dataset": self.dataset_name,
+            "repository": self.download_info["repository"],
+            "last_request": {
+                "variant": variant,
+                "split": split,
+            },
+            "files": [existing_files[path] for path in sorted(existing_files.keys())],
+        }
+
+        with open(manifest_path, "w", encoding="utf-8") as file_obj:
+            json.dump(manifest, file_obj, indent=2, sort_keys=True)
 
     def verify(self, data_dir: Union[str, Path]) -> bool:
         """
@@ -267,59 +423,48 @@ class UGPhysicsDownloader(BaseDownloader):
         if not data_dir.exists():
             return False
 
-        # Check that at least one domain directory exists
-        found_domains = []
+        manifest_path = data_dir / "download_manifest.json"
+        if manifest_path.exists():
+            try:
+                with open(manifest_path, "r", encoding="utf-8") as file_obj:
+                    manifest = json.load(file_obj)
+                files = manifest.get("files", [])
+                if not files:
+                    self.logger.warning(
+                        "UGPhysics manifest has no file records: %s",
+                        manifest_path,
+                    )
+                    return False
+
+                for record in files:
+                    jsonl_file = data_dir / record["path"]
+                    if not self._verify_jsonl_file(jsonl_file):
+                        self.logger.warning("Invalid or missing shard: %s", jsonl_file)
+                        return False
+
+                self.logger.info(
+                    "UGPhysics dataset is valid per manifest (%d files) in %s",
+                    len(files),
+                    data_dir,
+                )
+                return True
+            except (OSError, json.JSONDecodeError, KeyError) as error:
+                self.logger.warning("Failed to read UGPhysics manifest: %s", error)
+
+        found_valid_files = 0
         for domain in self.DOMAINS:
-            domain_dir = data_dir / domain
-            if domain_dir.exists() and domain_dir.is_dir():
-                found_domains.append(domain)
+            for language_name in self.LANGUAGES:
+                jsonl_file = data_dir / domain / f"{language_name}.jsonl"
+                if self._verify_jsonl_file(jsonl_file):
+                    found_valid_files += 1
 
-        if not found_domains:
-            self.logger.warning(
-                "No domain directories found in %s", data_dir
-            )
-            return False
-
-        # Check that each domain has at least one language file
-        valid_domains = 0
-        for domain in found_domains:
-            domain_dir = data_dir / domain
-            has_language_file = False
-
-            for language in self.LANGUAGES:
-                jsonl_file = domain_dir / f"{language}.jsonl"
-                if jsonl_file.exists() and jsonl_file.is_file():
-                    # Verify it's not empty
-                    if jsonl_file.stat().st_size > 0:
-                        # Verify it's valid JSONL
-                        try:
-                            with open(jsonl_file, "r", encoding="utf-8") as f:
-                                # Check first few lines
-                                for i, line in enumerate(f):
-                                    if i >= 3:  # Check first 3 lines
-                                        break
-                                    if line.strip():
-                                        json.loads(line)
-                            has_language_file = True
-                            break
-                        except json.JSONDecodeError:
-                            self.logger.warning(
-                                "Invalid JSONL in %s", jsonl_file
-                            )
-                            continue
-
-            if has_language_file:
-                valid_domains += 1
-
-        if valid_domains == 0:
-            self.logger.warning(
-                "No valid domain files found in %s", data_dir
-            )
+        if found_valid_files == 0:
+            self.logger.warning("No valid UGPhysics shards found in %s", data_dir)
             return False
 
         self.logger.info(
-            "UGPhysics dataset is valid: %d domains with data in %s",
-            valid_domains,
+            "UGPhysics dataset is valid: %d shard files with data in %s",
+            found_valid_files,
             data_dir,
         )
         return True

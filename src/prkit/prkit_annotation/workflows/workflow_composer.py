@@ -414,7 +414,8 @@ class WorkflowComposer:
             total_problems = len(dataset)
 
             # Create progress bar for problem processing
-            if TQDM_AVAILABLE and self.show_progress:
+            using_progress_bar = TQDM_AVAILABLE and self.show_progress
+            if using_progress_bar:
                 problem_pbar = tqdm(
                     dataset,
                     total=total_problems,
@@ -462,7 +463,7 @@ class WorkflowComposer:
                     )
 
             # Close progress bar
-            if TQDM_AVAILABLE:
+            if using_progress_bar:
                 problem_pbar.close()
 
             # Update modules executed count

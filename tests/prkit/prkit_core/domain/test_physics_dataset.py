@@ -3,11 +3,13 @@ Tests for PhysicalDataset model.
 """
 
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
 from prkit.prkit_core.domain import AnswerCategory, PhysicsDomain
 from prkit.prkit_core.domain import Answer, PhysicalDataset, PhysicsProblem
+from prkit.prkit_core.domain import physics_dataset as physics_dataset_module
 
 
 class TestPhysicalDataset:
@@ -158,3 +160,38 @@ class TestPhysicalDataset:
         dataset = PhysicalDataset(problems=sample_problems_list)
         assert "PhysicalDataset" in repr(dataset)
         assert "5" in str(dataset)
+
+    def test_dataset_duplicate_and_missing_problem_ids_are_indexed(self):
+        problems = [
+            PhysicsProblem(problem_id="dup", question="Q1"),
+            PhysicsProblem(problem_id="dup", question="Q2"),
+            PhysicsProblem(problem_id="", question="Q3"),
+        ]
+
+        with patch.object(
+            physics_dataset_module.PRKitLogger.get_logger(__name__),
+            "warning",
+        ) as _:
+            dataset = PhysicalDataset(problems=problems, info={"name": "demo"})
+
+        assert dataset.get_all_ids() == ["dup", "problem_2"]
+        assert dataset.get_by_id("dup").question == "Q1"
+
+    def test_dataset_additional_branches(self, sample_problems_list):
+        dataset = PhysicalDataset(problems=sample_problems_list)
+
+        assert len(dataset.select([-1, 100])) == 0
+        assert len(dataset.take(0)) == 0
+        assert len(dataset.tail(0)) == 0
+        assert len(dataset.sample(0)) == 0
+        assert dataset.split == "test"
+
+    def test_dataset_filter_by_domains_with_strings_invalid_types_and_empty_stats(
+        self, sample_problems_list
+    ):
+        dataset = PhysicalDataset(problems=sample_problems_list)
+        filtered = dataset.filter_by_domains(
+            ["Classical Mechanics", "unknown-domain", 123]
+        )
+        assert len(filtered) >= 1
+        assert PhysicalDataset([]).get_statistics() == {"total_problems": 0}
