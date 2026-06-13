@@ -8,25 +8,33 @@ all PRKit (physical-reasoning-toolkit) packages.
 """
 
 import ast
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from ..logging_config import PRKitLogger
-from .answer import Answer
+from .answer import Answer, AnswerValue
 from .answer_category import AnswerCategory
 from .physics_domain import PhysicsDomain
 
 # Get logger for this module
 logger = PRKitLogger.get_logger(__name__)
 
-# Try to import PIL/Pillow for image loading
-try:
-    from PIL import Image
+if TYPE_CHECKING:
+    from PIL.Image import Image as PILImage
 
+# Try to import PIL/Pillow for image loading
+PILImageModule: Any | None
+Image: Any | None
+try:
+    from PIL import Image as _PILImageModule
+
+    PILImageModule = _PILImageModule
+    Image = _PILImageModule
     PIL_AVAILABLE = True
 except ImportError:
     PIL_AVAILABLE = False
+    PILImageModule = None
     Image = None
 
 
@@ -41,9 +49,7 @@ class PhysicsProblem:
     solution: str | None = None
     domain: str | PhysicsDomain | None = None
     language: str = "en"
-    image_path: list[str] | None = (
-        None  # absolute paths to associated image files (for visual problems)
-    )
+    image_path: list[str] = field(default_factory=list)
 
     # Problem type and configuration
     problem_type: str | None = None  # "MC" for multiple choice, "OE" for open-ended
@@ -53,9 +59,9 @@ class PhysicsProblem:
     correct_option: int | None = None
 
     # Additional fields for dataset compatibility
-    additional_fields: dict[str, Any] | None = None
+    additional_fields: dict[str, Any] = field(default_factory=dict)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate problem after initialization."""
         # Validate problem type
         if self.problem_type and self.problem_type not in ["MC", "OE", "MultipleMC"]:
@@ -71,7 +77,7 @@ class PhysicsProblem:
 
         # Normalize image_path to a list of absolute path strings (always a list, never None)
         if self.image_path is not None:
-            normalized_paths = []
+            normalized_paths: list[Any] = []
 
             if isinstance(self.image_path, str):
                 # Try to parse as string representation of list (e.g., "['path1', 'path2']")
@@ -119,6 +125,9 @@ class PhysicsProblem:
             # Ensure it's always a list, never None
             self.image_path = []
 
+        if self.additional_fields is None:
+            self.additional_fields = {}
+
     # ============================================================================
     # Core PhysicsProblem Methods
     # ============================================================================
@@ -141,7 +150,7 @@ class PhysicsProblem:
         """Check if this is an open-ended problem."""
         return self.problem_type == "OE"
 
-    def load_images(self) -> list["Image.Image"]:
+    def load_images(self) -> list["PILImage"]:
         """
         Load images associated with this problem.
 
@@ -157,7 +166,7 @@ class PhysicsProblem:
             >>> if images:
             ...     print(f"Loaded {len(images)} images")
         """
-        if not PIL_AVAILABLE:
+        if not PIL_AVAILABLE or Image is None:
             raise ImportError(
                 "PIL/Pillow is required to load images. "
                 "Install it with: pip install Pillow"
@@ -167,7 +176,7 @@ class PhysicsProblem:
         if not self.image_path:
             return []
 
-        loaded_images = []
+        loaded_images: list[PILImage] = []
         for img_path in self.image_path:
             path_obj = Path(img_path)
 
@@ -176,7 +185,7 @@ class PhysicsProblem:
                 continue
 
             try:
-                image = Image.open(path_obj)
+                image: PILImage = Image.open(path_obj)
                 # Convert to RGB if necessary (handles RGBA, P, etc.)
                 if image.mode not in ("RGB", "L"):
                     image = image.convert("RGB")
@@ -199,7 +208,7 @@ class PhysicsProblem:
             return getattr(self, key)
 
         # Check additional fields
-        if self.additional_fields and key in self.additional_fields:
+        if key in self.additional_fields:
             return self.additional_fields[key]
 
         raise KeyError(f"Field '{key}' not found in PhysicsProblem")
@@ -212,15 +221,13 @@ class PhysicsProblem:
             return
 
         # Store in additional fields
-        if self.additional_fields is None:
-            self.additional_fields = {}
         self.additional_fields[key] = value
 
     def __contains__(self, key: str) -> bool:
         """Check if a field exists in the problem."""
-        return hasattr(self, key) or (
-            self.additional_fields and key in self.additional_fields
-        )
+        if hasattr(self, key):
+            return True
+        return key in self.additional_fields
 
     def keys(self) -> list[str]:
         """Get all available field names."""
@@ -251,7 +258,7 @@ class PhysicsProblem:
         """Get all field values."""
         return [self[key] for key in self.keys()]
 
-    def items(self) -> list[tuple]:
+    def items(self) -> list[tuple[str, Any]]:
         """Get all field name-value pairs."""
         return [(key, self[key]) for key in self.keys()]
 
@@ -273,10 +280,10 @@ class PhysicsProblem:
     def to_dict(self) -> dict[str, Any]:
         """Convert problem to dictionary for serialization."""
         # Safely handle answer field
-        if hasattr(self.answer, "to_dict"):
+        if self.answer is not None:
             answer_dict = self.answer.to_dict()
         else:
-            answer_dict = self.answer
+            answer_dict = None
 
         result = {
             "question": self.question,
@@ -320,14 +327,18 @@ class PhysicsProblem:
             "answer_category",
         ]
 
-        core_data = {}
-        custom_data = {}
+        core_data: dict[str, Any] = {}
+        custom_data: dict[str, Any] = {}
 
         for key, value in data.items():
             if key in core_fields:
                 if key == "answer" and isinstance(value, dict):
                     # Convert answer dictionary to Answer object
-                    answer_value = value.get("value")
+                    raw_answer_value = value.get("value", "")
+                    if isinstance(raw_answer_value, (int, float, str)):
+                        answer_value: AnswerValue = raw_answer_value
+                    else:
+                        answer_value = str(raw_answer_value)
                     answer_category_str = value.get("answer_category")
                     answer_unit = value.get("unit")
                     answer_metadata = value.get("metadata", {})
@@ -365,8 +376,6 @@ class PhysicsProblem:
 
         # Add custom fields
         if custom_data:
-            if problem.additional_fields is None:
-                problem.additional_fields = {}
             problem.additional_fields.update(custom_data)
 
         return problem

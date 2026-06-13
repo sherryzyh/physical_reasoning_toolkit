@@ -7,6 +7,7 @@ import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
+from typing import Any
 
 from sympy import (
     Abs,
@@ -819,7 +820,7 @@ def parse_symbolic_expression(
     text: str,
     *,
     alias_map: Mapping[str, str] | None = None,
-):
+) -> Any | None:
     """Parse algebraic text into a SymPy expression after light canonicalization."""
 
     candidate = preprocess_symbolic_text(text, alias_map=alias_map)
@@ -860,7 +861,7 @@ def parse_scalar_symbolic_expression(
     text: str,
     *,
     alias_map: Mapping[str, str] | None = None,
-):
+) -> Any | None:
     """Parse one scalar symbolic expression and reject tuple/set-like parses."""
 
     expression = parse_symbolic_expression(text, alias_map=alias_map)
@@ -956,9 +957,9 @@ def parse_relation_clauses(
 
     relation_object = _try_parse_relation_object(candidate)
     if relation_object is not None:
-        clauses = _clauses_from_relation_object(relation_object)
-        if clauses:
-            return clauses
+        relation_clauses = _clauses_from_relation_object(relation_object)
+        if relation_clauses:
+            return relation_clauses
 
     clauses: list[RelationClause] = []
     for segment in _split_top_level_conjunctions(candidate):
@@ -1867,7 +1868,7 @@ def _normalize_superscripts(text: str) -> str:
     return _SUPERSCRIPT_PLAIN_RE.sub(r"^(\g<exp>)", normalized)
 
 
-def _try_parse_relation_object(text: str):
+def _try_parse_relation_object(text: str) -> Any | None:
     """Parse canonical relation constructor text such as ``Eq(...)`` or ``And(...)``."""
 
     if not text.startswith(("Eq(", "Le(", "Lt(", "Ge(", "Gt(", "And(")):
@@ -1875,7 +1876,7 @@ def _try_parse_relation_object(text: str):
     return parse_symbolic_expression(text)
 
 
-def _clauses_from_relation_object(obj) -> tuple[RelationClause, ...]:
+def _clauses_from_relation_object(obj: Any) -> tuple[RelationClause, ...]:
     """Flatten SymPy relation objects into canonical binary relation clauses."""
 
     if isinstance(obj, And):
@@ -2052,7 +2053,7 @@ def _relation_clause_equivalent(
     left_rhs = parse_symbolic_expression(left.rhs_text, alias_map=alias_map)
     right_lhs = parse_symbolic_expression(right.lhs_text, alias_map=alias_map)
     right_rhs = parse_symbolic_expression(right.rhs_text, alias_map=alias_map)
-    if None in {left_lhs, left_rhs, right_lhs, right_rhs}:
+    if left_lhs is None or left_rhs is None or right_lhs is None or right_rhs is None:
         return False
     if not all(
         _is_scalar_symbolic_object(expr)
@@ -2075,7 +2076,9 @@ def _relation_clause_equivalent(
     return ratio < 0 and left.operator == _RELATION_REVERSED.get(right.operator)
 
 
-def _proportional_ratio(left_expr, right_expr, tolerance: float) -> float | None:
+def _proportional_ratio(
+    left_expr: Any, right_expr: Any, tolerance: float
+) -> float | None:
     """Return the scalar relating two residual expressions when one exists."""
 
     same = simplify(left_expr - right_expr)
@@ -2134,13 +2137,13 @@ def _looks_like_relation_constraint_segment(text: str) -> bool:
     return parsed is not None and any(clause.operator != "=" for clause in parsed)
 
 
-def _is_scalar_symbolic_object(value) -> bool:
+def _is_scalar_symbolic_object(value: Any) -> bool:
     """Return whether ``value`` is one scalar SymPy expression-like object."""
 
     return isinstance(value, Basic) and not isinstance(value, Relational)
 
 
-def _parse_unit_expression(text: str):
+def _parse_unit_expression(text: str) -> Any | None:
     """Parse a canonicalized unit expression into a simplified SymPy quantity."""
 
     if not text:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Callable, Mapping
 
 from ..schema import (
     AnswerComparison,
@@ -60,14 +61,14 @@ def compare_different_object_kinds(
     kinds = {pred.object_kind, ref.object_kind}
     numeric_mode = _cross_kind_numeric_mode(pred.object_kind, ref.object_kind)
     if numeric_mode is not None:
-        numeric = compare_numeric_like_answers(
+        numeric_comparison = compare_numeric_like_answers(
             pred,
             ref,
             context=context,
             comparison_mode=numeric_mode,
         )
-        if numeric is not None:
-            return numeric
+        if numeric_comparison is not None:
+            return numeric_comparison
 
     if kinds == {AnswerObjectKind.RELATION, AnswerObjectKind.QUALITATIVE_LABEL}:
         relation = pred if pred.object_kind == AnswerObjectKind.RELATION else ref
@@ -173,9 +174,9 @@ def compare_different_object_kinds(
         qualitative = (
             pred if pred.object_kind == AnswerObjectKind.QUALITATIVE_LABEL else ref
         )
-        numeric = ref if qualitative is pred else pred
+        numeric_answer = ref if qualitative is pred else pred
         if _qualitative_is_no_change(qualitative) and _numeric_answer_is_zero(
-            numeric,
+            numeric_answer,
             context=context,
         ):
             return AnswerComparison(True, "qualitative_zero")
@@ -319,6 +320,7 @@ def _relation_to_expression_candidates(
     candidates: list[PhysicsAnswerSemantics] = []
     seen_candidates: set[tuple[str, str | None]] = set()
     for source_text in symbolic_coercion_sources(answer):
+        extractors: tuple[Callable[..., str | None], ...]
         if prediction_rhs_only:
             extractors = (_prediction_relation_rhs_expression_text,)
         elif allow_prediction_rhs:
@@ -328,8 +330,9 @@ def _relation_to_expression_candidates(
             )
         else:
             extractors = (_relation_to_expression_text_candidate,)
-        for extractor in extractors:
-            expression_text = extractor(
+        for extractor_index in range(len(extractors)):
+            extractor: Callable[..., str | None] = extractors[extractor_index]
+            expression_text: str | None = extractor(
                 source_text,
                 target_variable=context.target_variable,
                 alias_map=alias_map,
@@ -354,7 +357,7 @@ def _relation_to_expression_text_candidate(
     source_text: str,
     *,
     target_variable: str | None,
-    alias_map,
+    alias_map: Mapping[str, str] | None,
 ) -> str | None:
     """Extract the solved equality side from one relation surface."""
 
@@ -369,7 +372,7 @@ def _prediction_relation_rhs_expression_text(
     source_text: str,
     *,
     target_variable: str | None,
-    alias_map,
+    alias_map: Mapping[str, str] | None,
 ) -> str | None:
     """Extract the terminal RHS from one equality-like prediction surface."""
 
@@ -385,7 +388,7 @@ def _build_relation_expression_candidate(
     *,
     source_text: str,
     expression_text: str | None,
-    alias_map,
+    alias_map: Mapping[str, str] | None,
 ) -> PhysicsAnswerSemantics | None:
     """Materialize one expression candidate when the extracted surface parses."""
 
@@ -484,7 +487,7 @@ def _expressions_equivalent_cross_kind(
     right: PhysicsAnswerSemantics,
     *,
     tolerance: float,
-    alias_map,
+    alias_map: Mapping[str, str] | None,
 ) -> bool:
     """Test symbolic equivalence across answers already coerced to expressions."""
 

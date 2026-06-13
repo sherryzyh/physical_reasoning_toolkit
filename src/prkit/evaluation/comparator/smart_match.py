@@ -11,12 +11,16 @@ If none resolves the pair, this comparator returns ``False`` / score ``0.0``.
 """
 
 import re
+from typing import Any
 
 from prkit.core import PRKitLogger
 from prkit.core.domain.answer import Answer
 from prkit.core.domain.answer_category import AnswerCategory
 from prkit.evaluation.utils.answer_utils import same_comparison_category
-from prkit.evaluation.utils.category_dispatch import compare_by_category
+from prkit.evaluation.utils.category_dispatch import (
+    SameCategoryCompareFn,
+    compare_by_category,
+)
 from prkit.evaluation.utils.compare_cross_type import (
     compare_text_against_formula_or_equation_gt,
     extract_rhs_and_category,
@@ -73,7 +77,7 @@ class SmartMatchComparator(BaseComparator):
     truth.
     """
 
-    DEFAULT_COMPARATORS = {
+    DEFAULT_COMPARATORS: dict[AnswerCategory, SameCategoryCompareFn] = {
         AnswerCategory.NUMBER: compare_number,
         AnswerCategory.PHYSICAL_QUANTITY: compare_physical_quantity,
         AnswerCategory.FORMULA: compare_formula,
@@ -81,7 +85,7 @@ class SmartMatchComparator(BaseComparator):
         AnswerCategory.OPTION: compare_option,
     }
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize with default category comparators."""
         self._comparators = dict(self.DEFAULT_COMPARATORS)
         self.logger = PRKitLogger.get_logger(__name__)
@@ -376,11 +380,13 @@ class SmartMatchComparator(BaseComparator):
         self,
         answer1: str | Answer,
         answer2: str | Answer,
+        **kwargs: Any,
     ) -> bool:
         """
         True when either same-type comparison, RHS-extracted same-type
         comparison, or cross-type matching resolves to True.
         """
+        _ = kwargs
         outcome = run_smart_pipeline(self, answer1, answer2)
         if outcome == "match":
             return True
@@ -393,7 +399,8 @@ class SmartMatchComparator(BaseComparator):
         self,
         answer1: str | Answer,
         answer2: str | Answer,
+        **kwargs: Any,
     ) -> float:
         """1.0 if :meth:`compare` is True, else 0.0."""
-        is_match = self.compare(answer1, answer2)
+        is_match = self.compare(answer1, answer2, **kwargs)
         return 1.0 if is_match else 0.0

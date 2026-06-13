@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Iterator
 from os import PathLike
 from pathlib import Path
 
@@ -16,7 +17,9 @@ def _anchor_dir(anchor: str | PathLike[str] | Path | None = None) -> Path:
     return target if target.is_dir() else target.parent
 
 
-def _iter_search_dirs(anchor: str | PathLike[str] | Path | None = None):
+def _iter_search_dirs(
+    anchor: str | PathLike[str] | Path | None = None,
+) -> Iterator[Path]:
     start = _anchor_dir(anchor)
     yield start
     yield from start.parents
@@ -108,7 +111,6 @@ def find_repo_root(
     if repo_name == "uncertainty_quantification_physical_reasoning":
         return find_uq_root(anchor)
     raise ValueError(f"Unsupported repo name: {repo_name}")
-    return None
 
 
 def find_uq_root(anchor: str | PathLike[str] | Path | None = None) -> Path | None:

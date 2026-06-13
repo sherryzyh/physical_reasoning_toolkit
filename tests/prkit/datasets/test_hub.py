@@ -684,6 +684,52 @@ class TestDatasetHub:
             if "test_downloader" in DatasetHub._downloaders:
                 del DatasetHub._downloaders["test_downloader"]
 
+    def test_download_uses_registered_downloader(self, tmp_path):
+        """Test downloading through the public DatasetHub API."""
+
+        from prkit.datasets.downloaders.base_downloader import BaseDownloader
+
+        class MockDownloader(BaseDownloader):
+            @property
+            def dataset_name(self):
+                return "hub_download"
+
+            @property
+            def download_info(self):
+                return {"variants": ["full"], "splits": ["test"]}
+
+            def _do_download(self, download_dir, **kwargs):
+                download_dir.mkdir(parents=True, exist_ok=True)
+                (download_dir / "marker.txt").write_text(
+                    f"{kwargs['variant']}:{kwargs['split']}", encoding="utf-8"
+                )
+                return download_dir
+
+            def verify(self, data_dir):
+                return True
+
+        DatasetHub.register_downloader("hub_download", MockDownloader)
+
+        try:
+            result = DatasetHub.download(
+                "hub_download",
+                data_dir=tmp_path,
+                variant="full",
+                split="test",
+                force=True,
+            )
+
+            assert result == tmp_path
+            assert (tmp_path / "marker.txt").read_text(encoding="utf-8") == "full:test"
+        finally:
+            if "hub_download" in DatasetHub._downloaders:
+                del DatasetHub._downloaders["hub_download"]
+
+    def test_download_unknown_downloader_raises_value_error(self):
+        """Test downloading an unknown dataset fails clearly."""
+        with pytest.raises(ValueError, match="No downloader available"):
+            DatasetHub.download("nonexistent_downloader_xyz")
+
     def test_get_downloader_nonexistent(self):
         """Test getting a nonexistent downloader returns None."""
         downloader = DatasetHub._get_downloader("nonexistent_downloader_xyz")

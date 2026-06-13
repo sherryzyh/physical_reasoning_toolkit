@@ -9,6 +9,7 @@ Prerequisites:
 - The model must be pulled first: `ollama pull qwen3-vl`
 """
 
+import logging
 import os
 from typing import Any
 
@@ -62,7 +63,12 @@ class OllamaModel(BaseModelClient):
         except Exception:
             return False
 
-    def __init__(self, model: str, logger=None, base_url: str | None = None):
+    def __init__(
+        self,
+        model: str,
+        logger: logging.Logger | None = None,
+        base_url: str | None = None,
+    ) -> None:
         """
         Initialize Ollama model client.
 
@@ -85,7 +91,7 @@ class OllamaModel(BaseModelClient):
         # Check if Ollama is running during initialization
         self._check_ollama_running()
 
-    def _check_ollama_running(self):
+    def _check_ollama_running(self) -> None:
         """
         Check if Ollama service is running and accessible.
 
@@ -117,7 +123,7 @@ class OllamaModel(BaseModelClient):
         self,
         user_prompt: str,
         image_paths: list[str] | None = None,
-        response_format: dict | type | None = None,
+        response_format: dict[str, Any] | type | None = None,
         max_output_tokens: int = 65535,
         *args: Any,
         **kwargs: Any,
@@ -145,12 +151,12 @@ class OllamaModel(BaseModelClient):
             ConnectionError: If Ollama service becomes unreachable during inference
             ValueError: If the model is not found (not pulled in Ollama)
         """
-        message = {
+        message: dict[str, Any] = {
             "role": "user",
             "content": user_prompt,
         }
 
-        request_format = None
+        request_format: str | dict[str, Any] | None = None
         if response_format is not None:
             if (
                 isinstance(response_format, dict)
@@ -164,7 +170,7 @@ class OllamaModel(BaseModelClient):
         if image_paths:
             # Ollama's python SDK can handle paths, but for consistency with your
             # OpenAI implementation, we will ensure they exist.
-            valid_images = []
+            valid_images: list[str] = []
             for path in image_paths:
                 if not os.path.exists(path):
                     self.logger.error(f"Image not found: {path}")
@@ -172,7 +178,7 @@ class OllamaModel(BaseModelClient):
                 valid_images.append(path)
 
             message["images"] = valid_images
-        options = {
+        options: dict[str, Any] = {
             "temperature": 0,
             "num_predict": max_output_tokens,
             **kwargs,
@@ -181,7 +187,7 @@ class OllamaModel(BaseModelClient):
         # errors. Let Ollama auto-determine GPU layer allocation based on VRAM.
 
         try:
-            request_kwargs = {
+            request_kwargs: dict[str, Any] = {
                 "model": self.model,
                 "messages": [message],
                 "options": options,
@@ -198,9 +204,10 @@ class OllamaModel(BaseModelClient):
 
             # Handle both dict-like and object-like response access
             if hasattr(response, "message"):
-                return response.message.content
+                content = response.message.content
             else:
-                return response["message"]["content"]
+                content = response["message"]["content"]
+            return content if isinstance(content, str) else str(content)
 
         except Exception as e:
             # Check if it's a model not found error (ResponseError with 404 or model not found message)

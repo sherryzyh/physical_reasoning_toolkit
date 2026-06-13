@@ -67,7 +67,7 @@ class DatasetHub:
     _logger = PRKitLogger.get_logger(__name__)
 
     @classmethod
-    def _register_default_loaders(cls):
+    def _register_default_loaders(cls) -> None:
         """Register the default dataset loaders."""
         cls.register("physbench", PhysBenchLoader)
         cls.register("phybench", PHYBenchLoader)
@@ -80,7 +80,7 @@ class DatasetHub:
         cls.register("physreason", PhysReasonLoader)
 
     @classmethod
-    def _register_default_downloaders(cls):
+    def _register_default_downloaders(cls) -> None:
         """Register the default dataset downloaders."""
         cls.register_downloader("physbench", PhysBenchDownloader)
         cls.register_downloader("phybench", PHYBenchDownloader)
@@ -92,12 +92,14 @@ class DatasetHub:
         # Add more downloaders as they are implemented
 
     @classmethod
-    def register(cls, name: str, loader_class: type[BaseDatasetLoader]):
+    def register(cls, name: str, loader_class: type[BaseDatasetLoader]) -> None:
         """Register a new dataset loader."""
         cls._loaders[name] = loader_class
 
     @classmethod
-    def register_downloader(cls, name: str, downloader_class: type[BaseDownloader]):
+    def register_downloader(
+        cls, name: str, downloader_class: type[BaseDownloader]
+    ) -> None:
         """Register a new dataset downloader."""
         cls._downloaders[name] = downloader_class
 
@@ -111,6 +113,43 @@ class DatasetHub:
             return None
 
         return cls._downloaders[name]()
+
+    @classmethod
+    def download(
+        cls,
+        dataset_name: str,
+        data_dir: str | Path | None = None,
+        variant: str | None = None,
+        split: str | None = None,
+        force: bool = False,
+    ) -> Path:
+        """Download a dataset through its registered downloader.
+
+        Args:
+            dataset_name: Name of the dataset to download.
+            data_dir: Optional target directory. If omitted, the downloader's
+                default cache location is used.
+            variant: Optional dataset variant.
+            split: Optional dataset split.
+            force: If ``True``, re-download even when data already exists.
+
+        Returns:
+            Path to the downloaded dataset directory.
+
+        Raises:
+            ValueError: If no downloader is registered for the dataset.
+        """
+        downloader = cls._get_downloader(dataset_name)
+        if downloader is None:
+            raise ValueError(f"No downloader available for {dataset_name}")
+
+        download_kwargs: dict[str, Any] = {"data_dir": data_dir, "force": force}
+        if variant is not None:
+            download_kwargs["variant"] = variant
+        if split is not None:
+            download_kwargs["split"] = split
+
+        return downloader.download(**download_kwargs)
 
     @classmethod
     def _get_loader(cls, name: str) -> BaseDatasetLoader:
@@ -133,7 +172,7 @@ class DatasetHub:
         data_dir: str | Path | None = None,
         sample_size: int | None = None,
         auto_download: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> PhysicalDataset:
         """
         Load a physical reasoning dataset.
@@ -225,7 +264,7 @@ class DatasetHub:
         if data_dir is None:
             downloader = cls._get_downloader(dataset_name)
             if downloader is not None:
-                actual_data_dir = downloader.resolve_download_dir(None)
+                actual_data_dir: Path | str = downloader.resolve_download_dir(None)
             else:
                 actual_data_dir = "(loader default)"
         else:
@@ -242,7 +281,7 @@ class DatasetHub:
             actual_split = split
 
         if sample_size is None:
-            actual_sample_size = "full"
+            actual_sample_size: int | str = "full"
         else:
             actual_sample_size = sample_size
 
@@ -259,7 +298,7 @@ class DatasetHub:
         if kwargs:
             cls._logger.info(f"  - additional kwargs: {kwargs}")
 
-        load_kwargs = {
+        load_kwargs: dict[str, Any] = {
             "data_dir": data_dir,
             "variant": actual_variant,
             "split": actual_split,
@@ -305,7 +344,10 @@ class DatasetHub:
 
                 try:
                     # Download the dataset
-                    download_kwargs = {"data_dir": data_dir, "force": False}
+                    download_kwargs: dict[str, Any] = {
+                        "data_dir": data_dir,
+                        "force": False,
+                    }
                     if variant is not None:
                         download_kwargs["variant"] = variant
                     if split is not None:

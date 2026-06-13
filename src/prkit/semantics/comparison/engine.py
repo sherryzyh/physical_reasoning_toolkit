@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from typing import Any
 
 from ..part_labels import infer_multi_part_part_labels
 from ..schema import (
@@ -812,7 +813,7 @@ def _repair_atomic_answer(
             AnswerObjectKind.RELATION,
         }:
             continue
-        update = {
+        update: dict[str, Any] = {
             "canonical_text": (
                 reparsed.canonical_text
                 if reparsed.subject_to and not answer.subject_to
@@ -876,7 +877,7 @@ def _backfill_subject_to(
         if reparsed.structure != answer.structure or not reparsed.subject_to:
             continue
 
-        update = {
+        update: dict[str, Any] = {
             "canonical_text": reparsed.canonical_text,
             "raw_text": answer.raw_text or reparsed.raw_text,
             "canonical_latex": reparsed.canonical_latex,

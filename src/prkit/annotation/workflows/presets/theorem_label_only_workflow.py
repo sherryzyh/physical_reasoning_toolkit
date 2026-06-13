@@ -20,8 +20,8 @@ class TheoremLabelOnlyWorkflow:
         self,
         output_dir: str = "theorem_label_only_output",
         model: str = "gpt-5-mini",
-        config: dict[str, Any] = None,
-    ):
+        config: dict[str, Any] | None = None,
+    ) -> None:
         self.output_dir = Path(output_dir)
         self.model = model
         self.config = config or {}
@@ -41,7 +41,7 @@ class TheoremLabelOnlyWorkflow:
             )
         )
 
-    def run(self, dataset: PhysicalDataset, **kwargs) -> dict[str, Any]:
+    def run(self, dataset: PhysicalDataset, **kwargs: Any) -> dict[str, Any]:
         """
         Run the theorem-only annotation workflow.
 

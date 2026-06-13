@@ -6,12 +6,13 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 from prkit.core.model_clients import create_model_client
+from prkit.core.model_clients.base import BaseModelClient
 
 
 class BaseAnnotator(ABC):
     """Base class for all annotators."""
 
-    def __init__(self, model: str = "gpt-5-mini"):
+    def __init__(self, model: str = "gpt-5-mini") -> None:
         """
         Initialize base annotator.
 
@@ -22,7 +23,7 @@ class BaseAnnotator(ABC):
         self.llm_client = create_model_client(model)
 
     @abstractmethod
-    def work(self, question: str, **kwargs) -> Any:
+    def work(self, question: str, **kwargs: Any) -> Any:
         """
         Perform annotation for this step.
 
@@ -57,7 +58,10 @@ class BaseAnnotator(ABC):
                 "Always respond with valid JSON in the exact format requested.\n\n"
                 f"{prompt}"
             )
-            if hasattr(response_format, "model_validate"):
+            if hasattr(response_format, "model_validate") and (
+                "chat_structured" in type(self.llm_client).__dict__
+                or isinstance(self.llm_client, BaseModelClient)
+            ):
                 result = self.llm_client.chat_structured(
                     full_prompt,
                     response_model=response_format,
@@ -72,13 +76,13 @@ class BaseAnnotator(ABC):
                     return response_format(**response_dict)
                 return None
 
-            response_text = self.llm_client.chat(
-                full_prompt, response_format=response_format
-            )
+            response_text = self.llm_client.chat(full_prompt)
             if response_text:
                 import json
 
                 response_dict = json.loads(response_text.strip())
+                if hasattr(response_format, "model_validate"):
+                    return response_format(**response_dict)
                 return response_dict
             return None
         except Exception as e:

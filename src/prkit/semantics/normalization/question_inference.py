@@ -336,10 +336,10 @@ def _prediction_question_problem_view(problem: PhysicsProblem) -> PhysicsProblem
     redacted = problem.copy()
     redacted.answer = None
 
-    additional_fields = dict(redacted.additional_fields or {})
+    additional_fields = dict(redacted.additional_fields)
     for key in _PREDICTION_REDACTED_ADDITIONAL_FIELDS:
         additional_fields.pop(key, None)
-    redacted.additional_fields = additional_fields or None
+    redacted.additional_fields = additional_fields
     return redacted
 
 
@@ -400,7 +400,7 @@ def _infer_choice_space(problem: PhysicsProblem) -> tuple[str, ...]:
     """Infer acceptable choice labels from the problem's options."""
 
     options = problem.options or []
-    labels = []
+    labels: list[str] = []
     if options:
         labels.extend(chr(ord("A") + index) for index in range(len(options)))
         labels.extend(str(index + 1) for index in range(len(options)))

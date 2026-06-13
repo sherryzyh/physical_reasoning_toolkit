@@ -6,15 +6,19 @@ Provider modules are loaded lazily (see ``__getattr__``) so importing
 Gemini, Ollama, etc.) to be installed.
 """
 
+from typing import Any
+
 from .base import BaseModelClient
-from .factory import create_model_client
+from .factory import ProviderRule, create_model_client, register_model_client
 
 create_llm_client = create_model_client
 
 __all__ = [
     "BaseModelClient",
+    "ProviderRule",
     "create_model_client",
     "create_llm_client",
+    "register_model_client",
     "AnthropicModel",
     "DashscopeModel",
     "DeepseekModel",
@@ -25,7 +29,7 @@ __all__ = [
 ]
 
 
-def __getattr__(name: str):
+def __getattr__(name: str) -> Any:
     if name == "AnthropicModel":
         from .anthropic import AnthropicModel
 

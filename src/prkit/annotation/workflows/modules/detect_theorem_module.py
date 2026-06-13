@@ -8,8 +8,9 @@ into larger annotation workflows.
 from typing import Any
 
 from prkit.annotation.workers import TheoremDetector
+from prkit.core.domain.physics_problem import PhysicsProblem
 
-from .base_module import BaseWorkflowModule
+from .base_module import BaseWorkflowModule, WorkflowProblemInput
 
 
 class DetectTheoremModule(BaseWorkflowModule):
@@ -25,7 +26,7 @@ class DetectTheoremModule(BaseWorkflowModule):
         name: str = "theorem_detector",
         model: str = "o3-mini",
         config: dict[str, Any] | None = None,
-    ):
+    ) -> None:
         super().__init__(name, model, config)
 
         # Initialize the theorem detector
@@ -46,7 +47,9 @@ class DetectTheoremModule(BaseWorkflowModule):
             }
         )
 
-    def process(self, data: Any, **kwargs) -> Any:
+    def process(
+        self, problem: WorkflowProblemInput, **kwargs: Any
+    ) -> dict[str, Any] | None:
         """
         Process input data and return theorem detection results.
 
@@ -57,16 +60,10 @@ class DetectTheoremModule(BaseWorkflowModule):
         Returns:
             Theorem detection result
         """
-        # Extract question text from various input formats
-        if isinstance(data, dict):
-            question = data.get("question", data.get("content", ""))
-            problem_id = data.get("problem_id", "unknown")
-        elif hasattr(data, "question"):
-            question = data.question
-            problem_id = getattr(data, "problem_id", "unknown")
-        else:
-            question = str(data)
-            problem_id = "unknown"
+        del kwargs
+        problem = self._coerce_problem_input(problem)
+        question = problem.question
+        problem_id = problem.problem_id
 
         try:
             # Increment total problems counter
@@ -105,13 +102,13 @@ class DetectTheoremModule(BaseWorkflowModule):
 
             # Create result that preserves input data and adds theorem detection
             # Convert theorem_result to dictionary format for JSON serialization
-            theorem_detection_dict = None
+            theorem_detection_dict: dict[str, Any] | str
             if hasattr(theorem_result, "to_dict"):
                 theorem_detection_dict = theorem_result.to_dict()
             else:
                 theorem_detection_dict = str(theorem_result)
 
-            result = {
+            result: dict[str, Any] = {
                 "status": "SUCCESS",
                 "problem_id": problem_id,
                 "question": question,
@@ -133,13 +130,6 @@ class DetectTheoremModule(BaseWorkflowModule):
             # Debug: log what we're returning
             self.logger.info(f"Process method returning result: {result}")
             self.logger.info(f"Theorems in result: {result.get('theorems')}")
-
-            # Preserve any existing data from previous modules if this is chained data
-            if isinstance(data, dict):
-                # Copy over previous annotations and metadata but don't override our new ones
-                for key, value in data.items():
-                    if key not in result:
-                        result[key] = value
 
             return result
 
@@ -183,7 +173,9 @@ class DetectTheoremModule(BaseWorkflowModule):
         self.module_status.setdefault("average_theorems_per_problem", 0.0)
         return super().get_status()
 
-    def _form_output_as_a_problem(self, result: Any, problem: Any) -> Any:
+    def _form_output_as_a_problem(
+        self, result: dict[str, Any], problem: WorkflowProblemInput
+    ) -> PhysicsProblem | dict[str, Any]:
         """
         Form the output as a PhysicsProblem object.
 
@@ -194,39 +186,22 @@ class DetectTheoremModule(BaseWorkflowModule):
         Returns:
             PhysicsProblem object with theorem detection added
         """
-        # Import here to avoid circular imports
-        from prkit.core.domain.physics_problem import PhysicsProblem
-
         # Debug: log what we're receiving
         self.logger.info(
             f"_form_output_as_a_problem called with result type: {type(result)}"
         )
         self.logger.info(f"Result content: {result}")
 
-        if isinstance(problem, PhysicsProblem):
-            # Create a copy of the original problem
-            new_problem = problem.copy()
-
-            # Add theorem detection to additional_fields if available
-            if (
-                hasattr(new_problem, "additional_fields")
-                and new_problem.additional_fields is not None
-            ):
-                new_problem.additional_fields["theorems"] = result.get("theorems")
-                new_problem.additional_fields["theorem_detection_metadata"] = (
-                    result.get("metadata")
-                )
-            else:
-                # Create additional_fields if they don't exist
-                new_problem.additional_fields = {
-                    "theorems": result.get("theorems"),
-                    "theorem_detection_metadata": result.get("metadata"),
-                }
-
-            self.logger.info(f"Added theorems: {result.get('theorems')}")
-            self.logger.info(f"Added metadata: {result.get('metadata')}")
-
-            return new_problem
-        else:
-            # If not a PhysicsProblem, return the result as is
+        if not isinstance(problem, PhysicsProblem):
             return result
+
+        new_problem = problem.copy()
+        new_problem.additional_fields["theorems"] = result.get("theorems")
+        new_problem.additional_fields["theorem_detection_metadata"] = result.get(
+            "metadata"
+        )
+
+        self.logger.info(f"Added theorems: {result.get('theorems')}")
+        self.logger.info(f"Added metadata: {result.get('metadata')}")
+
+        return new_problem

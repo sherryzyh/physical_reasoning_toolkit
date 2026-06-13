@@ -37,7 +37,7 @@ from pathlib import Path
 from typing import Any
 
 from prkit.core import PRKitLogger
-from prkit.core.domain import PhysicalDataset
+from prkit.core.domain import PhysicalDataset, PhysicsProblem
 
 from .base_loader import BaseDatasetLoader
 
@@ -45,7 +45,7 @@ from .base_loader import BaseDatasetLoader
 class JEEBenchLoader(BaseDatasetLoader):
     """Loader for JEEBench dataset with support for multiple subjects and question types."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the JEEBench loader with a logger."""
         super().__init__()
         self.logger = PRKitLogger.get_logger(__name__)
@@ -97,7 +97,7 @@ class JEEBenchLoader(BaseDatasetLoader):
         variant: str | None = None,
         split: str | None = None,
         sample_size: int | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> PhysicalDataset:
         """
         Load the JEEBench dataset.
@@ -152,7 +152,7 @@ class JEEBenchLoader(BaseDatasetLoader):
         filtered_data = self._apply_filters(data, subject="phy")
 
         # Convert to PhysicsProblem instances
-        problems = []
+        problems: list[PhysicsProblem] = []
         for problem_data in filtered_data:
             try:
                 metadata = self.initialize_metadata(problem_data)
@@ -257,7 +257,7 @@ class JEEBenchLoader(BaseDatasetLoader):
         (B) option_text
         etc.
         """
-        options = []
+        options: list[str] = []
 
         # Look for patterns like (A), (B), (C), (D) or (1), (2), (3), (4)
         import re
@@ -291,26 +291,29 @@ class JEEBenchLoader(BaseDatasetLoader):
             # Load the dataset without filters
             dataset = self.load(data_dir=data_dir, split="test")
 
-            stats = {
-                "total_problems": len(dataset),
-                "by_subject": {},
-                "by_subject_and_type": {},
-            }
+            by_subject: dict[str, int] = {}
+            by_subject_and_type: dict[str, int] = {}
 
             for problem in dataset:
-                subject = problem.additional_fields.get("subject", "unknown")
-                qtype = problem.additional_fields.get("type", "unknown")
+                subject = str(problem.additional_fields.get("subject", "unknown"))
+                qtype = str(problem.additional_fields.get("type", "unknown"))
 
                 # Count by subject
-                if subject not in stats["by_subject"]:
-                    stats["by_subject"][subject] = 0
-                stats["by_subject"][subject] += 1
+                if subject not in by_subject:
+                    by_subject[subject] = 0
+                by_subject[subject] += 1
 
                 # Count by subject and type combination
                 key = f"{subject}_{qtype}"
-                if key not in stats["by_subject_and_type"]:
-                    stats["by_subject_and_type"][key] = 0
-                stats["by_subject_and_type"][key] += 1
+                if key not in by_subject_and_type:
+                    by_subject_and_type[key] = 0
+                by_subject_and_type[key] += 1
+
+            stats: dict[str, Any] = {
+                "total_problems": len(dataset),
+                "by_subject": by_subject,
+                "by_subject_and_type": by_subject_and_type,
+            }
 
             return stats
 
@@ -322,11 +325,11 @@ class JEEBenchLoader(BaseDatasetLoader):
         """List all available subjects in the JEEBench dataset."""
         try:
             dataset = self.load(data_dir=data_dir, split="test")
-            subjects = set()
+            subjects: set[str] = set()
             for problem in dataset:
                 subject = problem.additional_fields.get("subject", "unknown")
                 if subject != "unknown":
-                    subjects.add(subject)
+                    subjects.add(str(subject))
             return sorted(list(subjects))
         except Exception as e:
             self.logger.error(f"Error listing subjects: {e}")

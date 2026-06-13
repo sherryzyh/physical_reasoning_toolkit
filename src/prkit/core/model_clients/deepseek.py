@@ -43,7 +43,7 @@ class DeepseekModel(OpenAICompatibleChatModel):
     def _structured_prompt_for_chat(
         self,
         user_prompt: str,
-        response_format: dict | type | None,
+        response_format: dict[str, Any] | type | None,
     ) -> str:
         if response_format is None:
             return user_prompt
@@ -105,7 +105,7 @@ class DeepseekModel(OpenAICompatibleChatModel):
         self,
         user_prompt: str,
         image_paths: list[str] | None = None,
-        response_format: dict | type | None = None,
+        response_format: dict[str, Any] | type | None = None,
         **kwargs: Any,
     ) -> str:
         return super().chat(

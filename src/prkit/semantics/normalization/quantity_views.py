@@ -345,6 +345,9 @@ def _build_canonical_snapshot(
         if canonical_dimension is None:
             diagnostics.append("quantity_view_dimension_unresolved")
 
+    if target_value is None:
+        target_value = source.numeric_value
+
     numeric_text = _format_canonical_numeric_text(target_value)
     return (
         PhysicalQuantitySnapshot(

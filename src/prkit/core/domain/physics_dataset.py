@@ -1,14 +1,16 @@
 import json
 import random
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Union
+from typing import TYPE_CHECKING, Any, TypeVar, Union, overload
 
 from ..logging_config import PRKitLogger
 from .physics_problem import PhysicsProblem
 
 if TYPE_CHECKING:
     from .physics_domain import PhysicsDomain
+
+_MapResult = TypeVar("_MapResult")
 
 
 class PhysicalDataset:
@@ -24,7 +26,7 @@ class PhysicalDataset:
         problems: list[PhysicsProblem],
         info: dict[str, Any] | None = None,
         split: str = "test",
-    ):
+    ) -> None:
         """
         Initialize dataset with PhysicsProblem objects.
 
@@ -36,11 +38,18 @@ class PhysicalDataset:
         self._problems = problems
         self._info = info or {}
         self._split = split  # "train", "test", "val", or "eval"
+        self._problem_id_index: dict[str, int] = {}
         self._build_problem_id_index()
 
     def __len__(self) -> int:
         """Get the number of problems in the dataset."""
         return len(self._problems)
+
+    @overload
+    def __getitem__(self, idx: int) -> PhysicsProblem: ...
+
+    @overload
+    def __getitem__(self, idx: slice) -> "PhysicalDataset": ...
 
     def __getitem__(self, idx: int | slice) -> Union[PhysicsProblem, "PhysicalDataset"]:
         """Get a problem by index or a slice of dataset."""
@@ -114,7 +123,9 @@ class PhysicalDataset:
         except KeyError:
             return None
 
-    def filter(self, filter_func) -> "PhysicalDataset":
+    def filter(
+        self, filter_func: Callable[[PhysicsProblem], bool]
+    ) -> "PhysicalDataset":
         """
         Filter problems using a filter function.
 
@@ -284,7 +295,7 @@ class PhysicalDataset:
             random.sample(self._problems, n), self._info, self._split
         )
 
-    def map(self, map_func) -> list[Any]:
+    def map(self, map_func: Callable[[PhysicsProblem], _MapResult]) -> list[_MapResult]:
         """
         Apply a function to each problem.
 
@@ -312,7 +323,8 @@ class PhysicalDataset:
     @property
     def name(self) -> str:
         """Get the dataset name."""
-        return self._info.get("name", self.__class__.__name__)
+        name = self._info.get("name", self.__class__.__name__)
+        return name if isinstance(name, str) else self.__class__.__name__
 
     def to_list(self) -> list[dict[str, Any]]:
         """Convert dataset to list of dictionaries."""
@@ -345,9 +357,9 @@ class PhysicalDataset:
             return {"total_problems": 0}
 
         # Domain distribution
-        domain_counts = {}
-        problem_types = {}
-        languages = {}
+        domain_counts: dict[str, int] = {}
+        problem_types: dict[str | None, int] = {}
+        languages: dict[str, int] = {}
 
         for problem in self._problems:
             # Count domains

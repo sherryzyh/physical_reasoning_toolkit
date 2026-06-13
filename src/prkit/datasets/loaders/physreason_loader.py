@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from prkit.core import PRKitLogger
-from prkit.core.domain import PhysicalDataset
+from prkit.core.domain import PhysicalDataset, PhysicsProblem
 from prkit.datasets.loaders.base_loader import BaseDatasetLoader
 
 
@@ -20,7 +20,7 @@ from prkit.datasets.loaders.base_loader import BaseDatasetLoader
 class PhysReasonLoader(BaseDatasetLoader):
     """Loader for PhysReason dataset with support for full and mini variants."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the PhysReason loader with a logger."""
         super().__init__()
         self.logger = PRKitLogger.get_logger(__name__)
@@ -118,7 +118,7 @@ class PhysReasonLoader(BaseDatasetLoader):
         variant: str | None = None,
         sample_size: int | None = None,
         split: str | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> PhysicalDataset:
         """
         Load PhysReason dataset from the specified directory.
@@ -165,7 +165,7 @@ class PhysReasonLoader(BaseDatasetLoader):
         self.logger.debug(f"Loading {variant} variant from: {variant_dir}")
 
         # Load all problems from the variant directory
-        all_problems = []
+        all_problems: list[dict[str, Any]] = []
 
         # Get all problem directories
         problem_dirs = [d for d in variant_dir.iterdir() if d.is_dir()]
@@ -194,7 +194,7 @@ class PhysReasonLoader(BaseDatasetLoader):
             )
 
         # Create PhysicsProblem objects
-        physics_problems = []
+        physics_problems: list[PhysicsProblem] = []
         for problem_data in all_problems:
             try:
                 metadata = self.initialize_metadata(problem_data)
@@ -245,6 +245,8 @@ class PhysReasonLoader(BaseDatasetLoader):
         try:
             with open(problem_file, encoding="utf-8") as f:
                 problem_data = json.load(f)
+            if not isinstance(problem_data, dict):
+                raise ValueError(f"Expected object in {problem_file}")
 
             # Add problem_id from directory name
             problem_data["problem_id"] = problem_dir.name

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from typing import Any
 
 from sympy import Float, Integer, N, Rational, Symbol, pi, simplify
 from sympy.parsing.sympy_parser import (
@@ -540,7 +541,7 @@ def convert_numeric_value(
     return value * factor
 
 
-def _parse_unit_expression(text: str):
+def _parse_unit_expression(text: str) -> Any | None:
     """Parse a canonicalized unit expression into a simplified SymPy quantity."""
 
     if not text:

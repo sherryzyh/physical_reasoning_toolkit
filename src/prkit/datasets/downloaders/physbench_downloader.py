@@ -60,7 +60,7 @@ class PhysBenchDownloader(BaseDownloader):
         download_dir: Path,
         download_media: bool = False,
         extract_media: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> Path:
         del kwargs  # Unused, kept for downloader API compatibility
 
@@ -139,7 +139,7 @@ class PhysBenchDownloader(BaseDownloader):
 
         return True
 
-    def _download_file(self, requests, url: str, destination: Path) -> None:
+    def _download_file(self, requests: Any, url: str, destination: Path) -> None:
         response = requests.get(url, stream=True, timeout=300)
         response.raise_for_status()
 

@@ -1,18 +1,13 @@
 """Anthropic API client implementation."""
 
 import json
+import logging
 import os
 import re
+from collections.abc import Callable
 from typing import Any
 
 from pydantic import BaseModel
-
-try:
-    from anthropic import Anthropic
-    from anthropic import transform_schema as anthropic_transform_schema
-except ImportError:  # pragma: no cover - tested via runtime error path
-    Anthropic = None
-    anthropic_transform_schema = None
 
 from .base import BaseModelClient
 from .structured_output import (
@@ -22,7 +17,21 @@ from .structured_output import (
     build_json_schema_prompt_suffix,
     normalize_response_format,
 )
-from .utils import encode_image_to_base64
+from .utils import detect_image_mime_type, encode_image_to_base64, parse_data_url
+
+Anthropic: Any | None = None
+anthropic_transform_schema: (
+    Callable[[type[BaseModel] | dict[str, Any]], dict[str, Any]] | None
+) = None
+
+try:
+    from anthropic import Anthropic as _AnthropicClient
+    from anthropic import transform_schema as _anthropic_transform_schema
+
+    Anthropic = _AnthropicClient
+    anthropic_transform_schema = _anthropic_transform_schema
+except ImportError:  # pragma: no cover - tested via runtime error path
+    pass
 
 TOOL_NAME = "emit_structured_output"
 _TOOL_NAME_RE = re.compile(r"[^A-Za-z0-9_-]+")
@@ -32,15 +41,7 @@ ANTHROPIC_UNION_PARAMETER_LIMIT = 16
 
 def _detect_image_media_type(image_path: str) -> str:
     """Detect media type for image file path."""
-    ext = os.path.splitext(image_path)[1].lower()
-    mime_types = {
-        ".jpg": "image/jpeg",
-        ".jpeg": "image/jpeg",
-        ".png": "image/png",
-        ".gif": "image/gif",
-        ".webp": "image/webp",
-    }
-    return mime_types.get(ext, "image/jpeg")
+    return detect_image_mime_type(image_path)
 
 
 def _parse_data_url(data_url: str) -> dict[str, str]:
@@ -49,17 +50,11 @@ def _parse_data_url(data_url: str) -> dict[str, str]:
 
     Expects format: data:<media_type>;base64,<payload>
     """
-    if not data_url.startswith("data:"):
-        raise ValueError("Expected data URL to start with 'data:'")
-    if ";base64," not in data_url:
-        raise ValueError("Anthropic image data URL must include ';base64,'")
-
-    header, payload = data_url.split(",", 1)
-    media_type = header[5:].split(";")[0]
-    if not media_type:
-        media_type = "image/jpeg"
-
-    return {"media_type": media_type, "data": payload}
+    try:
+        return parse_data_url(data_url)
+    except ValueError as exc:
+        detail = str(exc).replace("Image data URL", "Anthropic image data URL")
+        raise ValueError(detail) from exc
 
 
 def _tool_name(raw_name: str | None) -> str:
@@ -171,7 +166,7 @@ class AnthropicModel(BaseModelClient):
     # path accepts a JSON Schema input contract that satisfies the same guarantee.
     supports_response_format_json_schema = True
 
-    def __init__(self, model: str, logger=None):
+    def __init__(self, model: str, logger: logging.Logger | None = None) -> None:
         """
         Initialize Anthropic model client.
 
@@ -184,14 +179,14 @@ class AnthropicModel(BaseModelClient):
             raise ImportError(
                 "anthropic package not installed. Install with: pip install anthropic"
             )
-        self.client = Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+        self.client: Any = Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
         self.provider = "anthropic"
 
     def chat(
         self,
         user_prompt: str,
         image_paths: list[str] | None = None,
-        response_format: dict | type | None = None,
+        response_format: dict[str, Any] | type | None = None,
         max_output_tokens: int = 1024,
         *args: Any,
         **kwargs: Any,
@@ -260,7 +255,7 @@ class AnthropicModel(BaseModelClient):
                         }
                     )
 
-        request_params = {
+        request_params: dict[str, Any] = {
             "model": self.model,
             "messages": [{"role": "user", "content": content}],
             "max_tokens": max_output_tokens,
@@ -269,6 +264,7 @@ class AnthropicModel(BaseModelClient):
             request_params["output_config"] = {
                 "format": {
                     "type": "json_schema",
+                    "name": normalized_response_format["name"],
                     "schema": normalized_response_format["schema"],
                 }
             }

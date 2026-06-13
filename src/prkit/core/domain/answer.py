@@ -5,22 +5,24 @@ This module provides a unified Answer class that handles all answer categories
 through composition rather than inheritance.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from .answer_category import AnswerCategory
+
+AnswerValue = int | float | str
 
 
 @dataclass
 class Answer:
     """Unified answer class that handles all answer categories through composition."""
 
-    value: Any  # NUMBER: actual number; PHYSICAL_QUANTITY: numeric part; OPTION: option string; EQUATION/FORMULA/TEXT: plain string
+    value: AnswerValue  # NUMBER: number; PHYSICAL_QUANTITY/OPTION/EQUATION/FORMULA/TEXT: text
     answer_category: AnswerCategory
     unit: str | None = None  # Used only for PHYSICAL_QUANTITY (e.g., "m/s²", "N")
-    metadata: dict[str, Any] = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Initialize metadata if not provided."""
         if self.metadata is None:
             self.metadata = {}
@@ -113,26 +115,35 @@ class Answer:
         """Check if the numerical value is positive."""
         if not self.is_numerical():
             return False
-        return self.value > 0
+        return (
+            isinstance(self.value, (int, float))
+            and not isinstance(self.value, bool)
+            and self.value > 0
+        )
 
     def is_negative(self) -> bool:
         """Check if the numerical value is negative."""
         if not self.is_numerical():
             return False
-        return self.value < 0
+        return (
+            isinstance(self.value, (int, float))
+            and not isinstance(self.value, bool)
+            and self.value < 0
+        )
 
     # Symbolic-specific methods
     def is_latex(self) -> bool:
         """Check if the symbolic answer contains LaTeX formatting."""
         if not self.is_symbolic():
             return False
-        return "$" in self.value or "\\" in self.value
+        value = str(self.value)
+        return "$" in value or "\\" in value
 
     def get_clean_expression(self) -> str:
         """Get the mathematical expression without LaTeX delimiters."""
         if not self.is_symbolic():
             return str(self.value)
-        clean = self.value.strip()
+        clean = str(self.value).strip()
         if clean.startswith("$$") and clean.endswith("$$"):
             clean = clean[2:-2].strip()
         elif clean.startswith("$") and clean.endswith("$"):
@@ -216,14 +227,17 @@ class Answer:
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
-        result = {"value": self.value, "answer_category": self.answer_category.value}
+        result: dict[str, Any] = {
+            "value": self.value,
+            "answer_category": self.answer_category.value,
+        }
         if self.unit:
             result["unit"] = self.unit
         if self.metadata:
             result["metadata"] = self.metadata
         return result
 
-    def get_value(self) -> Any:
+    def get_value(self) -> AnswerValue:
         """Get the answer value."""
         return self.value
 

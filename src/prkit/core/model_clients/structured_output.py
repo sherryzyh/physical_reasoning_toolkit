@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Iterator
 from dataclasses import dataclass
 from typing import Any, Generic, Literal, TypeVar
 
@@ -168,7 +169,10 @@ def normalize_response_format(
 def extract_schema_for_gemini(
     normalized_format: StructuredOutputFormat,
 ) -> dict[str, Any]:
-    return normalized_format["schema"]
+    schema = normalized_format["schema"]
+    if not isinstance(schema, dict):
+        raise ValueError("normalized_format['schema'] must be a dict")
+    return schema
 
 
 def build_json_schema_prompt_suffix(schema: dict[str, Any]) -> str:
@@ -342,7 +346,7 @@ def _try_parse_json_payload(candidate: str) -> dict[str, Any] | list[Any] | None
     return None
 
 
-def _iter_balanced_json_candidates(text: str):
+def _iter_balanced_json_candidates(text: str) -> Iterator[str]:
     for start, start_char in (
         (index, char) for index, char in enumerate(text) if char in "{["
     ):

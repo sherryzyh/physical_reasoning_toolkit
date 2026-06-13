@@ -20,8 +20,8 @@ class DomainOnlyWorkflow:
         self,
         output_dir: str = "domain_only_output",
         model: str = "gpt-5-mini",
-        config: dict[str, Any] = None,
-    ):
+        config: dict[str, Any] | None = None,
+    ) -> None:
         self.output_dir = Path(output_dir)
         self.model = model
         self.config = config or {}
@@ -40,7 +40,7 @@ class DomainOnlyWorkflow:
             )
         )
 
-    def run(self, dataset: PhysicalDataset, **kwargs) -> dict[str, Any]:
+    def run(self, dataset: PhysicalDataset, **kwargs: Any) -> dict[str, Any]:
         """
         Run the domain-only annotation workflow.
 

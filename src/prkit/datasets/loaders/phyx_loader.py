@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from prkit.core import PRKitLogger
-from prkit.core.domain import PhysicalDataset
+from prkit.core.domain import PhysicalDataset, PhysicsProblem
 from prkit.core.domain.physics_domain import PhysicsDomain
 
 from .base_loader import BaseDatasetLoader
@@ -22,7 +22,7 @@ from .base_loader import BaseDatasetLoader
 class PhyXLoader(BaseDatasetLoader):
     """Loader for PhyX dataset."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the PhyX loader with a logger."""
         super().__init__()
         self.logger = PRKitLogger.get_logger(__name__)
@@ -79,7 +79,7 @@ class PhyXLoader(BaseDatasetLoader):
         }
 
     @property
-    def DOMAIN_MAPPING(self) -> dict[str, str]:
+    def DOMAIN_MAPPING(self) -> dict[str, PhysicsDomain]:
         """Mapping of domain names to PhysicsDomain enum values."""
         # Note: Wave/Acoustics maps to OTHER since WAVE_ACOUSTICS is not yet in PhysicsDomain
         # This may need to be updated if WAVE_ACOUSTICS is added to the enum
@@ -156,7 +156,7 @@ class PhyXLoader(BaseDatasetLoader):
         variant: str | None = None,
         sample_size: int | None = None,
         split: str | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> PhysicalDataset:
         """
         Load PhyX dataset.
@@ -207,7 +207,7 @@ class PhyXLoader(BaseDatasetLoader):
             data = json.load(f)
 
         # Convert to unified format
-        problems = []
+        problems: list[PhysicsProblem] = []
         if sample_size:
             data = random.sample(data, min(sample_size, len(data)))
 

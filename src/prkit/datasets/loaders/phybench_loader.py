@@ -12,7 +12,7 @@ import random
 from pathlib import Path
 from typing import Any
 
-from prkit.core.domain import PhysicalDataset
+from prkit.core.domain import PhysicalDataset, PhysicsProblem
 from prkit.core.domain.physics_domain import PhysicsDomain
 
 from .base_loader import BaseDatasetLoader
@@ -65,7 +65,7 @@ class PHYBenchLoader(BaseDatasetLoader):
         }
 
     @property
-    def DOMAIN_MAPPING(self) -> dict[str, str]:
+    def DOMAIN_MAPPING(self) -> dict[str, PhysicsDomain]:
         """Mapping of domain abbreviations to full domain names."""
         return {
             "MECHANICS": PhysicsDomain.MECHANICS,
@@ -93,7 +93,7 @@ class PHYBenchLoader(BaseDatasetLoader):
         variant: str | None = None,
         sample_size: int | None = None,
         split: str | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> PhysicalDataset:
         """
         Load PHYBench dataset.
@@ -144,7 +144,7 @@ class PHYBenchLoader(BaseDatasetLoader):
             data = json.load(f)
 
         # Convert to unified format
-        problems = []
+        problems: list[PhysicsProblem] = []
         if sample_size:
             data = random.sample(data, sample_size)
 

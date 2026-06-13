@@ -15,13 +15,15 @@ from typing import Any
 from .base_downloader import BaseDownloader
 
 # Try to import PIL for image handling
+PILImageModule: Any | None
 try:
-    from PIL import Image
+    from PIL import Image as _PILImageModule
 
+    PILImageModule = _PILImageModule
     PIL_AVAILABLE = True
 except ImportError:
     PIL_AVAILABLE = False
-    Image = None
+    PILImageModule = None
 
 
 class PhyXDownloader(BaseDownloader):
@@ -60,7 +62,7 @@ class PhyXDownloader(BaseDownloader):
         data_dir: str | Path | None = None,
         force: bool = False,
         split: str | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> Path:
         """
         Download the PhyX dataset from HuggingFace.
@@ -94,7 +96,7 @@ class PhyXDownloader(BaseDownloader):
         self,
         download_dir: Path,
         split: str = "test_mini",
-        **kwargs,
+        **kwargs: Any,
     ) -> Path:
         """
         Perform the actual PhyX dataset download.
@@ -137,7 +139,7 @@ class PhyXDownloader(BaseDownloader):
             base_url = "https://datasets-server.huggingface.co/rows"
 
             # Parameters for the API request
-            params = {
+            params: dict[str, Any] = {
                 "dataset": dataset_name,
                 "config": "default",
                 "split": split,
@@ -145,6 +147,7 @@ class PhyXDownloader(BaseDownloader):
 
             # Try to use HuggingFace datasets library for direct download
             # This allows downloading the entire split in one go
+            all_rows: list[dict[str, Any]] = []
             try:
                 import datasets
 
@@ -158,7 +161,7 @@ class PhyXDownloader(BaseDownloader):
                 )
 
                 # Convert to list of dictionaries
-                all_rows = [row for row in dataset]
+                all_rows = [dict(row) for row in dataset]
                 self.logger.info(
                     "Successfully downloaded %d rows using datasets library",
                     len(all_rows),
@@ -194,7 +197,6 @@ class PhyXDownloader(BaseDownloader):
 
                 max_retries = 3
                 retry_delay = 5  # seconds
-                all_rows = []
 
                 for attempt in range(max_retries):
                     try:
@@ -358,7 +360,7 @@ class PhyXDownloader(BaseDownloader):
         images_dir.mkdir(parents=True, exist_ok=True)
         self.logger.info("Created images directory: %s", images_dir)
 
-        processed_rows = []
+        processed_rows: list[dict[str, Any]] = []
 
         for idx, row in enumerate(rows):
             try:
@@ -435,7 +437,7 @@ class PhyXDownloader(BaseDownloader):
         Returns:
             List of relative image paths
         """
-        image_paths = []
+        image_paths: list[str] = []
 
         if image_value is None:
             return image_paths
@@ -450,7 +452,7 @@ class PhyXDownloader(BaseDownloader):
             problem_id_str = str(fallback_idx)
 
         # Handle PIL Image objects
-        if PIL_AVAILABLE and isinstance(image_value, Image.Image):
+        if PILImageModule is not None and isinstance(image_value, PILImageModule.Image):
             img_path = self._save_pil_image(image_value, problem_id_str, 0, images_dir)
             if img_path:
                 image_paths.append(img_path)
@@ -458,7 +460,9 @@ class PhyXDownloader(BaseDownloader):
         # Handle list/tuple of images
         elif isinstance(image_value, (list, tuple)):
             for img_idx, img_item in enumerate(image_value):
-                if PIL_AVAILABLE and isinstance(img_item, Image.Image):
+                if PILImageModule is not None and isinstance(
+                    img_item, PILImageModule.Image
+                ):
                     img_path = self._save_pil_image(
                         img_item, problem_id_str, img_idx, images_dir
                     )
@@ -481,9 +485,9 @@ class PhyXDownloader(BaseDownloader):
                 )
                 if img_path:
                     image_paths.append(img_path)
-            elif PIL_AVAILABLE and "image" in image_value:
+            elif PILImageModule is not None and "image" in image_value:
                 img = image_value["image"]
-                if isinstance(img, Image.Image):
+                if isinstance(img, PILImageModule.Image):
                     img_path = self._save_pil_image(img, problem_id_str, 0, images_dir)
                     if img_path:
                         image_paths.append(img_path)
@@ -605,7 +609,7 @@ class PhyXDownloader(BaseDownloader):
             return None
 
         # Handle PIL Images (should be caught earlier, but safety check)
-        if PIL_AVAILABLE and isinstance(obj, Image.Image):
+        if PILImageModule is not None and isinstance(obj, PILImageModule.Image):
             # Return None - images should be handled separately
             return None
 

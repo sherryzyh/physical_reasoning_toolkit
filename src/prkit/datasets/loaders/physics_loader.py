@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from prkit.core import PRKitLogger
-from prkit.core.domain import PhysicalDataset, PhysicsDomain
+from prkit.core.domain import PhysicalDataset, PhysicsDomain, PhysicsProblem
 
 from .base_loader import BaseDatasetLoader, detect_answer_category
 
@@ -37,7 +37,7 @@ class PhysicsLoader(BaseDatasetLoader):
         "statistics": PhysicsDomain.STATISTICAL_MECHANICS,
     }
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the PHYSICS loader with a logger."""
         super().__init__()
         self.logger = PRKitLogger.get_logger(__name__)
@@ -102,7 +102,7 @@ class PhysicsLoader(BaseDatasetLoader):
         split: str | None = None,
         sample_size: int | None = None,
         decode_images: bool = True,
-        **kwargs,
+        **kwargs: Any,
     ) -> PhysicalDataset:
         """
         Load the PHYSICS dataset.
@@ -145,7 +145,7 @@ class PhysicsLoader(BaseDatasetLoader):
                 f"No PHYSICS JSONL files found in {source_dir} matching '{pattern}'"
             )
 
-        problems = []
+        problems: list[PhysicsProblem] = []
         for jsonl_file in jsonl_files:
             source_domain = self._infer_source_domain(jsonl_file.name)
             problems.extend(
@@ -203,8 +203,8 @@ class PhysicsLoader(BaseDatasetLoader):
         split: str,
         source_domain: str,
         decode_images: bool,
-    ) -> list:
-        problems = []
+    ) -> list[PhysicsProblem]:
+        problems: list[PhysicsProblem] = []
         with open(jsonl_file, encoding="utf-8") as handle:
             for line_number, line in enumerate(handle, start=1):
                 line = line.strip()
@@ -262,7 +262,7 @@ class PhysicsLoader(BaseDatasetLoader):
         image_paths = self._decode_graphs(
             graphs=graphs,
             data_dir=data_dir,
-            problem_id=metadata["problem_id"],
+            problem_id=str(metadata["problem_id"]),
             variant=variant,
             split=split,
             decode_images=decode_images,
@@ -291,8 +291,10 @@ class PhysicsLoader(BaseDatasetLoader):
         metadata["answer"] = answer_value
         metadata["answer_category"] = answer_category
         metadata["problem_type"] = "OE"
-        metadata["domain"] = self.DOMAIN_MAPPING.get(
-            resolved_domain, PhysicsDomain.OTHER
+        metadata["domain"] = (
+            self.DOMAIN_MAPPING.get(resolved_domain, PhysicsDomain.OTHER)
+            if resolved_domain is not None
+            else PhysicsDomain.OTHER
         )
         metadata["language"] = "en"
         metadata["image_paths"] = image_paths or None
@@ -350,7 +352,7 @@ class PhysicsLoader(BaseDatasetLoader):
         output_dir = data_dir / ".prkit_graphs" / variant / split
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        image_paths = []
+        image_paths: list[str] = []
         safe_problem_id = (
             re.sub(r"[^A-Za-z0-9._-]+", "_", problem_id).strip("_") or "problem"
         )

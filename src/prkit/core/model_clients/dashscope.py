@@ -111,7 +111,11 @@ class DashscopeModel(OpenAICompatibleChatModel):
         return None
 
     def chat(
-        self, user_prompt: str, image_paths=None, response_format=None, **kwargs: Any
+        self,
+        user_prompt: str,
+        image_paths: list[str] | None = None,
+        response_format: dict[str, Any] | type | None = None,
+        **kwargs: Any,
     ) -> str:
         extra_body = kwargs.get("extra_body")
         if extra_body is None:

@@ -9,7 +9,7 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, TypedDict
 
 from prkit.core import PRKitLogger
 from prkit.core.domain import PhysicalDataset
@@ -24,6 +24,26 @@ try:
 except ImportError:
     TQDM_AVAILABLE = False
     print("Warning: tqdm not available. Progress bars will be disabled.")
+
+
+class ProblemStats(TypedDict):
+    total: int
+    processed: int
+    successful: int
+    failed: int
+
+
+class ModuleResult(TypedDict):
+    total_problems: int
+    successful_problems: int
+    failed_problems: int
+    execution_time_seconds: float
+    validity_count: int
+    module_name: str
+    model: str
+
+
+ModuleResults = dict[str, ModuleResult]
 
 
 class WorkflowComposer:
@@ -52,7 +72,7 @@ class WorkflowComposer:
         output_dir: str | Path,
         modules: list[BaseWorkflowModule] | None = None,
         config: dict[str, Any] | None = None,
-    ):
+    ) -> None:
         self.name = name
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -77,35 +97,58 @@ class WorkflowComposer:
         self.config = config or {}
 
         # Progress bar configuration
-        self.show_progress = self.config.get("show_progress", True)
+        self.show_progress = bool(self.config.get("show_progress", True))
+
+        self._status_problem_stats: ProblemStats = {
+            "total": 0,
+            "processed": 0,
+            "successful": 0,
+            "failed": 0,
+        }
+        self._status_module_results: ModuleResults = {}
+        self._status_workflow_errors: list[str] = []
+        self._status_workflow_summary: dict[str, float] = {}
 
         # Comprehensive workflow status dictionary (execution metadata only)
-        self.workflow_status = {
+        self.workflow_status: dict[str, Any] = {
             # Basic workflow info
             "workflow_name": name,
             "total_modules": len(self.modules),
             "modules_executed": 0,
             # Problem-level statistics
-            "problem_stats": {"total": 0, "processed": 0, "successful": 0, "failed": 0},
+            "problem_stats": self._status_problem_stats,
             # Timing and performance
             "execution_time_seconds": 0,
             # Execution tracking (metadata only, not actual problem data)
-            "module_results": {},  # Execution statistics for each module (counts, timing, status)
+            "module_results": self._status_module_results,  # Execution statistics for each module (counts, timing, status)
             # Removed problem_execution_flow - now stored in individual files
-            "workflow_errors": [],  # Workflow-level errors
+            "workflow_errors": self._status_workflow_errors,  # Workflow-level errors
             # Performance metrics
             "problems_per_minute": 0,
             "average_module_execution_time": 0,
-            "workflow_summary": {},
+            "workflow_summary": self._status_workflow_summary,
         }
 
         # Initialize module results structure
         self._initialize_module_results()
 
+    def _problem_stats(self) -> ProblemStats:
+        """Return the typed problem statistics status block."""
+        return self._status_problem_stats
+
+    def _module_results(self) -> ModuleResults:
+        """Return the typed module-results status block."""
+        return self._status_module_results
+
+    def _workflow_errors(self) -> list[str]:
+        """Return workflow-level errors."""
+        return self._status_workflow_errors
+
     def _initialize_module_results(self) -> None:
         """Initialize the module results structure for all modules."""
+        self._status_module_results.clear()
         for module in self.modules:
-            self.workflow_status["module_results"][module.name] = {
+            self._module_results()[module.name] = {
                 "total_problems": 0,
                 "successful_problems": 0,
                 "failed_problems": 0,
@@ -141,7 +184,7 @@ class WorkflowComposer:
         self.workflow_status["total_modules"] = len(self.modules)
 
         # Initialize results structure for new module
-        self.workflow_status["module_results"][module.name] = {
+        self._module_results()[module.name] = {
             "total_problems": 0,
             "successful_problems": 0,
             "failed_problems": 0,
@@ -153,7 +196,7 @@ class WorkflowComposer:
         }
 
         # Ensure all required fields exist with default values
-        module_results = self.workflow_status["module_results"][module.name]
+        module_results = self._module_results()[module.name]
         module_results.setdefault("total_problems", 0)
         module_results.setdefault("successful_problems", 0)
         module_results.setdefault("failed_problems", 0)
@@ -202,8 +245,9 @@ class WorkflowComposer:
         self.workflow_status["total_modules"] = len(self.modules)
 
         # Remove module results
-        if module_name in self.workflow_status["module_results"]:
-            del self.workflow_status["module_results"][module_name]
+        module_results = self._module_results()
+        if module_name in module_results:
+            del module_results[module_name]
 
         self.logger.info(f"Removed module '{module_name}' from workflow")
         return self
@@ -217,12 +261,12 @@ class WorkflowComposer:
         """
         self.modules.clear()
         self.workflow_status["total_modules"] = 0
-        self.workflow_status["module_results"].clear()
+        self._module_results().clear()
         self.logger.info("Cleared all modules from workflow")
         return self
 
     def _process_problem_through_pipeline(
-        self, problem: PhysicsProblem, **kwargs
+        self, problem: PhysicsProblem, **kwargs: Any
     ) -> dict[str, Any]:
         """
         Process a single problem through the entire module pipeline.
@@ -236,12 +280,14 @@ class WorkflowComposer:
             Dictionary containing problem execution results and status
         """
         problem_id = problem.problem_id
-        problem_execution_flow = []
+        problem_execution_flow: list[dict[str, Any]] = []
         problem_success = True
-        problem_error = None
+        problem_error: str | None = None
 
         # Track problem-level execution
         current_problem = problem.copy()  # Start with original problem
+        module_results_by_name = self._module_results()
+        problem_stats = self._problem_stats()
 
         # Execute all modules on this single problem
         for module_index, module in enumerate(self.modules):
@@ -284,7 +330,7 @@ class WorkflowComposer:
                 )
 
                 # Update module-level statistics
-                module_results = self.workflow_status["module_results"][module_name]
+                module_results = module_results_by_name[module_name]
                 module_results["total_problems"] = (
                     module_results.get("total_problems", 0) + 1
                 )
@@ -325,7 +371,7 @@ class WorkflowComposer:
             )
 
             # Update module-level statistics
-            module_results = self.workflow_status["module_results"][module_name]
+            module_results = module_results_by_name[module_name]
             module_results["total_problems"] = (
                 module_results.get("total_problems", 0) + 1
             )
@@ -341,13 +387,13 @@ class WorkflowComposer:
         # Determine final problem status
         if problem_success:
             final_status = "SUCCESS"
-            self.workflow_status["problem_stats"]["successful"] += 1
+            problem_stats["successful"] += 1
         else:
             final_status = "FAILED"
-            self.workflow_status["problem_stats"]["failed"] += 1
+            problem_stats["failed"] += 1
 
         # Update problem statistics
-        self.workflow_status["problem_stats"]["processed"] += 1
+        problem_stats["processed"] += 1
 
         # Save the problem result immediately to reduce memory usage
         problem_result = {
@@ -364,7 +410,7 @@ class WorkflowComposer:
         # Return the problem result (already saved to file)
         return problem_result
 
-    def _safe_to_dict(self, obj) -> Any:
+    def _safe_to_dict(self, obj: Any) -> Any:
         """
         Safely convert an object to a dictionary or serializable format.
 
@@ -383,7 +429,7 @@ class WorkflowComposer:
         else:
             return str(obj)
 
-    def run(self, dataset: PhysicalDataset, **kwargs) -> dict[str, Any]:
+    def run(self, dataset: PhysicalDataset, **kwargs: Any) -> dict[str, Any]:
         """
         Execute the composed workflow on a dataset.
 
@@ -406,7 +452,8 @@ class WorkflowComposer:
         self._reset_workflow_status()
 
         # Record dataset size and start execution
-        self.workflow_status["problem_stats"]["total"] = len(dataset)
+        problem_stats = self._problem_stats()
+        problem_stats["total"] = len(dataset)
         execution_start = datetime.now()
 
         try:
@@ -431,15 +478,13 @@ class WorkflowComposer:
                     problem_pbar.set_postfix(
                         {
                             "Current": problem.problem_id,
-                            "Success": self.workflow_status["problem_stats"][
-                                "successful"
-                            ],
-                            "Failed": self.workflow_status["problem_stats"]["failed"],
+                            "Success": problem_stats["successful"],
+                            "Failed": problem_stats["failed"],
                         }
                     )
 
                 # Log progress for both progress bar and non-progress bar modes
-                current_count = self.workflow_status["problem_stats"]["processed"] + 1
+                current_count = problem_stats["processed"] + 1
                 self.logger.info(
                     f"Processing problem {current_count}/{total_problems}: {problem.problem_id}"
                 )
@@ -453,10 +498,8 @@ class WorkflowComposer:
                     problem_pbar.set_postfix(
                         {
                             "Current": problem.problem_id,
-                            "Success": self.workflow_status["problem_stats"][
-                                "successful"
-                            ],
-                            "Failed": self.workflow_status["problem_stats"]["failed"],
+                            "Success": problem_stats["successful"],
+                            "Failed": problem_stats["failed"],
                         }
                     )
 
@@ -470,7 +513,7 @@ class WorkflowComposer:
         except Exception as e:
             error_msg = f"Workflow execution failed: {str(e)}"
             self.logger.error(error_msg)
-            self.workflow_status["workflow_errors"].append(error_msg)
+            self._workflow_errors().append(error_msg)
 
         finally:
             # Calculate execution time and final statistics
@@ -491,7 +534,7 @@ class WorkflowComposer:
 
         return {
             "workflow_name": self.name,
-            "module_results": self.workflow_status["module_results"],
+            "module_results": self._module_results(),
             "workflow_status": self.workflow_status,
             "note": "Individual problem results saved to results/ subfolder, execution flows saved to execution_flows/ subfolder",
         }
@@ -499,14 +542,14 @@ class WorkflowComposer:
     def _reset_workflow_status(self) -> None:
         """Reset workflow status for new execution."""
         # Reset problem statistics
-        self.workflow_status["problem_stats"].update(
+        self._problem_stats().update(
             {"total": 0, "processed": 0, "successful": 0, "failed": 0}
         )
 
         # Reset execution tracking
         self.workflow_status["execution_time_seconds"] = 0
         # Removed problem_execution_flow reset - no longer stored in memory
-        self.workflow_status["workflow_errors"] = []
+        self._workflow_errors().clear()
 
         # Reset module results
         self._initialize_module_results()
@@ -517,8 +560,10 @@ class WorkflowComposer:
 
     def _calculate_performance_metrics(self) -> None:
         """Calculate performance metrics for the workflow."""
-        total_time = self.workflow_status["execution_time_seconds"]
-        total_problems = self.workflow_status["problem_stats"]["total"]
+        total_time = float(self.workflow_status["execution_time_seconds"])
+        problem_stats = self._problem_stats()
+        module_results = self._module_results()
+        total_problems = problem_stats["total"]
 
         if total_time > 0 and total_problems > 0:
             # Calculate problems per minute
@@ -529,11 +574,10 @@ class WorkflowComposer:
             # Calculate average module execution time
             total_module_time = sum(
                 module_data["execution_time_seconds"]
-                for module_data in self.workflow_status["module_results"].values()
+                for module_data in module_results.values()
             )
             total_module_executions = sum(
-                module_data["total_problems"]
-                for module_data in self.workflow_status["module_results"].values()
+                module_data["total_problems"] for module_data in module_results.values()
             )
 
             if total_module_executions > 0:
@@ -542,19 +586,25 @@ class WorkflowComposer:
                 )
 
         # Create workflow summary
-        self.workflow_status["workflow_summary"] = {
-            "total_execution_time_minutes": total_time / 60 if total_time > 0 else 0,
-            "success_rate_percentage": (
-                (self.workflow_status["problem_stats"]["successful"] / total_problems)
-                * 100
-                if total_problems > 0
-                else 0
-            ),
-            "problems_per_minute": self.workflow_status["problems_per_minute"],
-            "average_module_execution_time": self.workflow_status[
-                "average_module_execution_time"
-            ],
-        }
+        self._status_workflow_summary.clear()
+        self._status_workflow_summary.update(
+            {
+                "total_execution_time_minutes": (
+                    total_time / 60 if total_time > 0 else 0
+                ),
+                "success_rate_percentage": (
+                    (problem_stats["successful"] / total_problems) * 100
+                    if total_problems > 0
+                    else 0
+                ),
+                "problems_per_minute": float(
+                    self.workflow_status["problems_per_minute"]
+                ),
+                "average_module_execution_time": float(
+                    self.workflow_status["average_module_execution_time"]
+                ),
+            }
+        )
 
     def _update_final_module_statuses(self) -> None:
         """Update module statuses after workflow completion to reflect final state."""
@@ -622,8 +672,9 @@ class WorkflowComposer:
 
     def get_module_status(self, module_name: str) -> dict[str, Any] | None:
         """Get status of a specific module."""
-        if module_name in self.workflow_status["module_results"]:
-            return self.workflow_status["module_results"][module_name].copy()
+        module_results = self._module_results()
+        if module_name in module_results:
+            return dict(module_results[module_name])
         return None
 
     def reset(self) -> None:

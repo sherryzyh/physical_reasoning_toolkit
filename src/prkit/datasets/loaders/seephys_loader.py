@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from prkit.core import PRKitLogger
-from prkit.core.domain import PhysicalDataset
+from prkit.core.domain import PhysicalDataset, PhysicsProblem
 
 from .base_loader import BaseDatasetLoader
 
@@ -15,7 +15,7 @@ from .base_loader import BaseDatasetLoader
 class SeePhysLoader(BaseDatasetLoader):
     """Loader for SeePhys dataset."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the SeePhys loader with a logger."""
         super().__init__()
         self.logger = PRKitLogger.get_logger(__name__)
@@ -66,7 +66,7 @@ class SeePhysLoader(BaseDatasetLoader):
         variant: str | None = None,
         sample_size: int | None = None,
         split: str | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> PhysicalDataset:
         """
         Load SeePhys dataset.
@@ -122,7 +122,7 @@ class SeePhysLoader(BaseDatasetLoader):
         data_dir: Path,
         split: str,
         sample_size: int | None,
-        **_kwargs,
+        **_kwargs: Any,
     ) -> PhysicalDataset:
         """Load from split directory."""
         split_dir = data_dir / split
@@ -162,9 +162,11 @@ class SeePhysLoader(BaseDatasetLoader):
 
         return PhysicalDataset(problems, info, split=split)
 
-    def _load_from_json_dir(self, split_dir: Path, data_dir: Path) -> list:
+    def _load_from_json_dir(
+        self, split_dir: Path, data_dir: Path
+    ) -> list[PhysicsProblem]:
         """Load problems from files in a directory."""
-        problems = []
+        problems: list[PhysicsProblem] = []
 
         json_files = list(split_dir.glob("*.json"))
         if not json_files:
@@ -180,7 +182,7 @@ class SeePhysLoader(BaseDatasetLoader):
                 return int(stem)
             except ValueError:
                 # If filename is not a number, return a large value to put it at the end
-                return float("inf")
+                return 10**12
 
         json_files.sort(key=extract_number)
 

@@ -2,6 +2,8 @@
 Domain annotator for physics problem classification.
 """
 
+from typing import Any
+
 from pydantic import BaseModel
 
 from prkit.annotation.annotations.domain import DomainAnnotation
@@ -23,7 +25,7 @@ class DomainLabeler(BaseAnnotator):
     def work(
         self,
         question: str,
-        **kwargs,
+        **kwargs: Any,
     ) -> DomainAnnotation:
         """Annotate the physics domain of the problem."""
         prompt = f"""
