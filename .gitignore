@@ -42,6 +42,7 @@ pip-delete-this-directory.txt
 
 # Unit test / coverage reports
 htmlcov/
+prkit_logs/
 .tox/
 .nox/
 .coverage
@@ -142,6 +143,7 @@ celerybeat.pid
 .env
 .envrc
 .venv
+venv_dev/
 env/
 venv/
 ENV/
@@ -225,6 +227,7 @@ test_install_env/
 # Developer documentation (internal notes, credentials, deployment info)
 DEVELOPER.md
 DEV_NOTES.md
+FUTURE_FEATURES.md
 .developer/
 PYPI_RELEASE_REVIEW.md
 check_*
