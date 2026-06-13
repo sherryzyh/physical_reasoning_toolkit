@@ -1,10 +1,20 @@
-"""Backward-compatible aliases for the legacy v1 normalization module.
+"""Deprecated backward-compatible aliases for the legacy v1 normalization module.
 
-The toolkit now maintains a single normalization implementation in
-``prkit.evaluation.utils.normalization``. This module re-exports the
-legacy v1 public helpers and internal utility names so older imports continue
-to work while fixes land in one place.
+.. deprecated::
+    The toolkit maintains a single normalization implementation in
+    :mod:`prkit.evaluation.utils.normalization`. This shim re-exports the legacy
+    v1 helpers so older imports keep working, but it will be removed in a future
+    release. Import directly from ``prkit.evaluation.utils.normalization`` instead.
 """
+
+import warnings
+
+warnings.warn(
+    "prkit.evaluation.utils.normalization_v1 is deprecated and will be removed in a "
+    "future release; import from prkit.evaluation.utils.normalization instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 from .normalization import (
     _FRAC_LATEX_PATTERN,
