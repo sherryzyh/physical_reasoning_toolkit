@@ -24,6 +24,7 @@ class TestProtectedPhysicsSymbols:
             r"\hbar": "hbar",
             r"\mu_0": "mu0",
             r"\epsilon_0": "eps0",
+            r"\varepsilon_0": "eps0",
             r"\ell": "ell",
             r"\square": "dalembert",
             r"\angstrom": "angstrom",

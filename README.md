@@ -88,6 +88,8 @@ pip install -e ".[dev]"
 export OPENAI_API_KEY="your-openai-api-key"
 export GEMINI_API_KEY="your-gemini-api-key"
 export DEEPSEEK_API_KEY="your-deepseek-api-key"
+export XAI_API_KEY="your-xai-api-key"
+export DASHSCOPE_API_KEY="your-dashscope-api-key"
 
 # For logging configuration (optional)
 export PRKIT_LOG_LEVEL=INFO

@@ -23,6 +23,7 @@ from prkit.prkit_evaluation.utils.normalization import (
     _match_balanced_braces,
     _normalize_physical_quantity,
     _normalize_symbolic_expression,
+    _normalize_unicode,
     _parse_exponent,
     _parse_numeric_base,
     _starts_with_latex_delimiter,
@@ -32,6 +33,135 @@ from prkit.prkit_evaluation.utils.normalization import (
     normalize_number,
     normalize_text,
 )
+
+
+# =============================================================================
+# _normalize_unicode
+# =============================================================================
+
+
+class TestNormalizeUnicode:
+    """Tests for _normalize_unicode."""
+
+    def test_unicode_minus_signs(self):
+        assert _normalize_unicode("5\u2212x") == "5-x"       # − MINUS SIGN
+        assert _normalize_unicode("5\u2013x") == "5-x"       # – EN DASH
+        assert _normalize_unicode("5\u2014x") == "5-x"       # — EM DASH
+        assert _normalize_unicode("5\u2010x") == "5-x"       # ‐ HYPHEN
+        assert _normalize_unicode("5\u2011x") == "5-x"       # ‑ NON-BREAKING HYPHEN
+        assert _normalize_unicode("5\uFF0Dx") == "5-x"       # ﹣ FULLWIDTH
+
+    def test_multiplication_division(self):
+        assert _normalize_unicode("3\u00d74") == r"3 \times 4"       # ×
+        assert _normalize_unicode("3\u00b74") == r"3 \cdot 4"       # · MIDDLE DOT
+        assert _normalize_unicode("3\u22c54") == r"3 \cdot 4"       # ⋅ DOT OPERATOR
+        assert _normalize_unicode("3\u22194") == r"3 \cdot 4"       # ∙ BULLET OPERATOR
+        assert _normalize_unicode("6\u00f72") == r"6 \div 2"       # ÷
+
+    def test_vulgar_fractions(self):
+        assert _normalize_unicode("\u00bd") == "1/2"         # ½
+        assert _normalize_unicode("\u2153") == "1/3"         # ⅓
+        assert _normalize_unicode("\u00bc") == "1/4"         # ¼
+        assert _normalize_unicode("\u00be") == "3/4"         # ¾
+        assert _normalize_unicode("\u215e") == "7/8"         # ⅞
+
+    def test_smart_quotes(self):
+        assert _normalize_unicode("\u201chello\u201d") == '"hello"'
+        assert _normalize_unicode("\u2018x\u2019") == "'x'"
+        assert _normalize_unicode("\u00abhi\u00bb") == '"hi"'
+
+    def test_micro_sign_to_mu(self):
+        assert _normalize_unicode("\u00b5m") == "\u03bcm"    # µm → μm
+
+    def test_fullwidth_digits(self):
+        assert _normalize_unicode("\uFF11\uFF12\uFF13") == "123"
+
+    def test_fullwidth_letters(self):
+        assert _normalize_unicode("\uFF21\uFF22\uFF23") == "ABC"
+        assert _normalize_unicode("\uFF41\uFF42\uFF43") == "abc"
+
+    def test_fullwidth_punctuation(self):
+        assert _normalize_unicode("\uFF08x\uFF09") == "(x)"
+        assert _normalize_unicode("\uFF5Bk\uFF5D") == "{k}"
+        assert _normalize_unicode("a\uFF1Db") == "a=b"
+
+    def test_subscript_digits(self):
+        assert _normalize_unicode("x\u2082") == "x_2"        # x₂ → x_2
+        assert _normalize_unicode("H\u2082O") == "H_2O"      # H₂O → H_2O
+        assert _normalize_unicode("v\u2080") == "v_0"        # v₀ → v_0
+
+    def test_math_relational(self):
+        assert _normalize_unicode("a\u2264b") == r"a \leq b"      # ≤
+        assert _normalize_unicode("a\u2265b") == r"a \geq b"      # ≥
+        assert _normalize_unicode("a\u2260b") == r"a \neq b"      # ≠
+        assert _normalize_unicode("a\u2248b") == r"a\approx b"  # ≈
+
+    def test_math_operators_and_propto(self):
+        assert _normalize_unicode("a\u00d7b") == r"a \times b"   # ×
+        assert _normalize_unicode("a\u00f7b") == r"a \div b"   # ÷
+        assert _normalize_unicode("a\u221db") == r"a \propto b"  # ∝
+
+    def test_infinity_and_pm(self):
+        assert _normalize_unicode("\u221e") == r"\infty"          # ∞
+        assert _normalize_unicode("5\u00b13") == r"5 \pm 3"      # ±
+
+    def test_degree_sign(self):
+        assert _normalize_unicode("30\u00b0") == "30 deg"    # 30°
+
+    def test_idempotent(self):
+        s = "3.14 m/s^2"
+        assert _normalize_unicode(_normalize_unicode(s)) == _normalize_unicode(s)
+
+    def test_plain_ascii_unchanged(self):
+        s = "F = m * a"
+        assert _normalize_unicode(s) == s
+
+
+class TestUnicodeIntegrationNormalizeNumber:
+    """Verify Unicode is eliminated before number parsing."""
+
+    def test_unicode_minus_number(self):
+        assert normalize_number("5\u22123") == pytest.approx(-53) or normalize_number("\u22125") == -5.0
+
+    def test_unicode_fraction_char(self):
+        assert normalize_number("\u00bd") == pytest.approx(0.5)
+
+    def test_fullwidth_digits(self):
+        assert normalize_number("\uFF14\uFF12") == 42.0
+
+
+class TestUnicodeIntegrationNormalizeText:
+    """Verify Unicode is eliminated in text normalization."""
+
+    def test_smart_quotes_in_text(self):
+        assert normalize_text("\u201chello\u201d") == '"hello"'
+
+    def test_fullwidth_in_text(self):
+        assert normalize_text("\uFF28ello") == "Hello"
+
+
+class TestUnicodeIntegrationNormalizeAnswer:
+    """End-to-end: Unicode strings categorized and normalized correctly."""
+
+    def test_vulgar_fraction_as_number(self):
+        cat, val = normalize_answer("\u00bd")
+        assert cat == AnswerCategory.NUMBER
+        assert val == pytest.approx(0.5)
+
+    def test_fullwidth_integer(self):
+        cat, val = normalize_answer("\uFF14\uFF12")
+        assert cat == AnswerCategory.NUMBER
+        assert val == 42.0
+
+    def test_unicode_quantity(self):
+        cat, val = normalize_answer("9.8 m/s\u00b2")  # superscript ²
+        assert cat == AnswerCategory.PHYSICAL_QUANTITY
+        assert "9.8" in str(val)
+
+    def test_unicode_minus_in_quantity(self):
+        cat, val = normalize_answer("\u221210 m/s")     # −10 m/s
+        assert cat == AnswerCategory.PHYSICAL_QUANTITY
+        assert "-10" in str(val)
 
 
 # =============================================================================
@@ -244,9 +374,12 @@ class TestExtractMathContent:
         assert had is True
 
     def test_text_delimiter(self):
+        # \text{} is intentionally preserved — latex2sympy handles it natively
+        # and stripping it causes multi-letter words to be split into
+        # implicit-multiplication factors (e.g. gradient -> g*r*a*d*i*e*n*t).
         text, had = _extract_math_content(r"\text{hello}")
-        assert text == "hello"
-        assert had is True
+        assert text == r"\text{hello}"
+        assert had is False
 
     def test_mathrm_delimiter(self):
         text, had = _extract_math_content(r"\mathrm{A}")
@@ -388,6 +521,18 @@ class TestNormalizePhysicalQuantity:
         result = _normalize_physical_quantity(r"10 ~ m/s")
         assert "~" not in result or result.strip()
 
+    @pytest.mark.parametrize(
+        ("raw_text", "expected"),
+        [
+            (r"3.2 \Omega", "3.2 ohm"),
+            (r"1100 \ohm", "1100 ohm"),
+            (r"1000 \AA", "1e-07 m"),
+            (r"1000 \angstrom", "1e-07 m"),
+        ],
+    )
+    def test_latex_unit_aliases(self, raw_text, expected):
+        assert _normalize_physical_quantity(raw_text) == expected
+
 
 # =============================================================================
 # _normalize_symbolic_expression
@@ -448,6 +593,20 @@ class TestNormalizeExpression:
         result, success, cat = normalize_expression(r"$-10^{4} \mathrm{A}/\mathrm{s}$")
         assert success is True
         assert cat == "physical_quantity"
+
+    @pytest.mark.parametrize(
+        ("raw_text", "expected"),
+        [
+            (r"\lambda \approx 1000 \mathring{\mathrm{A}}", "1e-07 m"),
+            (r"f = 1.8 \mathrm{Hz}", "1.8 Hz"),
+            (r"$t=5$ s", "5 s"),
+        ],
+    )
+    def test_relation_wrapped_quantity_with_latex(self, raw_text, expected):
+        result, success, cat = normalize_expression(raw_text)
+        assert success is True
+        assert cat == "physical_quantity"
+        assert result == expected
 
 
 # =============================================================================
@@ -518,11 +677,33 @@ class TestClassifyExpression:
         r"""\mathrm{...} in units is replaced for pattern match."""
         assert classify_expression(r"-10 \mathrm{m}/\mathrm{s}") == "physical_quantity"
 
+    @pytest.mark.parametrize(
+        "raw_text",
+        [
+            r"3.2 \Omega",
+            r"1100 \ohm",
+            r"\lambda \approx 1000 \mathring{\mathrm{A}}",
+            r"1000 \AA",
+            r"1000 \angstrom",
+            r"f = 1.8 \mathrm{Hz}",
+            r"$t=5$ s",
+        ],
+    )
+    def test_physical_quantity_alias_and_relation_wrapped_cases(self, raw_text):
+        assert classify_expression(raw_text) == "physical_quantity"
+
     def test_formula_multiple_equals(self):
         assert classify_expression("a=0, b=1") == "formula"
 
     def test_formula_no_equals(self):
         assert classify_expression("x^2 + y^2") == "formula"
+
+    def test_equation_latex_inequalities(self):
+        """Unicode → LaTeX in _normalize_unicode; still classify as equation."""
+        assert classify_expression(r"a \leq b") == "equation"
+        assert classify_expression(r"x \geq y") == "equation"
+        assert classify_expression(r"p \neq q") == "equation"
+        assert classify_expression(r"F \propto a") == "equation"
 
 
 # =============================================================================
@@ -612,3 +793,38 @@ class TestNormalizeAnswer:
         cat, val = normalize_answer("0")
         assert cat == AnswerCategory.NUMBER
         assert val == 0.0
+
+    def test_latex_thin_space_does_not_merge_unit_tokens(self):
+        r"""$22 \mathrm{rad}\,\mathrm{s}^{-1}$ must not merge 'rad'+'s' into 'rads'."""
+        cat, val = normalize_answer(r"$22 \mathrm{rad}\,\mathrm{s}^{-1}$")
+        assert cat == AnswerCategory.PHYSICAL_QUANTITY
+        assert val == "22 rad/s"
+
+    def test_latex_thick_space_does_not_merge_unit_tokens(self):
+        r"""Units separated by \; must stay separate."""
+        cat, val = normalize_answer(r"$5\;\mathrm{m}\,\mathrm{s}^{-2}$")
+        assert cat == AnswerCategory.PHYSICAL_QUANTITY
+        assert val == "5 m/s^2"
+
+    def test_latex_backslash_space_before_text_unit(self):
+        r"""$3.8\ \text{Hz}$ (SeePhys-style): \text{Hz} must classify as quantity, not formula."""
+        cat, val = normalize_answer(r"$3.8\ \text{Hz}$")
+        assert cat == AnswerCategory.PHYSICAL_QUANTITY
+        assert val == "3.8 Hz"
+
+    @pytest.mark.parametrize(
+        ("raw_text", "expected"),
+        [
+            (r"3.2 \Omega", "3.2 ohm"),
+            (r"1100 \ohm", "1100 ohm"),
+            (r"\lambda \approx 1000 \mathring{\mathrm{A}}", "1e-07 m"),
+            (r"1000 \AA", "1e-07 m"),
+            (r"1000 \angstrom", "1e-07 m"),
+            (r"f = 1.8 \mathrm{Hz}", "1.8 Hz"),
+            (r"$t=5$ s", "5 s"),
+        ],
+    )
+    def test_quantity_alias_and_relation_wrapped_regressions(self, raw_text, expected):
+        cat, val = normalize_answer(raw_text)
+        assert cat == AnswerCategory.PHYSICAL_QUANTITY
+        assert val == expected

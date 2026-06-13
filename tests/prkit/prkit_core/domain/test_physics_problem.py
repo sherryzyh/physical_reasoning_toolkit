@@ -2,10 +2,15 @@
 Tests for PhysicsProblem model.
 """
 
+from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
+
 import pytest
 
 from prkit.prkit_core.domain import AnswerCategory, PhysicsDomain
 from prkit.prkit_core.domain import Answer, PhysicsProblem
+from prkit.prkit_core.domain import physics_problem as physics_problem_module
 
 
 class TestPhysicsProblem:
@@ -71,6 +76,27 @@ class TestPhysicsProblem:
             problem_id="test_003", question="Test", image_path=None
         )
         assert problem3.image_path == []
+
+        parsed_list = PhysicsProblem(
+            problem_id="test_004",
+            question="Test",
+            image_path="['a.png', 'b.png']",
+        )
+        assert len(parsed_list.image_path) == 2
+
+        fallback_string = PhysicsProblem(
+            problem_id="test_005",
+            question="Test",
+            image_path="[bad",
+        )
+        assert len(fallback_string.image_path) == 1
+
+        invalid_type = PhysicsProblem(
+            problem_id="test_006",
+            question="Test",
+            image_path=123,
+        )
+        assert invalid_type.image_path == []
 
     def test_problem_type_validation(self):
         """Test problem type validation."""
@@ -152,12 +178,18 @@ class TestPhysicsProblem:
         assert "problem_id" in problem
         assert "nonexistent" not in problem
 
+        with pytest.raises(KeyError, match="Field 'missing' not found"):
+            _ = problem["missing"]
+
     def test_problem_dict_setitem(self):
         """Test dictionary-like assignment."""
         problem = PhysicsProblem(problem_id="test_001", question="Test")
         problem["custom_field"] = "custom_value"
         assert problem["custom_field"] == "custom_value"
         assert problem.additional_fields["custom_field"] == "custom_value"
+
+        problem["question"] = "Updated"
+        assert problem.question == "Updated"
 
     def test_problem_keys_values_items(self):
         """Test keys, values, and items methods."""
@@ -218,6 +250,17 @@ class TestPhysicsProblem:
         assert problem.answer.value == 42
         assert problem.answer.answer_category == AnswerCategory.NUMBER
 
+        fallback = PhysicsProblem.from_dict(
+            {
+                "problem_id": "test_002",
+                "question": "Q",
+                "answer": {"value": "hello", "answer_category": "not-real"},
+                "custom_field": "custom",
+            }
+        )
+        assert fallback.answer.answer_category == AnswerCategory.TEXT
+        assert fallback.additional_fields["custom_field"] == "custom"
+
     def test_problem_copy(self):
         """Test problem copying."""
         problem = PhysicsProblem(
@@ -245,3 +288,45 @@ class TestPhysicsProblem:
         problem = PhysicsProblem(problem_id="test_001", question="Test question")
         assert "test_001" in repr(problem)
         assert "Test question" in str(problem)
+
+    def test_problem_load_images_handles_missing_files_and_conversion(
+        self, tmp_path, monkeypatch
+    ):
+        image_file = tmp_path / "img.png"
+        image_file.write_bytes(b"fake")
+        problem = PhysicsProblem(
+            problem_id="test_001",
+            question="Q",
+            image_path=[str(image_file), str(tmp_path / "missing.png")],
+        )
+
+        fake_image = SimpleNamespace(mode="RGBA")
+        fake_image.convert = lambda mode: f"converted:{mode}"
+        monkeypatch.setattr(physics_problem_module, "PIL_AVAILABLE", True)
+        monkeypatch.setattr(
+            physics_problem_module,
+            "Image",
+            SimpleNamespace(open=lambda _path: fake_image),
+        )
+
+        images = problem.load_images()
+        assert images == ["converted:RGB"]
+
+    def test_problem_load_images_handles_no_pillow_and_io_errors(self, tmp_path, monkeypatch):
+        problem = PhysicsProblem(problem_id="test_001", question="Q", image_path=[str(tmp_path / "x.png")])
+
+        monkeypatch.setattr(physics_problem_module, "PIL_AVAILABLE", False)
+        with pytest.raises(ImportError, match="PIL/Pillow is required"):
+            problem.load_images()
+
+        monkeypatch.setattr(physics_problem_module, "PIL_AVAILABLE", True)
+        monkeypatch.setattr(
+            physics_problem_module,
+            "Image",
+            SimpleNamespace(
+                open=lambda _path: (_ for _ in ()).throw(OSError("bad image"))
+            ),
+        )
+        with patch.object(physics_problem_module.logger, "warning") as mock_warning:
+            assert problem.load_images() == []
+        assert mock_warning.called

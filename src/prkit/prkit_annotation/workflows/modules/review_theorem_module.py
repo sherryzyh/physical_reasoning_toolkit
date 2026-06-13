@@ -98,11 +98,10 @@ class ReviewTheoremModule(BaseWorkflowModule):
             "missing_theorems": 0,
             "total_theorems": len(theorems),
         }
+        reviewed_theorems = []
 
         # Review the predicted theorems
         if theorems:
-            reviewed_theorems = []
-
             for i, theorem in enumerate(theorems):
                 self.logger.info(
                     "Reviewing theorem %d/%d: %s",

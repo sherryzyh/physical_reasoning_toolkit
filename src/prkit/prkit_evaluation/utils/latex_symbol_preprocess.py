@@ -6,6 +6,7 @@ PROTECTED_PHYSICS_SYMBOLS = {
     r'\hbar': 'hbar',
     r'\mu_0': 'mu0',
     r'\epsilon_0': 'eps0',
+    r'\varepsilon_0': 'eps0',
     r'\ell': 'ell',
     r'\square': 'dalembert',
     r'\angstrom': 'angstrom',
@@ -30,14 +31,25 @@ def _preprocess_latex(latex_str: str) -> str:
     # 2. Protect specific breaking symbols
     # Standard Greek (\alpha, \omega, etc.) are REMOVED from here 
     # because the parser handles them natively.
-    for cmd, name in PROTECTED_PHYSICS_SYMBOLS.items():
+    # Sort by length descending so longer keys (e.g. \varepsilon_0) are
+    # replaced before shorter prefixes (e.g. \varepsilon).
+    for cmd, name in sorted(PROTECTED_PHYSICS_SYMBOLS.items(), key=lambda x: -len(x[0])):
+        replacement = f'\\mathrm{{{name}}}'
         if cmd in processed:
-            processed = processed.replace(cmd, f'\\mathrm{{{name}}}')
+            processed = processed.replace(cmd, replacement)
+        # Also handle braced subscript form: \foo_{0} alongside \foo_0
+        if '_' in cmd:
+            base, sub = cmd.rsplit('_', 1)
+            braced = f'{base}_{{{sub}}}'
+            if braced in processed:
+                processed = processed.replace(braced, replacement)
 
-    # 3. Handle Vector/Hat decorations
-    # Native parsers often fail to relate \vec{v} to v; stripping is safer.
-    processed = re.sub(r'\\vec\{([^}]*)\}', r'\1', processed)
-    processed = re.sub(r'\\hat\{([^}]*)\}', r'\1', processed)
+    # 3. Strip decoration commands that latex2sympy doesn't reduce to the
+    #    inner symbol (\dot{r} -> "dot{r}" instead of "r").  Stripping the
+    #    wrapper lets the underlying variable parse cleanly.
+    for deco in (r'\vec', r'\hat', r'\dot', r'\ddot',
+                 r'\bar', r'\tilde', r'\overline', r'\underline'):
+        processed = re.sub(re.escape(deco) + r'\{([^}]*)\}', r'\1', processed)
     
     # 4. Standardize differentials
     # Many physics equations use \text{d}x; converting to 'd x' helps SymPy.

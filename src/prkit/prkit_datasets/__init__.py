@@ -15,7 +15,7 @@ Usage:
     print(f"Loaded {len(dataset)} problems")
 
     # With options
-    dataset = DatasetHub.load("ugphysics", sample_size=100, split="test")
+    dataset = DatasetHub.load("ugphysics", sample_size=100, split="en")
 
     # List available datasets
     print(DatasetHub.list_available())

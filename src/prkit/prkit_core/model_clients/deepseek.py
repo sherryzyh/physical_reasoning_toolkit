@@ -2,31 +2,101 @@
 DeepSeek API client implementation.
 """
 
-import os
-from typing import Any, List, Optional, Union
+from __future__ import annotations
 
-from openai import OpenAI
+import json
+from typing import Any, Dict, List, Optional, Union
 
-from .base import BaseModelClient
+from .openai_compatible_chat import OpenAICompatibleChatModel
+from .structured_output import (
+    StructuredOutputPlan,
+    StructuredOutputPolicy,
+    StructuredOutputSpec,
+)
 
 
-class DeepseekModel(BaseModelClient):
-    """DeepSeek API client implementation."""
+class DeepseekModel(OpenAICompatibleChatModel):
+    """DeepSeek API client implementation via the OpenAI-compatible Chat API."""
 
-    def __init__(self, model: str, logger=None):
-        """
-        Initialize DeepSeek model client.
+    provider_name = "deepseek"
+    provider_prefix = "deepseek"
+    api_key_env_var = "DEEPSEEK_API_KEY"
+    base_url_env_var = "DEEPSEEK_BASE_URL"
+    default_base_url = "https://api.deepseek.com"
+    supports_response_format_json_schema = False
+    supports_response_format_json_object = True
 
-        Args:
-            model: DeepSeek model name
-            logger: Optional logger instance
-        """
-        super().__init__(model, logger)
-        self.client = OpenAI(
-            api_key=os.environ.get("DEEPSEEK_API_KEY"),
-            base_url="https://api.deepseek.com",
+    def _build_message_content(
+        self,
+        user_prompt: str,
+        image_paths: Optional[List[str]] = None,
+    ) -> str | List[Dict[str, Any]]:
+        if image_paths:
+            self.logger.warning(
+                "DeepSeek model %s does not support image inputs. "
+                "Received %s image(s) which will be ignored.",
+                self.model,
+                len(image_paths),
+            )
+        return user_prompt
+
+    def _structured_prompt_for_chat(
+        self,
+        user_prompt: str,
+        response_format: Optional[Union[dict, type]],
+    ) -> str:
+        if response_format is None:
+            return user_prompt
+        if isinstance(response_format, dict) and response_format.get("type") == "json_object":
+            return user_prompt
+
+        spec = StructuredOutputSpec(
+            name="response",
+            schema={},
+            schema_features=None,
         )
-        self.provider = "deepseek"
+        try:
+            from .structured_output import coerce_structured_output_spec
+
+            spec = coerce_structured_output_spec(response_format)
+        except Exception:
+            return user_prompt
+
+        schema_text = json.dumps(spec.schema, indent=2, ensure_ascii=False)
+        example_keys = list((spec.schema.get("properties") or {}).keys())[:3]
+        example = {key: None for key in example_keys}
+        return (
+            user_prompt
+            + "\n\nReturn ONLY JSON. The response must be valid JSON and match this JSON Schema exactly.\n"
+            + schema_text
+            + "\nExample shape:\n"
+            + json.dumps(example, ensure_ascii=False)
+        )
+
+    def _resolve_structured_output_plan(
+        self,
+        spec: StructuredOutputSpec,
+        *,
+        structured_policy: StructuredOutputPolicy,
+    ) -> StructuredOutputPlan:
+        if structured_policy == "native_required":
+            raise ValueError(
+                "DeepSeek does not provide native schema-enforced structured output. "
+                f"Got model={self.model!r}."
+            )
+        return StructuredOutputPlan(
+            mode="json_object",
+            strategy="deepseek_json_object",
+            native_schema_enforced=False,
+            accepted_artifact_modes=("json_object", "prompt_only"),
+            accepted_artifact_strategies=("deepseek_json_object",),
+            response_format={"type": "json_object"},
+            prompt_suffix=(
+                "\n\nReturn ONLY JSON that matches this JSON Schema exactly.\n"
+                "Do not include markdown fences or commentary.\n"
+                + json.dumps(spec.schema, indent=2, ensure_ascii=False)
+            ),
+        )
 
     def chat(
         self,
@@ -35,33 +105,9 @@ class DeepseekModel(BaseModelClient):
         response_format: Optional[Union[dict, type]] = None,
         **kwargs: Any,
     ) -> str:
-        """
-        Generate a response from DeepSeek API.
-
-        Args:
-            user_prompt: The user's prompt text (string)
-            image_paths: Optional list of image paths/URLs (strings).
-                        DeepSeek models do not support vision. Images are ignored with a warning.
-            response_format: Not supported. If provided, a warning is logged and it is ignored.
-            **kwargs: Additional keyword arguments (ignored, kept for compatibility)
-
-        Returns:
-            Response text from DeepSeek model
-        """
-        if response_format is not None:
-            self.logger.warning(
-                f"Structured output (response_format) is not supported by DeepSeek model {self.model}. "
-                "Ignoring response_format and returning plain text. "
-                "Use OpenAI or Gemini for structured output support."
-            )
-        if image_paths:
-            self.logger.warning(
-                f"DeepSeek model {self.model} does not support image inputs. "
-                f"Received {len(image_paths)} image(s) which will be ignored."
-            )
-        
-        response = self.client.chat.completions.create(
-            model=self.model,
-            messages=[{"role": "user", "content": user_prompt}],
+        return super().chat(
+            user_prompt=user_prompt,
+            image_paths=image_paths,
+            response_format=response_format,
+            **kwargs,
         )
-        return response.choices[0].message.content

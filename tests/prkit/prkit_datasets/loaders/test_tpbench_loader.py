@@ -4,6 +4,7 @@ Unit tests for TPBench dataset loader.
 
 import json
 
+import pandas as pd
 import pytest
 
 from prkit.prkit_datasets.loaders import TPBenchLoader
@@ -254,3 +255,92 @@ class TestTPBenchLoader:
         # Check that domain info is in dataset info
         info = dataset.get_info()
         assert "problems_by_domain" in info
+
+    def test_load_falls_back_from_parquet_to_json(self, temp_dir, monkeypatch):
+        loader = TPBenchLoader()
+        data_dir = temp_dir / "TPBench"
+        parquet_dir = data_dir / "data"
+        parquet_dir.mkdir(parents=True)
+        (parquet_dir / "public-00000-of-00001.parquet").write_text("stub", encoding="utf-8")
+
+        json_file = data_dir / "tpbench_samples.json"
+        with open(json_file, "w", encoding="utf-8") as handle:
+            json.dump(
+                [
+                    {
+                        "problem_id": "qm_001",
+                        "problem": "Question?",
+                        "answer": "psi",
+                        "domain": "QM",
+                        "difficulty_level": 3,
+                    }
+                ],
+                handle,
+            )
+
+        monkeypatch.setattr(
+            "prkit.prkit_datasets.loaders.tpbench_loader.pd.read_parquet",
+            lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("bad parquet")),
+        )
+
+        dataset = loader.load(data_dir=str(data_dir), variant="full", split="public")
+        assert len(dataset) == 1
+        assert dataset[0].problem_id == "qm_001"
+
+    def test_load_raises_when_parquet_and_json_fallback_both_fail(self, temp_dir, monkeypatch):
+        loader = TPBenchLoader()
+        data_dir = temp_dir / "TPBench"
+        parquet_dir = data_dir / "data"
+        parquet_dir.mkdir(parents=True)
+        (parquet_dir / "public-00000-of-00001.parquet").write_text("stub", encoding="utf-8")
+
+        monkeypatch.setattr(
+            "prkit.prkit_datasets.loaders.tpbench_loader.pd.read_parquet",
+            lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("bad parquet")),
+        )
+
+        with pytest.raises(RuntimeError, match="Parquet error"):
+            loader.load(data_dir=str(data_dir), variant="full", split="public")
+
+    def test_load_from_dataframe_and_json_error_branches(self, temp_dir, monkeypatch):
+        loader = TPBenchLoader()
+
+        with pytest.raises(ValueError, match="DataFrame is empty"):
+            loader._load_from_dataframe(pd.DataFrame(), {}, {})  # pylint: disable=protected-access
+
+        monkeypatch.setattr(
+            loader,
+            "create_physics_problem",
+            lambda **kwargs: (_ for _ in ()).throw(RuntimeError("bad row")),
+        )
+        with pytest.raises(RuntimeError, match="No problems could be loaded from DataFrame"):
+            loader._load_from_dataframe(  # pylint: disable=protected-access
+                pd.DataFrame([{"problem_id": "x", "problem": "Q", "answer": "A"}]),
+                {},
+                {},
+            )
+
+        with pytest.raises(FileNotFoundError, match="JSON file not found"):
+            loader._load_from_json(temp_dir / "missing.json", {}, {})  # pylint: disable=protected-access
+
+        empty_json = temp_dir / "empty.json"
+        with open(empty_json, "w", encoding="utf-8") as handle:
+            json.dump([], handle)
+        with pytest.raises(RuntimeError, match="Failed to load JSON file"):
+            loader._load_from_json(empty_json, {}, {})  # pylint: disable=protected-access
+
+    def test_get_domains_and_unknown_domain_mapping(self, temp_dir):
+        loader = TPBenchLoader()
+
+        processed = loader._process_metadata({"domain": "Unknown"})  # pylint: disable=protected-access
+        assert processed["domain"].value == "other"
+
+        missing = loader._get_domains(temp_dir / "missing")  # pylint: disable=protected-access
+        assert missing == []
+        assert loader._get_domains(temp_dir) == [  # pylint: disable=protected-access
+            "QM",
+            "Cosmology",
+            "Stat Mech",
+            "Classical Mechanics",
+            "HET",
+        ]

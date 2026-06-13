@@ -13,13 +13,20 @@ import sys
 
 # Import and expose subpackages at top level
 try:
-    from . import prkit_annotation, prkit_core, prkit_datasets, prkit_evaluation
+    from . import (
+        prkit_annotation,
+        prkit_core,
+        prkit_datasets,
+        prkit_evaluation,
+        prkit_semantics,
+    )
 
     # Make them available as top-level modules
     sys.modules["prkit_core"] = prkit_core
     sys.modules["prkit_datasets"] = prkit_datasets
     sys.modules["prkit_annotation"] = prkit_annotation
     sys.modules["prkit_evaluation"] = prkit_evaluation
+    sys.modules["prkit_semantics"] = prkit_semantics
 
     # Import main components for easy access
     from .prkit_core import PRKitLogger

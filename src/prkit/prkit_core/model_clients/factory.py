@@ -21,6 +21,14 @@ def create_model_client(model: str, logger=None) -> BaseModelClient:
     """
     model_lower = model.lower()
 
+    if model_lower.startswith("xai/") or model_lower.startswith("grok-"):
+        from .xai import XAIModel
+
+        return XAIModel(model, logger)
+    if model_lower.startswith("dashscope/") or model_lower == "qwen3.6-plus":
+        from .dashscope import DashscopeModel
+
+        return DashscopeModel(model, logger)
     if "deepseek" in model_lower:
         from .deepseek import DeepseekModel
 
@@ -30,6 +38,10 @@ def create_model_client(model: str, logger=None) -> BaseModelClient:
 
         return AnthropicModel(model, logger)
     if model_lower.startswith("ollama/"):
+        from .ollama import OllamaModel
+
+        return OllamaModel(model, logger)
+    if model_lower.startswith("qwen"):
         from .ollama import OllamaModel
 
         return OllamaModel(model, logger)
@@ -55,6 +67,7 @@ def create_model_client(model: str, logger=None) -> BaseModelClient:
         f"Unknown model: {model}. "
         "Supported models: OpenAI (gpt-4.1, gpt-5xxxx, o-family), "
         "Anthropic (claude-*), Google (gemini-*), DeepSeek (deepseek-*), "
+        "xAI (grok-*), DashScope (dashscope/*, qwen3.6-plus), "
         "Ollama (ollama/<model_name>, qwen*)"
     )
 

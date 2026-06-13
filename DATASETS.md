@@ -28,7 +28,7 @@ High-level dataset metadata (size/splits/variants/modalities) plus whether the d
 | **PHYBench** | 500 | train | full, fullques, onlyques | text | OE | ✅ Yes | ⚠️ Partial | ⚠️ Partial |
 | **PhyX** | 1,000 (test_mini) | test_mini | test_mini | text, image | MC | ✅ Yes | ❌ No | ✅ Yes |
 | **PhysReason** | 1,200 (full) / 200 (mini) | test | full, mini | text, image | OE | ❌ No | ✅ Yes | ✅ Yes |
-| **UGPhysics** | 11,040 | test | mini, full | text | OE | ✅ Yes | ✅ Yes | ✅ Yes |
+| **UGPhysics** | 5,520 per split / 11,040 total | en, zh | full + 13 domain variants | text | MC, OE | ✅ Yes | ✅ Yes | ✅ Yes |
 | **SeePhys** | 6,200 | train | - | text, image | OE | ✅ Yes | ❌ No | ✅ Yes |
 | **JEEBench** | 123 | test | full | text | MC, OE | ❌ No | ❌ No | ✅ Yes |
 | **TPBench** | 10 | public | full | text | OE | ✅ Yes | ✅ Yes | ✅ Yes |

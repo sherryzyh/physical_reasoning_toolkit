@@ -8,6 +8,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
+from pydantic import BaseModel
 
 from prkit.prkit_core.model_clients.openai import (
     OpenAIModel,
@@ -15,6 +16,9 @@ from prkit.prkit_core.model_clients.openai import (
     _is_supported_openai_model,
     prepare_image_url_from_image_path,
 )
+from prkit.prkit_core.model_clients.structured_output import coerce_structured_output_spec
+
+OPENAI_TEST_MODEL = "gpt-5.4-mini"
 
 
 class TestOpenAIModelValidation:
@@ -65,8 +69,8 @@ class TestOpenAIModel:
 
     def test_init_supported_model(self):
         """Test initializing with supported model."""
-        client = OpenAIModel("gpt-5.1")
-        assert client.model == "gpt-5.1"
+        client = OpenAIModel(OPENAI_TEST_MODEL)
+        assert client.model == OPENAI_TEST_MODEL
         assert client.provider == "openai"
         assert client.is_o_family is False
 
@@ -91,13 +95,13 @@ class TestOpenAIModel:
         mock_response.output_text = "Test response"
         mock_client.responses.create.return_value = mock_response
 
-        client = OpenAIModel("gpt-5.1")
+        client = OpenAIModel(OPENAI_TEST_MODEL)
         response = client.chat("Hello, world!")
 
         assert response == "Test response"
         mock_client.responses.create.assert_called_once()
         call_kwargs = mock_client.responses.create.call_args[1]
-        assert call_kwargs["model"] == "gpt-5.1"
+        assert call_kwargs["model"] == OPENAI_TEST_MODEL
         assert len(call_kwargs["input"]) == 1
         assert call_kwargs["input"][0]["role"] == "user"
         assert len(call_kwargs["input"][0]["content"]) == 1
@@ -118,7 +122,7 @@ class TestOpenAIModel:
         mock_response.output_text = "Image description"
         mock_client.responses.create.return_value = mock_response
 
-        client = OpenAIModel("gpt-5.1")
+        client = OpenAIModel(OPENAI_TEST_MODEL)
         response = client.chat("Describe this image", image_paths=[str(image_file)])
 
         assert response == "Image description"
@@ -140,7 +144,7 @@ class TestOpenAIModel:
         mock_response.output_text = "URL image description"
         mock_client.responses.create.return_value = mock_response
 
-        client = OpenAIModel("gpt-5.1")
+        client = OpenAIModel(OPENAI_TEST_MODEL)
         response = client.chat(
             "Describe this image",
             image_paths=["https://example.com/image.jpg"]
@@ -160,7 +164,7 @@ class TestOpenAIModel:
         mock_response.output_text = "Base64 image description"
         mock_client.responses.create.return_value = mock_response
 
-        client = OpenAIModel("gpt-5.1")
+        client = OpenAIModel(OPENAI_TEST_MODEL)
         data_url = "data:image/jpeg;base64,/9j/4AAQSkZJRg=="
         response = client.chat("Describe this image", image_paths=[data_url])
 
@@ -194,11 +198,77 @@ class TestOpenAIModel:
         mock_response.output_text = "Regular response"
         mock_client.responses.create.return_value = mock_response
 
-        client = OpenAIModel("gpt-5.1")
+        client = OpenAIModel(OPENAI_TEST_MODEL)
         client.chat("Hello")
 
         call_kwargs = mock_client.responses.create.call_args[1]
         assert "reasoning" not in call_kwargs
+
+    @patch("prkit.prkit_core.model_clients.openai.OpenAI")
+    def test_chat_forwards_max_output_tokens(self, mock_openai_class):
+        """Test max_output_tokens is forwarded to the Responses API."""
+        mock_client = MagicMock()
+        mock_openai_class.return_value = mock_client
+        mock_response = Mock()
+        mock_response.output_text = "Budgeted response"
+        mock_client.responses.create.return_value = mock_response
+
+        client = OpenAIModel(OPENAI_TEST_MODEL)
+        client.chat("Hello", max_output_tokens=321)
+
+        call_kwargs = mock_client.responses.create.call_args[1]
+        assert call_kwargs["max_output_tokens"] == 321
+
+    @patch("prkit.prkit_core.model_clients.openai.OpenAI")
+    def test_chat_structured_output_uses_openai_strict_schema(self, mock_openai_class):
+        """Test structured outputs mark every declared field as required for OpenAI."""
+
+        class ExampleResponse(BaseModel):
+            answer: str
+            notes: str | None = None
+
+        mock_client = MagicMock()
+        mock_openai_class.return_value = mock_client
+        mock_response = Mock()
+        mock_response.output_text = '{"answer":"x","notes":null}'
+        mock_client.responses.create.return_value = mock_response
+
+        client = OpenAIModel(OPENAI_TEST_MODEL)
+        client.chat("Hello", response_format=ExampleResponse)
+
+        schema = mock_client.responses.create.call_args[1]["text"]["format"]["schema"]
+        assert set(schema["required"]) == set(schema["properties"].keys())
+        assert "notes" in schema["required"]
+
+    def test_resolve_structured_output_plan_falls_back_when_schema_uses_allof(self):
+        client = object.__new__(OpenAIModel)
+        client.model = OPENAI_TEST_MODEL
+        client.provider = "openai"
+        client.logger = MagicMock()
+        spec = coerce_structured_output_spec(
+            {
+                "type": "json_schema",
+                "name": "AllOfResponse",
+                "schema": {
+                    "allOf": [
+                        {
+                            "type": "object",
+                            "properties": {"answer": {"type": "string"}},
+                            "required": ["answer"],
+                            "additionalProperties": False,
+                        }
+                    ]
+                },
+            }
+        )
+
+        plan = client._resolve_structured_output_plan(
+            spec,
+            structured_policy="best_effort",
+        )
+
+        assert plan.mode == "prompt_only"
+        assert plan.strategy == "openai_prompt_only_unsupported_schema"
 
 
 class TestPrepareImageURL:
@@ -291,7 +361,7 @@ class TestPrepareImageURL:
         mock_response.output_text = "Multi-image response"
         mock_client.responses.create.return_value = mock_response
 
-        client = OpenAIModel("gpt-5.1")
+        client = OpenAIModel(OPENAI_TEST_MODEL)
         response = client.chat("Describe these images", image_paths=images)
 
         assert response == "Multi-image response"
@@ -309,7 +379,7 @@ class TestPrepareImageURL:
         mock_response.output_text = "Response"
         mock_client.responses.create.return_value = mock_response
 
-        client = OpenAIModel("gpt-5.1")
+        client = OpenAIModel(OPENAI_TEST_MODEL)
         response = client.chat("")
 
         assert response == "Response"
@@ -325,7 +395,7 @@ class TestPrepareImageURL:
         mock_response.output_text = "Response"
         mock_client.responses.create.return_value = mock_response
 
-        client = OpenAIModel("gpt-5.1")
+        client = OpenAIModel(OPENAI_TEST_MODEL)
         response = client.chat("Hello", image_paths=None)
 
         assert response == "Response"

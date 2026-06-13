@@ -13,8 +13,15 @@ import os
 from typing import Any, List, Optional, Union
 
 import ollama
+from pydantic import BaseModel
 
 from .base import BaseModelClient
+from .structured_output import (
+    StructuredOutputPlan,
+    StructuredOutputPolicy,
+    StructuredOutputSpec,
+    normalize_response_format,
+)
 
 
 def normalize_ollama_model_name(model: str) -> str:
@@ -31,6 +38,9 @@ def normalize_ollama_model_name(model: str) -> str:
 
 class OllamaModel(BaseModelClient):
     """Ollama model client implementation."""
+
+    supports_response_format_json_schema = True
+    supports_response_format_json_object = True
 
     @staticmethod
     def check_ollama_running(base_url: Optional[str] = None) -> bool:
@@ -109,7 +119,7 @@ class OllamaModel(BaseModelClient):
         user_prompt: str,
         image_paths: Optional[List[str]] = None,
         response_format: Optional[Union[dict, type]] = None,
-        max_output_tokens: int = 8192,
+        max_output_tokens: int = 65535,
         *args: Any,
         **kwargs: Any,
     ) -> str:
@@ -120,7 +130,10 @@ class OllamaModel(BaseModelClient):
             user_prompt: The user's prompt text.
             image_paths: Optional list of file paths to images.
                          Ollama accepts local file paths.
-            response_format: Not supported. If provided, a warning is logged and it is ignored.
+            response_format: Optional structured output format. Supports either:
+                - {"type": "json_schema", "name": str, "schema": dict, "strict": bool}
+                - A Pydantic BaseModel class
+                - {"type": "json_object"} for generic JSON mode
             *args: Additional positional arguments (ignored, kept for compatibility)
             **kwargs: Additional keyword arguments for request parameters
                      (e.g., max_tokens, etc.)
@@ -133,16 +146,21 @@ class OllamaModel(BaseModelClient):
             ConnectionError: If Ollama service becomes unreachable during inference
             ValueError: If the model is not found (not pulled in Ollama)
         """
-        if response_format is not None:
-            self.logger.warning(
-                f"Structured output (response_format) is not supported by Ollama model {self.model}. "
-                "Ignoring response_format and returning plain text. "
-                "Use OpenAI or Gemini for structured output support."
-            )
         message = {
             'role': 'user',
             'content': user_prompt,
         }
+
+        request_format = None
+        if response_format is not None:
+            if (
+                isinstance(response_format, dict)
+                and response_format.get("type") == "json_object"
+            ):
+                request_format = "json"
+            else:
+                normalized = normalize_response_format(response_format)
+                request_format = normalized["schema"]
 
         if image_paths:
             # Ollama's python SDK can handle paths, but for consistency with your 
@@ -164,20 +182,20 @@ class OllamaModel(BaseModelClient):
         # errors. Let Ollama auto-determine GPU layer allocation based on VRAM.
 
         try:
+            request_kwargs = {
+                "model": self.model,
+                "messages": [message],
+                "options": options,
+            }
+            if request_format is not None:
+                request_kwargs["format"] = request_format
+
             # Use Client if base_url is specified, otherwise use default
             if self.base_url:
                 client = ollama.Client(host=self.base_url)
-                response = client.chat(
-                    model=self.model,
-                    messages=[message],
-                    options=options,
-                )
+                response = client.chat(**request_kwargs)
             else:
-                response = ollama.chat(
-                    model=self.model,
-                    messages=[message],
-                    options=options,
-                )
+                response = ollama.chat(**request_kwargs)
             
             # Handle both dict-like and object-like response access
             if hasattr(response, "message"):
@@ -219,3 +237,27 @@ class OllamaModel(BaseModelClient):
             # Re-raise other exceptions as-is
             self.logger.error(f"Ollama inference failed: {str(e)}")
             raise
+
+    def _resolve_structured_output_plan(
+        self,
+        spec: StructuredOutputSpec,
+        *,
+        structured_policy: StructuredOutputPolicy,
+    ) -> StructuredOutputPlan:
+        del structured_policy
+        return StructuredOutputPlan(
+            mode="json_schema",
+            strategy="ollama_format_schema",
+            native_schema_enforced=True,
+            accepted_artifact_modes=("json_schema", "json_object"),
+            accepted_artifact_strategies=("ollama_format_schema", "ollama_json_object"),
+            response_format=spec.source_model or normalize_response_format(
+                {
+                    "type": "json_schema",
+                    "name": spec.name,
+                    "schema": spec.schema,
+                    "strict": spec.strict,
+                    "description": spec.description,
+                }
+            ),
+        )

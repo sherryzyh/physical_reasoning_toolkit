@@ -3,16 +3,14 @@ Unit tests for category_match module.
 
 Tests cover:
 - same_comparison_category (from answer_utils)
-- compare_by_type functions (compare_number, compare_plain_text, etc.)
+- compare_same_type functions (compare_number, compare_plain_text, etc.)
 - CategoryComparator (init, compare, accuracy_score, mixed input types)
 """
-
-import pytest
 
 from prkit.prkit_core.domain import Answer, AnswerCategory
 from prkit.prkit_evaluation.comparator.category_match import CategoryComparator
 from prkit.prkit_evaluation.utils.answer_utils import same_comparison_category
-from prkit.prkit_evaluation.utils.compare_by_type import (
+from prkit.prkit_evaluation.utils.compare_same_type import (
     _formula_to_sympify,
     _parse_physical_quantity,
     compare_formula,
@@ -182,8 +180,10 @@ class TestComparePhysicalQuantity:
         """Same units but different numeric values (even after decimal rounding)."""
         # 9.8 vs 15 - no rounding makes them equal
         assert compare_physical_quantity("9.8 m/s^2", "15 m/s^2") is False
-        # 9.8 rounds to 10 when GT has 0 decimals, so 9.8 matches 10
-        assert compare_physical_quantity("9.8 m/s^2", "10.0 m/s^2") is True
+        # With GT precision 1 decimal (10.0), 9.8 should not be rounded to 10.
+        assert compare_physical_quantity("9.8 m/s^2", "10.0 m/s^2") is False
+        # With GT precision 0 decimals (10), 9.8 rounds to 10 and matches.
+        assert compare_physical_quantity("9.8 m/s^2", "10 m/s^2") is True
 
     def test_different_units_fallback_to_text(self):
         """Different units: fall back to plain text (no unit conversion)."""
@@ -298,6 +298,58 @@ class TestCompareFormula:
         result = compare_formula("valid", "invalid formula {{")
         assert result is False
 
+    def test_sympify_brace_set_uses_text_fallback(self):
+        """Braces like ``{1,2}`` sympify to a Python ``set`` (not :class:`~sympy.core.basic.Basic`)."""
+        assert compare_formula("{1, 2}", "{1, 2}") is True
+        assert compare_formula("{1, 2}", "{2, 1}") is False
+
+    def test_sympy_interval_vs_expression_no_crash(self):
+        """SymPy may parse one side as Interval; ``Expr - Interval`` is invalid — no exception."""
+        assert compare_formula("x + 1", "Interval(0, 1)") is False
+
+    # --- Multi-strategy symbolic tests (Strategy 2) ---
+
+    def test_trig_identity_sin2_cos2(self):
+        """sin²(x) + cos²(x) == 1 via trigsimp."""
+        assert compare_formula("sin(x)**2 + cos(x)**2", "1") is True
+
+    def test_cancel_rational(self):
+        """(x^2 - 1)/(x - 1) == x + 1 via cancel."""
+        assert compare_formula("(x**2 - 1)/(x - 1)", "x + 1") is True
+
+    def test_factor_vs_expand(self):
+        """x^3 - x == x*(x-1)*(x+1) via factor/expand."""
+        assert compare_formula("x**3 - x", "x*(x - 1)*(x + 1)") is True
+
+    def test_simplify_combined(self):
+        """(a+b)^2 - (a^2 + 2*a*b + b^2) == 0."""
+        assert compare_formula(
+            "(a + b)**2 - a**2 - 2*a*b - b**2", "0"
+        ) is True
+
+    def test_different_after_simplify(self):
+        """Expressions that are NOT equal should still return False."""
+        assert compare_formula("sin(x)**2 + cos(x)**2", "2") is False
+
+    # --- Numerical equivalence tests (Strategy 3) ---
+
+    def test_numerical_constant_equivalence(self):
+        """Pure-constant expressions with no free variables."""
+        assert compare_formula("2**10", "1024") is True
+        assert compare_formula("3**3", "28") is False
+
+    def test_numerical_multivar(self):
+        """Multi-variable expression equality checked numerically."""
+        assert compare_formula("(x+y)**2", "x**2 + 2*x*y + y**2") is True
+
+    def test_numerical_equivalence_skips_integrals(self):
+        """Integral-bearing formulas should bypass numeric sampling."""
+        from prkit.prkit_evaluation.utils import compare_same_type as compare_same_type_module
+        pred = compare_same_type_module.sympify("Integral(exp(-x**2), (x, 0, a))")
+        gt = compare_same_type_module.sympify("Integral(exp(-x**2), (x, 0, b))")
+
+        assert compare_same_type_module._numerical_equivalence(pred, gt) is None
+
 
 class TestCategoryComparator:
     """Tests for CategoryComparator class."""
@@ -316,12 +368,13 @@ class TestCategoryComparator:
         assert comp.compare(a1, a2) is True
 
     def test_compare_two_answers_different_category(self):
-        """Two Answer objects, different category -> normalize as text."""
+        """Cross-category pairs use normalized plain-text comparison only."""
         a1 = Answer(value="42", answer_category=AnswerCategory.NUMBER)
         a2 = Answer(value="42", answer_category=AnswerCategory.TEXT)
         comp = CategoryComparator()
-        # After normalize_as_text, "42" == "42"
         assert comp.compare(a1, a2) is True
+        a3 = Answer(value="43", answer_category=AnswerCategory.TEXT)
+        assert comp.compare(a1, a3) is False
 
     def test_compare_two_strings(self):
         """Two string inputs: normalize and compare by category."""
@@ -339,7 +392,7 @@ class TestCategoryComparator:
         assert comp.compare("42", ans) is True
 
     def test_compare_answer_string_text_category(self):
-        """Answer + string for text category."""
+        """TEXT same-type uses shared compare_by_category (normalize_text then plain text)."""
         comp = CategoryComparator()
         ans = Answer(value="  hello  ", answer_category=AnswerCategory.TEXT)
         assert comp.compare(ans, "hello") is True
@@ -397,12 +450,12 @@ class TestCategoryComparator:
         comp = CategoryComparator()
         assert comp.accuracy_score("42", "43") == 0.0
 
-    def test_option_answers_case_sensitive(self):
-        """Option answers use plain text compare (case-sensitive)."""
+    def test_option_answers_case_insensitive_like_typed_llm(self):
+        """OPTION quick path uses case-insensitive match (same as LLM judge)."""
         comp = CategoryComparator()
         a1 = Answer(value="A", answer_category=AnswerCategory.OPTION)
         a2 = Answer(value="a", answer_category=AnswerCategory.OPTION)
-        assert comp.compare(a1, a2) is False
+        assert comp.compare(a1, a2) is True
 
     def test_compare_formula_answer_objects(self):
         """Answer objects with FORMULA category use compare_formula."""

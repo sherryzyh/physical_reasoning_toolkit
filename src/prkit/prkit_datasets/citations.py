@@ -59,6 +59,14 @@ PHYBENCH_CITATION = """@article{qiu2025phybench,
     year = {2025}
 }"""
 
+# PhysBench citation
+PHYSBENCH_CITATION = """@article{chow2025physbench,
+    title = {PhysBench: Benchmarking and Enhancing Vision-Language Models for Physical World Understanding},
+    author = {Chow, Wei and Mao, Jiageng and Li, Boyi and Seita, Daniel and Guizilini, Vitor and Wang, Yue},
+    journal = {arXiv preprint arXiv:2501.16411},
+    year = {2025}
+}"""
+
 # UGPhysics citation
 UGPHYSICS_CITATION = """@article{xu2025ugphysics,
     title = {UGPhysics: A Comprehensive Benchmark for Undergraduate Physics Reasoning with Large Language Models},
@@ -78,11 +86,37 @@ PHYX_CITATION = """@misc{shen2025phyxdoesmodelwits,
     url={https://arxiv.org/abs/2505.15929}, 
 }"""
 
+# PHYSICS citation
+PHYSICS_CITATION = """@inproceedings{feng-etal-2025-physics,
+    title = "Physics: Benchmarking Foundation Models on University-Level Physics Problem Solving",
+    author = "Feng, Kaiyue  and
+      Zhao, Yilun  and
+      Liu, Yixin  and
+      Yang, Tianyu  and
+      Zhao, Chen  and
+      Sous, John  and
+      Cohan, Arman",
+    editor = "Che, Wanxiang  and
+      Nabende, Joyce  and
+      Shutova, Ekaterina  and
+      Pilehvar, Mohammad Taher",
+    booktitle = "Findings of the Association for Computational Linguistics: ACL 2025",
+    month = jul,
+    year = "2025",
+    address = "Vienna, Austria",
+    publisher = "Association for Computational Linguistics",
+    url = "https://aclanthology.org/2025.findings-acl.610/",
+    doi = "10.18653/v1/2025.findings-acl.610",
+    pages = "11717--11743",
+}"""
+
 # Dictionary mapping dataset names to their citations
 CITATIONS: Dict[str, str] = {
     "physreason": PHYSREASON_CITATION,
+    "physbench": PHYSBENCH_CITATION,
     "seephys": SEEPHYS_CITATION,
     "phybench": PHYBENCH_CITATION,
+    "physics": PHYSICS_CITATION,
     "ugphysics": UGPHYSICS_CITATION,
     "phyx": PHYX_CITATION,
 }

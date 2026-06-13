@@ -1,50 +1,67 @@
 """
-Category-Based Comparator for answer comparison.
+Category-Based Comparator for same-type answer comparison.
 
-This comparator normalizes answers first, then applies category-specific comparison
-strategies. For the same category, a dedicated comparison function is used;
-for different categories, both answers are normalized as text and compared.
+``compare`` / ``accuracy_score`` resolve same-type pairs via the shared
+:func:`compare_by_category` dispatch. Cross-type pairs are compared as normalized
+plain text only (GT-as-substring semantics via :func:`compare_plain_text`).
 
-Category-specific comparison details can be customized by subclassing and
-overriding _get_category_comparators().
+For cross-type deterministic matching (e.g. PQ vs NUMBER), see
+:class:`SmartMatchComparator`.
+
+Subclass hooks: overriding ``_comparators`` affects :meth:`_compare_by_category`
+and :meth:`compare`.
 """
 
-from typing import Union
+from typing import Any, Optional, Union
 
 from prkit.prkit_core import PRKitLogger
 from prkit.prkit_core.domain.answer import Answer
 from prkit.prkit_core.domain.answer_category import AnswerCategory
 from prkit.prkit_evaluation.utils.answer_utils import same_comparison_category
 from prkit.prkit_evaluation.utils.normalization import normalize_answer, normalize_text
-from prkit.prkit_evaluation.utils.compare_by_type import (
-    compare_number,
-    compare_plain_text,
-    compare_physical_quantity,
+from prkit.prkit_evaluation.utils.compare_same_type import (
     compare_formula,
+    compare_number,
+    compare_option,
+    compare_physical_quantity,
+    compare_plain_text,
 )
+
+from prkit.prkit_evaluation.utils.category_dispatch import compare_by_category
 
 from .base import BaseComparator
 
 
+def _typed_category_and_value(
+    answer: Union[str, Answer],
+) -> tuple[Optional[AnswerCategory], Union[float, str]]:
+    if isinstance(answer, Answer):
+        return answer.answer_category, str(answer.value)
+    try:
+        category, normalized = normalize_answer(answer)
+        return category, normalized
+    except (ValueError, TypeError, RuntimeError):
+        return None, str(answer).strip()
+
+
 class CategoryComparator(BaseComparator):
     """
-    Comparator that normalizes answers first, then applies category-specific
-    comparison strategies.
+    Comparator restricted to same-type category dispatch plus plain-text
+    fallback for cross-type pairs.
 
-    Category-specific comparators can be customized by subclassing and
-    overriding _get_category_comparators().
-
-    Categories: number, equation, physical_quantity, formula, text
+    ``answer1`` is treated as the model prediction and ``answer2`` as ground truth,
+    matching :class:`TypedLLMComparator`. Optional ``kwargs`` (e.g. ``question``,
+    ``symbolic_answer_is_expression``) are accepted for API compatibility with
+    the LLM judge but are ignored — this comparator does not call an LLM.
     """
 
-    # Default comparators per category (placeholders; customize as needed)
     DEFAULT_COMPARATORS = {
         AnswerCategory.NUMBER: compare_number,
         AnswerCategory.EQUATION: compare_plain_text,
         AnswerCategory.PHYSICAL_QUANTITY: compare_physical_quantity,
         AnswerCategory.FORMULA: compare_formula,
         AnswerCategory.TEXT: compare_plain_text,
-        AnswerCategory.OPTION: compare_plain_text,
+        AnswerCategory.OPTION: compare_option,
     }
 
     def __init__(self):
@@ -52,96 +69,55 @@ class CategoryComparator(BaseComparator):
         self._comparators = dict(self.DEFAULT_COMPARATORS)
         self.logger = PRKitLogger.get_logger(__name__)
 
-
     def _compare_by_category(
         self,
         category: AnswerCategory,
         predicted_norm: Union[float, str],
         ground_truth_norm: Union[float, str],
     ) -> bool:
-        """
-        Compare two normalized values using the category-specific strategy.
-
-        Args:
-            category: The shared category of both answers
-            predicted_norm: Normalized predicted/student answer
-            ground_truth_norm: Normalized ground truth answer
-
-        Returns:
-            True if answers match according to category rules, False otherwise
-        """
-        if category == AnswerCategory.TEXT:
-            predicted_norm = normalize_text(str(predicted_norm))
-            ground_truth_norm = normalize_text(str(ground_truth_norm))
-        comparator = self._comparators.get(category, compare_plain_text)
-        return comparator(predicted_norm, ground_truth_norm)
+        """Compare two normalized values using the category-specific strategy."""
+        return compare_by_category(
+            category,
+            predicted_norm,
+            ground_truth_norm,
+            self._comparators,
+            self.logger,
+        )
 
     def compare(
         self,
         answer1: Union[str, Answer],
         answer2: Union[str, Answer],
+        **kwargs: Any,
     ) -> bool:
         """
-        Compare two answers after normalization.
+        True when same-type :func:`compare_by_category` matches, or when
+        cross-type plain-text comparison matches after normalization.
 
-        Accepts either raw strings (e.g. from JSON) or Answer objects. For option
-        answers (both Answer with answer_category=OPTION), uses case-insensitive
-        exact match. Otherwise, normalizes both and applies category-specific
-        comparison.
-
-        Args:
-            answer1: First answer to compare (string or Answer)
-            answer2: Second answer to compare (string or Answer)
-
-        Returns:
-            True if answers match after category-based comparison, False otherwise
+        Cross-type pairs are not graded with category-specific logic; they are
+        compared only as normalized text. For richer cross-type rules, use
+        :class:`SmartMatchComparator`.
         """
-        
-        if isinstance(answer1, Answer):
-            pred_norm = str(answer1.value)
-            pred_string = pred_norm
-            pred_cat = answer1.answer_category
-            self.logger.debug(f"model answer (answer object): {pred_norm} ({pred_cat})")
-        else:
-            pred_cat, pred_norm = normalize_answer(answer1)
-            pred_string = str(answer1)
-            self.logger.debug(f"model answer (answer string): {pred_norm} ({pred_cat})")
+        pred_cat, pred_value = _typed_category_and_value(answer1)
+        gt_cat, gt_value = _typed_category_and_value(answer2)
+        if pred_cat is None or gt_cat is None:
+            return False
 
-        if isinstance(answer2, Answer):
-            gt_norm = str(answer2.value)
-            gt_string = gt_norm
-            gt_cat = answer2.answer_category
-            self.logger.debug(f"gt answer (answer object): {gt_norm} ({gt_cat})")
-        else:
-            gt_cat, gt_norm = normalize_answer(answer2)
-            gt_string = str(answer2)
-            self.logger.debug(f"gt answer (answer string): {gt_norm} ({gt_cat})")
-            
         if same_comparison_category(gt_cat, pred_cat):
-            return self._compare_by_category(gt_cat, pred_norm, gt_norm)
-        else:
-            pred_norm = normalize_text(pred_string)
-            gt_norm = normalize_text(gt_string)
-            return pred_norm == gt_norm
+            return self._compare_by_category(gt_cat, pred_value, gt_value)
 
+        pred_text = normalize_text(str(pred_value))
+        gt_text = normalize_text(str(gt_value))
+        return compare_plain_text(pred_text, gt_text)
 
     def accuracy_score(
         self,
         answer1: Union[str, Answer],
         answer2: Union[str, Answer],
+        **kwargs: Any,
     ) -> float:
         """
-        Compute accuracy score for category-based comparison.
-
-        Returns 1.0 if answers match, 0.0 otherwise. Accepts either raw strings
-        (e.g. from JSON) or Answer objects.
-
-        Args:
-            answer1: First answer to compare (string or Answer)
-            answer2: Second answer to compare (string or Answer)
-
-        Returns:
-            1.0 if answers match after category-based comparison, 0.0 otherwise
+        1.0 if :meth:`compare` is True, else 0.0.
         """
-        is_match = self.compare(answer1, answer2)
+        is_match = self.compare(answer1, answer2, **kwargs)
         return 1.0 if is_match else 0.0

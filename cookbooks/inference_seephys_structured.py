@@ -167,10 +167,10 @@ def run_inference(
                     if not Path(p).exists():
                         raise FileNotFoundError(f"Image not found: {p}")
 
-            # Use higher max_output_tokens for Gemini (8192 default can truncate long physics reasoning)
+            # Use higher max_output_tokens for Gemini to avoid truncating long physics reasoning.
             extra_kwargs = {}
             if client.provider == "google":
-                extra_kwargs["max_output_tokens"] = 16384
+                extra_kwargs["max_output_tokens"] = 65535
 
             response_text = client.chat(
                 user_prompt=full_prompt,

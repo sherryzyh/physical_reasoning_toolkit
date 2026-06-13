@@ -16,10 +16,12 @@ __all__ = [
     "create_model_client",
     "create_llm_client",
     "AnthropicModel",
+    "DashscopeModel",
     "DeepseekModel",
     "GeminiModel",
     "OllamaModel",
     "OpenAIModel",
+    "XAIModel",
 ]
 
 
@@ -32,6 +34,10 @@ def __getattr__(name: str):
         from .deepseek import DeepseekModel
 
         return DeepseekModel
+    if name == "DashscopeModel":
+        from .dashscope import DashscopeModel
+
+        return DashscopeModel
     if name == "GeminiModel":
         from .gemini import GeminiModel
 
@@ -44,4 +50,8 @@ def __getattr__(name: str):
         from .openai import OpenAIModel
 
         return OpenAIModel
+    if name == "XAIModel":
+        from .xai import XAIModel
+
+        return XAIModel
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

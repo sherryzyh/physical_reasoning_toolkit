@@ -7,6 +7,7 @@ undergraduate physics problems across multiple domains.
 
 import json
 import random  # Added for per_domain sampling
+import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
@@ -14,6 +15,19 @@ from prkit.prkit_core import PRKitLogger
 from prkit.prkit_core.domain import PhysicsDomain
 from prkit.prkit_core.domain import PhysicalDataset
 from prkit.prkit_datasets.loaders.base_loader import BaseDatasetLoader
+from prkit.prkit_datasets.ugphysics_common import (
+    UGPHYSICS_DEFAULT_SUBDIR,
+    UGPHYSICS_DOMAIN_COUNTS,
+    UGPHYSICS_DOMAIN_VARIANTS,
+    UGPHYSICS_PUBLIC_VARIANTS,
+    UGPHYSICS_SPLIT_TOTALS,
+    UGPHYSICS_SUPPORTED_SPLITS,
+    candidate_data_dirs,
+    get_requested_domain_dirs,
+    get_variant_from_domain_dir,
+    normalize_split,
+    normalize_variant,
+)
 
 
 class UGPhysicsLoader(BaseDatasetLoader):
@@ -32,7 +46,10 @@ class UGPhysicsLoader(BaseDatasetLoader):
     @property
     def description(self) -> str:
         """Return the description of the dataset."""
-        return "Undergraduate Physics dataset with problems across multiple domains"
+        return (
+            "Undergraduate Physics dataset across 13 domains with "
+            "English and Chinese splits"
+        )
 
     def get_info(self) -> Dict[str, Any]:
         """Get dataset information."""
@@ -54,13 +71,18 @@ class UGPhysicsLoader(BaseDatasetLoader):
                 "thermodynamics",
                 "wave_optics",
             ],
-            "languages": ["en", "zh"],
-            "variants": ["mini", "full"],
-            "splits": ["test"],  # UGPhysics only supports test split
-            "problem_types": ["OE"],  # All problems are open-ended
-            "total_problems": "~2000+",
+            "languages": UGPHYSICS_SUPPORTED_SPLITS,
+            "variants": UGPHYSICS_PUBLIC_VARIANTS,
+            "splits": UGPHYSICS_SUPPORTED_SPLITS,
+            "problem_types": ["OE", "MC", "MultipleMC"],
+            "total_problems": {
+                "en": UGPHYSICS_SPLIT_TOTALS["en"],
+                "zh": UGPHYSICS_SPLIT_TOTALS["zh"],
+                "all": sum(UGPHYSICS_SPLIT_TOTALS.values()),
+            },
             "difficulty": "undergraduate",
             "source": "UGPhysics Dataset",
+            "problems_by_domain": UGPHYSICS_DOMAIN_COUNTS["en"],
             "modalities": self.modalities,
         }
 
@@ -102,39 +124,157 @@ class UGPhysicsLoader(BaseDatasetLoader):
 
     def _process_metadata(self, metadata: Dict[str, Any], domain_name: str):
         """Process metadata to create standardized problem fields."""
-        # Map UGPhysics domain names to PhysicsDomain enum values
-
-        # Set domain from the domain name mapping
         metadata["domain"] = self.DOMAIN_MAPPING.get(
             domain_name,
             PhysicsDomain.OTHER,
         )
 
-        # difficulty
-        metadata["difficulty"] = "undergraduate"
+        metadata["difficulty"] = metadata.get("level") or "undergraduate"
 
-        # answer category and answer (UGPhysics uses answer_type: NV=numerical, EX=expression)
-        raw_answer_type = metadata.get("answer_type") or ""
-        if "NV" in raw_answer_type:
-            answer_value = metadata.get("answers")
-            answer_unit = metadata.get("unit")
-            metadata["answer_category"] = "physical_quantity" if answer_unit else "number"
-            metadata["answer"] = {
-                "value": answer_value,
-                "unit": answer_unit,
-            }
+        raw_answer_type = str(metadata.get("answer_type") or "").upper()
+        raw_answers = metadata.get("answers")
+        raw_unit = metadata.get("unit")
+        is_multiple_answer = bool(metadata.get("is_multiple_answer"))
+
+        metadata["raw_answer_type"] = raw_answer_type
+        metadata["raw_answers"] = raw_answers
+        metadata["raw_unit"] = raw_unit
+
+        if "MC" in raw_answer_type:
+            option_answers = self._split_answer_parts(raw_answers)
+            option_answers = [
+                self._normalize_option_answer(answer)
+                for answer in option_answers
+                if answer
+            ]
+            metadata["problem_type"] = "MultipleMC" if is_multiple_answer else "MC"
+            metadata["answer_category"] = "option"
+            if is_multiple_answer:
+                metadata["answer"] = ", ".join(option_answers)
+                metadata["answer_parts"] = option_answers
+            else:
+                metadata["answer"] = (
+                    option_answers[0]
+                    if option_answers
+                    else self._clean_answer_text(raw_answers)
+                )
+        elif "NV" in raw_answer_type:
+            normalized_unit = self._normalize_unit(raw_unit)
+            if is_multiple_answer:
+                answer_parts = self._split_answer_parts(raw_answers)
+                unit_parts = self._split_answer_parts(raw_unit)
+                normalized_parts = []
+                for index, answer_part in enumerate(answer_parts):
+                    unit_part = (
+                        self._normalize_unit(unit_parts[index])
+                        if index < len(unit_parts)
+                        else None
+                    )
+                    normalized_parts.append(
+                        {
+                            "value": answer_part,
+                            "unit": unit_part,
+                        }
+                    )
+                metadata["answer_category"] = "text"
+                metadata["answer"] = "; ".join(
+                    self._format_physical_answer(part["value"], part["unit"])
+                    for part in normalized_parts
+                )
+                metadata["answer_parts"] = normalized_parts
+            else:
+                metadata["answer_category"] = (
+                    "physical_quantity" if normalized_unit else "number"
+                )
+                metadata["answer"] = {
+                    "value": self._clean_answer_text(raw_answers),
+                    "unit": normalized_unit,
+                }
         elif "EX" in raw_answer_type:
             metadata["answer_category"] = "formula"
-            metadata["answer"] = metadata.get("answers")
+            if is_multiple_answer:
+                answer_parts = self._split_answer_parts(raw_answers)
+                metadata["answer_category"] = "text"
+                metadata["answer"] = "; ".join(answer_parts)
+                metadata["answer_parts"] = answer_parts
+            else:
+                metadata["answer"] = self._clean_answer_text(raw_answers)
         else:
             metadata["answer_category"] = "text"
-            metadata["answer"] = metadata.get("answers")
+            if is_multiple_answer:
+                answer_parts = self._split_answer_parts(raw_answers)
+                metadata["answer"] = "; ".join(answer_parts)
+                metadata["answer_parts"] = answer_parts
+            else:
+                metadata["answer"] = self._clean_answer_text(raw_answers)
 
         metadata.pop("answers", None)
         metadata.pop("unit", None)
-        metadata.pop("answer_type", None)  # raw UGPhysics field; we use answer_category
+        metadata.pop("answer_type", None)
 
         return metadata
+
+    @staticmethod
+    def _clean_answer_text(value: Any) -> str:
+        """Strip common wrappers from raw UGPhysics answers."""
+        if value is None:
+            return ""
+
+        text = str(value).strip()
+        boxed_match = re.fullmatch(r"\\boxed\{(.*)\}", text)
+        if boxed_match:
+            text = boxed_match.group(1).strip()
+
+        text = re.sub(r"^\$(.*)\$$", r"\1", text)
+        return text.strip()
+
+    def _split_answer_parts(self, value: Any) -> List[str]:
+        """Split a multi-answer field into normalized answer parts."""
+        text = self._clean_answer_text(value)
+        if not text:
+            return []
+        return [part.strip() for part in text.split(",") if part.strip()]
+
+    def _normalize_option_answer(self, value: str) -> str:
+        """Normalize UGPhysics MC answers to compact option labels."""
+        answer = self._clean_answer_text(value)
+        answer = answer.strip().strip("()[]{}")
+        answer = answer.rstrip(".")
+        if len(answer) == 1:
+            return answer.upper()
+        return answer
+
+    @staticmethod
+    def _normalize_unit(value: Any) -> Optional[str]:
+        """Normalize unit strings and treat null-ish values as missing units."""
+        if value is None:
+            return None
+
+        normalized = str(value).strip()
+        if normalized in {"", "None", "null"}:
+            return None
+        return normalized
+
+    def _format_physical_answer(self, value: str, unit: Optional[str]) -> str:
+        """Build a stable string for multi-part physical quantity answers."""
+        if unit:
+            return f"{value} {unit}"
+        return value
+
+    def _resolve_data_dir(
+        self,
+        data_dir: Union[str, Path, None],
+    ) -> Path:
+        """Resolve the UGPhysics cache directory with legacy-case compatibility."""
+        if data_dir is not None:
+            return self.resolve_data_dir(data_dir, UGPHYSICS_DEFAULT_SUBDIR)
+
+        root_dir = self.resolve_data_dir(None)
+        for candidate in candidate_data_dirs(root_dir):
+            if candidate.exists():
+                return candidate
+
+        return root_dir / UGPHYSICS_DEFAULT_SUBDIR
 
     def load(
         self,
@@ -143,19 +283,19 @@ class UGPhysicsLoader(BaseDatasetLoader):
         variant: Optional[str] = None,
         sample_size: Optional[int] = None,
         per_domain: Optional[int] = None,
-        language: str = "en",
+        language: Optional[str] = None,
         **kwargs,
     ) -> PhysicalDataset:
         """
         Load the UGPhysics dataset.
 
         Args:
-            data_dir: Path to the UGPhysics dataset (defaults to ~/PHYSICAL_REASONING_DATASETS/UGPhysics)
-            split: Dataset split to load. Defaults to "test" if available.
-            variant: Dataset variant. Defaults to "full" if available.
+            data_dir: Path to the UGPhysics dataset cache directory.
+            split: Dataset split to load ("en" or "zh").
+            variant: Dataset variant ("full" or one domain variant).
             sample_size: Number of problems to sample (None for all)
             per_domain: Number of problems to sample per domain (None for all)
-            language: Language to load ("en" or "zh")
+            language: Backward-compatible alias for split selection
 
         Returns:
             PhysicalDataset instance
@@ -163,46 +303,34 @@ class UGPhysicsLoader(BaseDatasetLoader):
         Raises:
             ValueError: If unsupported split or variant is requested
         """
-        # Use defaults if not provided
-        if split is None:
-            split = self.get_default_split() or "test"
-        if variant is None:
-            variant = self.get_default_variant() or "full"
-        
-        # Validate variant and split
+        variant = normalize_variant(variant, logger=self.logger)
+        split = normalize_split(split, language=language, logger=self.logger)
         self.validate_variant(variant)
         self.validate_split(split)
 
-        # Resolve data directory with environment variable support
-        data_dir = self.resolve_data_dir(data_dir, "UGPhysics")
+        data_dir = self._resolve_data_dir(data_dir)
         self.logger.debug(f"Using data directory: {data_dir}")
 
         if not data_dir.exists():
             raise FileNotFoundError(f"Data directory not found: {data_dir}")
 
-        # Get available domains
-        domains = self._get_domains(data_dir, language)
+        requested_domains = get_requested_domain_dirs(variant)
+        domains = self._get_domains(data_dir, split, requested_domains)
 
         if not domains:
-            self.logger.error(f"No valid domains found in: {data_dir}")
-            self.logger.error(
-                f"Directory contents: {[d.name for d in data_dir.iterdir() if d.is_dir()]}"
+            available_dirs = [d.name for d in data_dir.iterdir() if d.is_dir()]
+            raise FileNotFoundError(
+                "No UGPhysics files found for "
+                f"variant='{variant}' and split='{split}' in {data_dir}. "
+                f"Available directories: {available_dirs}"
             )
-            self.logger.error(f"Expected structure:")
-            self.logger.error(f"   {data_dir}/")
-            self.logger.error(f"   ├── AtomicPhysics/")
-            self.logger.error(f"   │   └── en.jsonl")
-            self.logger.error(f"   ├── ClassicalMechanics/")
-            self.logger.error(f"   │   └── en.jsonl")
-            self.logger.error(f"   └── ... (other domains)")
-            return PhysicalDataset([], self.get_info(), split=split)
 
         problems = []
         domain_counts = {}
         domain_problems = {}  # Track problems per domain for sampling
 
         for domain_name in domains:
-            domain_file = data_dir / domain_name / f"{language}.jsonl"
+            domain_file = data_dir / domain_name / f"{split}.jsonl"
 
             if not domain_file.exists():
                 self.logger.warning(f"Domain file not found: {domain_file}")
@@ -261,13 +389,22 @@ class UGPhysicsLoader(BaseDatasetLoader):
         # Create dataset info
         info = self.get_info()
         info["total_problems"] = len(problems)
+        info["variant"] = variant
+        info["split"] = split
+        info["expected_total_problems"] = (
+            UGPHYSICS_SPLIT_TOTALS[split]
+            if variant == "full"
+            else UGPHYSICS_DOMAIN_COUNTS[split][variant]
+        )
         info["problems_by_domain"] = {
-            str(domain): count for domain, count in domain_counts.items()
+            get_variant_from_domain_dir(domain): count
+            for domain, count in domain_counts.items()
         }
 
         # Log final loading result
         self.logger.info(
-            f"Successfully loaded {len(problems)} problems from UGPhysics dataset"
+            f"Successfully loaded {len(problems)} problems from UGPhysics "
+            f"dataset variant='{variant}' split='{split}'"
         )
 
         return PhysicalDataset(
@@ -277,7 +414,10 @@ class UGPhysicsLoader(BaseDatasetLoader):
         )
 
     def _get_domains(
-        self, data_dir: Union[str, Path], language: str = "en"
+        self,
+        data_dir: Union[str, Path],
+        split: str = "en",
+        requested_domains: Optional[List[str]] = None,
     ) -> List[str]:
         """Get list of available domains in the dataset."""
         data_dir = Path(data_dir)
@@ -285,38 +425,15 @@ class UGPhysicsLoader(BaseDatasetLoader):
             self.logger.error(f"Data directory does not exist: {data_dir}")
             return []
 
-        self.logger.debug(f"Scanning directory: {data_dir}")
-
-        # Get all subdirectories
-        all_dirs = [d for d in data_dir.iterdir() if d.is_dir()]
-
-        # Get subdirectories that represent domains
-        domains = [d.name for d in all_dirs]
-
-        # Filter out non-domain directories
-        valid_domains = [
-            "AtomicPhysics",
-            "ClassicalElectromagnetism",
-            "ClassicalMechanics",
-            "Electrodynamics",
-            "GeometricalOptics",
-            "QuantumMechanics",
-            "Relativity",
-            "SemiconductorPhysics",
-            "Solid-StatePhysics",
-            "StatisticalMechanics",
-            "TheoreticalMechanics",
-            "Thermodynamics",
-            "WaveOptics",
-        ]
-
-        found_domains = [d for d in domains if d in valid_domains]
-
-        # Check if any domain files exist
-        for domain in found_domains:
+        candidate_domains = requested_domains or list(UGPHYSICS_DOMAIN_VARIANTS.values())
+        found_domains = []
+        for domain in candidate_domains:
             domain_dir = data_dir / domain
-            jsonl_file = domain_dir / "en.jsonl"
+            jsonl_file = domain_dir / f"{split}.jsonl"
             if not jsonl_file.exists():
-                self.logger.warning(f"Domain {domain}: {language}.jsonl not found")
+                if domain_dir.exists():
+                    self.logger.warning(f"Domain {domain}: {split}.jsonl not found")
+                continue
+            found_domains.append(domain)
 
         return found_domains

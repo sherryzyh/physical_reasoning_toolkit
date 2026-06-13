@@ -64,7 +64,14 @@ class TestCitations:
         citation_keys_lower = [k.lower() for k in citation_keys]
 
         # At least one of these should be present
-        expected_datasets = ["physreason", "seephys", "phybench", "ugphysics", "phyx"]
+        expected_datasets = [
+            "physreason",
+            "physbench",
+            "seephys",
+            "phybench",
+            "ugphysics",
+            "phyx",
+        ]
         assert any(ds in citation_keys_lower for ds in expected_datasets)
 
     def test_citations_are_bibtex_format(self):

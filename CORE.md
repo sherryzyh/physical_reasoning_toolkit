@@ -175,6 +175,8 @@ Unified interface for running inference across multiple providers (LLMs and VLMs
 | OpenAI | `gpt-4.1-mini`, `gpt-5.1`, `o3-mini` | Responses API only; Text input; Image input | `OPENAI_API_KEY` |
 | Google Gemini | `gemini-pro`, `gemini-1.5-pro` | Text input; Image input | `GOOGLE_API_KEY` |
 | DeepSeek | `deepseek-chat`, `deepseek-reasoner` | Text input | `DEEPSEEK_API_KEY` |
+| xAI | `grok-4.20-reasoning`, `xai/grok-4.20-reasoning` | OpenAI-compatible Chat Completions API | `XAI_API_KEY` |
+| DashScope | `qwen3.6-plus`, `dashscope/qwen3.6-plus` | OpenAI-compatible Chat Completions API; `DASHSCOPE_REGION` or `DASHSCOPE_BASE_URL` can override region | `DASHSCOPE_API_KEY` |
 | Ollama | `qwen3-vl`, `qwen3-vl:8b-instruct` | Local runtime; vision depends on model | (none) |
 
 **Notes:** Provider selection is model-driven—you specify a model string, not a provider. For image inputs, pass absolute file paths, HTTP(S) URLs, or `data:image/...;base64,...` strings. See `src/prkit/prkit_core/model_clients/ARCHITECTURE.md` for implementation details.
