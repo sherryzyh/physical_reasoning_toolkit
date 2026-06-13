@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "physical-reasoning-toolkit"
-version = "0.1.0.post21"
+version = "0.1.0.post22"
 description = "A toolkit for physical-reasoning datasets, multi-provider LLM inference, answer evaluation, and annotation."
 readme = {file = "README.md", content-type = "text/markdown"}
 license = {text = "MIT"}
