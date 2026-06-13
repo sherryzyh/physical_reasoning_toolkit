@@ -9,7 +9,7 @@ import json
 import random
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
 
 from prkit.core import PRKitLogger
 from prkit.core.domain import PhysicalDataset, PhysicsDomain
@@ -20,7 +20,7 @@ from .base_loader import BaseDatasetLoader, detect_answer_category
 class PhysicsLoader(BaseDatasetLoader):
     """Loader for the PHYSICS dataset."""
 
-    FILE_PATTERNS: Dict[Tuple[str, str], Tuple[str, str]] = {
+    FILE_PATTERNS: dict[tuple[str, str], tuple[str, str]] = {
         ("full", "full"): ("", "*_dataset.jsonl"),
         ("full", "test"): ("PHYSICS-test", "*_dataset_test.jsonl"),
         ("full", "eval"): ("PHYSICS-eval", "*_dataset_eval.jsonl"),
@@ -28,7 +28,7 @@ class PhysicsLoader(BaseDatasetLoader):
         ("textonly", "full"): ("PHYSICS-textonly", "*_dataset_textonly.jsonl"),
     }
 
-    DOMAIN_MAPPING: Dict[str, PhysicsDomain] = {
+    DOMAIN_MAPPING: dict[str, PhysicsDomain] = {
         "atomic": PhysicsDomain.ATOMIC_PHYSICS,
         "electro": PhysicsDomain.CLASSICAL_ELECTROMAGNETISM,
         "mechanics": PhysicsDomain.CLASSICAL_MECHANICS,
@@ -51,19 +51,19 @@ class PhysicsLoader(BaseDatasetLoader):
         return "PHYSICS: A university-level physics problem solving benchmark"
 
     @property
-    def modalities(self) -> List[str]:
+    def modalities(self) -> list[str]:
         """PHYSICS supports text and image modalities."""
         return ["text", "image"]
 
     @property
-    def field_mapping(self) -> Dict[str, str]:
+    def field_mapping(self) -> dict[str, str]:
         return {
             "id": "problem_id",
             "questions": "question",
             "solutions": "solution",
         }
 
-    def get_info(self) -> Dict[str, Any]:
+    def get_info(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "description": self.description,
@@ -97,10 +97,10 @@ class PhysicsLoader(BaseDatasetLoader):
 
     def load(
         self,
-        data_dir: Union[str, Path, None] = None,
-        variant: Optional[str] = None,
-        split: Optional[str] = None,
-        sample_size: Optional[int] = None,
+        data_dir: str | Path | None = None,
+        variant: str | None = None,
+        split: str | None = None,
+        sample_size: int | None = None,
         decode_images: bool = True,
         **kwargs,
     ) -> PhysicalDataset:
@@ -191,7 +191,7 @@ class PhysicsLoader(BaseDatasetLoader):
 
     def _resolve_source_dir(
         self, data_dir: Path, variant: str, split: str
-    ) -> Tuple[Path, str]:
+    ) -> tuple[Path, str]:
         subdir, pattern = self.FILE_PATTERNS[(variant, split)]
         return (data_dir / subdir if subdir else data_dir), pattern
 
@@ -203,9 +203,9 @@ class PhysicsLoader(BaseDatasetLoader):
         split: str,
         source_domain: str,
         decode_images: bool,
-    ) -> List:
+    ) -> list:
         problems = []
-        with open(jsonl_file, "r", encoding="utf-8") as handle:
+        with open(jsonl_file, encoding="utf-8") as handle:
             for line_number, line in enumerate(handle, start=1):
                 line = line.strip()
                 if not line:
@@ -247,14 +247,14 @@ class PhysicsLoader(BaseDatasetLoader):
 
     def _process_metadata(
         self,
-        metadata: Dict[str, Any],
+        metadata: dict[str, Any],
         data_dir: Path,
         variant: str,
         split: str,
         source_domain: str,
         source_file: str,
         decode_images: bool,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         answer_value, answer_parts, answer_category = self._normalize_answers(
             metadata.pop("final_answers", None)
         )
@@ -267,8 +267,12 @@ class PhysicsLoader(BaseDatasetLoader):
             split=split,
             decode_images=decode_images,
         )
-        problem_id_domain = self._infer_domain_from_problem_id(metadata.get("problem_id"))
-        normalized_source_domain = source_domain if source_domain in self.DOMAIN_MAPPING else None
+        problem_id_domain = self._infer_domain_from_problem_id(
+            metadata.get("problem_id")
+        )
+        normalized_source_domain = (
+            source_domain if source_domain in self.DOMAIN_MAPPING else None
+        )
         resolved_domain = problem_id_domain or normalized_source_domain
 
         if (
@@ -287,7 +291,9 @@ class PhysicsLoader(BaseDatasetLoader):
         metadata["answer"] = answer_value
         metadata["answer_category"] = answer_category
         metadata["problem_type"] = "OE"
-        metadata["domain"] = self.DOMAIN_MAPPING.get(resolved_domain, PhysicsDomain.OTHER)
+        metadata["domain"] = self.DOMAIN_MAPPING.get(
+            resolved_domain, PhysicsDomain.OTHER
+        )
         metadata["language"] = "en"
         metadata["image_paths"] = image_paths or None
         metadata["answer_parts"] = answer_parts
@@ -299,15 +305,17 @@ class PhysicsLoader(BaseDatasetLoader):
         metadata["source_file"] = source_file
         return metadata
 
-    def _normalize_answers(
-        self, raw_answers: Any
-    ) -> Tuple[str, List[str], str]:
+    def _normalize_answers(self, raw_answers: Any) -> tuple[str, list[str], str]:
         if raw_answers is None:
-            answer_parts: List[str] = []
+            answer_parts: list[str] = []
         elif isinstance(raw_answers, list):
-            answer_parts = [str(answer).strip() for answer in raw_answers if str(answer).strip()]
+            answer_parts = [
+                str(answer).strip() for answer in raw_answers if str(answer).strip()
+            ]
         else:
-            answer_parts = [str(raw_answers).strip()] if str(raw_answers).strip() else []
+            answer_parts = (
+                [str(raw_answers).strip()] if str(raw_answers).strip() else []
+            )
 
         if not answer_parts:
             return "", [], "text"
@@ -320,7 +328,9 @@ class PhysicsLoader(BaseDatasetLoader):
         answer_value = "\n".join(
             f"({index + 1}) {answer}" for index, answer in enumerate(answer_parts)
         )
-        detected_categories = [detect_answer_category(answer) for answer in answer_parts]
+        detected_categories = [
+            detect_answer_category(answer) for answer in answer_parts
+        ]
         if all(category.value == "text" for category in detected_categories):
             return answer_value, answer_parts, "text"
         return answer_value, answer_parts, "formula"
@@ -333,7 +343,7 @@ class PhysicsLoader(BaseDatasetLoader):
         variant: str,
         split: str,
         decode_images: bool,
-    ) -> List[str]:
+    ) -> list[str]:
         if not decode_images or not graphs:
             return []
 
@@ -341,7 +351,9 @@ class PhysicsLoader(BaseDatasetLoader):
         output_dir.mkdir(parents=True, exist_ok=True)
 
         image_paths = []
-        safe_problem_id = re.sub(r"[^A-Za-z0-9._-]+", "_", problem_id).strip("_") or "problem"
+        safe_problem_id = (
+            re.sub(r"[^A-Za-z0-9._-]+", "_", problem_id).strip("_") or "problem"
+        )
 
         for index, graph in enumerate(graphs):
             image_url = graph.get("image_url", {}) if isinstance(graph, dict) else {}
@@ -365,7 +377,7 @@ class PhysicsLoader(BaseDatasetLoader):
 
         return image_paths
 
-    def _split_data_url(self, data_url: str) -> Tuple[str, str]:
+    def _split_data_url(self, data_url: str) -> tuple[str, str]:
         header, encoded = data_url.split(",", 1)
         if ";base64" not in header:
             raise ValueError("Unsupported non-base64 data URL")
@@ -386,7 +398,7 @@ class PhysicsLoader(BaseDatasetLoader):
             return "other"
         return filename.split("_dataset", 1)[0]
 
-    def _infer_domain_from_problem_id(self, problem_id: Any) -> Optional[str]:
+    def _infer_domain_from_problem_id(self, problem_id: Any) -> str | None:
         raw_problem_id = str(problem_id).strip() if problem_id is not None else ""
         if not raw_problem_id or "/" not in raw_problem_id:
             return None

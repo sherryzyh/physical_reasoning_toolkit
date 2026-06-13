@@ -6,7 +6,6 @@ import os
 from os import PathLike
 from pathlib import Path
 
-
 _TOOLKIT_ENV_VAR = "PRKIT_TOOLKIT_ROOT"
 _CANONICAL_ENV_VAR = "PRKIT_CANONICAL_ROOT"
 _UQ_ENV_VAR = "PRKIT_UQ_ROOT"
@@ -63,7 +62,9 @@ def find_toolkit_root(anchor: str | PathLike[str] | Path | None = None) -> Path 
     )
 
 
-def find_canonical_root(anchor: str | PathLike[str] | Path | None = None) -> Path | None:
+def find_canonical_root(
+    anchor: str | PathLike[str] | Path | None = None,
+) -> Path | None:
     """Return the canonical-answer-protocol repo root when present."""
     env_root = _resolve_env_root(
         _CANONICAL_ENV_VAR,
@@ -82,7 +83,10 @@ def find_canonical_root(anchor: str | PathLike[str] | Path | None = None) -> Pat
             return nested_root
 
     for candidate in _iter_search_dirs(anchor):
-        if candidate.name == "canonical_answer_protocol" and (candidate / "scripts").is_dir():
+        if (
+            candidate.name == "canonical_answer_protocol"
+            and (candidate / "scripts").is_dir()
+        ):
             return candidate
 
     return _find_named_sibling(
@@ -121,14 +125,17 @@ def find_uq_root(anchor: str | PathLike[str] | Path | None = None) -> Path | Non
         uq_root = toolkit_root / "uncertainty_quantification_physical_reasoning"
         if uq_root.is_dir():
             return uq_root
-        sibling_root = toolkit_root.parent / "uncertainty_quantification_physical_reasoning"
+        sibling_root = (
+            toolkit_root.parent / "uncertainty_quantification_physical_reasoning"
+        )
         if sibling_root.is_dir():
             return sibling_root
 
     for candidate in _iter_search_dirs(anchor):
-        if candidate.name == "uncertainty_quantification_physical_reasoning" and (
-            candidate / "scripts"
-        ).is_dir():
+        if (
+            candidate.name == "uncertainty_quantification_physical_reasoning"
+            and (candidate / "scripts").is_dir()
+        ):
             return candidate
 
     return _find_named_sibling(

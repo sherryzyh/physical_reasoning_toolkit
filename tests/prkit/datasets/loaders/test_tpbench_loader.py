@@ -65,11 +65,11 @@ class TestTPBenchLoader:
     def test_load_success_from_json(self, temp_dir):
         """Test successful loading of TPBench dataset from JSON file."""
         loader = TPBenchLoader()
-        
+
         # Create mock data directory structure
         data_dir = temp_dir / "TPBench"
         data_dir.mkdir(parents=True)
-        
+
         # Create sample JSON file
         json_file = data_dir / "tpbench_samples.json"
         sample_data = [
@@ -84,10 +84,10 @@ class TestTPBenchLoader:
         ]
         with open(json_file, "w", encoding="utf-8") as f:
             json.dump(sample_data, f)
-        
+
         # Load dataset
         dataset = loader.load(data_dir=str(data_dir), variant="full", split="public")
-        
+
         assert dataset is not None
         assert len(dataset) == 1
         assert dataset[0].problem_id == "test_001"
@@ -98,7 +98,7 @@ class TestTPBenchLoader:
         loader = TPBenchLoader()
         data_dir = temp_dir / "TPBench"
         data_dir.mkdir(parents=True)
-        
+
         with pytest.raises(FileNotFoundError):
             loader.load(data_dir=str(data_dir), variant="full", split="public")
 
@@ -107,8 +107,10 @@ class TestTPBenchLoader:
         loader = TPBenchLoader()
         data_dir = temp_dir / "TPBench"
         data_dir.mkdir(parents=True)
-        
-        with pytest.raises(ValueError, match="Unknown split 'test' for dataset 'tpbench'"):
+
+        with pytest.raises(
+            ValueError, match="Unknown split 'test' for dataset 'tpbench'"
+        ):
             loader.load(data_dir=str(data_dir), variant="full", split="test")
 
     def test_load_invalid_variant(self, temp_dir):
@@ -116,11 +118,13 @@ class TestTPBenchLoader:
         loader = TPBenchLoader()
         data_dir = temp_dir / "TPBench"
         data_dir.mkdir(parents=True)
-        
+
         json_file = data_dir / "tpbench_samples.json"
         json_file.touch()
-        
-        with pytest.raises(ValueError, match="Unknown variant 'mini' for dataset 'tpbench'"):
+
+        with pytest.raises(
+            ValueError, match="Unknown variant 'mini' for dataset 'tpbench'"
+        ):
             loader.load(data_dir=str(data_dir), variant="mini", split="public")
 
     def test_load_invalid_language(self, temp_dir):
@@ -128,19 +132,21 @@ class TestTPBenchLoader:
         loader = TPBenchLoader()
         data_dir = temp_dir / "TPBench"
         data_dir.mkdir(parents=True)
-        
+
         json_file = data_dir / "tpbench_samples.json"
         json_file.touch()
-        
+
         with pytest.raises(ValueError, match="only supports 'en' language"):
-            loader.load(data_dir=str(data_dir), variant="full", split="public", language="zh")
+            loader.load(
+                data_dir=str(data_dir), variant="full", split="public", language="zh"
+            )
 
     def test_load_with_sample_size(self, temp_dir):
         """Test loading with sample_size parameter."""
         loader = TPBenchLoader()
         data_dir = temp_dir / "TPBench"
         data_dir.mkdir(parents=True)
-        
+
         json_file = data_dir / "tpbench_samples.json"
         sample_data = [
             {
@@ -154,11 +160,11 @@ class TestTPBenchLoader:
         ]
         with open(json_file, "w", encoding="utf-8") as f:
             json.dump(sample_data, f)
-        
+
         dataset = loader.load(
             data_dir=str(data_dir), variant="full", split="public", sample_size=5
         )
-        
+
         assert len(dataset) == 5
 
     def test_load_with_per_domain(self, temp_dir):
@@ -166,28 +172,30 @@ class TestTPBenchLoader:
         loader = TPBenchLoader()
         data_dir = temp_dir / "TPBench"
         data_dir.mkdir(parents=True)
-        
+
         json_file = data_dir / "tpbench_samples.json"
         sample_data = []
         # Create problems for multiple domains
         domains = ["QM", "HET", "Classical Mechanics"]
         for domain in domains:
             for i in range(5):
-                sample_data.append({
-                    "problem_id": f"{domain.lower()}_{i:03d}",
-                    "problem": f"Question {i}?",
-                    "answer": f"Answer {i}",
-                    "domain": domain,
-                    "difficulty_level": 2,
-                })
-        
+                sample_data.append(
+                    {
+                        "problem_id": f"{domain.lower()}_{i:03d}",
+                        "problem": f"Question {i}?",
+                        "answer": f"Answer {i}",
+                        "domain": domain,
+                        "difficulty_level": 2,
+                    }
+                )
+
         with open(json_file, "w", encoding="utf-8") as f:
             json.dump(sample_data, f)
-        
+
         dataset = loader.load(
             data_dir=str(data_dir), variant="full", split="public", per_domain=2
         )
-        
+
         # Should have 2 problems per domain = 6 total
         assert len(dataset) == 6
 
@@ -199,7 +207,9 @@ class TestTPBenchLoader:
             "answer": "ψ(x)",
         }
         # Accessing protected method for testing purposes
-        processed = loader._process_metadata(metadata)  # pylint: disable=protected-access
+        processed = loader._process_metadata(
+            metadata
+        )  # pylint: disable=protected-access
         assert processed["answer_category"] == "formula"
         assert "domain" in processed
 
@@ -208,11 +218,11 @@ class TestTPBenchLoader:
         loader = TPBenchLoader()
         data_dir = temp_dir / "TPBench"
         data_dir.mkdir(parents=True)
-        
+
         json_file = data_dir / "tpbench_samples.json"
         with open(json_file, "w", encoding="utf-8") as f:
             json.dump([], f)
-        
+
         with pytest.raises(RuntimeError, match="Failed to load JSON file"):
             loader.load(data_dir=str(data_dir), variant="full", split="public")
 
@@ -221,7 +231,7 @@ class TestTPBenchLoader:
         loader = TPBenchLoader()
         data_dir = temp_dir / "TPBench"
         data_dir.mkdir(parents=True)
-        
+
         json_file = data_dir / "tpbench_samples.json"
         sample_data = [
             {
@@ -248,9 +258,9 @@ class TestTPBenchLoader:
         ]
         with open(json_file, "w", encoding="utf-8") as f:
             json.dump(sample_data, f)
-        
+
         dataset = loader.load(data_dir=str(data_dir), variant="full", split="public")
-        
+
         assert len(dataset) == 3
         # Check that domain info is in dataset info
         info = dataset.get_info()
@@ -261,7 +271,9 @@ class TestTPBenchLoader:
         data_dir = temp_dir / "TPBench"
         parquet_dir = data_dir / "data"
         parquet_dir.mkdir(parents=True)
-        (parquet_dir / "public-00000-of-00001.parquet").write_text("stub", encoding="utf-8")
+        (parquet_dir / "public-00000-of-00001.parquet").write_text(
+            "stub", encoding="utf-8"
+        )
 
         json_file = data_dir / "tpbench_samples.json"
         with open(json_file, "w", encoding="utf-8") as handle:
@@ -287,12 +299,16 @@ class TestTPBenchLoader:
         assert len(dataset) == 1
         assert dataset[0].problem_id == "qm_001"
 
-    def test_load_raises_when_parquet_and_json_fallback_both_fail(self, temp_dir, monkeypatch):
+    def test_load_raises_when_parquet_and_json_fallback_both_fail(
+        self, temp_dir, monkeypatch
+    ):
         loader = TPBenchLoader()
         data_dir = temp_dir / "TPBench"
         parquet_dir = data_dir / "data"
         parquet_dir.mkdir(parents=True)
-        (parquet_dir / "public-00000-of-00001.parquet").write_text("stub", encoding="utf-8")
+        (parquet_dir / "public-00000-of-00001.parquet").write_text(
+            "stub", encoding="utf-8"
+        )
 
         monkeypatch.setattr(
             "prkit.datasets.loaders.tpbench_loader.pd.read_parquet",
@@ -306,14 +322,18 @@ class TestTPBenchLoader:
         loader = TPBenchLoader()
 
         with pytest.raises(ValueError, match="DataFrame is empty"):
-            loader._load_from_dataframe(pd.DataFrame(), {}, {})  # pylint: disable=protected-access
+            loader._load_from_dataframe(
+                pd.DataFrame(), {}, {}
+            )  # pylint: disable=protected-access
 
         monkeypatch.setattr(
             loader,
             "create_physics_problem",
             lambda **kwargs: (_ for _ in ()).throw(RuntimeError("bad row")),
         )
-        with pytest.raises(RuntimeError, match="No problems could be loaded from DataFrame"):
+        with pytest.raises(
+            RuntimeError, match="No problems could be loaded from DataFrame"
+        ):
             loader._load_from_dataframe(  # pylint: disable=protected-access
                 pd.DataFrame([{"problem_id": "x", "problem": "Q", "answer": "A"}]),
                 {},
@@ -321,21 +341,29 @@ class TestTPBenchLoader:
             )
 
         with pytest.raises(FileNotFoundError, match="JSON file not found"):
-            loader._load_from_json(temp_dir / "missing.json", {}, {})  # pylint: disable=protected-access
+            loader._load_from_json(
+                temp_dir / "missing.json", {}, {}
+            )  # pylint: disable=protected-access
 
         empty_json = temp_dir / "empty.json"
         with open(empty_json, "w", encoding="utf-8") as handle:
             json.dump([], handle)
         with pytest.raises(RuntimeError, match="Failed to load JSON file"):
-            loader._load_from_json(empty_json, {}, {})  # pylint: disable=protected-access
+            loader._load_from_json(
+                empty_json, {}, {}
+            )  # pylint: disable=protected-access
 
     def test_get_domains_and_unknown_domain_mapping(self, temp_dir):
         loader = TPBenchLoader()
 
-        processed = loader._process_metadata({"domain": "Unknown"})  # pylint: disable=protected-access
+        processed = loader._process_metadata(
+            {"domain": "Unknown"}
+        )  # pylint: disable=protected-access
         assert processed["domain"].value == "other"
 
-        missing = loader._get_domains(temp_dir / "missing")  # pylint: disable=protected-access
+        missing = loader._get_domains(
+            temp_dir / "missing"
+        )  # pylint: disable=protected-access
         assert missing == []
         assert loader._get_domains(temp_dir) == [  # pylint: disable=protected-access
             "QM",

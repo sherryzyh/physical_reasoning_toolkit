@@ -6,11 +6,10 @@ This module provides a downloader for the PhysReason dataset from HuggingFace.
 For citation information, see prkit.datasets.citations.
 """
 
-import json
 import shutil
 import time
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any
 
 from .base_downloader import BaseDownloader
 
@@ -31,7 +30,7 @@ class PhysReasonDownloader(BaseDownloader):
         return "physreason"
 
     @property
-    def download_info(self) -> Dict[str, Any]:
+    def download_info(self) -> dict[str, Any]:
         """Return download information."""
         return {
             "source": "HuggingFace",
@@ -49,9 +48,9 @@ class PhysReasonDownloader(BaseDownloader):
 
     def download(
         self,
-        data_dir: Optional[Union[str, Path]] = None,
+        data_dir: str | Path | None = None,
         force: bool = False,
-        variant: Optional[str] = None,
+        variant: str | None = None,
         **kwargs,
     ) -> Path:
         """
@@ -76,12 +75,14 @@ class PhysReasonDownloader(BaseDownloader):
         # Use default if not provided
         if variant is None:
             variant = self.get_default_variant() or "full"
-        
+
         # Validate variant
         self.validate_variant(variant)
-        
+
         # Call parent download method which handles force logic
-        return super().download(data_dir=data_dir, force=force, variant=variant, **kwargs)
+        return super().download(
+            data_dir=data_dir, force=force, variant=variant, **kwargs
+        )
 
     def _do_download(
         self,
@@ -115,9 +116,7 @@ class PhysReasonDownloader(BaseDownloader):
                 "Install it with: pip install requests"
             ) from exc
 
-        self.logger.info(
-            "Downloading PhysReason dataset (%s variant)...", variant
-        )
+        self.logger.info("Downloading PhysReason dataset (%s variant)...", variant)
         self.logger.info("Target directory: %s", download_dir)
 
         try:
@@ -131,20 +130,18 @@ class PhysReasonDownloader(BaseDownloader):
             # Build the HuggingFace file download URL
             # Files are available at: https://huggingface.co/datasets/zhibei1204/PhysReason/resolve/main/{filename}
             dataset_repo = "zhibei1204/PhysReason"
-            
+
             # Map variant to filename
             filename_map = {
                 "full": "PhysReason-full.zip",
                 "mini": "PhysReason-mini.zip",
             }
             filename = filename_map[variant]
-            
+
             # Construct the download URL using HuggingFace's resolve endpoint
             # Note: The ?download=true parameter is required for proper file download
-            download_url = (
-                f"https://huggingface.co/datasets/{dataset_repo}/resolve/main/{filename}?download=true"
-            )
-            
+            download_url = f"https://huggingface.co/datasets/{dataset_repo}/resolve/main/{filename}?download=true"
+
             self.logger.info("Downloading from HuggingFace repository...")
             self.logger.info("URL: %s", download_url)
             self.logger.info("File: %s", filename)
@@ -152,35 +149,42 @@ class PhysReasonDownloader(BaseDownloader):
             # Download the zip file with progress tracking
             max_retries = 3
             retry_delay = 5  # seconds
-            
+
             for attempt in range(max_retries):
                 try:
                     # Stream the download to handle large files
-                    response = requests.get(download_url, stream=True, timeout=600)  # 10 minute timeout
+                    response = requests.get(
+                        download_url, stream=True, timeout=600
+                    )  # 10 minute timeout
                     response.raise_for_status()
-                    
+
                     # Determine output file path
                     output_file = download_dir / filename
-                    
+
                     # Download and save the file
                     self.logger.info("Saving to: %s", output_file)
-                    total_size = int(response.headers.get('content-length', 0))
-                    
-                    with open(output_file, 'wb') as f:
+                    total_size = int(response.headers.get("content-length", 0))
+
+                    with open(output_file, "wb") as f:
                         downloaded = 0
                         for chunk in response.iter_content(chunk_size=8192):
                             if chunk:
                                 f.write(chunk)
                                 downloaded += len(chunk)
-                                
+
                                 # Log progress for large files
-                                if total_size > 0 and downloaded % (10 * 1024 * 1024) == 0:  # Every 10MB
+                                if (
+                                    total_size > 0
+                                    and downloaded % (10 * 1024 * 1024) == 0
+                                ):  # Every 10MB
                                     progress = (downloaded / total_size) * 100
                                     self.logger.info(
                                         "Download progress: %.1f%% (%d / %d bytes)",
-                                        progress, downloaded, total_size
+                                        progress,
+                                        downloaded,
+                                        total_size,
                                     )
-                    
+
                     # Verify file was downloaded
                     if output_file.exists() and output_file.stat().st_size > 0:
                         file_size_mb = output_file.stat().st_size / (1024 * 1024)
@@ -193,12 +197,15 @@ class PhysReasonDownloader(BaseDownloader):
                         break
                     else:
                         raise RuntimeError("Downloaded file is empty or does not exist")
-                        
+
                 except requests.exceptions.RequestException as req_err:
                     if attempt < max_retries - 1:
                         self.logger.warning(
                             "Download failed (attempt %d/%d): %s. Retrying in %d seconds...",
-                            attempt + 1, max_retries, req_err, retry_delay
+                            attempt + 1,
+                            max_retries,
+                            req_err,
+                            retry_delay,
                         )
                         time.sleep(retry_delay)
                         continue
@@ -209,7 +216,7 @@ class PhysReasonDownloader(BaseDownloader):
 
             return download_dir
 
-        except (ImportError, ValueError) as e:
+        except (ImportError, ValueError):
             # Re-raise ImportError and ValueError as-is (don't wrap)
             raise
         except (RuntimeError, OSError, Exception) as e:
@@ -223,7 +230,7 @@ class PhysReasonDownloader(BaseDownloader):
             self.logger.error("Failed to download PhysReason dataset: %s", e)
             raise RuntimeError(f"Download failed: {e}") from e
 
-    def verify(self, data_dir: Union[str, Path]) -> bool:
+    def verify(self, data_dir: str | Path) -> bool:
         """
         Verify that the downloaded dataset is complete and valid.
 
@@ -278,12 +285,12 @@ class PhysReasonDownloader(BaseDownloader):
 
                 # Check that it's a valid zip file
                 try:
-                    with zipfile.ZipFile(zip_file, 'r') as zf:
+                    with zipfile.ZipFile(zip_file, "r") as zf:
                         file_list = zf.namelist()
                         self.logger.info(
                             "%s is a valid zip file with %d entries",
                             zip_file.name,
-                            len(file_list)
+                            len(file_list),
                         )
                 except zipfile.BadZipFile as e:
                     self.logger.warning("%s is not a valid zip file: %s", zip_file, e)

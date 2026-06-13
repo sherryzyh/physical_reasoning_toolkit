@@ -20,14 +20,22 @@ class TestJEEBenchLoader:
         assert loader.field_mapping == {"question": "question", "gold": "answer"}
         assert "phy" in loader.get_info()["subjects"]
 
-        assert loader._extract_options_from_question(  # pylint: disable=protected-access
-            "Question?\n(A) one\n(B) two\n(C) three\n(D) four"
-        ) == ["A: one", "B: two", "C: three", "D: four"]
-        assert loader._extract_options_from_question(  # pylint: disable=protected-access
-            "Question?\n(1) one\n(2) two"
-        ) == ["1: one", "2: two"]
-        assert loader._extract_options_from_question(  # pylint: disable=protected-access
-            "Question?\n(A) alpha\n(B) beta\nbroken"
+        assert (
+            loader._extract_options_from_question(  # pylint: disable=protected-access
+                "Question?\n(A) one\n(B) two\n(C) three\n(D) four"
+            )
+            == ["A: one", "B: two", "C: three", "D: four"]
+        )
+        assert (
+            loader._extract_options_from_question(  # pylint: disable=protected-access
+                "Question?\n(1) one\n(2) two"
+            )
+            == ["1: one", "2: two"]
+        )
+        assert (
+            loader._extract_options_from_question(  # pylint: disable=protected-access
+                "Question?\n(A) alpha\n(B) beta\nbroken"
+            )
         )
 
     def test_process_metadata_preserves_subject_and_numeric_type(self):
@@ -70,13 +78,19 @@ class TestJEEBenchLoader:
             {"subject": "chem", "question": "Q2"},
         ]
 
-        assert loader._apply_filters(rows, None) == rows  # pylint: disable=protected-access
-        assert loader._apply_filters(rows, "phy") == [rows[0]]  # pylint: disable=protected-access
+        assert (
+            loader._apply_filters(rows, None) == rows
+        )  # pylint: disable=protected-access
+        assert loader._apply_filters(rows, "phy") == [
+            rows[0]
+        ]  # pylint: disable=protected-access
 
         with pytest.raises(ValueError, match="Invalid subject"):
             loader._apply_filters(rows, "biology")  # pylint: disable=protected-access
 
-    def test_load_success_defaults_sampling_and_skip_invalid_problem(self, temp_dir, monkeypatch):
+    def test_load_success_defaults_sampling_and_skip_invalid_problem(
+        self, temp_dir, monkeypatch
+    ):
         loader = JEEBenchLoader()
         data_dir = temp_dir / "JEEBench"
         _write_dataset_json(
@@ -126,7 +140,9 @@ class TestJEEBenchLoader:
         loader = JEEBenchLoader()
 
         with pytest.raises(FileNotFoundError, match="Data directory not found"):
-            loader.load(data_dir=str(temp_dir / "missing"), variant="full", split="test")
+            loader.load(
+                data_dir=str(temp_dir / "missing"), variant="full", split="test"
+            )
 
         data_dir = temp_dir / "JEEBench"
         data_dir.mkdir(parents=True)
@@ -174,7 +190,11 @@ class TestJEEBenchLoader:
 
     def test_statistics_and_subject_listing_handle_loader_errors(self, monkeypatch):
         loader = JEEBenchLoader()
-        monkeypatch.setattr(loader, "load", lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("boom")))
+        monkeypatch.setattr(
+            loader,
+            "load",
+            lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("boom")),
+        )
 
         assert loader.get_subject_statistics(data_dir="unused") == {}
         assert loader.list_available_subjects(data_dir="unused") == []

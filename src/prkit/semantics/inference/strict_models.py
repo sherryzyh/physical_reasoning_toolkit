@@ -98,10 +98,10 @@ class StrictPhysicsQuestionSemantics(_StrictInferenceModel):
 class StrictPhysicsAnswerCaseSemantics(_StrictInferenceModel):
     """Provider-facing piecewise branch for answer semantics."""
 
-    expression: "StrictPhysicsAnswerSemantics" = Field(
+    expression: StrictPhysicsAnswerSemantics = Field(
         description="The answer expression produced when the condition holds.",
     )
-    condition: "StrictPhysicsAnswerSemantics" = Field(
+    condition: StrictPhysicsAnswerSemantics = Field(
         description="The condition that activates the paired expression.",
     )
 
@@ -163,7 +163,7 @@ class StrictPhysicsAnswerSemantics(_StrictInferenceModel):
         default=None,
         description="Whether an interval answer is open on the right endpoint.",
     )
-    children: tuple["StrictPhysicsAnswerSemantics", ...] = Field(
+    children: tuple[StrictPhysicsAnswerSemantics, ...] = Field(
         default_factory=tuple,
         description="Child answer semantics for structured answers such as tuples or vectors.",
     )
@@ -171,7 +171,7 @@ class StrictPhysicsAnswerSemantics(_StrictInferenceModel):
         default_factory=tuple,
         description="Piecewise branches pairing expressions with their activating conditions.",
     )
-    subject_to: tuple["StrictPhysicsAnswerSemantics", ...] = Field(
+    subject_to: tuple[StrictPhysicsAnswerSemantics, ...] = Field(
         default_factory=tuple,
         description="Global side conditions or constraints attached conjunctively to this answer.",
     )

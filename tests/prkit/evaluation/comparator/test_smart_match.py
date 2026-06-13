@@ -7,8 +7,6 @@ Tests cover SmartMatchComparator:
 - Cross-category comparison (e.g. PQ vs NUMBER, TEXT vs FORMULA/EQUATION)
 """
 
-import pytest
-
 from prkit.core.domain import Answer, AnswerCategory
 from prkit.evaluation.comparator import smart_match as smart_match_module
 from prkit.evaluation.comparator.smart_match import (
@@ -196,7 +194,10 @@ class TestSmartMatchHelpers:
     """Tests for internal helper methods."""
 
     def test_extract_latex_equations_and_typed_category_fallback(self, monkeypatch):
-        assert _extract_latex_equations(r"text $x=1$ and \[y=2\]") == ["$x=1$", r"\[y=2\]"]
+        assert _extract_latex_equations(r"text $x=1$ and \[y=2\]") == [
+            "$x=1$",
+            r"\[y=2\]",
+        ]
 
         monkeypatch.setattr(
             smart_match_module,
@@ -272,7 +273,9 @@ class TestSmartMatchHelpers:
             "compare_formula",
             lambda *_args: (_ for _ in ()).throw(ValueError("boom")),
         )
-        monkeypatch.setattr(smart_match_module, "compare_plain_text", lambda *_args: True)
+        monkeypatch.setattr(
+            smart_match_module, "compare_plain_text", lambda *_args: True
+        )
         assert (
             SmartMatchComparator._compare_formula_with_renormalized("x + y", "rhs")
             is True
@@ -302,7 +305,9 @@ class TestSmartMatchHelpers:
                 raise ValueError("bad equation")
             return AnswerCategory.EQUATION, "Eq(x, 2)"
 
-        monkeypatch.setattr(smart_match_module, "normalize_answer", fake_normalize_answer)
+        monkeypatch.setattr(
+            smart_match_module, "normalize_answer", fake_normalize_answer
+        )
         monkeypatch.setattr(
             smart_match_module,
             "compare_by_category",
@@ -314,7 +319,9 @@ class TestSmartMatchHelpers:
             lambda _norm, _cat: ("2", AnswerCategory.NUMBER),
         )
         monkeypatch.setattr(smart_match_module, "compare_formula", lambda *_args: True)
-        assert comparator._try_equation_from_text("text", "Eq(x, 2)", "Eq(x, 2)") is True
+        assert (
+            comparator._try_equation_from_text("text", "Eq(x, 2)", "Eq(x, 2)") is True
+        )
 
         monkeypatch.setattr(
             comparator,

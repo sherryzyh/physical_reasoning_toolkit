@@ -18,16 +18,16 @@ from ..schema import (
     QuestionSymbolicMode,
 )
 from .bridge_registry import bridge_enabled_for_policy, bridge_spec_for
+from .coercion import (
+    coerce_evaluation_contract,
+    coerce_protocol_answer,
+    coerce_question_semantics,
+)
 from .common import available_texts, context_symbol_alias_map, reparse_sources
 from .contract import (
     build_evaluation_contract,
     coerce_policy_mode,
     validate_answer_against_contract,
-)
-from .coercion import (
-    coerce_evaluation_contract,
-    coerce_protocol_answer,
-    coerce_question_semantics,
 )
 from .different_object_kind import compare_different_object_kinds
 from .label_family_fallback import compare_label_family_fallback
@@ -66,7 +66,9 @@ def compare_protocol_answers(
 
     pred_validation = None
     if _validate_top_level:
-        pred_validation = validate_answer_against_contract(pred_answer, resolved_contract)
+        pred_validation = validate_answer_against_contract(
+            pred_answer, resolved_contract
+        )
         ref_validation = validate_answer_against_contract(ref_answer, resolved_contract)
         if resolved_policy != ComparisonPolicyMode.PERMISSIVE:
             if ref_validation.status == ContractValidationStatus.VIOLATING:
@@ -107,7 +109,9 @@ def compare_protocol_answers(
                     f"ref_structure={ref_answer.structure.value}",
                 ),
             ),
-            validation_status=pred_validation.status if pred_validation is not None else None,
+            validation_status=(
+                pred_validation.status if pred_validation is not None else None
+            ),
             policy_mode=resolved_policy,
         )
 
@@ -126,7 +130,9 @@ def compare_protocol_answers(
             ref=ref_answer,
             context=resolved_context,
             contract=resolved_contract,
-            validation_status=pred_validation.status if pred_validation is not None else None,
+            validation_status=(
+                pred_validation.status if pred_validation is not None else None
+            ),
             policy_mode=resolved_policy,
         )
 
@@ -164,7 +170,9 @@ def compare_protocol_answers(
             ref=ref_answer,
             context=resolved_context,
             contract=resolved_contract,
-            validation_status=pred_validation.status if pred_validation is not None else None,
+            validation_status=(
+                pred_validation.status if pred_validation is not None else None
+            ),
             policy_mode=resolved_policy,
         )
 
@@ -183,7 +191,9 @@ def compare_protocol_answers(
             ref=ref_answer,
             context=resolved_context,
             contract=resolved_contract,
-            validation_status=pred_validation.status if pred_validation is not None else None,
+            validation_status=(
+                pred_validation.status if pred_validation is not None else None
+            ),
             policy_mode=resolved_policy,
         )
 
@@ -202,7 +212,9 @@ def compare_protocol_answers(
             ref=ref_answer,
             context=resolved_context,
             contract=resolved_contract,
-            validation_status=pred_validation.status if pred_validation is not None else None,
+            validation_status=(
+                pred_validation.status if pred_validation is not None else None
+            ),
             policy_mode=resolved_policy,
         )
 
@@ -220,7 +232,9 @@ def compare_protocol_answers(
             ref=ref_answer,
             context=resolved_context,
             contract=resolved_contract,
-            validation_status=pred_validation.status if pred_validation is not None else None,
+            validation_status=(
+                pred_validation.status if pred_validation is not None else None
+            ),
             policy_mode=resolved_policy,
         )
 
@@ -242,7 +256,9 @@ def compare_protocol_answers(
             ref=ref_answer,
             context=resolved_context,
             contract=resolved_contract,
-            validation_status=pred_validation.status if pred_validation is not None else None,
+            validation_status=(
+                pred_validation.status if pred_validation is not None else None
+            ),
             policy_mode=resolved_policy,
         )
 
@@ -260,13 +276,19 @@ def compare_protocol_answers(
             ref=ref_answer,
             context=resolved_context,
             contract=resolved_contract,
-            validation_status=pred_validation.status if pred_validation is not None else None,
+            validation_status=(
+                pred_validation.status if pred_validation is not None else None
+            ),
             policy_mode=resolved_policy,
         )
 
     return _finalize_comparison(
-        AnswerComparison(False, "unsupported_structure", (pred_answer.structure.value,)),
-        validation_status=pred_validation.status if pred_validation is not None else None,
+        AnswerComparison(
+            False, "unsupported_structure", (pred_answer.structure.value,)
+        ),
+        validation_status=(
+            pred_validation.status if pred_validation is not None else None
+        ),
         policy_mode=resolved_policy,
     )
 
@@ -468,7 +490,9 @@ def _compare_per_part_children(
             _validate_top_level=False,
         )
         if not result.equivalent:
-            return AnswerComparison(False, mode, (f"part={label}",) + result.diagnostics)
+            return AnswerComparison(
+                False, mode, (f"part={label}",) + result.diagnostics
+            )
     return AnswerComparison(True, mode)
 
 
@@ -530,13 +554,21 @@ def _compare_shaped(
 
     pred_frame = pred.coordinate_frame or context.coordinate_frame
     ref_frame = ref.coordinate_frame or context.coordinate_frame
-    if pred_frame and ref_frame and not _metadata_text_compatible(pred_frame, ref_frame):
-        return AnswerComparison(False, pred.structure.value, ("coordinate_frame_mismatch",))
+    if (
+        pred_frame
+        and ref_frame
+        and not _metadata_text_compatible(pred_frame, ref_frame)
+    ):
+        return AnswerComparison(
+            False, pred.structure.value, ("coordinate_frame_mismatch",)
+        )
 
     pred_sign = pred.sign_convention or context.sign_convention
     ref_sign = ref.sign_convention or context.sign_convention
     if pred_sign and ref_sign and not _metadata_text_compatible(pred_sign, ref_sign):
-        return AnswerComparison(False, pred.structure.value, ("sign_convention_mismatch",))
+        return AnswerComparison(
+            False, pred.structure.value, ("sign_convention_mismatch",)
+        )
 
     return _compare_ordered_children(
         pred,
@@ -637,7 +669,9 @@ def _hydrate_structured_answer(
             AnswerStructure.TENSOR,
         }:
             reparsed = _coerce_tuple_shaped_answer(reparsed) or reparsed
-        if reparsed.structure != answer.structure or (not reparsed.children and not reparsed.cases):
+        if reparsed.structure != answer.structure or (
+            not reparsed.children and not reparsed.cases
+        ):
             continue
 
         return reparsed.model_copy(
@@ -655,9 +689,7 @@ def _hydrate_structured_answer(
                 "coordinate_frame": (
                     answer.coordinate_frame or reparsed.coordinate_frame
                 ),
-                "sign_convention": (
-                    answer.sign_convention or reparsed.sign_convention
-                ),
+                "sign_convention": (answer.sign_convention or reparsed.sign_convention),
                 "provenance": dict(answer.provenance) or dict(reparsed.provenance),
                 "diagnostics": answer.diagnostics or reparsed.diagnostics,
                 "quantity_view": answer.quantity_view or reparsed.quantity_view,
@@ -668,16 +700,23 @@ def _hydrate_structured_answer(
     return answer
 
 
-def _coerce_tuple_shaped_answer(answer: PhysicsAnswerSemantics) -> PhysicsAnswerSemantics | None:
+def _coerce_tuple_shaped_answer(
+    answer: PhysicsAnswerSemantics,
+) -> PhysicsAnswerSemantics | None:
     """Promote tuple-shaped payloads into vector/matrix/tensor semantics."""
 
     if answer.structure != AnswerStructure.TUPLE:
-        return answer if answer.structure in {
-            AnswerStructure.ATOMIC,
-            AnswerStructure.VECTOR,
-            AnswerStructure.MATRIX,
-            AnswerStructure.TENSOR,
-        } else None
+        return (
+            answer
+            if answer.structure
+            in {
+                AnswerStructure.ATOMIC,
+                AnswerStructure.VECTOR,
+                AnswerStructure.MATRIX,
+                AnswerStructure.TENSOR,
+            }
+            else None
+        )
 
     coerced_children: list[PhysicsAnswerSemantics] = []
     for child in answer.children:
@@ -687,7 +726,9 @@ def _coerce_tuple_shaped_answer(answer: PhysicsAnswerSemantics) -> PhysicsAnswer
         coerced_children.append(coerced_child)
 
     child_tuple = tuple(coerced_children)
-    if child_tuple and all(child.structure == AnswerStructure.ATOMIC for child in child_tuple):
+    if child_tuple and all(
+        child.structure == AnswerStructure.ATOMIC for child in child_tuple
+    ):
         return answer.model_copy(
             update={
                 "structure": AnswerStructure.VECTOR,
@@ -697,7 +738,8 @@ def _coerce_tuple_shaped_answer(answer: PhysicsAnswerSemantics) -> PhysicsAnswer
         )
 
     if not child_tuple or not all(
-        child.structure in {
+        child.structure
+        in {
             AnswerStructure.VECTOR,
             AnswerStructure.MATRIX,
             AnswerStructure.TENSOR,
@@ -751,12 +793,9 @@ def _repair_atomic_answer(
     source_texts = list(reparse_sources(answer))
     if not source_texts:
         return answer
-    if (
-        answer.object_kind == AnswerObjectKind.QUALITATIVE_LABEL
-        and not any(
-            _is_symbol_like_salvage_text(source_text, context=context)
-            for source_text in source_texts
-        )
+    if answer.object_kind == AnswerObjectKind.QUALITATIVE_LABEL and not any(
+        _is_symbol_like_salvage_text(source_text, context=context)
+        for source_text in source_texts
     ):
         return answer
 
@@ -1001,7 +1040,9 @@ def _metadata_text_compatible(left: str, right: str) -> bool:
 def _metadata_tokens(text: str) -> set[str]:
     """Tokenize metadata text into a comparison-friendly normalized set."""
 
-    normalized = normalize_plain_text(text).replace("axes", "axis").replace("centre", "center")
+    normalized = (
+        normalize_plain_text(text).replace("axes", "axis").replace("centre", "center")
+    )
     return {
         token
         for token in normalized.split()
@@ -1019,7 +1060,9 @@ def _part_child_map(
     if not answer.children:
         return None
 
-    surfaces = tuple(child.raw_text or child.canonical_text for child in answer.children)
+    surfaces = tuple(
+        child.raw_text or child.canonical_text for child in answer.children
+    )
     inferred_labels = infer_multi_part_part_labels(surfaces, context.required_parts)
     labels: list[str | None] = []
     for index, child in enumerate(answer.children):
@@ -1035,10 +1078,14 @@ def _part_child_map(
     if len(set(canonical_labels)) != len(canonical_labels):
         return None
 
-    preferred_order = tuple(part for part in context.required_parts if part in canonical_labels)
+    preferred_order = tuple(
+        part for part in context.required_parts if part in canonical_labels
+    )
     order = preferred_order or canonical_labels
     child_by_label = {
-        str(label): child for label, child in zip(labels, answer.children) if label is not None
+        str(label): child
+        for label, child in zip(labels, answer.children)
+        if label is not None
     }
     return {label: child_by_label[label] for label in order if label in child_by_label}
 
@@ -1081,11 +1128,16 @@ def _apply_bridge_policy(
             update={
                 "bridge_id": spec.bridge_id,
                 "bridge_tier": spec.tier,
-                "bridge_evidence": _bridge_evidence(spec.bridge_id, pred, ref, contract),
+                "bridge_evidence": _bridge_evidence(
+                    spec.bridge_id, pred, ref, contract
+                ),
             }
         )
 
-    if contract.enabled_bridge_ids and spec.bridge_id not in contract.enabled_bridge_ids:
+    if (
+        contract.enabled_bridge_ids
+        and spec.bridge_id not in contract.enabled_bridge_ids
+    ):
         return AnswerComparison(
             equivalent=False,
             comparison_mode="bridge_blocked",
@@ -1134,12 +1186,17 @@ def _bridge_evidence(
     if contract.target_variable:
         evidence["target_variable"] = contract.target_variable
     if contract.question_semantics.question_unit_policy.value != "not_applicable":
-        evidence["question_unit_policy"] = contract.question_semantics.question_unit_policy.value
+        evidence["question_unit_policy"] = (
+            contract.question_semantics.question_unit_policy.value
+        )
     if contract.question_semantics.question_symbolic_mode.value != "either":
         evidence["question_symbolic_mode"] = (
             contract.question_semantics.question_symbolic_mode.value
         )
-    if bridge_id in {"choice", "terminal_polarity_choice"} and contract.question_semantics.choice_space:
+    if (
+        bridge_id in {"choice", "terminal_polarity_choice"}
+        and contract.question_semantics.choice_space
+    ):
         evidence["choice_space"] = ",".join(contract.question_semantics.choice_space)
     return evidence
 

@@ -31,7 +31,9 @@ def test_strict_question_semantics_to_canonical_sets_default_metadata() -> None:
     assert canonical.metadata == {}
 
 
-def test_strict_answer_semantics_to_canonical_sets_default_provenance_and_quantity_view() -> None:
+def test_strict_answer_semantics_to_canonical_sets_default_provenance_and_quantity_view() -> (
+    None
+):
     answer = StrictPhysicsAnswerSemantics(
         canonical_text="5 N",
         raw_text="5 N",
@@ -153,7 +155,9 @@ def test_strict_answer_semantics_to_canonical_preserves_subject_to() -> None:
         ),
     ],
 )
-def test_strict_answer_semantics_enforces_enums(payload: dict[str, object], field_name: str) -> None:
+def test_strict_answer_semantics_enforces_enums(
+    payload: dict[str, object], field_name: str
+) -> None:
     with pytest.raises(ValidationError, match=field_name):
         StrictPhysicsAnswerSemantics.model_validate(payload)
 

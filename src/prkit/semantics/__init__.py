@@ -25,10 +25,10 @@ from .comparison import (
 from .inference import (
     PREDICTION_PROMPT_NAME,
     PREDICTION_PROMPT_VERSION,
-    PredictionSemanticsArtifact,
-    PredictionSemanticsInferenceSpec,
     REFERENCE_PROMPT_NAME,
     REFERENCE_PROMPT_VERSION,
+    PredictionSemanticsArtifact,
+    PredictionSemanticsInferenceSpec,
     ReferenceSemanticsArtifact,
     SemanticsComparisonInputs,
     SemanticsEvaluationRecord,

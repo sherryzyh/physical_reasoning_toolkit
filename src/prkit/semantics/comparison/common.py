@@ -95,13 +95,16 @@ def context_symbol_alias_map(context: PhysicsQuestionSemantics) -> Mapping[str, 
     return alias_map
 
 
-def resolved_unit(answer: PhysicsAnswerSemantics, *, context: PhysicsQuestionSemantics) -> str | None:
+def resolved_unit(
+    answer: PhysicsAnswerSemantics, *, context: PhysicsQuestionSemantics
+) -> str | None:
     """Resolve the unit used for quantity comparisons in context."""
 
     if answer.unit:
         return answer.unit
     if (
-        context.question_unit_policy == QuestionUnitPolicy.OPTIONAL_IF_QUESTION_FIXED_UNIT
+        context.question_unit_policy
+        == QuestionUnitPolicy.OPTIONAL_IF_QUESTION_FIXED_UNIT
         and context.question_unit
     ):
         return context.question_unit

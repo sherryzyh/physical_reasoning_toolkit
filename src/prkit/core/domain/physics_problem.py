@@ -8,15 +8,14 @@ all PRKit (physical-reasoning-toolkit) packages.
 """
 
 import ast
-from dataclasses import dataclass, field
-from datetime import datetime
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from ..logging_config import PRKitLogger
+from .answer import Answer
 from .answer_category import AnswerCategory
 from .physics_domain import PhysicsDomain
-from .answer import Answer
 
 # Get logger for this module
 logger = PRKitLogger.get_logger(__name__)
@@ -38,23 +37,23 @@ class PhysicsProblem:
     question: str
 
     # Optional core fields
-    answer: Optional[Answer] = None
-    solution: Optional[str] = None
-    domain: Optional[Union[str, PhysicsDomain]] = None
+    answer: Answer | None = None
+    solution: str | None = None
+    domain: str | PhysicsDomain | None = None
     language: str = "en"
-    image_path: Optional[List[str]] = (
+    image_path: list[str] | None = (
         None  # absolute paths to associated image files (for visual problems)
     )
 
     # Problem type and configuration
-    problem_type: Optional[str] = None  # "MC" for multiple choice, "OE" for open-ended
+    problem_type: str | None = None  # "MC" for multiple choice, "OE" for open-ended
 
     # Multiple choice specific fields
-    options: Optional[List[str]] = None
-    correct_option: Optional[int] = None
+    options: list[str] | None = None
+    correct_option: int | None = None
 
     # Additional fields for dataset compatibility
-    additional_fields: Optional[Dict[str, Any]] = None
+    additional_fields: dict[str, Any] | None = None
 
     def __post_init__(self):
         """Validate problem after initialization."""
@@ -142,7 +141,7 @@ class PhysicsProblem:
         """Check if this is an open-ended problem."""
         return self.problem_type == "OE"
 
-    def load_images(self) -> List["Image.Image"]:
+    def load_images(self) -> list["Image.Image"]:
         """
         Load images associated with this problem.
 
@@ -182,7 +181,7 @@ class PhysicsProblem:
                 if image.mode not in ("RGB", "L"):
                     image = image.convert("RGB")
                 loaded_images.append(image)
-            except (IOError, OSError) as e:
+            except OSError as e:
                 logger.warning("Failed to load image %s: %s", img_path, e)
                 continue
 
@@ -223,7 +222,7 @@ class PhysicsProblem:
             self.additional_fields and key in self.additional_fields
         )
 
-    def keys(self) -> List[str]:
+    def keys(self) -> list[str]:
         """Get all available field names."""
         fields = []
 
@@ -248,11 +247,11 @@ class PhysicsProblem:
 
         return list(set(fields))  # Remove duplicates
 
-    def values(self) -> List[Any]:
+    def values(self) -> list[Any]:
         """Get all field values."""
         return [self[key] for key in self.keys()]
 
-    def items(self) -> List[tuple]:
+    def items(self) -> list[tuple]:
         """Get all field name-value pairs."""
         return [(key, self[key]) for key in self.keys()]
 
@@ -262,7 +261,7 @@ class PhysicsProblem:
             return self[key]
         return default
 
-    def update(self, data: Dict[str, Any]) -> None:
+    def update(self, data: dict[str, Any]) -> None:
         """Update multiple fields at once."""
         for key, value in data.items():
             self[key] = value
@@ -271,7 +270,7 @@ class PhysicsProblem:
     # Serialization Methods
     # ============================================================================
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert problem to dictionary for serialization."""
         # Safely handle answer field
         if hasattr(self.answer, "to_dict"):
@@ -305,7 +304,7 @@ class PhysicsProblem:
         return {k: v for k, v in result.items() if v is not None}
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "PhysicsProblem":
+    def from_dict(cls, data: dict[str, Any]) -> "PhysicsProblem":
         """Create PhysicsProblem from dictionary."""
         # Extract core fields
         core_fields = [

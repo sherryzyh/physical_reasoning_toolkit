@@ -60,16 +60,10 @@ def build_quantity_view(
 
     diagnostics: list[str] = []
     source_text = (answer.raw_text or "").strip()
-    source_snapshot = (
-        _build_source_snapshot(source_text) if source_text else None
-    )
+    source_snapshot = _build_source_snapshot(source_text) if source_text else None
 
     canonical_text = answer.canonical_text.strip()
-    if (
-        source_snapshot is None
-        and canonical_text
-        and canonical_text != source_text
-    ):
+    if source_snapshot is None and canonical_text and canonical_text != source_text:
         source_snapshot = _build_source_snapshot(canonical_text)
         if source_snapshot is not None:
             diagnostics.append("quantity_view_source_fallback:canonical_text")
@@ -337,7 +331,9 @@ def _build_canonical_snapshot(
     target_value: float | None = None
 
     if target_unit is not None:
-        target_value = convert_numeric_value(source.numeric_value, source.unit, target_unit)
+        target_value = convert_numeric_value(
+            source.numeric_value, source.unit, target_unit
+        )
         if target_value is None:
             diagnostics.append("quantity_view_preferred_unit_fallback:parser_reduced")
             target_unit = None
@@ -378,7 +374,9 @@ def _prepare_source_quantity_surface(text: str) -> str:
     def _replace_frac_unit(match: re.Match[str]) -> str:
         return f"{match.group(1).strip()}/{match.group(2).strip()}"
 
-    cleaned = re.sub(r"\\frac\s*\{([^{}]*)\}\s*\{([^{}]*)\}", _replace_frac_unit, cleaned)
+    cleaned = re.sub(
+        r"\\frac\s*\{([^{}]*)\}\s*\{([^{}]*)\}", _replace_frac_unit, cleaned
+    )
     return _canonicalize_quantity_string(cleaned, normalize_ohm_symbol=False)
 
 
@@ -421,7 +419,9 @@ def _coalesce_split_prefixed_unit_tokens(unit_raw: str) -> str:
 def _normalize_source_numeric_text(numeric_part: str) -> str:
     """Normalize source numeric text into a parser-friendly deterministic surface."""
 
-    cleaned = _canonicalize_quantity_string(numeric_part).replace(" ", "").replace(",", "")
+    cleaned = (
+        _canonicalize_quantity_string(numeric_part).replace(" ", "").replace(",", "")
+    )
     sci_match = _DIRECT_SCI_10_RE.fullmatch(cleaned)
     if sci_match:
         mantissa = sci_match.group("mantissa").replace("E", "e").lstrip("+")

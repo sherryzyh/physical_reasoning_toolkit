@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
-from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 import math
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
 from sympy import (
     Abs,
@@ -21,28 +21,28 @@ from sympy import (
     Lt,
     Max,
     Min,
+    N,
     Piecewise,
     Rational,
     Symbol,
+    acos,
+    asin,
+    atan,
+    cos,
+    cosh,
+    exp,
     false,
     log,
     oo,
     pi,
     simplify,
-    trigsimp,
     sin,
-    cos,
-    tan,
-    asin,
-    acos,
-    atan,
     sinh,
-    cosh,
-    tanh,
-    exp,
     sqrt,
+    tan,
+    tanh,
+    trigsimp,
     true,
-    N,
 )
 from sympy.core.relational import Relational
 from sympy.parsing.sympy_parser import (
@@ -103,7 +103,9 @@ _INDEXED_SQRT_RE = re.compile(r"\\sqrt\[(?P<index>[^\[\]{}]+)\]\{(?P<body>[^{}]+
 _TEXT_WRAPPER_RE = re.compile(r"\\(?:mathrm|text|operatorname)\{([^{}]+)\}")
 _BOXED_RE = re.compile(r"^\\boxed\{(.+)\}$", re.DOTALL)
 _DOLLAR_RE = re.compile(r"^\$(.*)\$$", re.DOTALL)
-_LATEX_SPACING_RE = re.compile(r"\\(?:,|;|:|!|quad|qquad|enspace|thinspace|medspace|thickspace)\b")
+_LATEX_SPACING_RE = re.compile(
+    r"\\(?:,|;|:|!|quad|qquad|enspace|thinspace|medspace|thickspace)\b"
+)
 _LATEX_SUBSCRIPT_BRACED_RE = re.compile(
     r"(?P<base>\\[A-Za-z]+|[A-Za-z][A-Za-z0-9_]*)\s*_\s*\{\s*(?P<sub>[^{}]+)\s*\}"
 )
@@ -517,9 +519,15 @@ def numbers_match_with_reference_precision(
     if numbers_close(pred_value, ref_value, tolerance):
         return True
 
-    pred_sig_figs = _significant_figures(pred_text if pred_text is not None else pred_value)
+    pred_sig_figs = _significant_figures(
+        pred_text if pred_text is not None else pred_value
+    )
     ref_sig_figs = _significant_figures(ref_text if ref_text is not None else ref_value)
-    if ref_sig_figs is not None and pred_sig_figs is not None and pred_sig_figs >= ref_sig_figs:
+    if (
+        ref_sig_figs is not None
+        and pred_sig_figs is not None
+        and pred_sig_figs >= ref_sig_figs
+    ):
         if _numbers_match_at_significant_figures(
             pred_value,
             ref_value,
@@ -558,7 +566,9 @@ def numbers_match_with_reference_precision(
             return _numbers_match_at_decimal_places(
                 pred_value,
                 ref_value,
-                decimal_places=_decimal_places(pred_text if pred_text is not None else pred_value),
+                decimal_places=_decimal_places(
+                    pred_text if pred_text is not None else pred_value
+                ),
                 tolerance=tolerance,
             )
     return False
@@ -664,10 +674,14 @@ def _significant_figure_quantum(
     if significant_figures <= 0:
         return None
     magnitude = max(abs(left), abs(right))
-    if magnitude == 0 or magnitude in {float("inf"), float("-inf")} or magnitude != magnitude:
+    if (
+        magnitude == 0
+        or magnitude in {float("inf"), float("-inf")}
+        or magnitude != magnitude
+    ):
         return None
     exponent = math.floor(math.log10(magnitude)) - significant_figures + 1
-    return 10.0 ** exponent
+    return 10.0**exponent
 
 
 def _significant_figures(value: str | float) -> int | None:
@@ -728,7 +742,9 @@ def _is_fixed_point_numeric_text(text: str | None) -> bool:
     return bool(re.fullmatch(r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)", normalized))
 
 
-def _round_to_significant_figures(value: float, significant_figures: int) -> float | None:
+def _round_to_significant_figures(
+    value: float, significant_figures: int
+) -> float | None:
     """Round ``value`` using decimal arithmetic to avoid binary float drift."""
 
     if significant_figures <= 0:
@@ -809,7 +825,9 @@ def parse_symbolic_expression(
     candidate = preprocess_symbolic_text(text, alias_map=alias_map)
     if not candidate:
         return None
-    parse_candidate = _sanitize_parse_candidate(_prepare_symbolic_parse_candidate(candidate))
+    parse_candidate = _sanitize_parse_candidate(
+        _prepare_symbolic_parse_candidate(candidate)
+    )
     if not parse_candidate:
         return None
 
@@ -862,13 +880,18 @@ def expressions_equivalent(
 
     if not left_text or not right_text:
         return False
-    if preprocess_symbolic_text(left_text, alias_map=alias_map) == preprocess_symbolic_text(
+    if preprocess_symbolic_text(
+        left_text, alias_map=alias_map
+    ) == preprocess_symbolic_text(
         right_text,
         alias_map=alias_map,
     ):
         return True
-    if re.sub(r"\s+", "", preprocess_symbolic_text(left_text, alias_map=alias_map)) == re.sub(
-        r"\s+", "",
+    if re.sub(
+        r"\s+", "", preprocess_symbolic_text(left_text, alias_map=alias_map)
+    ) == re.sub(
+        r"\s+",
+        "",
         preprocess_symbolic_text(right_text, alias_map=alias_map),
     ):
         return True
@@ -884,7 +907,9 @@ def expressions_equivalent(
             tolerance,
             alias_map=alias_map,
         )
-    if not _is_scalar_symbolic_object(left_expr) or not _is_scalar_symbolic_object(right_expr):
+    if not _is_scalar_symbolic_object(left_expr) or not _is_scalar_symbolic_object(
+        right_expr
+    ):
         return normalize_plain_text(left_text) == normalize_plain_text(right_text)
 
     try:
@@ -955,8 +980,11 @@ def relations_equivalent(
 
     if not left_text or not right_text:
         return False
-    if re.sub(r"\s+", "", preprocess_symbolic_text(left_text, alias_map=alias_map)) == re.sub(
-        r"\s+", "",
+    if re.sub(
+        r"\s+", "", preprocess_symbolic_text(left_text, alias_map=alias_map)
+    ) == re.sub(
+        r"\s+",
+        "",
         preprocess_symbolic_text(right_text, alias_map=alias_map),
     ):
         return True
@@ -1068,9 +1096,15 @@ def relation_to_expression_text(
             target_variable,
             alias_map=alias_map,
         )
-        if preprocess_symbolic_text(clause.lhs_text, alias_map=alias_map) == normalized_target:
+        if (
+            preprocess_symbolic_text(clause.lhs_text, alias_map=alias_map)
+            == normalized_target
+        ):
             return clause.rhs_text
-        if preprocess_symbolic_text(clause.rhs_text, alias_map=alias_map) == normalized_target:
+        if (
+            preprocess_symbolic_text(clause.rhs_text, alias_map=alias_map)
+            == normalized_target
+        ):
             return clause.lhs_text
     return clause.rhs_text
 
@@ -1189,7 +1223,9 @@ def unit_conversion_factor(from_unit: str | None, to_unit: str | None) -> float 
     return _shared_unit_conversion_factor(from_unit, to_unit)
 
 
-def convert_numeric_value(value: float, from_unit: str | None, to_unit: str | None) -> float | None:
+def convert_numeric_value(
+    value: float, from_unit: str | None, to_unit: str | None
+) -> float | None:
     """Convert a numeric value between units when the conversion is dimensionally valid."""
 
     return _shared_convert_numeric_value(value, from_unit, to_unit)
@@ -1362,7 +1398,9 @@ def _canonicalize_symbol_alias_surfaces(
         replacements.append((normalized_alias, normalized_canonical))
 
     normalized = text
-    for alias, canonical in sorted(replacements, key=lambda item: (-len(item[0]), item[0])):
+    for alias, canonical in sorted(
+        replacements, key=lambda item: (-len(item[0]), item[0])
+    ):
         normalized = _replace_alias_surface_occurrences(
             normalized,
             alias=alias,
@@ -1521,9 +1559,8 @@ def _rewrite_bare_function_power(match: re.Match[str]) -> str:
     func = match.group("func")
     arg = _wrap_function_argument(match.group("arg"))
     power = match.group("power").strip()
-    if (
-        (power.startswith("{") and power.endswith("}"))
-        or (power.startswith("(") and power.endswith(")"))
+    if (power.startswith("{") and power.endswith("}")) or (
+        power.startswith("(") and power.endswith(")")
     ):
         power = power[1:-1].strip()
     return f"({func}{arg})**({power})"
@@ -1954,7 +1991,11 @@ def _parse_relation_segment(text: str) -> tuple[RelationClause, ...] | None:
         index += 1
 
     parts.append("".join(current).strip())
-    if not operators or len(parts) != len(operators) + 1 or any(not part for part in parts):
+    if (
+        not operators
+        or len(parts) != len(operators) + 1
+        or any(not part for part in parts)
+    ):
         return None
 
     return tuple(

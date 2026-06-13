@@ -9,11 +9,10 @@ This comparator performs preprocessing and normalization before comparison:
 Accepts either Answer objects or raw strings.
 """
 
-from typing import Any, Tuple, Union
+from typing import Any
 
 from prkit.core.domain.answer import Answer
 from prkit.core.domain.answer_category import AnswerCategory
-
 from prkit.evaluation.utils.answer_utils import same_comparison_category, to_str
 from prkit.evaluation.utils.normalization import normalize_answer, normalize_text
 from prkit.evaluation.utils.number_utils import DEFAULT_NUMBER_EPSILON
@@ -25,21 +24,18 @@ class NormalizedMatchComparator(BaseComparator):
     """Comparator that normalizes answers before exact matching."""
 
     def compare(
-        self,
-        answer1: Union[str, Answer],
-        answer2: Union[str, Answer],
-        **kwargs: Any
+        self, answer1: str | Answer, answer2: str | Answer, **kwargs: Any
     ) -> bool:
         """
         Compare two answers after normalization.
-        
+
         If the answers are in different categories, both are normalized as text
         and compared as strings.
-        
+
         Args:
             answer1: First answer to compare (string or Answer)
             answer2: Second answer to compare (string or Answer)
-            
+
         Returns:
             True if answers match after normalization, False otherwise
         """
@@ -58,14 +54,14 @@ class NormalizedMatchComparator(BaseComparator):
         # physical_quantity, formula, or text)
         cat1, norm1 = normalize_answer(ans1_str)
         cat2, norm2 = normalize_answer(ans2_str)
-        
+
         # If categories differ, treat both as text and compare as strings
         if not same_comparison_category(cat1, cat2):
             # Normalize both as text and compare
             text1 = normalize_text(ans1_str)
             text2 = normalize_text(ans2_str)
             return text1 == text2
-        
+
         # Compare based on category
         if cat1 == AnswerCategory.NUMBER:
             if not (isinstance(norm1, float) and isinstance(norm2, float)):
@@ -77,16 +73,16 @@ class NormalizedMatchComparator(BaseComparator):
                 return False
             return norm1 == norm2
 
-    def accuracy_score(self, answer1: Union[str, Answer], answer2: Union[str, Answer]) -> float:
+    def accuracy_score(self, answer1: str | Answer, answer2: str | Answer) -> float:
         """
         Compute accuracy score for normalized match comparison.
-        
+
         Returns 1.0 if answers match after normalization, 0.0 otherwise.
-        
+
         Args:
             answer1: First answer to compare (string or Answer)
             answer2: Second answer to compare (string or Answer)
-            
+
         Returns:
             1.0 if answers match after normalization, 0.0 otherwise
         """

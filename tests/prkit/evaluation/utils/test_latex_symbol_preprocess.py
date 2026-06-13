@@ -183,7 +183,7 @@ class TestPreprocessLatexFinalCleanup:
         assert _preprocess_latex("  x + y  ") == "x + y"
 
     def test_tabs_and_newlines_become_space(self):
-        """Tabs and newlines in \s+ are collapsed to single space."""
+        r"""Tabs and newlines in \s+ are collapsed to single space."""
         result = _preprocess_latex("a\t\tb\n\nc")
         assert result == "a b c"
 

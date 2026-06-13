@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
-from typing import Any, Dict, Generic, List, Optional, TypeVar, Union
+from typing import Any, TypeVar
 
 from pydantic import BaseModel, ValidationError
 
@@ -50,8 +50,8 @@ class BaseModelClient(ABC):
     def chat(
         self,
         user_prompt: str,
-        image_paths: Optional[List[str]] = None,
-        response_format: Optional[Union[Dict[str, Any], type]] = None,
+        image_paths: list[str] | None = None,
+        response_format: dict[str, Any] | type | None = None,
         **kwargs: Any,
     ) -> str:
         raise NotImplementedError("Subclasses must implement .chat()")
@@ -175,13 +175,16 @@ class BaseModelClient(ABC):
                 accepted_artifact_strategies=(
                     f"{(self.provider or 'unknown')}_json_schema",
                 ),
-                response_format=normalize_response_format(spec.source_model or {
-                    "type": "json_schema",
-                    "name": spec.name,
-                    "schema": spec.schema,
-                    "strict": spec.strict,
-                    "description": spec.description,
-                }),
+                response_format=normalize_response_format(
+                    spec.source_model
+                    or {
+                        "type": "json_schema",
+                        "name": spec.name,
+                        "schema": spec.schema,
+                        "strict": spec.strict,
+                        "description": spec.description,
+                    }
+                ),
             )
         if self.supports_response_format_json_object:
             return StructuredOutputPlan(
@@ -269,7 +272,15 @@ class BaseModelClient(ABC):
         plan: StructuredOutputPlan,
         **kwargs: Any,
     ) -> dict[str, Any]:
-        del request_id, user_prompt, response_model, image_paths, max_output_tokens, plan, kwargs
+        del (
+            request_id,
+            user_prompt,
+            response_model,
+            image_paths,
+            max_output_tokens,
+            plan,
+            kwargs,
+        )
         raise NotImplementedError(
             f"Batch structured requests are not implemented for provider={self.provider!r}."
         )

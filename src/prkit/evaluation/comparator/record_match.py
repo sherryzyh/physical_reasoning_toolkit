@@ -11,7 +11,7 @@ cross-type behavior without any LLM fallback.
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, Optional, Union
+from typing import Any
 
 from prkit.core.domain.answer import Answer
 from prkit.core.domain.answer_category import AnswerCategory
@@ -34,10 +34,10 @@ _RECORD_TYPE_TO_CATEGORY = {
 
 def _is_record_like(answer: object) -> bool:
     if isinstance(answer, Mapping):
-        return any(
-            key in answer for key in ("status", "answer_type", "final_answer")
-        )
-    return any(hasattr(answer, key) for key in ("status", "answer_type", "final_answer"))
+        return any(key in answer for key in ("status", "answer_type", "final_answer"))
+    return any(
+        hasattr(answer, key) for key in ("status", "answer_type", "final_answer")
+    )
 
 
 def _record_field(record: RecordLike, field_name: str) -> Any:
@@ -46,7 +46,7 @@ def _record_field(record: RecordLike, field_name: str) -> Any:
     return getattr(record, field_name, None)
 
 
-def _record_string(record: RecordLike, field_name: str) -> Optional[str]:
+def _record_string(record: RecordLike, field_name: str) -> str | None:
     value = _record_field(record, field_name)
     if value is None:
         return None
@@ -91,7 +91,11 @@ def _record_to_answer(record: RecordLike) -> Answer:
         )
 
     return Answer(
-        value=final_answer if category != AnswerCategory.OPTION else (final_answer or (_record_string(record, "option_label") or "")),
+        value=(
+            final_answer
+            if category != AnswerCategory.OPTION
+            else (final_answer or (_record_string(record, "option_label") or ""))
+        ),
         answer_category=category,
     )
 
@@ -110,7 +114,7 @@ class RecordMatchComparator(BaseComparator):
     def __init__(self) -> None:
         self._delegate = SmartMatchComparator()
 
-    def _coerce_answer(self, answer: Union[str, Answer, RecordLike]) -> Union[str, Answer]:
+    def _coerce_answer(self, answer: str | Answer | RecordLike) -> str | Answer:
         if isinstance(answer, (str, Answer)):
             return answer
         if _is_record_like(answer):
@@ -122,8 +126,8 @@ class RecordMatchComparator(BaseComparator):
 
     def compare(
         self,
-        answer1: Union[str, Answer, RecordLike],
-        answer2: Union[str, Answer, RecordLike],
+        answer1: str | Answer | RecordLike,
+        answer2: str | Answer | RecordLike,
         **kwargs: Any,
     ) -> bool:
         if _is_record_like(answer1) and not _is_usable_record(answer1):
@@ -138,8 +142,8 @@ class RecordMatchComparator(BaseComparator):
 
     def accuracy_score(
         self,
-        answer1: Union[str, Answer, RecordLike],
-        answer2: Union[str, Answer, RecordLike],
+        answer1: str | Answer | RecordLike,
+        answer2: str | Answer | RecordLike,
         **kwargs: Any,
     ) -> float:
         return 1.0 if self.compare(answer1, answer2, **kwargs) else 0.0

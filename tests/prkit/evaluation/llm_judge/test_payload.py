@@ -16,7 +16,9 @@ def test_answer_to_text_and_category_for_answers_and_plain_strings():
 
 def test_build_standard_answer_judge_payload_cleans_fields():
     payload = build_standard_answer_judge_payload(
-        Answer(value=" 10\u00a0 m/s ", answer_category=AnswerCategory.PHYSICAL_QUANTITY),
+        Answer(
+            value=" 10\u00a0 m/s ", answer_category=AnswerCategory.PHYSICAL_QUANTITY
+        ),
         Answer(value=" 10\tm/s ", answer_category=AnswerCategory.PHYSICAL_QUANTITY),
         "  What is the speed?  ",
     )

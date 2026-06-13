@@ -51,7 +51,10 @@ def compare_different_object_kinds(
 ) -> AnswerComparison | None:
     """Compare two atomic answers with different object kinds when allowed."""
 
-    if pred.structure != AnswerStructure.ATOMIC or ref.structure != AnswerStructure.ATOMIC:
+    if (
+        pred.structure != AnswerStructure.ATOMIC
+        or ref.structure != AnswerStructure.ATOMIC
+    ):
         return None
 
     kinds = {pred.object_kind, ref.object_kind}
@@ -76,7 +79,10 @@ def compare_different_object_kinds(
         ):
             return AnswerComparison(True, "relation_to_qualitative_label")
 
-    if pred.object_kind == AnswerObjectKind.RELATION and ref.object_kind == AnswerObjectKind.EXPRESSION:
+    if (
+        pred.object_kind == AnswerObjectKind.RELATION
+        and ref.object_kind == AnswerObjectKind.EXPRESSION
+    ):
         alias_map = context_symbol_alias_map(context)
         pred_expr_candidates = _relation_to_expression_candidates(
             pred,
@@ -96,7 +102,10 @@ def compare_different_object_kinds(
         )
         return AnswerComparison(matched, "relation_to_expression")
 
-    if pred.object_kind == AnswerObjectKind.EXPRESSION and ref.object_kind == AnswerObjectKind.RELATION:
+    if (
+        pred.object_kind == AnswerObjectKind.EXPRESSION
+        and ref.object_kind == AnswerObjectKind.RELATION
+    ):
         alias_map = context_symbol_alias_map(context)
         ref_expr_candidates = _relation_to_expression_candidates(
             ref,
@@ -161,7 +170,9 @@ def compare_different_object_kinds(
         {AnswerObjectKind.NUMBER, AnswerObjectKind.QUALITATIVE_LABEL},
         {AnswerObjectKind.PHYSICAL_QUANTITY, AnswerObjectKind.QUALITATIVE_LABEL},
     ):
-        qualitative = pred if pred.object_kind == AnswerObjectKind.QUALITATIVE_LABEL else ref
+        qualitative = (
+            pred if pred.object_kind == AnswerObjectKind.QUALITATIVE_LABEL else ref
+        )
         numeric = ref if qualitative is pred else pred
         if _qualitative_is_no_change(qualitative) and _numeric_answer_is_zero(
             numeric,
@@ -384,7 +395,9 @@ def _build_relation_expression_candidate(
         return None
     return PhysicsAnswerSemantics(
         canonical_text=expression_text,
-        canonical_latex=expression_text if source_text == answer.canonical_latex else None,
+        canonical_latex=(
+            expression_text if source_text == answer.canonical_latex else None
+        ),
         raw_text=answer.raw_text,
         object_kind=AnswerObjectKind.EXPRESSION,
         target_variable=answer.target_variable,

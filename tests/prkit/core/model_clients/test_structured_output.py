@@ -8,16 +8,16 @@ from prkit.core.model_clients.dashscope import DashscopeModel
 from prkit.core.model_clients.deepseek import DeepseekModel
 from prkit.core.model_clients.gemini import GeminiModel
 from prkit.core.model_clients.ollama import OllamaModel
-from prkit.core.model_clients.openai import ensure_openai_strict_json_schema
-from prkit.core.model_clients.openai import OpenAIModel
+from prkit.core.model_clients.openai import (
+    OpenAIModel,
+    ensure_openai_strict_json_schema,
+)
 from prkit.core.model_clients.structured_output import (
     StructuredCallResult,
-    StructuredOutputPlan,
     coerce_structured_output_spec,
     extract_json_object,
     extract_json_payload,
     extract_schema_for_gemini,
-    inspect_schema_features,
     normalize_response_format,
     strip_schema_keywords,
 )
@@ -130,12 +130,10 @@ class TestStructuredOutputUtilities:
         assert spec.schema_features.optional_field_count >= 1
 
     def test_extract_json_payload_recovers_from_fenced_response(self):
-        payload = extract_json_payload("```json\n{\"answer\": \"x\"}\n```")
+        payload = extract_json_payload('```json\n{"answer": "x"}\n```')
 
         assert payload == {"answer": "x"}
-        assert extract_json_object("prefix\n{\"answer\": \"x\"}\nsuffix") == {
-            "answer": "x"
-        }
+        assert extract_json_object('prefix\n{"answer": "x"}\nsuffix') == {"answer": "x"}
 
     def test_strip_schema_keywords_removes_nested_entries(self):
         schema = {
@@ -165,7 +163,9 @@ class TestStructuredOutputUtilities:
 
         plans = {
             "openai": stub_client(OpenAIModel, model="gpt-5.4-mini", provider="openai"),
-            "gemini": stub_client(GeminiModel, model="gemini-2.5-pro", provider="google"),
+            "gemini": stub_client(
+                GeminiModel, model="gemini-2.5-pro", provider="google"
+            ),
             "xai": stub_client(XAIModel, model="grok-4.20-reasoning", provider="xai"),
             "dashscope": stub_client(
                 DashscopeModel,

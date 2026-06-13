@@ -7,7 +7,10 @@ import json
 import pytest
 from pydantic import ValidationError
 
-from cookbooks.enrich_quantity_views import _backfill_evaluation_dir, _backfill_prediction_dir
+from cookbooks.enrich_quantity_views import (
+    _backfill_evaluation_dir,
+    _backfill_prediction_dir,
+)
 from prkit.semantics.comparison import build_evaluation_contract
 from prkit.semantics.inference.artifacts import (
     PredictionSemanticsArtifact,
@@ -85,7 +88,9 @@ def _generator() -> SemanticsGeneratorInfo:
 
 
 def _problem(problem_id: str) -> SemanticsProblemRecord:
-    return SemanticsProblemRecord(problem_id=problem_id, question=f"Question {problem_id}")
+    return SemanticsProblemRecord(
+        problem_id=problem_id, question=f"Question {problem_id}"
+    )
 
 
 def _prediction_artifact(
@@ -128,7 +133,15 @@ def _evaluation_record(
 
 
 @pytest.mark.parametrize(
-    ("text", "dimension", "expected_source_text", "expected_source_unit", "expected_canonical_text", "expected_canonical_unit", "expected_canonical_value"),
+    (
+        "text",
+        "dimension",
+        "expected_source_text",
+        "expected_source_unit",
+        "expected_canonical_text",
+        "expected_canonical_unit",
+        "expected_canonical_value",
+    ),
     [
         ("1.1 kΩ", "resistance", "1.1", "kΩ", "1100", "ohm", 1100.0),
         ("2.8×10^-4 Pa", "pressure", "2.8e-4", "Pa", "2.8e-4", "Pa", 2.8e-4),
@@ -162,11 +175,19 @@ def test_build_quantity_view_normalizes_shared_units(
     assert quantity_view.source.unit == expected_source_unit
     assert quantity_view.canonical.numeric_text == expected_canonical_text
     assert quantity_view.canonical.unit == expected_canonical_unit
-    assert quantity_view.canonical.numeric_value == pytest.approx(expected_canonical_value)
+    assert quantity_view.canonical.numeric_value == pytest.approx(
+        expected_canonical_value
+    )
 
 
 @pytest.mark.parametrize(
-    ("text", "dimension", "expected_canonical_text", "expected_canonical_unit", "expected_value"),
+    (
+        "text",
+        "dimension",
+        "expected_canonical_text",
+        "expected_canonical_unit",
+        "expected_value",
+    ),
     [
         ("1 L", "volume", "1e-3", "m^3", 1e-3),
         ("1 mL", "volume", "1e-6", "m^3", 1e-6),
@@ -338,8 +359,12 @@ def test_backfill_prediction_dir_regenerates_manifest_and_only_enriches_quantiti
     assert manifest["source_artifact_type"] == "prediction_semantics"
     assert manifest["total_records"] == 2
 
-    quantity_artifact = load_prediction_semantics_artifact(output_dir / "quantity-problem.json")
-    number_artifact = load_prediction_semantics_artifact(output_dir / "number-problem.json")
+    quantity_artifact = load_prediction_semantics_artifact(
+        output_dir / "quantity-problem.json"
+    )
+    number_artifact = load_prediction_semantics_artifact(
+        output_dir / "number-problem.json"
+    )
     assert quantity_artifact.prediction_answer_semantics.quantity_view is not None
     assert quantity_artifact.prediction_answer_semantics.canonical_text == "1100 ohm"
     assert quantity_artifact.prediction_answer_semantics.unit == "ohm"

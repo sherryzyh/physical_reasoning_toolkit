@@ -35,7 +35,9 @@ class TestGeminiModel:
 
     @patch("prkit.core.model_clients.gemini.genai")
     @patch("prkit.core.model_clients.base.load_project_dotenv")
-    def test_init_with_google_api_key_fallback(self, _mock_load_project_dotenv, mock_genai):
+    def test_init_with_google_api_key_fallback(
+        self, _mock_load_project_dotenv, mock_genai
+    ):
         """Test initializing with GOOGLE_API_KEY as fallback."""
         mock_client = MagicMock()
         mock_genai.Client.return_value = mock_client
@@ -180,7 +182,9 @@ class TestGeminiModel:
     @patch("prkit.core.model_clients.gemini.PIL.Image.open")
     @patch("prkit.core.model_clients.gemini.os.path.exists")
     @patch("prkit.core.model_clients.gemini.genai")
-    def test_chat_logs_failed_image_open(self, mock_genai, mock_exists, mock_image_open):
+    def test_chat_logs_failed_image_open(
+        self, mock_genai, mock_exists, mock_image_open
+    ):
         """Unreadable images should be logged and ignored."""
         mock_client = MagicMock()
         mock_genai.Client.return_value = mock_client

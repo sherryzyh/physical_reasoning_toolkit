@@ -84,14 +84,17 @@ def test_judge_runner_retries_truncated_payload_before_returning():
         verdict_type="llm_judge",
     )
 
-    with patch.object(
-        runner,
-        "judge_via_responses",
-        side_effect=[_bad_request_error(), success],
-    ) as mock_responses, patch(
-        "prkit.evaluation.llm_judge.runner.truncate_judge_payload",
-        return_value={"question": "trimmed"},
-    ) as mock_truncate:
+    with (
+        patch.object(
+            runner,
+            "judge_via_responses",
+            side_effect=[_bad_request_error(), success],
+        ) as mock_responses,
+        patch(
+            "prkit.evaluation.llm_judge.runner.truncate_judge_payload",
+            return_value={"question": "trimmed"},
+        ) as mock_truncate,
+    ):
         result = runner.judge({"question": "very long"})
 
     assert result is success
@@ -113,17 +116,21 @@ def test_judge_runner_falls_back_to_chat_after_second_bad_request():
         verdict_type="llm_judge",
     )
 
-    with patch.object(
-        runner,
-        "judge_via_responses",
-        side_effect=[_bad_request_error(), _bad_request_error()],
-    ), patch.object(
-        runner,
-        "judge_via_chat_completions",
-        return_value=fallback,
-    ) as mock_chat, patch(
-        "prkit.evaluation.llm_judge.runner.truncate_judge_payload",
-        return_value={"question": "trimmed"},
+    with (
+        patch.object(
+            runner,
+            "judge_via_responses",
+            side_effect=[_bad_request_error(), _bad_request_error()],
+        ),
+        patch.object(
+            runner,
+            "judge_via_chat_completions",
+            return_value=fallback,
+        ) as mock_chat,
+        patch(
+            "prkit.evaluation.llm_judge.runner.truncate_judge_payload",
+            return_value={"question": "trimmed"},
+        ),
     ):
         result = runner.judge({"question": "long"})
 

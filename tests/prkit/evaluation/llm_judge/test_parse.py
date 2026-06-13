@@ -7,14 +7,16 @@ from prkit.evaluation.llm_judge.parse import (
 
 def test_extract_json_object_accepts_full_and_embedded_json():
     assert extract_json_object('{"verdict":"correct"}') == {"verdict": "correct"}
-    assert extract_json_object("prefix {\"verdict\": \"incorrect\"} suffix") == {
+    assert extract_json_object('prefix {"verdict": "incorrect"} suffix') == {
         "verdict": "incorrect"
     }
     assert extract_json_object("not json at all") is None
 
 
 def test_reasoning_indicates_incorrect_recognizes_red_flags():
-    assert reasoning_indicates_incorrect("The answer is incorrect because of a wrong sign.")
+    assert reasoning_indicates_incorrect(
+        "The answer is incorrect because of a wrong sign."
+    )
     assert not reasoning_indicates_incorrect("Equivalent after simplification.")
 
 

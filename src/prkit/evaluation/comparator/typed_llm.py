@@ -8,25 +8,27 @@ Reusable judge primitives live in :mod:`prkit.evaluation.llm_judge`.
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, Optional, Union
+from typing import Any
 
 from openai import OpenAI
+from sympy import Eq, sympify
+from sympy.core.relational import Relational
+from sympy.core.sympify import SympifyError
+
 from prkit.core import PRKitLogger
 from prkit.core.domain.answer import Answer
 from prkit.core.domain.answer_category import AnswerCategory
 from prkit.evaluation.llm_judge import (
     DEFAULT_MODEL,
-    LLMJudgeResult,
-    OpenAIJudgeRunner,
-    RESULT_SOURCE_LLM_JUDGE,
     RESULT_SOURCE_SKIPPED_LLM,
     RESULT_SOURCE_TYPED_MATCH,
+    LLMJudgeResult,
+    OpenAIJudgeRunner,
     build_standard_answer_judge_payload,
 )
 from prkit.evaluation.llm_judge.payload import answer_to_text_and_category
 from prkit.evaluation.utils.answer_utils import same_comparison_category
 from prkit.evaluation.utils.category_dispatch import compare_by_category
-from prkit.evaluation.utils.normalization import normalize_answer
 from prkit.evaluation.utils.compare_same_type import (
     compare_formula,
     compare_number,
@@ -35,9 +37,7 @@ from prkit.evaluation.utils.compare_same_type import (
     compare_plain_text,
     parse_physical_quantity,
 )
-from sympy import Eq, sympify
-from sympy.core.relational import Relational
-from sympy.core.sympify import SympifyError
+from prkit.evaluation.utils.normalization import normalize_answer
 
 from .base import BaseComparator
 
@@ -45,8 +45,8 @@ _OPTION_ONLY_COMPARATORS = {AnswerCategory.OPTION: compare_option}
 
 
 def _typed_category_and_value(
-    answer: Union[str, Answer],
-) -> tuple[Optional[AnswerCategory], Union[float, str]]:
+    answer: str | Answer,
+) -> tuple[AnswerCategory | None, float | str]:
     if isinstance(answer, Answer):
         return answer.answer_category, str(answer.value)
     try:
@@ -60,7 +60,7 @@ def _contains_latex_text_macro(s: str) -> bool:
     return bool(re.search(r"\\text\s*\{", s))
 
 
-def infer_symbolic_answer_is_expression(question: Optional[str]) -> Optional[bool]:
+def infer_symbolic_answer_is_expression(question: str | None) -> bool | None:
     """
     Heuristic: whether the question asks for a *symbolic expression* (scalar /
     formula) vs a full *equation* as the graded object.
@@ -183,12 +183,14 @@ def infer_symbolic_answer_is_expression(question: Optional[str]) -> Optional[boo
     return None
 
 
-def _normalized_equation_rhs_string(normalized_value: str) -> Optional[str]:
+def _normalized_equation_rhs_string(normalized_value: str) -> str | None:
     try:
         e = sympify(str(normalized_value))
     except (SympifyError, TypeError, ValueError, AttributeError):
         return None
-    if isinstance(e, Eq) or (isinstance(e, Relational) and getattr(e, "rhs", None) is not None):
+    if isinstance(e, Eq) or (
+        isinstance(e, Relational) and getattr(e, "rhs", None) is not None
+    ):
         try:
             return str(e.rhs)
         except (ValueError, TypeError, AttributeError):
@@ -198,8 +200,8 @@ def _normalized_equation_rhs_string(normalized_value: str) -> Optional[str]:
 
 def _symbolic_operand_for_expression_compare(
     category: AnswerCategory,
-    normalized_value: Union[float, str],
-) -> Optional[str]:
+    normalized_value: float | str,
+) -> str | None:
     if category == AnswerCategory.FORMULA:
         return str(normalized_value)
     if category == AnswerCategory.EQUATION:
@@ -209,12 +211,12 @@ def _symbolic_operand_for_expression_compare(
 
 def _compare_formula_or_equation_as_expressions(
     pred_cat: AnswerCategory,
-    pred_value: Union[float, str],
+    pred_value: float | str,
     gt_cat: AnswerCategory,
-    gt_value: Union[float, str],
+    gt_value: float | str,
     pred_raw: str,
     gt_raw: str,
-) -> Optional[bool]:
+) -> bool | None:
     if pred_cat not in (AnswerCategory.FORMULA, AnswerCategory.EQUATION):
         return None
     if gt_cat not in (AnswerCategory.FORMULA, AnswerCategory.EQUATION):
@@ -232,9 +234,9 @@ def _compare_formula_or_equation_as_expressions(
 
 
 def _plain_text_true_else_llm(
-    predicted_norm: Union[float, str],
-    ground_truth_norm: Union[float, str],
-) -> Optional[bool]:
+    predicted_norm: float | str,
+    ground_truth_norm: float | str,
+) -> bool | None:
     try:
         return True if compare_plain_text(predicted_norm, ground_truth_norm) else None
     except (ValueError, TypeError, ZeroDivisionError, AttributeError):
@@ -258,8 +260,8 @@ class TypedLLMComparator(BaseComparator):
         self,
         model: str = DEFAULT_MODEL,
         *,
-        instructions: Optional[str] = None,
-        client: Optional[OpenAI] = None,
+        instructions: str | None = None,
+        client: OpenAI | None = None,
     ) -> None:
         self.logger = PRKitLogger.get_logger(__name__)
         self._runner = OpenAIJudgeRunner(
@@ -268,19 +270,19 @@ class TypedLLMComparator(BaseComparator):
             client=client,
             logger=self.logger,
         )
-        self._last_result: Optional[LLMJudgeResult] = None
+        self._last_result: LLMJudgeResult | None = None
 
-    def _judge(self, payload: Dict[str, Any]) -> LLMJudgeResult:
+    def _judge(self, payload: dict[str, Any]) -> LLMJudgeResult:
         return self._runner.judge(payload)
 
     @staticmethod
     def _quick_typed_match(
-        predicted: Union[str, Answer],
-        ground_truth: Union[str, Answer],
+        predicted: str | Answer,
+        ground_truth: str | Answer,
         *,
-        question: Optional[str] = None,
-        symbolic_answer_is_expression: Optional[bool] = None,
-    ) -> Optional[bool]:
+        question: str | None = None,
+        symbolic_answer_is_expression: bool | None = None,
+    ) -> bool | None:
         pred_raw, _ = answer_to_text_and_category(predicted)
         gt_raw, _ = answer_to_text_and_category(ground_truth)
         pred_cat, pred_value = _typed_category_and_value(predicted)
@@ -306,22 +308,36 @@ class TypedLLMComparator(BaseComparator):
 
             if pred_cat == AnswerCategory.PHYSICAL_QUANTITY:
                 try:
-                    _pred_num, pred_unit, pred_num_str = parse_physical_quantity(str(pred_value))
-                    _gt_num, gt_unit, gt_num_str = parse_physical_quantity(str(gt_value))
+                    _pred_num, pred_unit, pred_num_str = parse_physical_quantity(
+                        str(pred_value)
+                    )
+                    _gt_num, gt_unit, gt_num_str = parse_physical_quantity(
+                        str(gt_value)
+                    )
                     if pred_unit == gt_unit:
                         return compare_physical_quantity(pred_value, gt_value)
-                    is_same_unit_pool, is_equal_value = _compare_physical_quantity_same_unit_pool_placeholder(
-                        pred_num_str, pred_unit, gt_num_str, gt_unit
+                    is_same_unit_pool, is_equal_value = (
+                        _compare_physical_quantity_same_unit_pool_placeholder(
+                            pred_num_str, pred_unit, gt_num_str, gt_unit
+                        )
                     )
                     if is_same_unit_pool and is_equal_value:
                         return True
                     return _plain_text_true_else_llm(str(pred_value), str(gt_value))
 
-                except (ValueError, TypeError, ZeroDivisionError, RuntimeError, AttributeError):
+                except (
+                    ValueError,
+                    TypeError,
+                    ZeroDivisionError,
+                    RuntimeError,
+                    AttributeError,
+                ):
                     return None
 
             if pred_cat == AnswerCategory.FORMULA:
-                if _contains_latex_text_macro(pred_raw) or _contains_latex_text_macro(gt_raw):
+                if _contains_latex_text_macro(pred_raw) or _contains_latex_text_macro(
+                    gt_raw
+                ):
                     return _plain_text_true_else_llm(pred_value, gt_value)
                 try:
                     if compare_formula(pred_value, gt_value):
@@ -333,7 +349,9 @@ class TypedLLMComparator(BaseComparator):
             if pred_cat == AnswerCategory.EQUATION:
                 pred_rhs = _normalized_equation_rhs_string(str(pred_value))
                 gt_rhs = _normalized_equation_rhs_string(str(gt_value))
-                if _contains_latex_text_macro(pred_raw) or _contains_latex_text_macro(gt_raw):
+                if _contains_latex_text_macro(pred_raw) or _contains_latex_text_macro(
+                    gt_raw
+                ):
                     return _plain_text_true_else_llm(pred_value, gt_value)
                 if pred_rhs is not None and gt_rhs is not None:
                     try:
@@ -348,12 +366,12 @@ class TypedLLMComparator(BaseComparator):
 
             return None
 
-        formula_equation_pair = (
-            pred_cat in (AnswerCategory.FORMULA, AnswerCategory.EQUATION)
-            and gt_cat in (AnswerCategory.FORMULA, AnswerCategory.EQUATION)
-        )
+        formula_equation_pair = pred_cat in (
+            AnswerCategory.FORMULA,
+            AnswerCategory.EQUATION,
+        ) and gt_cat in (AnswerCategory.FORMULA, AnswerCategory.EQUATION)
         if formula_equation_pair:
-            resolved_expr: Optional[bool] = symbolic_answer_is_expression
+            resolved_expr: bool | None = symbolic_answer_is_expression
             if resolved_expr is None and question:
                 resolved_expr = infer_symbolic_answer_is_expression(question)
             if resolved_expr is True:
@@ -368,8 +386,8 @@ class TypedLLMComparator(BaseComparator):
 
     def compare(
         self,
-        answer1: Union[str, Answer],
-        answer2: Union[str, Answer],
+        answer1: str | Answer,
+        answer2: str | Answer,
         *,
         skip_llm: bool = False,
         **kwargs: Any,
@@ -413,8 +431,8 @@ class TypedLLMComparator(BaseComparator):
 
     def accuracy_score(
         self,
-        answer1: Union[str, Answer],
-        answer2: Union[str, Answer],
+        answer1: str | Answer,
+        answer2: str | Answer,
         *,
         skip_llm: bool = False,
         **kwargs: Any,
@@ -423,7 +441,7 @@ class TypedLLMComparator(BaseComparator):
         return 1.0 if is_correct else 0.0
 
     @property
-    def last_result(self) -> Optional[LLMJudgeResult]:
+    def last_result(self) -> LLMJudgeResult | None:
         return self._last_result
 
     @property

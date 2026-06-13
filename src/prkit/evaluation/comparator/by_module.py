@@ -7,12 +7,11 @@ package submodule name (the Python module stem, e.g. ``\"smart_match\"`` for
 from __future__ import annotations
 
 import importlib
-from typing import Dict, FrozenSet, Optional, Type
 
 from prkit.evaluation.comparator.base import BaseComparator
 
 # Submodule name (``*.py`` stem) -> comparator class name in that module.
-_MODULE_CLASS: Dict[str, str] = {
+_MODULE_CLASS: dict[str, str] = {
     "category_match": "CategoryComparator",
     "exact_match": "ExactMatchComparator",
     "normalized_match": "NormalizedMatchComparator",
@@ -24,12 +23,12 @@ _MODULE_CLASS: Dict[str, str] = {
 }
 
 # Legacy / convenience aliases (e.g. old scripts referred to an LLM judge comparator).
-_ALIASES: Dict[str, str] = {
+_ALIASES: dict[str, str] = {
     "llm_judge": "typed_llm",
 }
 
-_MODULES_ACCEPTING_MODEL: FrozenSet[str] = frozenset({"typed_llm", "smart_llm"})
-_MODULES_WITH_ROUGE_THRESHOLD: FrozenSet[str] = frozenset({"similarity_match"})
+_MODULES_ACCEPTING_MODEL: frozenset[str] = frozenset({"typed_llm", "smart_llm"})
+_MODULES_WITH_ROUGE_THRESHOLD: frozenset[str] = frozenset({"similarity_match"})
 
 
 def comparator_module_names() -> tuple[str, ...]:
@@ -57,7 +56,7 @@ def uses_rouge_threshold(module_name: str) -> bool:
 def build_comparator(
     module_name: str,
     *,
-    model: Optional[str] = None,
+    model: str | None = None,
     rouge_threshold: float = 0.5,
 ) -> BaseComparator:
     """
@@ -85,7 +84,7 @@ def build_comparator(
         )
 
     mod = importlib.import_module(f"prkit.evaluation.comparator.{name}")
-    cls: Type[BaseComparator] = getattr(mod, _MODULE_CLASS[name])
+    cls: type[BaseComparator] = getattr(mod, _MODULE_CLASS[name])
 
     if name in _MODULES_ACCEPTING_MODEL:
         m = model if model is not None else DEFAULT_MODEL

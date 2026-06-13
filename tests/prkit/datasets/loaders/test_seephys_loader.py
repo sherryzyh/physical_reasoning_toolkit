@@ -51,7 +51,7 @@ class TestSeePhysLoader:
         data_dir = temp_dir / "seephys"
         split_dir = data_dir / "train"
         split_dir.mkdir(parents=True)
-        
+
         # Create sample JSON file
         json_file = split_dir / "001.json"
         sample_data = {
@@ -62,9 +62,9 @@ class TestSeePhysLoader:
         }
         with open(json_file, "w", encoding="utf-8") as f:
             json.dump(sample_data, f)
-        
+
         dataset = loader.load(data_dir=str(data_dir), split="train")
-        
+
         assert dataset is not None
         assert len(dataset) == 1
 
@@ -73,7 +73,7 @@ class TestSeePhysLoader:
         loader = SeePhysLoader()
         data_dir = temp_dir / "seephys"
         data_dir.mkdir(parents=True)
-        
+
         with pytest.raises(FileNotFoundError):
             loader.load(data_dir=str(data_dir), split="train")
 
@@ -83,7 +83,7 @@ class TestSeePhysLoader:
         data_dir = temp_dir / "seephys"
         split_dir = data_dir / "train"
         split_dir.mkdir(parents=True)
-        
+
         # Create multiple JSON files
         for i in range(10):
             json_file = split_dir / f"{i:03d}.json"
@@ -94,11 +94,9 @@ class TestSeePhysLoader:
             }
             with open(json_file, "w", encoding="utf-8") as f:
                 json.dump(sample_data, f)
-        
-        dataset = loader.load(
-            data_dir=str(data_dir), split="train", sample_size=5
-        )
-        
+
+        dataset = loader.load(data_dir=str(data_dir), split="train", sample_size=5)
+
         assert len(dataset) == 5
 
     def test_load_with_image_paths(self, temp_dir):
@@ -107,7 +105,7 @@ class TestSeePhysLoader:
         data_dir = temp_dir / "seephys"
         split_dir = data_dir / "train"
         split_dir.mkdir(parents=True)
-        
+
         # Create sample JSON file with image_paths
         json_file = split_dir / "001.json"
         sample_data = {
@@ -119,9 +117,9 @@ class TestSeePhysLoader:
         }
         with open(json_file, "w", encoding="utf-8") as f:
             json.dump(sample_data, f)
-        
+
         dataset = loader.load(data_dir=str(data_dir), split="train")
-        
+
         assert dataset is not None
         assert len(dataset) == 1
         # Verify that image_paths is handled correctly
@@ -134,7 +132,7 @@ class TestSeePhysLoader:
         data_dir = temp_dir / "seephys"
         split_dir = data_dir / "train"
         split_dir.mkdir(parents=True)
-        
+
         # Create sample JSON file with single image_paths string
         json_file = split_dir / "002.json"
         sample_data = {
@@ -146,9 +144,9 @@ class TestSeePhysLoader:
         }
         with open(json_file, "w", encoding="utf-8") as f:
             json.dump(sample_data, f)
-        
+
         dataset = loader.load(data_dir=str(data_dir), split="train")
-        
+
         assert dataset is not None
         assert len(dataset) == 1
         # Verify that single image_paths string is converted to list
@@ -197,7 +195,7 @@ class TestSeePhysLoader:
         data_dir = temp_dir / "seephys"
         split_dir = data_dir / "train"
         split_dir.mkdir(parents=True)
-        
+
         json_file = split_dir / "001.json"
         sample_data = {
             "index": "test_001",
@@ -206,10 +204,10 @@ class TestSeePhysLoader:
         }
         with open(json_file, "w", encoding="utf-8") as f:
             json.dump(sample_data, f)
-        
+
         # Load without specifying split - should use default
         dataset = loader.load(data_dir=str(data_dir))
-        
+
         assert dataset is not None
         assert len(dataset) == 1
 
@@ -218,23 +216,24 @@ class TestSeePhysLoader:
         loader = SeePhysLoader()
         data_dir = temp_dir / "seephys"
         data_dir.mkdir(parents=True)
-        
+
         # Create image files
         images_dir = data_dir / "images"
         images_dir.mkdir(parents=True)
         img1 = images_dir / "test1.png"
         img2 = images_dir / "test2.png"
-        
+
         # Create simple image files (minimal PNG)
         # Using PIL if available, otherwise skip test
         try:
             from PIL import Image
+
             Image.new("RGB", (10, 10), color="red").save(img1)
             Image.new("RGB", (10, 10), color="blue").save(img2)
-            
+
             image_paths = ["images/test1.png", "images/test2.png"]
             images = loader.load_images_from_paths(image_paths, data_dir=data_dir)
-            
+
             assert len(images) == 2
             assert all(img is not None for img in images)
         except ImportError:
@@ -245,17 +244,20 @@ class TestSeePhysLoader:
         loader = SeePhysLoader()
         data_dir = temp_dir / "seephys"
         data_dir.mkdir(parents=True)
-        
+
         images_dir = data_dir / "images"
         images_dir.mkdir(parents=True)
         img1 = images_dir / "test1.png"
-        
+
         try:
             from PIL import Image
+
             Image.new("RGB", (10, 10), color="red").save(img1)
-            
-            images = loader.load_images_from_paths("images/test1.png", data_dir=data_dir)
-            
+
+            images = loader.load_images_from_paths(
+                "images/test1.png", data_dir=data_dir
+            )
+
             assert len(images) == 1
             assert images[0] is not None
         except ImportError:
@@ -279,7 +281,7 @@ class TestSeePhysLoader:
         metadata = {
             "index": "test_001",
             "question": "Test question",
-            "image_paths": ["image1.png", "image2.png"]
+            "image_paths": ["image1.png", "image2.png"],
         }
         processed = loader._process_metadata(metadata)
         assert isinstance(processed["image_paths"], list)
@@ -291,7 +293,7 @@ class TestSeePhysLoader:
         metadata = {
             "index": "test_001",
             "question": "Test question",
-            "image_paths": "image1.png"
+            "image_paths": "image1.png",
         }
         processed = loader._process_metadata(metadata)
         assert isinstance(processed["image_paths"], list)
@@ -303,7 +305,7 @@ class TestSeePhysLoader:
         metadata = {
             "index": "test_001",
             "question": "Test question",
-            "image_paths": None
+            "image_paths": None,
         }
         processed = loader._process_metadata(metadata)
         assert processed["image_paths"] is None
@@ -314,7 +316,7 @@ class TestSeePhysLoader:
         metadata = {
             "index": "test_001",
             "question": "Test question",
-            "image_paths": 123  # Invalid type
+            "image_paths": 123,  # Invalid type
         }
         processed = loader._process_metadata(metadata)
         # Should convert to list
@@ -333,7 +335,7 @@ class TestSeePhysLoader:
         """Test get_info returns comprehensive information."""
         loader = SeePhysLoader()
         info = loader.get_info()
-        
+
         assert info["name"] == "seephys"
         assert "description" in info
         assert "repository_url" in info
@@ -354,7 +356,7 @@ class TestSeePhysLoader:
         data_dir = temp_dir / "seephys"
         split_dir = data_dir / "train"
         split_dir.mkdir(parents=True)
-        
+
         json_file = split_dir / "003.json"
         sample_data = {
             "index": "test_003",
@@ -364,9 +366,9 @@ class TestSeePhysLoader:
         }
         with open(json_file, "w", encoding="utf-8") as f:
             json.dump(sample_data, f)
-        
+
         dataset = loader.load(data_dir=str(data_dir), split="train")
-        
+
         assert dataset is not None
         assert len(dataset) == 1
 
@@ -376,11 +378,11 @@ class TestSeePhysLoader:
         data_dir = temp_dir / "seephys"
         split_dir = data_dir / "train"
         split_dir.mkdir(parents=True)
-        
+
         # Create files in a non-sequential order to test sorting
         # This simulates filesystem order which might not be sorted
         file_numbers = [100, 0, 101, 1, 1000, 2, 10, 99, 1001]
-        
+
         for num in file_numbers:
             json_file = split_dir / f"{num}.json"
             sample_data = {
@@ -390,13 +392,13 @@ class TestSeePhysLoader:
             }
             with open(json_file, "w", encoding="utf-8") as f:
                 json.dump(sample_data, f)
-        
+
         # Load the dataset
         dataset = loader.load(data_dir=str(data_dir), split="train")
-        
+
         assert dataset is not None
         assert len(dataset) == len(file_numbers)
-        
+
         # Extract problem IDs and verify they're in ascending order
         # The problem_id should correspond to the index field (which is the file number)
         problem_ids = []
@@ -407,16 +409,16 @@ class TestSeePhysLoader:
                 problem_ids.append(int(problem.problem_id))
             except ValueError:
                 # Fallback: extract number from question if problem_id is not numeric
-                match = re.search(r'Question (\d+)\?', problem.question)
+                match = re.search(r"Question (\d+)\?", problem.question)
                 if match:
                     problem_ids.append(int(match.group(1)))
-        
+
         # Verify ascending order
         assert problem_ids == sorted(problem_ids), (
             f"Problems not in ascending order. Got: {problem_ids}, "
             f"Expected: {sorted(problem_ids)}"
         )
-        
+
         # Also verify the expected order explicitly
         expected_order = sorted(file_numbers)
         assert problem_ids == expected_order, (
@@ -430,10 +432,10 @@ class TestSeePhysLoader:
         data_dir = temp_dir / "seephys"
         split_dir = data_dir / "train"
         split_dir.mkdir(parents=True)
-        
+
         # Test with a wider range including single digits, double digits, triple digits, etc.
         file_numbers = [999, 0, 1000, 1, 10, 100, 1001, 2, 11, 101, 9999, 3, 12, 102]
-        
+
         for num in file_numbers:
             json_file = split_dir / f"{num}.json"
             sample_data = {
@@ -443,15 +445,15 @@ class TestSeePhysLoader:
             }
             with open(json_file, "w", encoding="utf-8") as f:
                 json.dump(sample_data, f)
-        
+
         dataset = loader.load(data_dir=str(data_dir), split="train")
-        
+
         assert dataset is not None
         assert len(dataset) == len(file_numbers)
-        
+
         # Extract problem IDs
         problem_ids = [int(p.problem_id) for p in dataset]
-        
+
         # Verify ascending order
         expected_order = sorted(file_numbers)
         assert problem_ids == expected_order, (
@@ -465,7 +467,7 @@ class TestSeePhysLoader:
         data_dir = temp_dir / "seephys"
         split_dir = data_dir / "train"
         split_dir.mkdir(parents=True)
-        
+
         # Create numeric files
         numeric_files = [100, 0, 1, 50]
         for num in numeric_files:
@@ -477,7 +479,7 @@ class TestSeePhysLoader:
             }
             with open(json_file, "w", encoding="utf-8") as f:
                 json.dump(sample_data, f)
-        
+
         # Create non-numeric files (should be sorted to the end)
         non_numeric_files = ["abc.json", "xyz.json", "test.json"]
         for filename in non_numeric_files:
@@ -489,28 +491,28 @@ class TestSeePhysLoader:
             }
             with open(json_file, "w", encoding="utf-8") as f:
                 json.dump(sample_data, f)
-        
+
         dataset = loader.load(data_dir=str(data_dir), split="train")
-        
+
         assert dataset is not None
         assert len(dataset) == len(numeric_files) + len(non_numeric_files)
-        
+
         # First files should be numeric in ascending order
         numeric_problem_ids = []
         non_numeric_problem_ids = []
-        
+
         for problem in dataset:
             try:
                 numeric_problem_ids.append(int(problem.problem_id))
             except ValueError:
                 non_numeric_problem_ids.append(problem.problem_id)
-        
+
         # Verify numeric files are in ascending order
         assert numeric_problem_ids == sorted(numeric_files), (
             f"Numeric problems not in ascending order. Got: {numeric_problem_ids}, "
             f"Expected: {sorted(numeric_files)}"
         )
-        
+
         # Verify non-numeric files come after numeric ones
         assert len(non_numeric_problem_ids) == len(non_numeric_files), (
             f"Expected {len(non_numeric_files)} non-numeric problems, "

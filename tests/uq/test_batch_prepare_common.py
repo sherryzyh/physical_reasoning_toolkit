@@ -4,16 +4,18 @@ from __future__ import annotations
 
 import json
 
-from prkit.core.domain import PhysicalDataset, PhysicsProblem
-
 from uncertainty_quantification_physical_reasoning.scripts import batch_prepare_common
+
+from prkit.core.domain import PhysicalDataset, PhysicsProblem
 
 
 def test_infer_dataset_load_kwargs_uses_problem_id_manifest(tmp_path):
     problem_ids_file = tmp_path / "problem_ids_for_perturbation_90_domain_modality.json"
     problem_ids_file.write_text("[]", encoding="utf-8")
 
-    manifest_file = tmp_path / "problem_ids_for_perturbation_90_domain_modality_manifest.json"
+    manifest_file = (
+        tmp_path / "problem_ids_for_perturbation_90_domain_modality_manifest.json"
+    )
     manifest_file.write_text(
         json.dumps(
             {
@@ -27,7 +29,9 @@ def test_infer_dataset_load_kwargs_uses_problem_id_manifest(tmp_path):
         encoding="utf-8",
     )
 
-    assert batch_prepare_common.infer_dataset_load_kwargs("physics", problem_ids_file) == {
+    assert batch_prepare_common.infer_dataset_load_kwargs(
+        "physics", problem_ids_file
+    ) == {
         "variant": "full",
         "split": "eval",
     }
@@ -40,7 +44,9 @@ def test_load_filtered_dataset_preserves_problem_id_order(tmp_path, monkeypatch)
         encoding="utf-8",
     )
 
-    manifest_file = tmp_path / "problem_ids_for_perturbation_90_domain_modality_manifest.json"
+    manifest_file = (
+        tmp_path / "problem_ids_for_perturbation_90_domain_modality_manifest.json"
+    )
     manifest_file.write_text(
         json.dumps(
             {

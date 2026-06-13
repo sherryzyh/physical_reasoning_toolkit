@@ -5,10 +5,9 @@ This module provides the foundation for building composable workflow modules
 that can be chained together to create complex annotation workflows.
 """
 
-import logging
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Any, Dict, Optional, Union
+from typing import Any
 
 from prkit.core import PRKitLogger
 from prkit.core.domain.physics_problem import PhysicsProblem
@@ -23,7 +22,7 @@ class BaseWorkflowModule(ABC):
     """
 
     def __init__(
-        self, name: str, model: str = "gpt-5-mini", config: Optional[Dict[str, Any]] = None
+        self, name: str, model: str = "gpt-5-mini", config: dict[str, Any] | None = None
     ):
         # Setup module logging - the workflow will configure this properly
         self.logger = PRKitLogger.get_logger(f"{__name__}.{name}")
@@ -67,7 +66,7 @@ class BaseWorkflowModule(ABC):
         pass
 
     @abstractmethod
-    def process(self, problem: PhysicsProblem, **kwargs) -> Optional[Dict[str, Any]]:
+    def process(self, problem: PhysicsProblem, **kwargs) -> dict[str, Any] | None:
         """
         Process a single problem.
 
@@ -82,7 +81,7 @@ class BaseWorkflowModule(ABC):
 
     def run(
         self, problem: PhysicsProblem, problem_as_output: bool = True, **kwargs
-    ) -> Union[PhysicsProblem, Dict[str, Any]]:
+    ) -> PhysicsProblem | dict[str, Any]:
         """
         Run the module on a single problem.
 
@@ -182,7 +181,7 @@ class BaseWorkflowModule(ABC):
             f"{self.__class__} must implement _form_output_as_a_problem()"
         )
 
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         """Get current module status."""
         return self.module_status.copy()
 

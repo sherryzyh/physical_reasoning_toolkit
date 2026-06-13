@@ -9,17 +9,17 @@ LLM judge; otherwise the deterministic outcome is final.
 
 from __future__ import annotations
 
-from typing import Any, Optional, Union, assert_never
+from typing import Any, assert_never
 
 from openai import OpenAI
 
 from prkit.core.domain.answer import Answer
 from prkit.evaluation.llm_judge import (
     DEFAULT_MODEL,
-    LLMJudgeResult,
-    OpenAIJudgeRunner,
     RESULT_SOURCE_SKIPPED_LLM,
     RESULT_SOURCE_SMART_MATCH,
+    LLMJudgeResult,
+    OpenAIJudgeRunner,
     build_standard_answer_judge_payload,
 )
 
@@ -34,8 +34,8 @@ class SmartLLMComparator(SmartMatchComparator):
         self,
         model: str = DEFAULT_MODEL,
         *,
-        instructions: Optional[str] = None,
-        client: Optional[OpenAI] = None,
+        instructions: str | None = None,
+        client: OpenAI | None = None,
     ) -> None:
         super().__init__()
         self._runner = OpenAIJudgeRunner(
@@ -44,7 +44,7 @@ class SmartLLMComparator(SmartMatchComparator):
             client=client,
             logger=self.logger,
         )
-        self._last_result: Optional[LLMJudgeResult] = None
+        self._last_result: LLMJudgeResult | None = None
 
     def _result_smart(self, *, correct: bool) -> LLMJudgeResult:
         return LLMJudgeResult(
@@ -61,8 +61,8 @@ class SmartLLMComparator(SmartMatchComparator):
 
     def compare(
         self,
-        answer1: Union[str, Answer],
-        answer2: Union[str, Answer],
+        answer1: str | Answer,
+        answer2: str | Answer,
         *,
         skip_llm: bool = False,
         **kwargs: Any,
@@ -103,8 +103,8 @@ class SmartLLMComparator(SmartMatchComparator):
 
     def accuracy_score(
         self,
-        answer1: Union[str, Answer],
-        answer2: Union[str, Answer],
+        answer1: str | Answer,
+        answer2: str | Answer,
         *,
         skip_llm: bool = False,
         **kwargs: Any,
@@ -113,7 +113,7 @@ class SmartLLMComparator(SmartMatchComparator):
         return 1.0 if ok else 0.0
 
     @property
-    def last_result(self) -> Optional[LLMJudgeResult]:
+    def last_result(self) -> LLMJudgeResult | None:
         return self._last_result
 
     @property

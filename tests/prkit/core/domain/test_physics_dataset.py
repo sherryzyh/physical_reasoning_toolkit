@@ -2,13 +2,11 @@
 Tests for PhysicalDataset model.
 """
 
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
-from prkit.core.domain import AnswerCategory, PhysicsDomain
-from prkit.core.domain import Answer, PhysicalDataset, PhysicsProblem
+from prkit.core.domain import PhysicalDataset, PhysicsDomain, PhysicsProblem
 from prkit.core.domain import physics_dataset as physics_dataset_module
 
 

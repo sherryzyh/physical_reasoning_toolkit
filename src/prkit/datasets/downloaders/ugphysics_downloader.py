@@ -8,7 +8,7 @@ For citation information, see prkit.datasets.citations.
 
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from prkit.datasets.ugphysics_common import (
     UGPHYSICS_DOMAIN_COUNTS,
@@ -45,7 +45,7 @@ class UGPhysicsDownloader(BaseDownloader):
         return "ugphysics"
 
     @property
-    def download_info(self) -> Dict[str, Any]:
+    def download_info(self) -> dict[str, Any]:
         """Return download information."""
         return {
             "source": "HuggingFace Datasets Server",
@@ -71,13 +71,13 @@ class UGPhysicsDownloader(BaseDownloader):
 
     def download(
         self,
-        data_dir: Optional[Union[str, Path]] = None,
+        data_dir: str | Path | None = None,
         force: bool = False,
-        variant: Optional[str] = None,
-        split: Optional[str] = None,
-        domains: Optional[List[str]] = None,
-        languages: Optional[List[str]] = None,
-        language: Optional[str] = None,
+        variant: str | None = None,
+        split: str | None = None,
+        domains: list[str] | None = None,
+        languages: list[str] | None = None,
+        language: str | None = None,
         **kwargs,
     ) -> Path:
         """
@@ -143,9 +143,9 @@ class UGPhysicsDownloader(BaseDownloader):
         self,
         download_dir: Path,
         variant: str = "full",
-        split: Optional[str] = None,
-        domains: Optional[List[str]] = None,
-        languages: Optional[List[str]] = None,
+        split: str | None = None,
+        domains: list[str] | None = None,
+        languages: list[str] | None = None,
         **kwargs,
     ) -> Path:
         """
@@ -279,12 +279,12 @@ class UGPhysicsDownloader(BaseDownloader):
 
     def _resolve_requested_artifacts(
         self,
-        variant: Optional[str] = None,
-        split: Optional[str] = None,
-        domains: Optional[List[str]] = None,
-        languages: Optional[List[str]] = None,
-        language: Optional[str] = None,
-    ) -> tuple[str, Optional[str], List[str], List[str]]:
+        variant: str | None = None,
+        split: str | None = None,
+        domains: list[str] | None = None,
+        languages: list[str] | None = None,
+        language: str | None = None,
+    ) -> tuple[str, str | None, list[str], list[str]]:
         """Normalize downloader requests to concrete domains and languages."""
         normalized_variant = normalize_variant(variant, logger=self.logger)
         normalized_split = (
@@ -296,7 +296,9 @@ class UGPhysicsDownloader(BaseDownloader):
         if domains is None:
             requested_domains = get_requested_domain_dirs(normalized_variant)
         else:
-            requested_domains = [normalize_domain_dir_name(domain) for domain in domains]
+            requested_domains = [
+                normalize_domain_dir_name(domain) for domain in domains
+            ]
             if normalized_variant != "full":
                 expected_domains = set(get_requested_domain_dirs(normalized_variant))
                 if set(requested_domains) != expected_domains:
@@ -318,7 +320,9 @@ class UGPhysicsDownloader(BaseDownloader):
                     )
                 requested_languages.append(normalized_language)
             requested_languages = sorted(set(requested_languages))
-            if normalized_split is not None and requested_languages != [normalized_split]:
+            if normalized_split is not None and requested_languages != [
+                normalized_split
+            ]:
                 raise ValueError(
                     "Conflicting UGPhysics language request: "
                     f"split='{split}' does not match languages={languages}"
@@ -334,8 +338,8 @@ class UGPhysicsDownloader(BaseDownloader):
     def _is_request_downloaded(
         self,
         download_dir: Path,
-        domains: List[str],
-        languages: List[str],
+        domains: list[str],
+        languages: list[str],
     ) -> bool:
         """Check whether the exact requested UGPhysics artifacts already exist."""
         if not download_dir.exists():
@@ -359,7 +363,7 @@ class UGPhysicsDownloader(BaseDownloader):
 
         checked_rows = 0
         try:
-            with open(jsonl_file, "r", encoding="utf-8") as file_obj:
+            with open(jsonl_file, encoding="utf-8") as file_obj:
                 for line in file_obj:
                     if not line.strip():
                         continue
@@ -376,8 +380,8 @@ class UGPhysicsDownloader(BaseDownloader):
         self,
         download_dir: Path,
         variant: str,
-        split: Optional[str],
-        file_records: List[Dict[str, Any]],
+        split: str | None,
+        file_records: list[dict[str, Any]],
     ) -> None:
         """Persist a lightweight manifest for deterministic verification."""
         manifest_path = download_dir / "download_manifest.json"
@@ -385,7 +389,7 @@ class UGPhysicsDownloader(BaseDownloader):
 
         if manifest_path.exists():
             try:
-                with open(manifest_path, "r", encoding="utf-8") as file_obj:
+                with open(manifest_path, encoding="utf-8") as file_obj:
                     manifest = json.load(file_obj)
                 for record in manifest.get("files", []):
                     existing_files[record["path"]] = record
@@ -408,7 +412,7 @@ class UGPhysicsDownloader(BaseDownloader):
         with open(manifest_path, "w", encoding="utf-8") as file_obj:
             json.dump(manifest, file_obj, indent=2, sort_keys=True)
 
-    def verify(self, data_dir: Union[str, Path]) -> bool:
+    def verify(self, data_dir: str | Path) -> bool:
         """
         Verify that the downloaded dataset is complete and valid.
 
@@ -426,7 +430,7 @@ class UGPhysicsDownloader(BaseDownloader):
         manifest_path = data_dir / "download_manifest.json"
         if manifest_path.exists():
             try:
-                with open(manifest_path, "r", encoding="utf-8") as file_obj:
+                with open(manifest_path, encoding="utf-8") as file_obj:
                     manifest = json.load(file_obj)
                 files = manifest.get("files", [])
                 if not files:

@@ -6,9 +6,9 @@ The PhysicsSolution class captures both the problem and the LLM's reasoning and 
 """
 
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from .physics_problem import PhysicsProblem
 
@@ -33,8 +33,8 @@ class PhysicsSolution:
     agent_answer: str
 
     # Optional metadata fields
-    metadata: Optional[Dict[str, Any]] = None
-    intermediate_steps: Optional[List[Dict[str, Any]]] = None
+    metadata: dict[str, Any] | None = None
+    intermediate_steps: list[dict[str, Any]] | None = None
 
     def __post_init__(self):
         """Validate and initialize the solution after creation."""
@@ -84,8 +84,8 @@ class PhysicsSolution:
         self,
         step_name: str,
         step_content: str,
-        step_type: Optional[str] = None,
-        tool_usage: Optional[Dict[str, Any]] = None,
+        step_type: str | None = None,
+        tool_usage: dict[str, Any] | None = None,
         **kwargs,
     ) -> None:
         """Add an intermediate step to the solution process."""
@@ -98,14 +98,14 @@ class PhysicsSolution:
         }
         self.intermediate_steps.append(step)
 
-    def get_intermediate_step(self, step_name: str) -> Optional[Dict[str, Any]]:
+    def get_intermediate_step(self, step_name: str) -> dict[str, Any] | None:
         """Get a specific intermediate step by name."""
         for step in self.intermediate_steps:
             if step["step_name"] == step_name:
                 return step
         return None
 
-    def get_all_step_names(self) -> List[str]:
+    def get_all_step_names(self) -> list[str]:
         """Get all intermediate step names."""
         return [step["step_name"] for step in self.intermediate_steps]
 
@@ -129,7 +129,7 @@ class PhysicsSolution:
     # Export and Serialization
     # ============================================================================
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert the solution to a dictionary for serialization."""
         return {
             "problem_id": self.problem_id,
@@ -148,11 +148,11 @@ class PhysicsSolution:
         return json.dumps(self.to_dict(), indent=indent, ensure_ascii=False)
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "PhysicsSolution":
+    def from_dict(cls, data: dict[str, Any]) -> "PhysicsSolution":
         """Create a PhysicsSolution instance from a dictionary."""
         # Create a copy to avoid modifying the original
         data_copy = data.copy()
-        
+
         # Handle timestamp conversion (store in metadata if present)
         if "timestamp" in data_copy:
             timestamp = data_copy.pop("timestamp")
@@ -175,7 +175,7 @@ class PhysicsSolution:
     # Summary and Statistics
     # ============================================================================
 
-    def get_summary(self) -> Dict[str, Any]:
+    def get_summary(self) -> dict[str, Any]:
         """Get a summary of the solution."""
         return {
             "problem_id": self.problem_id,

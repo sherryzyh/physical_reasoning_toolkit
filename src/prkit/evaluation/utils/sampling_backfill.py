@@ -27,7 +27,12 @@ _default_canonical_root = find_canonical_root(__file__)
 DEFAULT_CANONICAL_SAMPLING_ROOT = (
     (_default_canonical_root / "baselines" / "sampling")
     if _default_canonical_root is not None
-    else (DEFAULT_REPO_ROOT.parent / "canonical_answer_protocol" / "baselines" / "sampling")
+    else (
+        DEFAULT_REPO_ROOT.parent
+        / "canonical_answer_protocol"
+        / "baselines"
+        / "sampling"
+    )
 )
 
 
@@ -234,7 +239,9 @@ def model_report(
     run_name = f"{dataset}_{model}"
     inference_dir = inference_root / run_name
     sampling_dir = sampling_root / run_name
-    canonical_dir = canonical_sampling_root / run_name if canonical_sampling_root else None
+    canonical_dir = (
+        canonical_sampling_root / run_name if canonical_sampling_root else None
+    )
 
     subset_set = set(subset_ids)
     existing_sampling_ids = problem_ids_from_dir(sampling_dir)
@@ -254,7 +261,8 @@ def model_report(
     missing_inference_ids_path: Path | None = None
     if missing_inference_ids:
         missing_inference_ids_path = (
-            missing_ids_dir / f"{subset_stem}_missing_in_response_with_answer_tag__{model}.json"
+            missing_ids_dir
+            / f"{subset_stem}_missing_in_response_with_answer_tag__{model}.json"
         )
         write_json(missing_inference_ids_path, missing_inference_ids)
 
@@ -269,7 +277,9 @@ def model_report(
             if not inference_path.exists():
                 continue
 
-            raw_model_response, extracted_model_answer = load_inference_doc(inference_path)
+            raw_model_response, extracted_model_answer = load_inference_doc(
+                inference_path
+            )
             payload = build_sampling_doc(
                 dataset=dataset,
                 model=model,

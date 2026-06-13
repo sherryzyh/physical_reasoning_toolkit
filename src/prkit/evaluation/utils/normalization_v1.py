@@ -9,13 +9,6 @@
 
 import warnings
 
-warnings.warn(
-    "prkit.evaluation.utils.normalization_v1 is deprecated and will be removed in a "
-    "future release; import from prkit.evaluation.utils.normalization instead.",
-    DeprecationWarning,
-    stacklevel=2,
-)
-
 from .normalization import (
     _FRAC_LATEX_PATTERN,
     _extract_math_content,
@@ -31,6 +24,13 @@ from .normalization import (
     normalize_expression,
     normalize_number,
     normalize_text,
+)
+
+warnings.warn(
+    "prkit.evaluation.utils.normalization_v1 is deprecated and will be removed in a "
+    "future release; import from prkit.evaluation.utils.normalization instead.",
+    DeprecationWarning,
+    stacklevel=2,
 )
 
 __all__ = [

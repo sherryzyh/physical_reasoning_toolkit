@@ -1,10 +1,14 @@
 import json
 import random
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Any, Dict, Iterator, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Union
 
 from ..logging_config import PRKitLogger
 from .physics_problem import PhysicsProblem
+
+if TYPE_CHECKING:
+    from .physics_domain import PhysicsDomain
 
 
 class PhysicalDataset:
@@ -17,8 +21,8 @@ class PhysicalDataset:
 
     def __init__(
         self,
-        problems: List[PhysicsProblem],
-        info: Optional[Dict[str, Any]] = None,
+        problems: list[PhysicsProblem],
+        info: dict[str, Any] | None = None,
         split: str = "test",
     ):
         """
@@ -38,9 +42,7 @@ class PhysicalDataset:
         """Get the number of problems in the dataset."""
         return len(self._problems)
 
-    def __getitem__(
-        self, idx: Union[int, slice]
-    ) -> Union[PhysicsProblem, "PhysicalDataset"]:
+    def __getitem__(self, idx: int | slice) -> Union[PhysicsProblem, "PhysicalDataset"]:
         """Get a problem by index or a slice of dataset."""
         if isinstance(idx, slice):
             # Return a new PhysicalDataset with sliced problems
@@ -77,7 +79,7 @@ class PhysicalDataset:
                 )
                 self._problem_id_index[fallback_id] = i
 
-    def get_all_ids(self) -> List[str]:
+    def get_all_ids(self) -> list[str]:
         """Get all problem_ids in the dataset."""
         return list(self._problem_id_index.keys())
 
@@ -97,7 +99,7 @@ class PhysicalDataset:
         problem_index = self._problem_id_index[problem_id]
         return self._problems[problem_index]
 
-    def get_by_id_safe(self, problem_id: str) -> Optional[PhysicsProblem]:
+    def get_by_id_safe(self, problem_id: str) -> PhysicsProblem | None:
         """
         Get a problem by problem_id using O(1) index lookup, returning None if not found.
 
@@ -126,7 +128,7 @@ class PhysicalDataset:
         return PhysicalDataset(filtered_problems, self._info, self._split)
 
     def filter_by_domains(
-        self, domains: List[Union[str, "PhysicsDomain"]]
+        self, domains: list[Union[str, "PhysicsDomain"]]
     ) -> "PhysicalDataset":
         """
         Filter problems by physics domains.
@@ -208,7 +210,7 @@ class PhysicalDataset:
         """
         return self.filter_by_domains([domain])
 
-    def select(self, indices: List[int]) -> "PhysicalDataset":
+    def select(self, indices: list[int]) -> "PhysicalDataset":
         """
         Select problems by indices.
 
@@ -282,7 +284,7 @@ class PhysicalDataset:
             random.sample(self._problems, n), self._info, self._split
         )
 
-    def map(self, map_func) -> List[Any]:
+    def map(self, map_func) -> list[Any]:
         """
         Apply a function to each problem.
 
@@ -294,7 +296,7 @@ class PhysicalDataset:
         """
         return [map_func(p) for p in self._problems]
 
-    def get_info(self) -> Dict[str, Any]:
+    def get_info(self) -> dict[str, Any]:
         """Get dataset information."""
         return self._info.copy()
 
@@ -312,11 +314,11 @@ class PhysicalDataset:
         """Get the dataset name."""
         return self._info.get("name", self.__class__.__name__)
 
-    def to_list(self) -> List[Dict[str, Any]]:
+    def to_list(self) -> list[dict[str, Any]]:
         """Convert dataset to list of dictionaries."""
         return [problem.to_dict() for problem in self._problems]
 
-    def save_to_json(self, filepath: Union[str, Path]) -> None:
+    def save_to_json(self, filepath: str | Path) -> None:
         """Save dataset to JSON file."""
         filepath = Path(filepath)
         filepath.parent.mkdir(parents=True, exist_ok=True)
@@ -327,17 +329,17 @@ class PhysicalDataset:
             json.dump(data, f, indent=2, ensure_ascii=False)
 
     @classmethod
-    def from_json(cls, filepath: Union[str, Path]) -> "PhysicalDataset":
+    def from_json(cls, filepath: str | Path) -> "PhysicalDataset":
         """Load dataset from JSON file."""
         filepath = Path(filepath)
 
-        with open(filepath, "r", encoding="utf-8") as f:
+        with open(filepath, encoding="utf-8") as f:
             data = json.load(f)
 
         problems = [PhysicsProblem.from_dict(p) for p in data["problems"]]
         return cls(problems, data.get("info"), data.get("split", "test"))
 
-    def get_statistics(self) -> Dict[str, Any]:
+    def get_statistics(self) -> dict[str, Any]:
         """Get dataset statistics."""
         if not self._problems:
             return {"total_problems": 0}

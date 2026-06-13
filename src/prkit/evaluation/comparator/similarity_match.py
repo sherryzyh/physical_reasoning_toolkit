@@ -5,7 +5,7 @@ definite bool; otherwise word-level ROUGE-L F1 on plain text (no LLM).
 
 from __future__ import annotations
 
-from typing import Any, Optional, Union
+from typing import Any
 
 from prkit.core import PRKitLogger
 from prkit.core.domain.answer import Answer
@@ -15,7 +15,7 @@ from .base import BaseComparator
 from .typed_llm import TypedLLMComparator, _typed_category_and_value
 
 
-def _text_for_rouge(answer: Union[str, Answer]) -> str:
+def _text_for_rouge(answer: str | Answer) -> str:
     if isinstance(answer, Answer):
         return str(answer.value).strip()
     return str(answer).strip()
@@ -41,17 +41,17 @@ class SimilarityMatchComparator(BaseComparator):
     ) -> None:
         self.logger = PRKitLogger.get_logger(__name__)
         self._rouge_threshold = rouge_threshold
-        self._last_rouge_score: Optional[float] = None
+        self._last_rouge_score: float | None = None
 
     @property
-    def last_rouge_score(self) -> Optional[float]:
+    def last_rouge_score(self) -> float | None:
         """ROUGE-L F1 from the last comparison that used the ROUGE fallback, if any."""
         return self._last_rouge_score
 
     def compare(
         self,
-        answer1: Union[str, Answer],
-        answer2: Union[str, Answer],
+        answer1: str | Answer,
+        answer2: str | Answer,
         **kwargs: Any,
     ) -> bool:
         self._last_rouge_score = None
@@ -81,8 +81,8 @@ class SimilarityMatchComparator(BaseComparator):
 
     def accuracy_score(
         self,
-        answer1: Union[str, Answer],
-        answer2: Union[str, Answer],
+        answer1: str | Answer,
+        answer2: str | Answer,
         **kwargs: Any,
     ) -> float:
         self._last_rouge_score = None

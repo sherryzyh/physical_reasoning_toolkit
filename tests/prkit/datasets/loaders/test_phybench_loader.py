@@ -59,11 +59,11 @@ class TestPHYBenchLoader:
     def test_load_success(self, temp_dir):
         """Test successful loading of PHYBench dataset."""
         loader = PHYBenchLoader()
-        
+
         # Create mock data directory structure
         data_dir = temp_dir / "PHYBench"
         data_dir.mkdir(parents=True)
-        
+
         # Create sample JSON file
         json_file = data_dir / "PHYBench-questions_v1.json"
         sample_data = [
@@ -77,10 +77,10 @@ class TestPHYBenchLoader:
         ]
         with open(json_file, "w", encoding="utf-8") as f:
             json.dump(sample_data, f)
-        
+
         # Load dataset
         dataset = loader.load(data_dir=str(data_dir), variant="full", split="train")
-        
+
         assert dataset is not None
         assert len(dataset) == 1
         assert dataset[0].problem_id == "test_001"
@@ -91,7 +91,7 @@ class TestPHYBenchLoader:
         loader = PHYBenchLoader()
         data_dir = temp_dir / "PHYBench"
         data_dir.mkdir(parents=True)
-        
+
         with pytest.raises(FileNotFoundError):
             loader.load(data_dir=str(data_dir), variant="full", split="train")
 
@@ -100,8 +100,10 @@ class TestPHYBenchLoader:
         loader = PHYBenchLoader()
         data_dir = temp_dir / "PHYBench"
         data_dir.mkdir(parents=True)
-        
-        with pytest.raises(ValueError, match="Unknown split 'test' for dataset 'phybench'"):
+
+        with pytest.raises(
+            ValueError, match="Unknown split 'test' for dataset 'phybench'"
+        ):
             loader.load(data_dir=str(data_dir), variant="full", split="test")
 
     def test_load_invalid_variant(self, temp_dir):
@@ -109,10 +111,10 @@ class TestPHYBenchLoader:
         loader = PHYBenchLoader()
         data_dir = temp_dir / "PHYBench"
         data_dir.mkdir(parents=True)
-        
+
         json_file = data_dir / "PHYBench-questions_v1.json"
         json_file.touch()
-        
+
         with pytest.raises(ValueError, match="Unknown variant"):
             loader.load(data_dir=str(data_dir), variant="invalid", split="train")
 
@@ -121,7 +123,7 @@ class TestPHYBenchLoader:
         loader = PHYBenchLoader()
         data_dir = temp_dir / "PHYBench"
         data_dir.mkdir(parents=True)
-        
+
         json_file = data_dir / "PHYBench-questions_v1.json"
         sample_data = [
             {
@@ -134,11 +136,11 @@ class TestPHYBenchLoader:
         ]
         with open(json_file, "w", encoding="utf-8") as f:
             json.dump(sample_data, f)
-        
+
         dataset = loader.load(
             data_dir=str(data_dir), variant="full", split="train", sample_size=5
         )
-        
+
         assert len(dataset) == 5
 
     def test_load_fullques_variant(self, temp_dir):
@@ -146,7 +148,7 @@ class TestPHYBenchLoader:
         loader = PHYBenchLoader()
         data_dir = temp_dir / "PHYBench"
         data_dir.mkdir(parents=True)
-        
+
         # Create sample JSON file for fullques variant
         json_file = data_dir / "PHYBench-fullques_v1.json"
         sample_data = [
@@ -160,9 +162,9 @@ class TestPHYBenchLoader:
         ]
         with open(json_file, "w", encoding="utf-8") as f:
             json.dump(sample_data, f)
-        
+
         dataset = loader.load(data_dir=str(data_dir), variant="fullques", split="train")
-        
+
         assert dataset is not None
         assert len(dataset) == 1
         assert dataset[0].problem_id == "test_002"
@@ -172,7 +174,7 @@ class TestPHYBenchLoader:
         loader = PHYBenchLoader()
         data_dir = temp_dir / "PHYBench"
         data_dir.mkdir(parents=True)
-        
+
         # Create sample JSON file for onlyques variant
         json_file = data_dir / "PHYBench-onlyques_v1.json"
         sample_data = [
@@ -185,9 +187,9 @@ class TestPHYBenchLoader:
         ]
         with open(json_file, "w", encoding="utf-8") as f:
             json.dump(sample_data, f)
-        
+
         dataset = loader.load(data_dir=str(data_dir), variant="onlyques", split="train")
-        
+
         assert dataset is not None
         assert len(dataset) == 1
         assert dataset[0].problem_id == "test_003"
@@ -200,6 +202,8 @@ class TestPHYBenchLoader:
             "answer": "F = ma",
         }
         # Accessing protected method for testing purposes
-        processed = loader._process_metadata(metadata)  # pylint: disable=protected-access
+        processed = loader._process_metadata(
+            metadata
+        )  # pylint: disable=protected-access
         assert processed["answer_category"] == "formula"
         assert "domain" in processed

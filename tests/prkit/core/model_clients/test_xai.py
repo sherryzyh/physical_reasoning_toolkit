@@ -6,8 +6,8 @@ from unittest.mock import MagicMock, Mock, patch
 
 from pydantic import BaseModel, Field
 
-from prkit.core.model_clients.xai import XAIModel
 from prkit.core.model_clients.structured_output import coerce_structured_output_spec
+from prkit.core.model_clients.xai import XAIModel
 
 XAI_TEST_MODEL = "grok-4-1-fast-reasoning"
 

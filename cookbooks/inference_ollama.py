@@ -15,15 +15,15 @@ Prerequisites:
 
 Usage:
     python cookbooks/inference_ollama.py [model_name] [--prompt PROMPT] [--image IMAGE_PATH]
-    
-    
+
+
 Examples:
     # Check if Ollama is running
     python cookbooks/inference_ollama.py --check
-    
+
     # Text inference
     python cookbooks/inference_ollama.py ollama/qwen3 --prompt "What is quantum mechanics?"
-    
+
     # Vision inference with image
     python cookbooks/inference_ollama.py ollama/qwen3-vl --prompt "Describe this image" --image cookbooks/data/sample.webp
 """
@@ -32,9 +32,10 @@ import argparse
 import sys
 from pathlib import Path
 
-# Import the model client
-from prkit.core.model_clients import create_model_client, OllamaModel
 from prkit.core import PRKitLogger
+
+# Import the model client
+from prkit.core.model_clients import OllamaModel, create_model_client
 
 # Set up logger
 logger = PRKitLogger.get_logger(__name__)
@@ -52,27 +53,28 @@ def check_ollama_status():
     logger.info("=" * 60)
     logger.info("Checking Ollama Status")
     logger.info("=" * 60)
-    
+
     # Check if Ollama is running
     is_running = OllamaModel.check_ollama_running()
-    
+
     if is_running:
         logger.info("✅ Ollama is running and accessible")
-        
+
         # Try to list available models
         try:
             import ollama
+
             models = ollama.list()
             logger.info(f"\n📦 Available models ({len(models.get('models', []))}):")
-            for model in models.get('models', []):
-                model_name = model.get('name', 'Unknown')
-                size = model.get('size', 0)
+            for model in models.get("models", []):
+                model_name = model.get("name", "Unknown")
+                size = model.get("size", 0)
                 size_gb = size / (1024**3) if size > 0 else 0
                 logger.info(f"  • {model_name} ({size_gb:.2f} GB)")
         except Exception as e:
             logger.warning(f"Could not list models: {e}")
             logger.info("💡 Tip: Run `ollama list` in terminal to see available models")
-        
+
         return True
     else:
         logger.error("❌ Ollama is not running or not accessible")
@@ -89,14 +91,14 @@ def run_inference(model_name: str, prompt: str, image_path: str = None):
     logger.info("=" * 60)
     logger.info("Ollama Inference")
     logger.info("=" * 60)
-    
+
     # Check Ollama status first
     logger.info("\n🔍 Checking Ollama status...")
     if not OllamaModel.check_ollama_running():
         logger.error("Cannot proceed: Ollama is not running")
         sys.exit(1)
     logger.info("✅ Ollama is running")
-    
+
     # Create model client
     logger.info(f"\n🤖 Creating client for model: {model_name}")
     try:
@@ -114,7 +116,7 @@ def run_inference(model_name: str, prompt: str, image_path: str = None):
     except Exception as e:
         logger.error(f"❌ Failed to create client: {e}")
         sys.exit(1)
-    
+
     # Prepare image paths if provided
     image_paths = None
     if image_path:
@@ -124,25 +126,25 @@ def run_inference(model_name: str, prompt: str, image_path: str = None):
             sys.exit(1)
         image_paths = [str(image_path)]
         logger.info(f"📷 Using image: {image_path}")
-    
+
     # Run inference
     logger.info("\n💬 Running inference...")
     logger.info(f"   Prompt: {prompt}")
     if image_paths:
         logger.info(f"   Images: {len(image_paths)} image(s)")
-    
+
     try:
         response = client.chat(user_prompt=prompt, image_paths=image_paths)
-        
+
         logger.info("\n" + "=" * 60)
         logger.info("Response:")
         logger.info("=" * 60)
         logger.info(response)
         logger.info("=" * 60)
         logger.info("✅ Inference completed successfully!")
-        
+
         return response
-        
+
     except FileNotFoundError as e:
         logger.error(f"❌ File not found: {e}")
         sys.exit(1)
@@ -155,6 +157,7 @@ def run_inference(model_name: str, prompt: str, image_path: str = None):
     except Exception as e:
         logger.error(f"❌ Inference failed: {e}")
         import traceback
+
         logger.debug(traceback.format_exc())
         sys.exit(1)
 
@@ -168,18 +171,18 @@ def main():
 Examples:
   # Check Ollama status
   python cookbooks/inference_ollama.py --check
-  
+
   # Simple text inference
   python cookbooks/inference_ollama.py
-  
+
   # Custom prompt
   python cookbooks/inference_ollama.py ollama/qwen3-vl --prompt "Explain quantum physics"
-  
+
   # Vision inference
   python cookbooks/inference_ollama.py ollama/qwen3-vl --prompt "What's in this image?" --image image.jpg
-        """
+        """,
     )
-    
+
     parser.add_argument(
         "model",
         nargs="?",
@@ -207,14 +210,14 @@ Examples:
         action="store_true",
         help="Only check if Ollama is running, then exit",
     )
-    
+
     args = parser.parse_args()
-    
+
     # If --check flag is set, only check status
     if args.check:
         success = check_ollama_status()
         sys.exit(0 if success else 1)
-    
+
     # Otherwise, run inference
     run_inference(
         model_name=args.model,

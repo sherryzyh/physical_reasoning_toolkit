@@ -8,7 +8,6 @@ or equation/formula) and are shared by comparators such as SmartMatch.
 from __future__ import annotations
 
 import re
-from typing import List, Union
 
 from prkit.core.domain.answer_category import AnswerCategory
 from prkit.evaluation.utils.compare_same_type import (
@@ -21,11 +20,11 @@ from prkit.evaluation.utils.type_specific_processing import extract_rhs_and_cate
 _EQ_PATTERN = re.compile(r"^Eq\((.+),\s*(.+)\)$", re.DOTALL)
 
 
-def split_respecting_parens(s: str, delimiter: str = ",") -> List[str]:
+def split_respecting_parens(s: str, delimiter: str = ",") -> list[str]:
     """Split on delimiter only at depth-0 (outside nested parentheses)."""
-    parts: List[str] = []
+    parts: list[str] = []
     depth = 0
-    buf: List[str] = []
+    buf: list[str] = []
     for ch in s:
         if ch in "({[":
             depth += 1
@@ -40,7 +39,7 @@ def split_respecting_parens(s: str, delimiter: str = ",") -> List[str]:
     return parts
 
 
-def expand_gt_set(gt_norm: Union[float, str]) -> List[str]:
+def expand_gt_set(gt_norm: float | str) -> list[str]:
     """Expand SymPy-style set literal ``{a, b}`` into candidates."""
     s = str(gt_norm).strip()
     if s.startswith("{") and s.endswith("}"):
@@ -61,9 +60,9 @@ def strip_unbalanced_parens(s: str) -> str:
     return s
 
 
-def extract_formula_candidates(text: str) -> List[str]:
+def extract_formula_candidates(text: str) -> list[str]:
     """Extract formula-like text fragments and RHS candidates."""
-    candidates: List[str] = []
+    candidates: list[str] = []
     separators = re.compile(r"[,;，；]")
     parts = separators.split(text)
     for part in parts:
@@ -86,7 +85,7 @@ def extract_formula_candidates(text: str) -> List[str]:
 
 def compare_text_against_formula_or_equation_gt(
     pred_text: str,
-    gt_norm: Union[float, str],
+    gt_norm: float | str,
 ) -> bool:
     """Try symbolic/quantity matching of formula candidates extracted from text."""
     gt_norm_str = str(gt_norm)

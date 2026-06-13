@@ -4,8 +4,8 @@ Tests for dataset loaders.
 
 import pytest
 
-from prkit.datasets.loaders.base_loader import BaseDatasetLoader
 from prkit.datasets.loaders import SeePhysLoader
+from prkit.datasets.loaders.base_loader import BaseDatasetLoader
 
 
 class TestBaseDatasetLoader:
@@ -25,7 +25,7 @@ class TestBaseDatasetLoader:
     def test_create_physics_problem_with_image_paths(self):
         """Test that create_physics_problem handles image_paths correctly."""
         loader = SeePhysLoader()  # Use a concrete loader instance
-        
+
         # Test with image_paths (plural) - preferred format
         metadata = {
             "problem_id": "test_001",
@@ -36,13 +36,17 @@ class TestBaseDatasetLoader:
         problem = loader.create_physics_problem(metadata=metadata)
         assert problem is not None
         assert len(problem.image_path) == 2
-        assert "img1.jpg" in problem.image_path[0] or "img1.jpg" in str(problem.image_path[0])
-        assert "img2.png" in problem.image_path[1] or "img2.png" in str(problem.image_path[1])
+        assert "img1.jpg" in problem.image_path[0] or "img1.jpg" in str(
+            problem.image_path[0]
+        )
+        assert "img2.png" in problem.image_path[1] or "img2.png" in str(
+            problem.image_path[1]
+        )
 
     def test_create_physics_problem_with_image_paths_single(self):
         """Test that create_physics_problem handles single image_paths string."""
         loader = SeePhysLoader()
-        
+
         metadata = {
             "problem_id": "test_002",
             "question": "What is E = mc²?",
@@ -56,7 +60,7 @@ class TestBaseDatasetLoader:
     def test_create_physics_problem_with_image_paths_empty(self):
         """Test that create_physics_problem handles empty image_paths."""
         loader = SeePhysLoader()
-        
+
         metadata = {
             "problem_id": "test_003",
             "question": "What is the speed of light?",
@@ -70,7 +74,7 @@ class TestBaseDatasetLoader:
     def test_create_physics_problem_with_image_path_legacy(self):
         """Test backward compatibility with image_path (singular) legacy format."""
         loader = SeePhysLoader()
-        
+
         # Test with image_path (singular) - legacy format for backward compatibility
         metadata = {
             "problem_id": "test_004",

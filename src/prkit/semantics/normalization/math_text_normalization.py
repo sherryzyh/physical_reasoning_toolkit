@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 import re
-from typing import Dict, Tuple
 
-_UNICODE_FRACTIONS: Dict[str, str] = {
+_UNICODE_FRACTIONS: dict[str, str] = {
     "\u00bc": "1/4",
     "\u00bd": "1/2",
     "\u00be": "3/4",
@@ -43,7 +42,7 @@ _SUBSCRIPT_TRANSLATION = str.maketrans(
     }
 )
 
-_FULLWIDTH_PUNCT: Dict[int, str] = {
+_FULLWIDTH_PUNCT: dict[int, str] = {
     0xFF08: "(",
     0xFF09: ")",
     0xFF0B: "+",
@@ -68,7 +67,7 @@ def _normalize_unicode(text: str) -> str:
     text = text.replace("\u2014", "-")
     text = text.replace("\u2010", "-")
     text = text.replace("\u2011", "-")
-    text = text.replace("\uFF0D", "-")
+    text = text.replace("\uff0d", "-")
 
     text = text.replace("\u00d7", r" \times ")
     text = text.replace("\u00b7", r" \cdot ")
@@ -120,7 +119,7 @@ def _normalize_unicode(text: str) -> str:
     return text
 
 
-_UNICODE_GREEK_TO_LATEX: Dict[str, str] = {
+_UNICODE_GREEK_TO_LATEX: dict[str, str] = {
     "\u03b1": r"\alpha ",
     "\u03b2": r"\beta ",
     "\u03b3": r"\gamma ",
@@ -162,7 +161,7 @@ _UNICODE_GREEK_TO_LATEX: Dict[str, str] = {
     "\u03f5": r"\epsilon ",
 }
 
-_UNICODE_SUPERSCRIPT_TO_CARET: Dict[str, str] = {
+_UNICODE_SUPERSCRIPT_TO_CARET: dict[str, str] = {
     "\u2070": "0",
     "\u00b9": "1",
     "\u00b2": "2",
@@ -177,7 +176,7 @@ _UNICODE_SUPERSCRIPT_TO_CARET: Dict[str, str] = {
     "\u207b": "-",
 }
 
-_UNICODE_SUBSCRIPT_CHARS: Dict[str, str] = {
+_UNICODE_SUBSCRIPT_CHARS: dict[str, str] = {
     "\u2080": "0",
     "\u2081": "1",
     "\u2082": "2",
@@ -308,7 +307,7 @@ def _match_balanced_braces(
     return pos - 1 if depth == 0 else -1
 
 
-def _extract_math_content(text: str) -> Tuple[str, bool]:
+def _extract_math_content(text: str) -> tuple[str, bool]:
     """Strip common math delimiters and formatting wrappers from text."""
 
     normalized = _normalize_unicode(text).strip()
@@ -340,7 +339,9 @@ def _extract_math_content(text: str) -> Tuple[str, bool]:
     for _ in range(20):
         previous = normalized
         for pattern, replacement in simple_patterns:
-            normalized = re.sub(pattern, replacement, normalized, flags=re.DOTALL).strip()
+            normalized = re.sub(
+                pattern, replacement, normalized, flags=re.DOTALL
+            ).strip()
             if normalized != previous:
                 had_latex_patterns = True
                 break
@@ -355,7 +356,9 @@ def _extract_math_content(text: str) -> Tuple[str, bool]:
                 if end_pos <= brace_start:
                     continue
                 content = normalized[brace_start + 1 : end_pos]
-                normalized = normalized[: match.start()] + content + normalized[end_pos + 1 :]
+                normalized = (
+                    normalized[: match.start()] + content + normalized[end_pos + 1 :]
+                )
                 had_latex_patterns = True
                 break
             if normalized != previous:
@@ -389,7 +392,7 @@ _LATEX_MATH_COMMANDS = re.compile(
     r"rightarrow|leftarrow|Rightarrow|Leftarrow)"
     r"(?![a-zA-Z])"
 )
-_LATEX_BINARY_RELATION_MARKERS: Tuple[str, ...] = (
+_LATEX_BINARY_RELATION_MARKERS: tuple[str, ...] = (
     r"\leq",
     r"\geq",
     r"\neq",

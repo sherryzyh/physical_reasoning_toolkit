@@ -16,15 +16,15 @@ Prerequisites:
 
 Usage:
     python cookbooks/inference_gemini.py [model_name] [--prompt PROMPT]
-    
-    
+
+
 Examples:
     # Check if Gemini API key is configured
     python cookbooks/inference_gemini.py --check
-    
+
     # Text inference with default model
     python cookbooks/inference_gemini.py --prompt "What is quantum mechanics?"
-    
+
     # Text inference with specific model
     python cookbooks/inference_gemini.py gemini-2.5-pro --prompt "Explain quantum physics"
 """
@@ -36,9 +36,10 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from prkit.core import PRKitLogger
+
 # Import the model client
 from prkit.core.model_clients import create_model_client
-from prkit.core import PRKitLogger
 
 # Load environment variables from the repo root `.env`
 load_dotenv(Path(__file__).resolve().parents[1] / ".env", override=True)
@@ -52,19 +53,22 @@ def check_gemini_status():
     logger.info("=" * 60)
     logger.info("Checking Gemini Configuration")
     logger.info("=" * 60)
-    
+
     # Check if API key is set (support both GEMINI_API_KEY and GOOGLE_API_KEY)
     api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
-    
+
     if api_key:
         # Mask the key for display
         masked_key = api_key[:8] + "..." + api_key[-4:] if len(api_key) > 12 else "***"
-        key_var = "GEMINI_API_KEY" if os.environ.get("GEMINI_API_KEY") else "GOOGLE_API_KEY"
+        key_var = (
+            "GEMINI_API_KEY" if os.environ.get("GEMINI_API_KEY") else "GOOGLE_API_KEY"
+        )
         logger.info(f"✅ Gemini API key is configured ({key_var}: {masked_key})")
-        
+
         # Try to verify Google Generative AI SDK is available
         try:
             from google import genai  # noqa: F401
+
             logger.info("✅ Google Generative AI SDK is available")
             logger.info("\n📋 Supported Gemini models:")
             logger.info("  • gemini-2.5-flash (default, latest)")
@@ -87,8 +91,12 @@ def check_gemini_status():
         logger.error("❌ Gemini API key is not configured")
         logger.info("\n📋 To set up Gemini:")
         logger.info("  1. Get an API key from https://aistudio.google.com/app/apikey")
-        logger.info("  2. Set environment variable: `export GEMINI_API_KEY=your_key_here`")
-        logger.info("     (or `export GOOGLE_API_KEY=your_key_here` for backward compatibility)")
+        logger.info(
+            "  2. Set environment variable: `export GEMINI_API_KEY=your_key_here`"
+        )
+        logger.info(
+            "     (or `export GOOGLE_API_KEY=your_key_here` for backward compatibility)"
+        )
         logger.info("  3. Or add to .env file: `GEMINI_API_KEY=your_key_here`")
         logger.info("  4. Install Google Generative AI SDK: `pip install google-genai`")
         return False
@@ -99,7 +107,7 @@ def run_inference(model_name: str, prompt: str, image_path: str = None):
     logger.info("=" * 60)
     logger.info("Gemini Inference")
     logger.info("=" * 60)
-    
+
     # Check Gemini status first
     logger.info("\n🔍 Checking Gemini configuration...")
     api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
@@ -108,12 +116,16 @@ def run_inference(model_name: str, prompt: str, image_path: str = None):
         logger.info("💡 Set it with: `export GEMINI_API_KEY=your_key_here`")
         sys.exit(1)
     logger.info("✅ Gemini API key is configured")
-    
+
     # Warn about image support
     if image_path:
-        logger.warning("\n⚠️  Note: Vision support is not yet implemented for Gemini models")
-        logger.warning("   Images will be ignored. Only text inference will be performed.")
-    
+        logger.warning(
+            "\n⚠️  Note: Vision support is not yet implemented for Gemini models"
+        )
+        logger.warning(
+            "   Images will be ignored. Only text inference will be performed."
+        )
+
     # Create model client
     logger.info(f"\n🤖 Creating client for model: {model_name}")
     try:
@@ -121,34 +133,41 @@ def run_inference(model_name: str, prompt: str, image_path: str = None):
         logger.info(f"✅ Client created successfully (provider: {client.provider})")
     except ValueError as e:
         logger.error(f"❌ Model error: {e}")
-        logger.info(f"\n💡 Supported models: gemini-2.5-flash, gemini-1.5-pro, gemini-1.5-flash, gemini-1.5-pro-002, gemini-1.5-flash-002")
+        logger.info(
+            "\n💡 Supported models: gemini-2.5-flash, gemini-1.5-pro, gemini-1.5-flash, gemini-1.5-pro-002, gemini-1.5-flash-002"
+        )
         sys.exit(1)
     except Exception as e:
         logger.error(f"❌ Failed to create client: {e}")
         sys.exit(1)
-    
+
     # Run inference
-    logger.info(f"\n💬 Running inference...")
+    logger.info("\n💬 Running inference...")
     logger.info(f"   Prompt: {prompt}")
     if image_path:
-        logger.info(f"   ⚠️  Image provided but will be ignored (vision not yet implemented)")
-    
+        logger.info(
+            "   ⚠️  Image provided but will be ignored (vision not yet implemented)"
+        )
+
     try:
         # Note: image_paths parameter is accepted but images will be ignored
-        response = client.chat(user_prompt=prompt, image_paths=[image_path] if image_path else None)
-        
+        response = client.chat(
+            user_prompt=prompt, image_paths=[image_path] if image_path else None
+        )
+
         logger.info("\n" + "=" * 60)
         logger.info("Response:")
         logger.info("=" * 60)
         logger.info(response)
         logger.info("=" * 60)
         logger.info("✅ Inference completed successfully!")
-        
+
         return response
-        
+
     except Exception as e:
         logger.error(f"❌ Inference failed: {e}")
         import traceback
+
         logger.debug(traceback.format_exc())
         sys.exit(1)
 
@@ -162,18 +181,18 @@ def main():
 Examples:
   # Check Gemini configuration
   python cookbooks/inference_gemini.py --check
-  
+
   # Simple text inference with default model
   python cookbooks/inference_gemini.py --prompt "What is physics?"
-  
+
   # Custom model and prompt
   python cookbooks/inference_gemini.py gemini-1.5-pro --prompt "Explain quantum physics"
-  
+
   # Note: Vision inference is not yet supported
   # Images will be ignored if provided
-        """
+        """,
     )
-    
+
     parser.add_argument(
         "model",
         nargs="?",
@@ -198,14 +217,14 @@ Examples:
         action="store_true",
         help="Only check if Gemini is configured, then exit",
     )
-    
+
     args = parser.parse_args()
-    
+
     # If --check flag is set, only check status
     if args.check:
         success = check_gemini_status()
         sys.exit(0 if success else 1)
-    
+
     # Otherwise, run inference
     run_inference(
         model_name=args.model,

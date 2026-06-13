@@ -5,7 +5,7 @@ Shared helpers for OpenAI-compatible chat-completions providers.
 from __future__ import annotations
 
 import os
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from openai import OpenAI
 
@@ -34,7 +34,7 @@ class OpenAICompatibleChatModel(BaseModelClient):
     def resolve_base_url(self) -> str:
         return os.environ.get(self.base_url_env_var, self.default_base_url)
 
-    def get_client_kwargs(self) -> Dict[str, Any]:
+    def get_client_kwargs(self) -> dict[str, Any]:
         return {}
 
     def __init__(self, model: str, logger=None):
@@ -52,12 +52,12 @@ class OpenAICompatibleChatModel(BaseModelClient):
     def _build_message_content(
         self,
         user_prompt: str,
-        image_paths: Optional[List[str]] = None,
-    ) -> str | List[Dict[str, Any]]:
+        image_paths: list[str] | None = None,
+    ) -> str | list[dict[str, Any]]:
         if not image_paths:
             return user_prompt
 
-        content: List[Dict[str, Any]] = [{"type": "text", "text": user_prompt}]
+        content: list[dict[str, Any]] = [{"type": "text", "text": user_prompt}]
         for image_path in image_paths:
             content.append(
                 {
@@ -71,17 +71,20 @@ class OpenAICompatibleChatModel(BaseModelClient):
 
     def _build_chat_response_format(
         self,
-        response_format: Optional[Union[Dict[str, Any], type]],
-    ) -> Dict[str, Any] | None:
+        response_format: dict[str, Any] | type | None,
+    ) -> dict[str, Any] | None:
         if response_format is None:
             return None
 
-        if isinstance(response_format, dict) and response_format.get("type") == "json_object":
+        if (
+            isinstance(response_format, dict)
+            and response_format.get("type") == "json_object"
+        ):
             return {"type": "json_object"}
 
         normalized = normalize_response_format(response_format)
         if self.supports_response_format_json_schema:
-            json_schema: Dict[str, Any] = {
+            json_schema: dict[str, Any] = {
                 "name": normalized["name"],
                 "schema": normalized["schema"],
                 "strict": normalized["strict"],
@@ -107,7 +110,7 @@ class OpenAICompatibleChatModel(BaseModelClient):
     def _structured_prompt_for_chat(
         self,
         user_prompt: str,
-        response_format: Optional[Union[Dict[str, Any], type]],
+        response_format: dict[str, Any] | type | None,
     ) -> str:
         del response_format
         return user_prompt
@@ -132,11 +135,11 @@ class OpenAICompatibleChatModel(BaseModelClient):
     def chat(
         self,
         user_prompt: str,
-        image_paths: Optional[List[str]] = None,
-        response_format: Optional[Union[Dict[str, Any], type]] = None,
+        image_paths: list[str] | None = None,
+        response_format: dict[str, Any] | type | None = None,
         **kwargs: Any,
     ) -> str:
-        request_params: Dict[str, Any] = {
+        request_params: dict[str, Any] = {
             "model": self.model,
             "messages": [
                 {

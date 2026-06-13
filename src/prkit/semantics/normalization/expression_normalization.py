@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import re
-from typing import Tuple
 
 from latex2sympy2_extended import latex2sympy
 
@@ -43,7 +42,9 @@ def _preprocess_latex(latex_str: str) -> str:
     for spacing in (r"\,", r"\:", r"\;", r"\!", r"\quad", r"\qquad"):
         processed = processed.replace(spacing, " ")
 
-    for command, name in sorted(_PROTECTED_PHYSICS_SYMBOLS.items(), key=lambda item: -len(item[0])):
+    for command, name in sorted(
+        _PROTECTED_PHYSICS_SYMBOLS.items(), key=lambda item: -len(item[0])
+    ):
         replacement = f"\\mathrm{{{name}}}"
         if command in processed:
             processed = processed.replace(command, replacement)
@@ -71,7 +72,7 @@ def _preprocess_latex(latex_str: str) -> str:
 
 def _normalize_symbolic_expression(
     clean_math: str, had_latex_patterns: bool
-) -> Tuple[str, bool]:
+) -> tuple[str, bool]:
     """Normalize a symbolic surface into a stable comparison string."""
 
     if had_latex_patterns:
@@ -109,9 +110,10 @@ def classify_expression(clean_str: str) -> NormalizedAtomicKind:
         quantity_candidate,
     )
     quantity_candidate = quantity_candidate.replace("~", "")
-    if _QUANTITY_PATTERN.match(quantity_candidate) and _try_parse_physical_quantity(
-        quantity_candidate
-    ) is not None:
+    if (
+        _QUANTITY_PATTERN.match(quantity_candidate)
+        and _try_parse_physical_quantity(quantity_candidate) is not None
+    ):
         return NormalizedAtomicKind.PHYSICAL_QUANTITY
 
     return NormalizedAtomicKind.EXPRESSION

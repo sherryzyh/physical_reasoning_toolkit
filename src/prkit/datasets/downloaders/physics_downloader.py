@@ -8,8 +8,9 @@ yale-nlp/Physics GitHub repository.
 import json
 import shutil
 import time
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any
 
 from .base_downloader import BaseDownloader
 
@@ -17,7 +18,7 @@ from .base_downloader import BaseDownloader
 class PhysicsDownloader(BaseDownloader):
     """Downloader for the PHYSICS benchmark files hosted on GitHub."""
 
-    DOMAINS: Tuple[str, ...] = (
+    DOMAINS: tuple[str, ...] = (
         "atomic",
         "electro",
         "mechanics",
@@ -26,7 +27,7 @@ class PhysicsDownloader(BaseDownloader):
         "statistics",
     )
 
-    FILE_PATTERNS: Dict[Tuple[str, str], Tuple[str, str]] = {
+    FILE_PATTERNS: dict[tuple[str, str], tuple[str, str]] = {
         ("full", "full"): ("", "{}_dataset.jsonl"),
         ("full", "test"): ("PHYSICS-test", "{}_dataset_test.jsonl"),
         ("full", "eval"): ("PHYSICS-eval", "{}_dataset_eval.jsonl"),
@@ -42,7 +43,7 @@ class PhysicsDownloader(BaseDownloader):
         return "PHYSICS"
 
     @property
-    def download_info(self) -> Dict[str, Any]:
+    def download_info(self) -> dict[str, Any]:
         """Return download information."""
         return {
             "source": "GitHub raw files",
@@ -59,10 +60,10 @@ class PhysicsDownloader(BaseDownloader):
 
     def download(
         self,
-        data_dir: Optional[Union[str, Path]] = None,
+        data_dir: str | Path | None = None,
         force: bool = False,
-        variant: Optional[str] = None,
-        split: Optional[str] = None,
+        variant: str | None = None,
+        split: str | None = None,
         **kwargs,
     ) -> Path:
         """
@@ -156,7 +157,7 @@ class PhysicsDownloader(BaseDownloader):
             self.logger.error("Failed to download PHYSICS dataset: %s", exc)
             raise RuntimeError(f"Download failed: {exc}") from exc
 
-    def verify(self, data_dir: Union[str, Path]) -> bool:
+    def verify(self, data_dir: str | Path) -> bool:
         """
         Verify that the downloaded dataset contains all expected JSONL files.
 
@@ -191,18 +192,20 @@ class PhysicsDownloader(BaseDownloader):
                 "('full', 'full'|'test'|'eval'), ('hard', 'full'), ('textonly', 'full')"
             )
 
-    def _iter_file_urls(self) -> Iterable[Tuple[Path, str]]:
+    def _iter_file_urls(self) -> Iterable[tuple[Path, str]]:
         for relative_path in self._relative_file_paths():
             url = f"{self.RAW_BASE_URL}/{relative_path.as_posix()}"
             yield relative_path, url
 
-    def _relative_file_paths(self) -> List[Path]:
-        relative_paths: List[Path] = []
+    def _relative_file_paths(self) -> list[Path]:
+        relative_paths: list[Path] = []
         for (variant, split), (subdir, filename_pattern) in self.FILE_PATTERNS.items():
             del variant, split
             for domain in self.DOMAINS:
                 filename = filename_pattern.format(domain)
-                relative_paths.append(Path(subdir) / filename if subdir else Path(filename))
+                relative_paths.append(
+                    Path(subdir) / filename if subdir else Path(filename)
+                )
         return relative_paths
 
     def _download_file(self, requests, url: str, target_path: Path) -> None:
@@ -235,7 +238,7 @@ class PhysicsDownloader(BaseDownloader):
 
     def _is_valid_jsonl(self, file_path: Path) -> bool:
         try:
-            with open(file_path, "r", encoding="utf-8") as handle:
+            with open(file_path, encoding="utf-8") as handle:
                 for line in handle:
                     line = line.strip()
                     if not line:

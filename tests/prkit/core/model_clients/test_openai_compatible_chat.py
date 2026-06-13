@@ -50,7 +50,10 @@ class TestOpenAICompatibleChatModel:
         "prkit.core.model_clients.openai_compatible_chat.prepare_image_url_from_image_path"
     )
     def test_build_message_content_with_images_uses_image_urls(self, mock_prepare):
-        mock_prepare.side_effect = ["data:image/png;base64,abc", "https://example/image.jpg"]
+        mock_prepare.side_effect = [
+            "data:image/png;base64,abc",
+            "https://example/image.jpg",
+        ]
         client = object.__new__(DummyChatProvider)
 
         content = client._build_message_content("describe", ["a.png", "b.jpg"])
@@ -104,4 +107,6 @@ class TestOpenAICompatibleChatModel:
         assert call_kwargs["max_tokens"] == 123
         assert call_kwargs["temperature"] == 0.2
         assert call_kwargs["response_format"]["type"] == "json_schema"
-        assert call_kwargs["response_format"]["json_schema"]["name"] == "ExampleResponse"
+        assert (
+            call_kwargs["response_format"]["json_schema"]["name"] == "ExampleResponse"
+        )

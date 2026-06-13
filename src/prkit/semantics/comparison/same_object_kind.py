@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
-from ..schema import AnswerComparison, AnswerObjectKind, PhysicsAnswerSemantics, PhysicsQuestionSemantics
+from ..schema import (
+    AnswerComparison,
+    AnswerObjectKind,
+    PhysicsAnswerSemantics,
+    PhysicsQuestionSemantics,
+)
 from .common import (
     context_symbol_alias_map,
     normalized_symbolic_text,
@@ -76,7 +81,9 @@ def compare_same_object_kind(
         return AnswerComparison(pred_sign == ref_sign, "sign_direction")
 
     if kind == AnswerObjectKind.QUALITATIVE_LABEL:
-        matched = _qualitative_labels_equivalent(pred.canonical_text, ref.canonical_text)
+        matched = _qualitative_labels_equivalent(
+            pred.canonical_text, ref.canonical_text
+        )
         return AnswerComparison(matched, "qualitative_label")
 
     return AnswerComparison(False, "unsupported_object_kind", (kind.value,))
@@ -295,7 +302,9 @@ def _compare_quantities(
         comparison_mode="physical_quantity",
     )
     if numeric is None:
-        return AnswerComparison(False, "physical_quantity", ("unparsable_quantity_value",))
+        return AnswerComparison(
+            False, "physical_quantity", ("unparsable_quantity_value",)
+        )
     return numeric
 
 
@@ -306,4 +315,7 @@ def _qualitative_labels_equivalent(left_text: str, right_text: str) -> bool:
     right_canonical = canonicalize_qualitative_label(right_text)
     if left_canonical == right_canonical:
         return True
-    return bool(set(qualitative_label_candidates(left_text)) & set(qualitative_label_candidates(right_text)))
+    return bool(
+        set(qualitative_label_candidates(left_text))
+        & set(qualitative_label_candidates(right_text))
+    )

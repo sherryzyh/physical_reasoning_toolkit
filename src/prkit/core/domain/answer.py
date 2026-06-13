@@ -6,7 +6,7 @@ through composition rather than inheritance.
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from .answer_category import AnswerCategory
 
@@ -17,8 +17,8 @@ class Answer:
 
     value: Any  # NUMBER: actual number; PHYSICAL_QUANTITY: numeric part; OPTION: option string; EQUATION/FORMULA/TEXT: plain string
     answer_category: AnswerCategory
-    unit: Optional[str] = None  # Used only for PHYSICAL_QUANTITY (e.g., "m/s²", "N")
-    metadata: Dict[str, Any] = None
+    unit: str | None = None  # Used only for PHYSICAL_QUANTITY (e.g., "m/s²", "N")
+    metadata: dict[str, Any] = None
 
     def __post_init__(self):
         """Initialize metadata if not provided."""
@@ -91,7 +91,7 @@ class Answer:
         )
 
     # Numerical-specific methods
-    def get_unit(self) -> Optional[str]:
+    def get_unit(self) -> str | None:
         """Get the unit for numerical/physical quantity answers."""
         return self.unit if self.is_numerical() else None
 
@@ -160,7 +160,7 @@ class Answer:
         """Check if the text is long (more than 50 words)."""
         return self.word_count() > 50
 
-    def contains_keywords(self, keywords: List[str]) -> bool:
+    def contains_keywords(self, keywords: list[str]) -> bool:
         """Check if the text contains any of the specified keywords."""
         if not self.is_text():
             return False
@@ -192,7 +192,7 @@ class Answer:
             return False
         return str(self.value) in ["1", "2", "3", "4", "5"]
 
-    def get_option_index(self) -> Optional[int]:
+    def get_option_index(self) -> int | None:
         """Get the numeric index of the option if applicable."""
         if not self.is_option():
             return None
@@ -214,7 +214,7 @@ class Answer:
         """Detailed string representation for debugging."""
         return f"Answer(value={repr(self.value)}, answer_category={self.answer_category.value}, unit={repr(self.unit)})"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
         result = {"value": self.value, "answer_category": self.answer_category.value}
         if self.unit:

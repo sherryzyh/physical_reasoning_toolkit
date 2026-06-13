@@ -139,7 +139,9 @@ class TestPhysBenchLoader:
         dataset = loader.load(data_dir=data_dir, split="val")
 
         assert len(dataset) == 2
-        assert {problem.additional_fields["source_split"] for problem in dataset} == {"val"}
+        assert {problem.additional_fields["source_split"] for problem in dataset} == {
+            "val"
+        }
 
     def test_load_filters_by_variant(self, temp_dir):
         loader = PhysBenchLoader()

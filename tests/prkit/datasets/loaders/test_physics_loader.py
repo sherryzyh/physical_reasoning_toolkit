@@ -10,10 +10,7 @@ import pytest
 from prkit.core.domain import PhysicsDomain
 from prkit.datasets.loaders import PhysicsLoader
 
-
-PNG_BASE64 = (
-    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+nL9sAAAAASUVORK5CYII="
-)
+PNG_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+nL9sAAAAASUVORK5CYII="
 
 
 def _write_jsonl(path: Path, rows) -> None:

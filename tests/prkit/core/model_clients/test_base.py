@@ -3,7 +3,7 @@ Tests for BaseModelClient abstract base class.
 """
 
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 from pydantic import BaseModel
@@ -25,12 +25,15 @@ class TestBaseModelClient:
         assert hasattr(BaseModelClient, "chat")
         # Try to create a concrete implementation without chat
         with pytest.raises(TypeError):
+
             class IncompleteModel(BaseModelClient):
                 pass
+
             IncompleteModel("test-model")
 
     def test_base_class_initialization_attributes(self):
         """Test that BaseModelClient initializes with correct attributes."""
+
         class ConcreteModel(BaseModelClient):
             def chat(self, user_prompt, image_paths=None):
                 return "response"
@@ -45,6 +48,7 @@ class TestBaseModelClient:
     def test_base_class_with_custom_logger(self):
         """Test BaseModelClient initialization with custom logger."""
         import logging
+
         custom_logger = logging.getLogger("custom")
 
         class ConcreteModel(BaseModelClient):
@@ -57,18 +61,18 @@ class TestBaseModelClient:
 
     def test_base_class_loads_project_dotenv(self):
         """Test that BaseModelClient loads environment variables."""
+
         class ConcreteModel(BaseModelClient):
             def chat(self, user_prompt, image_paths=None):
                 return "response"
 
-        with patch(
-            "prkit.core.model_clients.base.load_project_dotenv"
-        ) as mock_load:
+        with patch("prkit.core.model_clients.base.load_project_dotenv") as mock_load:
             ConcreteModel("test-model")
             mock_load.assert_called_once()
 
     def test_concrete_implementation_must_implement_chat(self):
         """Test that concrete implementations must implement chat method."""
+
         class ConcreteModel(BaseModelClient):
             def chat(self, user_prompt, image_paths=None):
                 return "response"
@@ -81,6 +85,7 @@ class TestBaseModelClient:
 
     def test_chat_method_signature(self):
         """Test that chat method accepts correct parameters."""
+
         class ConcreteModel(BaseModelClient):
             def chat(self, user_prompt, image_paths=None):
                 return f"Response to: {user_prompt}"
@@ -102,7 +107,9 @@ class TestBaseModelClient:
         class ConcreteModel(BaseModelClient):
             supports_response_format_json_schema = True
 
-            def chat(self, user_prompt, image_paths=None, response_format=None, **kwargs: Any):
+            def chat(
+                self, user_prompt, image_paths=None, response_format=None, **kwargs: Any
+            ):
                 assert response_format["type"] == "json_schema"
                 assert response_format["name"] == "ResponseModel"
                 return '{"answer":"ok"}'
@@ -128,13 +135,17 @@ class TestBaseModelClient:
             supports_response_format_json_schema = False
             supports_response_format_json_object = True
 
-            def chat(self, user_prompt, image_paths=None, response_format=None, **kwargs: Any):
+            def chat(
+                self, user_prompt, image_paths=None, response_format=None, **kwargs: Any
+            ):
                 return '{"answer":"ok"}'
 
         with patch("prkit.core.model_clients.base.load_project_dotenv"):
             client = ConcreteModel("test-model")
             client.provider = "dummy"
-            with pytest.raises(ValueError, match="native provider-enforced schema support"):
+            with pytest.raises(
+                ValueError, match="native provider-enforced schema support"
+            ):
                 client.chat_structured(
                     "Hello",
                     response_model=ResponseModel,

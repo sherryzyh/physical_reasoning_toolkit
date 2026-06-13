@@ -6,7 +6,7 @@ import json
 import random
 from collections import Counter
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from prkit.core.domain.physics_dataset import PhysicalDataset
 
@@ -15,7 +15,7 @@ def sample_balanced(
     dataset: PhysicalDataset,
     field: str,
     samples_per_category: int,
-    seed: Optional[int] = None,
+    seed: int | None = None,
 ) -> PhysicalDataset:
     """
     Sample a balanced subset from the dataset based on a categorical field.
@@ -65,7 +65,7 @@ def sample_balanced(
     return PhysicalDataset(balanced_samples, info, dataset.split)
 
 
-def get_statistics(dataset: PhysicalDataset) -> Dict[str, Any]:
+def get_statistics(dataset: PhysicalDataset) -> dict[str, Any]:
     """
     Get statistics about the dataset.
 
@@ -108,7 +108,7 @@ def get_statistics(dataset: PhysicalDataset) -> Dict[str, Any]:
 
 
 def export_to_json(
-    dataset: PhysicalDataset, output_path: Union[str, Path], include_info: bool = True
+    dataset: PhysicalDataset, output_path: str | Path, include_info: bool = True
 ) -> None:
     """
     Export dataset to JSON file.
@@ -131,8 +131,8 @@ def export_to_json(
 
 def filter_by_keywords(
     dataset: PhysicalDataset,
-    keywords: List[str],
-    fields: List[str] = None,
+    keywords: list[str],
+    fields: list[str] = None,
     case_sensitive: bool = False,
 ) -> PhysicalDataset:
     """
@@ -169,8 +169,8 @@ def filter_by_keywords(
 
 
 def create_cross_validation_splits(
-    dataset: PhysicalDataset, n_splits: int = 5, seed: Optional[int] = None
-) -> List[tuple[PhysicalDataset, PhysicalDataset]]:
+    dataset: PhysicalDataset, n_splits: int = 5, seed: int | None = None
+) -> list[tuple[PhysicalDataset, PhysicalDataset]]:
     """
     Create cross-validation splits of the dataset.
 
@@ -209,8 +209,8 @@ def create_cross_validation_splits(
 
 
 def validate_dataset_format(
-    dataset: PhysicalDataset, required_fields: List[str] = None
-) -> Dict[str, Any]:
+    dataset: PhysicalDataset, required_fields: list[str] = None
+) -> dict[str, Any]:
     """
     Validate dataset format and check for consistency.
 

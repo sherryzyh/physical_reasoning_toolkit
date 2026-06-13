@@ -175,7 +175,9 @@ class TestAnthropicModel:
 
         text_block = Mock(type="text", text="Image response")
         non_text_block = Mock(type="tool_result")
-        mock_client.messages.create.return_value = Mock(content=[non_text_block, text_block])
+        mock_client.messages.create.return_value = Mock(
+            content=[non_text_block, text_block]
+        )
 
         client = AnthropicModel(ANTHROPIC_TEST_MODEL)
         response = client.chat(
@@ -191,7 +193,9 @@ class TestAnthropicModel:
         assert mock_client.messages.create.call_args.kwargs["temperature"] == 0.2
 
     @patch("prkit.core.model_clients.base.load_project_dotenv")
-    def test_init_raises_when_anthropic_package_missing(self, _mock_load_project_dotenv):
+    def test_init_raises_when_anthropic_package_missing(
+        self, _mock_load_project_dotenv
+    ):
         with patch("prkit.core.model_clients.anthropic.Anthropic", None):
             with pytest.raises(ImportError, match="anthropic package not installed"):
                 AnthropicModel(ANTHROPIC_TEST_MODEL)

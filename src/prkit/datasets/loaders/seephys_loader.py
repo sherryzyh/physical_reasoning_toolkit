@@ -4,7 +4,7 @@ SeePhys dataset loader.
 
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from prkit.core import PRKitLogger
 from prkit.core.domain import PhysicalDataset
@@ -29,11 +29,11 @@ class SeePhysLoader(BaseDatasetLoader):
         return "SeePhys: A visual physics reasoning dataset with questions, images, and captions"
 
     @property
-    def modalities(self) -> List[str]:
+    def modalities(self) -> list[str]:
         """SeePhys supports both text and image modalities."""
         return ["text", "image"]
 
-    def get_info(self) -> Dict[str, Any]:
+    def get_info(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "description": self.description,
@@ -42,7 +42,9 @@ class SeePhysLoader(BaseDatasetLoader):
             "homepage": "https://seephys.github.io/",
             "paper_url": "https://openreview.net/pdf?id=APNWmytTCS",
             "languages": ["en", "zh"],
-            "variants": ["full"],  # Variant is kept as a property but not used for loading
+            "variants": [
+                "full"
+            ],  # Variant is kept as a property but not used for loading
             "splits": ["train"],
             "problem_types": ["OE"],
             "total_problems": "2000",
@@ -50,20 +52,20 @@ class SeePhysLoader(BaseDatasetLoader):
             "modalities": self.modalities,
         }
 
-    def get_default_variant(self) -> Optional[str]:
+    def get_default_variant(self) -> str | None:
         """Return default variant 'full' for SeePhys dataset."""
         return "full"
 
-    def get_default_split(self) -> Optional[str]:
+    def get_default_split(self) -> str | None:
         """Return default split 'train' for SeePhys dataset."""
         return "train"
 
     def load(
         self,
-        data_dir: Union[str, Path, None] = None,
-        variant: Optional[str] = None,
-        sample_size: Optional[int] = None,
-        split: Optional[str] = None,
+        data_dir: str | Path | None = None,
+        variant: str | None = None,
+        sample_size: int | None = None,
+        split: str | None = None,
         **kwargs,
     ) -> PhysicalDataset:
         """
@@ -82,7 +84,7 @@ class SeePhysLoader(BaseDatasetLoader):
         # Use defaults if not provided
         if split is None:
             split = self.get_default_split() or "train"
-        
+
         # Validate split
         self.validate_split(split)
 
@@ -103,14 +105,12 @@ class SeePhysLoader(BaseDatasetLoader):
                 f"Use the downloader to download the dataset."
             )
 
-        return self._load_from_json_only(
-            data_dir, split, sample_size, **kwargs
-        )
+        return self._load_from_json_only(data_dir, split, sample_size, **kwargs)
 
     @property
-    def field_mapping(self) -> Dict[str, str]:
+    def field_mapping(self) -> dict[str, str]:
         # Field mapping for SeePhys dataset
-        # Fields: question, subject, image_paths, sig_figs, level, language, 
+        # Fields: question, subject, image_paths, sig_figs, level, language,
         # index, img_category, vision_relevance, caption, etc.
         return {
             "index": "problem_id",
@@ -121,7 +121,7 @@ class SeePhysLoader(BaseDatasetLoader):
         self,
         data_dir: Path,
         split: str,
-        sample_size: Optional[int],
+        sample_size: int | None,
         **_kwargs,
     ) -> PhysicalDataset:
         """Load from split directory."""
@@ -146,8 +146,11 @@ class SeePhysLoader(BaseDatasetLoader):
         # Apply sample_size if specified
         if sample_size is not None and sample_size < len(problems):
             import random
+
             problems = random.sample(problems, sample_size)
-            self.logger.info(f"Sampled {sample_size} problems from {len(problems)} total")
+            self.logger.info(
+                f"Sampled {sample_size} problems from {len(problems)} total"
+            )
 
         # Create dataset info
         info = self.get_info()
@@ -159,27 +162,25 @@ class SeePhysLoader(BaseDatasetLoader):
 
         return PhysicalDataset(problems, info, split=split)
 
-    def _load_from_json_dir(
-        self, split_dir: Path, data_dir: Path
-    ) -> List:
+    def _load_from_json_dir(self, split_dir: Path, data_dir: Path) -> list:
         """Load problems from files in a directory."""
         problems = []
 
         json_files = list(split_dir.glob("*.json"))
         if not json_files:
-            raise FileNotFoundError(
-                f"No files found in {split_dir}"
-            )
+            raise FileNotFoundError(f"No files found in {split_dir}")
 
         # Sort files numerically by filename (e.g., 0.json, 1.json, ..., 100.json, 101.json, ..., 1000.json)
         def extract_number(file_path: Path) -> int:
             """Extract numeric part from filename for sorting."""
-            stem = file_path.stem  # Gets filename without extension (e.g., "0", "100", "1000")
+            stem = (
+                file_path.stem
+            )  # Gets filename without extension (e.g., "0", "100", "1000")
             try:
                 return int(stem)
             except ValueError:
                 # If filename is not a number, return a large value to put it at the end
-                return float('inf')
+                return float("inf")
 
         json_files.sort(key=extract_number)
 
@@ -187,7 +188,7 @@ class SeePhysLoader(BaseDatasetLoader):
 
         for json_file in json_files:
             try:
-                with open(json_file, "r", encoding="utf-8") as f:
+                with open(json_file, encoding="utf-8") as f:
                     problem_data = json.load(f)
 
                 metadata = self.initialize_metadata(problem_data)
@@ -198,18 +199,16 @@ class SeePhysLoader(BaseDatasetLoader):
                     data_dir=data_dir,
                 )
                 problems.append(problem)
-            except (json.JSONDecodeError, IOError) as e:
-                self.logger.warning(
-                    f"Failed to load {json_file}: {e}. Skipping."
-                )
+            except (OSError, json.JSONDecodeError) as e:
+                self.logger.warning(f"Failed to load {json_file}: {e}. Skipping.")
                 continue
 
         return problems
 
-    def _process_metadata(self, metadata: Dict[str, Any]) -> Dict[str, Any]:
+    def _process_metadata(self, metadata: dict[str, Any]) -> dict[str, Any]:
         """
         Process metadata to create standardized problem fields.
-        
+
         Specifically handles:
         - Ensures image_paths are properly formatted
         """
@@ -225,20 +224,20 @@ class SeePhysLoader(BaseDatasetLoader):
                 else:
                     # Try to convert to list
                     metadata["image_paths"] = [str(image_paths)]
-        
+
         return metadata
 
     def load_images_from_paths(
         self,
-        image_paths: Union[str, List[str], None],
-        data_dir: Optional[Union[str, Path]] = None,
-    ) -> List[Any]:
+        image_paths: str | list[str] | None,
+        data_dir: str | Path | None = None,
+    ) -> list[Any]:
         """
         Load images from image paths using the base loader's image loading functionality.
-        
+
         This method wraps the base class's load_images_from_paths() method, providing
         a convenient way to load images from paths in the SeePhys dataset context.
-        
+
         Args:
             image_paths: Single image path (str) or list of image paths.
                         Can be relative paths (resolved against data_dir) or absolute paths.
@@ -264,6 +263,6 @@ class SeePhysLoader(BaseDatasetLoader):
         # If data_dir is not provided, try to resolve default
         if data_dir is None:
             data_dir = self.resolve_data_dir(None, "SeePhys")
-        
+
         # Use the base class method
         return super().load_images_from_paths(image_paths, data_dir)

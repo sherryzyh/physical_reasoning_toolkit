@@ -84,11 +84,11 @@ class TestPhyXLoader:
     def test_load_success(self, temp_dir):
         """Test successful loading of PhyX dataset."""
         loader = PhyXLoader()
-        
+
         # Create mock data directory structure
         data_dir = temp_dir / "phyx"
         data_dir.mkdir(parents=True)
-        
+
         # Create sample JSON file
         json_file = data_dir / "PhyX-test_mini.json"
         sample_data = [
@@ -103,10 +103,12 @@ class TestPhyXLoader:
         ]
         with open(json_file, "w", encoding="utf-8") as f:
             json.dump(sample_data, f)
-        
+
         # Load dataset
-        dataset = loader.load(data_dir=str(data_dir), variant="test_mini", split="test_mini")
-        
+        dataset = loader.load(
+            data_dir=str(data_dir), variant="test_mini", split="test_mini"
+        )
+
         assert dataset is not None
         assert len(dataset) == 1
         assert dataset[0].problem_id == "test_001"
@@ -117,7 +119,7 @@ class TestPhyXLoader:
         loader = PhyXLoader()
         data_dir = temp_dir / "phyx"
         data_dir.mkdir(parents=True)
-        
+
         with pytest.raises(FileNotFoundError):
             loader.load(data_dir=str(data_dir), variant="test_mini", split="test_mini")
 
@@ -126,7 +128,7 @@ class TestPhyXLoader:
         loader = PhyXLoader()
         data_dir = temp_dir / "phyx"
         data_dir.mkdir(parents=True)
-        
+
         # Create JSON file with different name
         json_file = data_dir / "PhyX-custom.json"
         sample_data = [
@@ -139,10 +141,12 @@ class TestPhyXLoader:
         ]
         with open(json_file, "w", encoding="utf-8") as f:
             json.dump(sample_data, f)
-        
+
         # Should find the file even though name doesn't match exactly
-        dataset = loader.load(data_dir=str(data_dir), variant="test_mini", split="test_mini")
-        
+        dataset = loader.load(
+            data_dir=str(data_dir), variant="test_mini", split="test_mini"
+        )
+
         assert dataset is not None
         assert len(dataset) == 1
 
@@ -151,7 +155,7 @@ class TestPhyXLoader:
         loader = PhyXLoader()
         data_dir = temp_dir / "phyx"
         data_dir.mkdir(parents=True)
-        
+
         json_file = data_dir / "PhyX-test_mini.json"
         sample_data = [
             {
@@ -164,11 +168,14 @@ class TestPhyXLoader:
         ]
         with open(json_file, "w", encoding="utf-8") as f:
             json.dump(sample_data, f)
-        
+
         dataset = loader.load(
-            data_dir=str(data_dir), variant="test_mini", split="test_mini", sample_size=5
+            data_dir=str(data_dir),
+            variant="test_mini",
+            split="test_mini",
+            sample_size=5,
         )
-        
+
         assert len(dataset) == 5
 
     def test_load_with_image_paths(self, temp_dir):
@@ -176,11 +183,11 @@ class TestPhyXLoader:
         loader = PhyXLoader()
         data_dir = temp_dir / "phyx"
         data_dir.mkdir(parents=True)
-        
+
         # Create images directory
         images_dir = data_dir / "images"
         images_dir.mkdir(parents=True)
-        
+
         # Create sample JSON file with image_paths
         json_file = data_dir / "PhyX-test_mini.json"
         sample_data = [
@@ -194,9 +201,11 @@ class TestPhyXLoader:
         ]
         with open(json_file, "w", encoding="utf-8") as f:
             json.dump(sample_data, f)
-        
-        dataset = loader.load(data_dir=str(data_dir), variant="test_mini", split="test_mini")
-        
+
+        dataset = loader.load(
+            data_dir=str(data_dir), variant="test_mini", split="test_mini"
+        )
+
         assert dataset is not None
         assert len(dataset) == 1
         # Verify that image_paths is handled correctly
@@ -208,7 +217,7 @@ class TestPhyXLoader:
         loader = PhyXLoader()
         data_dir = temp_dir / "phyx"
         data_dir.mkdir(parents=True)
-        
+
         # Create sample JSON file with single image_paths string
         json_file = data_dir / "PhyX-test_mini.json"
         sample_data = [
@@ -222,9 +231,11 @@ class TestPhyXLoader:
         ]
         with open(json_file, "w", encoding="utf-8") as f:
             json.dump(sample_data, f)
-        
-        dataset = loader.load(data_dir=str(data_dir), variant="test_mini", split="test_mini")
-        
+
+        dataset = loader.load(
+            data_dir=str(data_dir), variant="test_mini", split="test_mini"
+        )
+
         assert dataset is not None
         assert len(dataset) == 1
         # Verify that single image_paths string is converted to list
@@ -234,7 +245,7 @@ class TestPhyXLoader:
     def test_process_metadata_domain_mapping(self):
         """Test _process_metadata method maps domains correctly."""
         loader = PhyXLoader()
-        
+
         # Test various domain mappings
         test_cases = [
             ("Mechanics", True),  # Should map to a PhysicsDomain enum
@@ -245,11 +256,13 @@ class TestPhyXLoader:
             ("Wave/Acoustics", True),  # Maps to OTHER
             ("Unknown", True),  # Unknown maps to OTHER
         ]
-        
+
         for domain_input, should_be_mapped in test_cases:
             metadata = {"domain": domain_input}
             # Accessing protected method for testing purposes
-            processed = loader._process_metadata(metadata)  # pylint: disable=protected-access
+            processed = loader._process_metadata(
+                metadata
+            )  # pylint: disable=protected-access
             # Domain should be mapped to a PhysicsDomain enum (not None)
             assert processed["domain"] is not None
             assert "domain" in processed
@@ -262,7 +275,9 @@ class TestPhyXLoader:
             "options": ["Option A", "Option B", "Option C"],
         }
         # Accessing protected method for testing purposes
-        processed = loader._process_metadata(metadata)  # pylint: disable=protected-access
+        processed = loader._process_metadata(
+            metadata
+        )  # pylint: disable=protected-access
         assert processed["problem_type"] == "MC"
 
     def test_process_metadata_problem_type_oe(self):
@@ -273,7 +288,9 @@ class TestPhyXLoader:
             "options": [],  # No options means OE
         }
         # Accessing protected method for testing purposes
-        processed = loader._process_metadata(metadata)  # pylint: disable=protected-access
+        processed = loader._process_metadata(
+            metadata
+        )  # pylint: disable=protected-access
         assert processed["problem_type"] == "OE"
 
     def test_process_metadata_language(self):
@@ -281,7 +298,9 @@ class TestPhyXLoader:
         loader = PhyXLoader()
         metadata = {"domain": "Mechanics"}
         # Accessing protected method for testing purposes
-        processed = loader._process_metadata(metadata)  # pylint: disable=protected-access
+        processed = loader._process_metadata(
+            metadata
+        )  # pylint: disable=protected-access
         assert processed["language"] == "en"
 
     def test_process_metadata_image_paths_list(self):
@@ -292,7 +311,9 @@ class TestPhyXLoader:
             "image_paths": ["image1.png", "image2.png"],
         }
         # Accessing protected method for testing purposes
-        processed = loader._process_metadata(metadata)  # pylint: disable=protected-access
+        processed = loader._process_metadata(
+            metadata
+        )  # pylint: disable=protected-access
         assert processed["image_paths"] == ["image1.png", "image2.png"]
 
     def test_process_metadata_image_paths_string(self):
@@ -303,7 +324,9 @@ class TestPhyXLoader:
             "image_paths": "image1.png",
         }
         # Accessing protected method for testing purposes
-        processed = loader._process_metadata(metadata)  # pylint: disable=protected-access
+        processed = loader._process_metadata(
+            metadata
+        )  # pylint: disable=protected-access
         assert isinstance(processed["image_paths"], list)
         assert processed["image_paths"] == ["image1.png"]
 
@@ -315,7 +338,9 @@ class TestPhyXLoader:
             "image": "image1.png",  # No image_paths, but has image
         }
         # Accessing protected method for testing purposes
-        processed = loader._process_metadata(metadata)  # pylint: disable=protected-access
+        processed = loader._process_metadata(
+            metadata
+        )  # pylint: disable=protected-access
         assert processed["image_paths"] == ["image1.png"]
 
     def test_load_generates_problem_id_when_missing(self, temp_dir):
@@ -323,7 +348,7 @@ class TestPhyXLoader:
         loader = PhyXLoader()
         data_dir = temp_dir / "phyx"
         data_dir.mkdir(parents=True)
-        
+
         json_file = data_dir / "PhyX-test_mini.json"
         sample_data = [
             {
@@ -335,9 +360,11 @@ class TestPhyXLoader:
         ]
         with open(json_file, "w", encoding="utf-8") as f:
             json.dump(sample_data, f)
-        
-        dataset = loader.load(data_dir=str(data_dir), variant="test_mini", split="test_mini")
-        
+
+        dataset = loader.load(
+            data_dir=str(data_dir), variant="test_mini", split="test_mini"
+        )
+
         assert dataset is not None
         assert len(dataset) == 1
         # Should have generated a problem_id
@@ -349,7 +376,7 @@ class TestPhyXLoader:
         loader = PhyXLoader()
         data_dir = temp_dir / "phyx"
         data_dir.mkdir(parents=True)
-        
+
         json_file = data_dir / "PhyX-test_mini.json"
         # Mix of valid and invalid entries
         sample_data = [
@@ -367,10 +394,12 @@ class TestPhyXLoader:
         ]
         with open(json_file, "w", encoding="utf-8") as f:
             json.dump(sample_data, f)
-        
+
         # Should not raise exception, but may skip invalid entries
-        dataset = loader.load(data_dir=str(data_dir), variant="test_mini", split="test_mini")
-        
+        dataset = loader.load(
+            data_dir=str(data_dir), variant="test_mini", split="test_mini"
+        )
+
         # Should have at least one valid problem
         assert dataset is not None
         assert len(dataset) >= 1

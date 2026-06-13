@@ -10,11 +10,11 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
-from typing import Any, Dict, Generic, Literal, TypeVar, Union
+from typing import Any, Generic, Literal, TypeVar
 
 from pydantic import BaseModel
 
-StructuredOutputFormat = Dict[str, Any]
+StructuredOutputFormat = dict[str, Any]
 StructuredOutputMode = Literal["json_schema", "json_object", "prompt_only"]
 StructuredOutputPolicy = Literal["native_required", "best_effort"]
 
@@ -45,7 +45,7 @@ class StructuredOutputSpec:
     source_model: type[BaseModel] | None = None
     schema_features: SchemaFeatures | None = None
 
-    def with_schema(self, schema: dict[str, Any]) -> "StructuredOutputSpec":
+    def with_schema(self, schema: dict[str, Any]) -> StructuredOutputSpec:
         return StructuredOutputSpec(
             name=self.name,
             schema=schema,
@@ -105,7 +105,7 @@ def structured_output_spec_to_response_format(
 
 
 def coerce_structured_output_spec(
-    response_format: Union[StructuredOutputFormat, type[BaseModel]],
+    response_format: StructuredOutputFormat | type[BaseModel],
 ) -> StructuredOutputSpec:
     """
     Coerce a Pydantic model class or json_schema dict into a neutral spec.
@@ -154,7 +154,7 @@ def coerce_structured_output_spec(
 
 
 def normalize_response_format(
-    response_format: Union[StructuredOutputFormat, type[BaseModel]],
+    response_format: StructuredOutputFormat | type[BaseModel],
 ) -> StructuredOutputFormat:
     """
     Backward-compatible wrapper that returns the canonical json_schema dict.
@@ -165,7 +165,9 @@ def normalize_response_format(
     )
 
 
-def extract_schema_for_gemini(normalized_format: StructuredOutputFormat) -> Dict[str, Any]:
+def extract_schema_for_gemini(
+    normalized_format: StructuredOutputFormat,
+) -> dict[str, Any]:
     return normalized_format["schema"]
 
 
@@ -173,8 +175,7 @@ def build_json_schema_prompt_suffix(schema: dict[str, Any]) -> str:
     return (
         "\n\nReturn ONLY valid JSON that matches this JSON Schema exactly.\n"
         "Do not include markdown fences, commentary, or any extra keys.\n"
-        "JSON Schema:\n"
-        + json.dumps(schema, indent=2, ensure_ascii=False)
+        "JSON Schema:\n" + json.dumps(schema, indent=2, ensure_ascii=False)
     )
 
 
@@ -243,7 +244,15 @@ def inspect_schema_features(schema: dict[str, Any]) -> SchemaFeatures:
                 has_allof = True
             if "prefixItems" in node:
                 has_prefix_items = True
-            if any(key in node for key in ("minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum")):
+            if any(
+                key in node
+                for key in (
+                    "minimum",
+                    "maximum",
+                    "exclusiveMinimum",
+                    "exclusiveMaximum",
+                )
+            ):
                 has_numeric_bounds = True
             if any(key in node for key in ("minLength", "maxLength", "pattern")):
                 has_string_constraints = True
@@ -282,7 +291,8 @@ def inspect_schema_features(schema: dict[str, Any]) -> SchemaFeatures:
 
     visit(schema)
     return SchemaFeatures(
-        has_root_anyof=isinstance(schema, dict) and isinstance(schema.get("anyOf"), list),
+        has_root_anyof=isinstance(schema, dict)
+        and isinstance(schema.get("anyOf"), list),
         has_allof=has_allof,
         has_prefix_items=has_prefix_items,
         has_recursive_refs=has_recursive_refs,
@@ -295,7 +305,9 @@ def inspect_schema_features(schema: dict[str, Any]) -> SchemaFeatures:
 
 
 def schema_has_open_objects(schema: Any) -> bool:
-    return inspect_schema_features(schema if isinstance(schema, dict) else {}).has_open_objects
+    return inspect_schema_features(
+        schema if isinstance(schema, dict) else {}
+    ).has_open_objects
 
 
 def schema_contains_keyword(schema: Any, keyword: str) -> bool:
@@ -332,9 +344,7 @@ def _try_parse_json_payload(candidate: str) -> dict[str, Any] | list[Any] | None
 
 def _iter_balanced_json_candidates(text: str):
     for start, start_char in (
-        (index, char)
-        for index, char in enumerate(text)
-        if char in "{["
+        (index, char) for index, char in enumerate(text) if char in "{["
     ):
         closing_char = "}" if start_char == "{" else "]"
         depth = 0

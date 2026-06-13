@@ -12,7 +12,7 @@ from prkit.annotation.workers.base import BaseAnnotator
 # Create a concrete subclass for testing abstract methods
 class ConcreteAnnotator(BaseAnnotator):
     """Concrete implementation of BaseAnnotator for testing."""
-    
+
     def work(self, question: str, **kwargs):
         """Concrete implementation of abstract method."""
         return {"result": "test"}
@@ -47,10 +47,10 @@ class TestBaseAnnotator:
     def test_base_annotator_call_llm_structured(self, mock_create):
         """Test _call_llm_structured method."""
         from pydantic import BaseModel
-        
+
         class TestResponse(BaseModel):
             result: str
-        
+
         mock_client = Mock()
         mock_client.chat.return_value = '{"result": "structured"}'
         mock_create.return_value = mock_client

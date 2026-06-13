@@ -8,16 +8,16 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from .openai_compatible_chat import OpenAICompatibleChatModel
 from .openai import prepare_image_url_from_image_path
+from .openai_compatible_chat import OpenAICompatibleChatModel
 from .structured_output import (
-    build_json_schema_prompt_suffix,
-    schema_contains_keyword,
-    strip_schema_keywords,
     StructuredOutputPlan,
     StructuredOutputPolicy,
     StructuredOutputSpec,
+    build_json_schema_prompt_suffix,
     normalize_response_format,
+    schema_contains_keyword,
+    strip_schema_keywords,
 )
 
 _XAI_UNSUPPORTED_SCHEMA_KEYWORDS = frozenset(
@@ -124,7 +124,10 @@ class XAIModel(OpenAICompatibleChatModel):
         content: list[dict[str, Any]] = [{"type": "input_text", "text": user_prompt}]
         for image_path in image_paths:
             content.append(
-                {"type": "input_image", "image_url": prepare_image_url_from_image_path(image_path)}
+                {
+                    "type": "input_image",
+                    "image_url": prepare_image_url_from_image_path(image_path),
+                }
             )
 
         body: dict[str, Any] = {

@@ -16,7 +16,9 @@ OLLAMA_MISTRAL_TEST_MODEL = "ollama/mistral-large-3:675b-cloud"
 class TestOllamaModel:
     def test_normalize_ollama_model_name_prefixed(self):
         """Test prefixed Ollama identifiers are normalized."""
-        assert normalize_ollama_model_name(OLLAMA_QWEN_TEST_MODEL) == "qwen3.5:397b-cloud"
+        assert (
+            normalize_ollama_model_name(OLLAMA_QWEN_TEST_MODEL) == "qwen3.5:397b-cloud"
+        )
 
     def test_normalize_ollama_model_name_plain(self):
         """Test plain Ollama identifiers are preserved."""
@@ -221,7 +223,9 @@ class TestOllamaModel:
         mock_ollama_module.chat.return_value = mock_response
 
         client = OllamaModel(OLLAMA_QWEN_TEST_MODEL)
-        response = client.chat("Describe these images", image_paths=[str(image1), str(image2)])
+        response = client.chat(
+            "Describe these images", image_paths=[str(image1), str(image2)]
+        )
 
         assert response == "Image description"
         call_kwargs = mock_ollama_module.chat.call_args[1]
@@ -339,6 +343,7 @@ class TestOllamaModel:
     def test_chat_with_custom_logger(self, mock_ollama_module):
         """Test initialization with custom logger."""
         import logging
+
         logger = logging.getLogger("test_ollama")
         mock_client = MagicMock()
         mock_client.list.return_value = []

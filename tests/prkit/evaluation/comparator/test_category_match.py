@@ -26,13 +26,24 @@ class TestSameComparisonCategory:
 
     def test_same_category_returns_true(self):
         """Same category should return True."""
-        assert same_comparison_category(AnswerCategory.NUMBER, AnswerCategory.NUMBER) is True
-        assert same_comparison_category(AnswerCategory.TEXT, AnswerCategory.TEXT) is True
+        assert (
+            same_comparison_category(AnswerCategory.NUMBER, AnswerCategory.NUMBER)
+            is True
+        )
+        assert (
+            same_comparison_category(AnswerCategory.TEXT, AnswerCategory.TEXT) is True
+        )
 
     def test_different_category_returns_false(self):
         """Different categories should return False."""
-        assert same_comparison_category(AnswerCategory.NUMBER, AnswerCategory.TEXT) is False
-        assert same_comparison_category(AnswerCategory.FORMULA, AnswerCategory.EQUATION) is False
+        assert (
+            same_comparison_category(AnswerCategory.NUMBER, AnswerCategory.TEXT)
+            is False
+        )
+        assert (
+            same_comparison_category(AnswerCategory.FORMULA, AnswerCategory.EQUATION)
+            is False
+        )
 
 
 class TestCompareNumber:
@@ -172,9 +183,7 @@ class TestComparePhysicalQuantity:
         """Same units: compare numeric part with epsilon."""
         assert compare_physical_quantity("9.8 m/s^2", "9.8 m/s^2") is True
         # Values within epsilon (1e-10)
-        assert compare_physical_quantity(
-            "9.8 m/s^2", "9.80000000001 m/s^2"
-        ) is True
+        assert compare_physical_quantity("9.8 m/s^2", "9.80000000001 m/s^2") is True
 
     def test_same_units_numeric_mismatch(self):
         """Same units but different numeric values (even after decimal rounding)."""
@@ -224,12 +233,8 @@ class TestComparePhysicalQuantity:
 
     def test_custom_epsilon(self):
         """Custom epsilon is passed to numeric comparison."""
-        assert compare_physical_quantity(
-            "1.0 m", "1.001 m", epsilon=0.01
-        ) is True
-        assert compare_physical_quantity(
-            "1.0 m", "1.001 m", epsilon=0.0001
-        ) is False
+        assert compare_physical_quantity("1.0 m", "1.001 m", epsilon=0.01) is True
+        assert compare_physical_quantity("1.0 m", "1.001 m", epsilon=0.0001) is False
 
     def test_answer_with_unit_none_fallback_to_text(self):
         """Answer with unit=None falls back to plain text comparison."""
@@ -323,9 +328,7 @@ class TestCompareFormula:
 
     def test_simplify_combined(self):
         """(a+b)^2 - (a^2 + 2*a*b + b^2) == 0."""
-        assert compare_formula(
-            "(a + b)**2 - a**2 - 2*a*b - b**2", "0"
-        ) is True
+        assert compare_formula("(a + b)**2 - a**2 - 2*a*b - b**2", "0") is True
 
     def test_different_after_simplify(self):
         """Expressions that are NOT equal should still return False."""
@@ -345,6 +348,7 @@ class TestCompareFormula:
     def test_numerical_equivalence_skips_integrals(self):
         """Integral-bearing formulas should bypass numeric sampling."""
         from prkit.evaluation.utils import compare_same_type as compare_same_type_module
+
         pred = compare_same_type_module.sympify("Integral(exp(-x**2), (x, 0, a))")
         gt = compare_same_type_module.sympify("Integral(exp(-x**2), (x, 0, b))")
 
@@ -421,29 +425,31 @@ class TestCategoryComparator:
         # Remove NUMBER from comparators to simulate unknown
         comp._comparators = {AnswerCategory.TEXT: compare_plain_text}
         # NUMBER not in comparators -> fallback
-        result = comp._compare_by_category(
-            AnswerCategory.NUMBER, "42", "42"
-        )
+        result = comp._compare_by_category(AnswerCategory.NUMBER, "42", "42")
         assert result is True
 
     def test_compare_by_category_equation(self):
         """EQUATION category uses _compare_plain_text."""
         comp = CategoryComparator()
-        assert comp._compare_by_category(
-            AnswerCategory.EQUATION, "x = 1", "x = 1"
-        ) is True
-        assert comp._compare_by_category(
-            AnswerCategory.EQUATION, "x = 1", "x = 2"
-        ) is False
+        assert (
+            comp._compare_by_category(AnswerCategory.EQUATION, "x = 1", "x = 1") is True
+        )
+        assert (
+            comp._compare_by_category(AnswerCategory.EQUATION, "x = 1", "x = 2")
+            is False
+        )
 
     def test_accuracy_score_match(self):
         """accuracy_score returns 1.0 when match."""
         comp = CategoryComparator()
         assert comp.accuracy_score("42", "42") == 1.0
-        assert comp.accuracy_score(
-            Answer(value=1, answer_category=AnswerCategory.NUMBER),
-            Answer(value=1, answer_category=AnswerCategory.NUMBER),
-        ) == 1.0
+        assert (
+            comp.accuracy_score(
+                Answer(value=1, answer_category=AnswerCategory.NUMBER),
+                Answer(value=1, answer_category=AnswerCategory.NUMBER),
+            )
+            == 1.0
+        )
 
     def test_accuracy_score_mismatch(self):
         """accuracy_score returns 0.0 when no match."""
@@ -493,7 +499,5 @@ class TestCategoryComparatorSubclass:
 
         comp = CustomComparator()
         # NUMBER not in comparators -> fallback to _compare_plain_text
-        result = comp._compare_by_category(
-            AnswerCategory.NUMBER, "42", "42"
-        )
+        result = comp._compare_by_category(AnswerCategory.NUMBER, "42", "42")
         assert result is True

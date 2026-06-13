@@ -149,6 +149,7 @@ class TestCreateModelClient:
     def test_create_with_logger(self):
         """Test creating model client with custom logger."""
         import logging
+
         logger = logging.getLogger("test")
         client = create_model_client(OPENAI_TEST_MODEL, logger=logger)
         assert client.logger == logger

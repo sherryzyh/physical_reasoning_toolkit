@@ -6,7 +6,7 @@ that only classifies physics problems by domain.
 """
 
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 from prkit.core.domain import PhysicalDataset
 
@@ -20,7 +20,7 @@ class DomainOnlyWorkflow:
         self,
         output_dir: str = "domain_only_output",
         model: str = "gpt-5-mini",
-        config: Dict[str, Any] = None,
+        config: dict[str, Any] = None,
     ):
         self.output_dir = Path(output_dir)
         self.model = model
@@ -40,7 +40,7 @@ class DomainOnlyWorkflow:
             )
         )
 
-    def run(self, dataset: PhysicalDataset, **kwargs) -> Dict[str, Any]:
+    def run(self, dataset: PhysicalDataset, **kwargs) -> dict[str, Any]:
         """
         Run the domain-only annotation workflow.
 
@@ -53,7 +53,7 @@ class DomainOnlyWorkflow:
         """
         return self.workflow.run(dataset, **kwargs)
 
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         """Get current workflow status."""
         return self.workflow.get_workflow_status()
 

@@ -24,7 +24,6 @@ import re
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 from prkit.core import PRKitLogger
 from prkit.core.model_clients import create_model_client
@@ -39,7 +38,7 @@ ANSWER_PROMPT_INSTRUCTION = (
 )
 
 
-def parse_answer_from_response(response: str) -> Optional[str]:
+def parse_answer_from_response(response: str) -> str | None:
     """
     Parse the content between <answer> and </answer> tags from the model response.
 
@@ -78,7 +77,9 @@ def serialize_problem_field(value):
 
 def get_result_file_path(output_dir: Path, problem_id: str) -> Path:
     """Get the expected file path for a problem result."""
-    safe_problem_id = str(problem_id).replace("/", "_").replace("\\", "_").replace(":", "_")
+    safe_problem_id = (
+        str(problem_id).replace("/", "_").replace("\\", "_").replace(":", "_")
+    )
     safe_problem_id = "".join(c for c in safe_problem_id if c.isalnum() or c in "._-")
     return output_dir / f"problem_{safe_problem_id}.json"
 
@@ -87,7 +88,7 @@ def run_single_inference(
     dataset_name: str = "seephys",
     model_name: str = "qwen3-vl",
     auto_download: bool = True,
-    output_dir: Optional[str] = None,
+    output_dir: str | None = None,
 ) -> None:
     """
     Run single inference on the first problem of a dataset.

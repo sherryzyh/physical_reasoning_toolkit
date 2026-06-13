@@ -1,11 +1,10 @@
-from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
 
-from prkit.annotation.workflows.modules.base_module import BaseWorkflowModule
 from prkit.annotation.workflows import workflow_composer as workflow_composer_module
+from prkit.annotation.workflows.modules.base_module import BaseWorkflowModule
 from prkit.annotation.workflows.workflow_composer import WorkflowComposer
 from prkit.core.domain import PhysicalDataset, PhysicsProblem
 
@@ -21,7 +20,9 @@ class DummyWorkflowModule(BaseWorkflowModule):
             "flag": kwargs.get("flag", "ok"),
         }
 
-    def _form_output_as_a_problem(self, result, problem: PhysicsProblem) -> PhysicsProblem:
+    def _form_output_as_a_problem(
+        self, result, problem: PhysicsProblem
+    ) -> PhysicsProblem:
         updated = problem.copy()
         updated.additional_fields = dict(updated.additional_fields or {})
         updated.additional_fields["flag"] = result["flag"]
@@ -122,7 +123,9 @@ def test_workflow_composer_handles_module_run_exceptions(tmp_path):
         config={"show_progress": False},
     )
 
-    result = composer.run(PhysicalDataset(problems=[PhysicsProblem(problem_id="p1", question="Q")]))
+    result = composer.run(
+        PhysicalDataset(problems=[PhysicsProblem(problem_id="p1", question="Q")])
+    )
 
     assert result["workflow_status"]["problem_stats"]["failed"] == 1
     assert composer.get_module_status("explode")["failed_problems"] == 1
@@ -178,7 +181,9 @@ def test_workflow_composer_progress_bar_and_error_paths(tmp_path, monkeypatch):
 
     fake_bar = FakeTqdm(_dataset())
     monkeypatch.setattr(workflow_composer_module, "TQDM_AVAILABLE", True)
-    monkeypatch.setattr(workflow_composer_module, "tqdm", lambda iterable, **kwargs: fake_bar)
+    monkeypatch.setattr(
+        workflow_composer_module, "tqdm", lambda iterable, **kwargs: fake_bar
+    )
 
     result = composer.run(_dataset(), flag="done")
 
@@ -199,7 +204,9 @@ def test_workflow_composer_run_records_workflow_errors_and_reset(tmp_path, monke
     monkeypatch.setattr(
         composer,
         "_process_problem_through_pipeline",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("broken pipeline")),
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            RuntimeError("broken pipeline")
+        ),
     )
 
     result = composer.run(_dataset())

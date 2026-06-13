@@ -3,8 +3,6 @@ Tests for model client utility functions.
 """
 
 import base64
-import tempfile
-from pathlib import Path
 
 import pytest
 
@@ -30,11 +28,11 @@ class TestEncodeImageToBase64:
     def test_encode_different_image_types(self, tmp_path):
         """Test encoding different image file types."""
         test_data = b"image content"
-        
+
         for ext in [".jpg", ".jpeg", ".png", ".gif", ".webp"]:
             image_file = tmp_path / f"test{ext}"
             image_file.write_bytes(test_data)
-            
+
             result = encode_image_to_base64(str(image_file))
             decoded = base64.b64decode(result)
             assert decoded == test_data
@@ -122,9 +120,10 @@ class TestEncodeImageToBase64:
     def test_encode_base64_format(self, tmp_path):
         """Test that result is valid base64 format."""
         import re
+
         image_file = tmp_path / "test.jpg"
         image_file.write_bytes(b"test data")
         result = encode_image_to_base64(str(image_file))
         # Base64 should only contain A-Z, a-z, 0-9, +, /, and = for padding
-        base64_pattern = re.compile(r'^[A-Za-z0-9+/]*={0,2}$')
+        base64_pattern = re.compile(r"^[A-Za-z0-9+/]*={0,2}$")
         assert base64_pattern.match(result) is not None

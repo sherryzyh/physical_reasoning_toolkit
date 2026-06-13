@@ -5,27 +5,27 @@ This module provides a clean, simple interface for loading physical reasoning da
 """
 
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Type, Union
+from typing import Any
 
 from prkit.core import PRKitLogger
 from prkit.core.domain import PhysicalDataset
 from prkit.datasets.downloaders import (
-    PhysBenchDownloader,
     PHYBenchDownloader,
+    PhysBenchDownloader,
     PhysicsDownloader,
-    PhyXDownloader,
     PhysReasonDownloader,
+    PhyXDownloader,
     SeePhysDownloader,
     UGPhysicsDownloader,
 )
 from prkit.datasets.downloaders.base_downloader import BaseDownloader
 from prkit.datasets.loaders import (
     JEEBenchLoader,
-    PhysBenchLoader,
     PHYBenchLoader,
+    PhysBenchLoader,
     PhysicsLoader,
-    PhyXLoader,
     PhysReasonLoader,
+    PhyXLoader,
     SeePhysLoader,
     TPBenchLoader,
     UGPhysicsLoader,
@@ -61,9 +61,9 @@ class DatasetHub:
     """
 
     # Class-level registry of dataset loaders
-    _loaders: Dict[str, Type[BaseDatasetLoader]] = {}
+    _loaders: dict[str, type[BaseDatasetLoader]] = {}
     # Class-level registry of dataset downloaders
-    _downloaders: Dict[str, Type[BaseDownloader]] = {}
+    _downloaders: dict[str, type[BaseDownloader]] = {}
     _logger = PRKitLogger.get_logger(__name__)
 
     @classmethod
@@ -92,17 +92,17 @@ class DatasetHub:
         # Add more downloaders as they are implemented
 
     @classmethod
-    def register(cls, name: str, loader_class: Type[BaseDatasetLoader]):
+    def register(cls, name: str, loader_class: type[BaseDatasetLoader]):
         """Register a new dataset loader."""
         cls._loaders[name] = loader_class
 
     @classmethod
-    def register_downloader(cls, name: str, downloader_class: Type[BaseDownloader]):
+    def register_downloader(cls, name: str, downloader_class: type[BaseDownloader]):
         """Register a new dataset downloader."""
         cls._downloaders[name] = downloader_class
 
     @classmethod
-    def _get_downloader(cls, name: str) -> Optional[BaseDownloader]:
+    def _get_downloader(cls, name: str) -> BaseDownloader | None:
         """Get a dataset downloader by name."""
         if not cls._downloaders:
             cls._register_default_downloaders()
@@ -130,8 +130,8 @@ class DatasetHub:
     def load(
         cls,
         dataset_name: str,
-        data_dir: Union[str, Path, None] = None,
-        sample_size: Optional[int] = None,
+        data_dir: str | Path | None = None,
+        sample_size: int | None = None,
         auto_download: bool = False,
         **kwargs,
     ) -> PhysicalDataset:
@@ -179,8 +179,12 @@ class DatasetHub:
                     f"Using default variant '{variant}' for dataset '{dataset_name}'"
                 )
             else:
-                cls._logger.error(f"No default variant set for dataset '{dataset_name}'")
-                raise ValueError(f"No default variant set and no variant provided for dataset '{dataset_name}'")
+                cls._logger.error(
+                    f"No default variant set for dataset '{dataset_name}'"
+                )
+                raise ValueError(
+                    f"No default variant set and no variant provided for dataset '{dataset_name}'"
+                )
         else:
             # Validate explicitly provided variant
             try:
@@ -201,7 +205,9 @@ class DatasetHub:
                 )
             else:
                 cls._logger.error(f"No default split set for dataset '{dataset_name}'")
-                raise ValueError(f"No default split set and no split provided for dataset '{dataset_name}'")
+                raise ValueError(
+                    f"No default split set and no split provided for dataset '{dataset_name}'"
+                )
         else:
             # Validate explicitly provided split
             try:
@@ -224,24 +230,26 @@ class DatasetHub:
                 actual_data_dir = "(loader default)"
         else:
             actual_data_dir = Path(data_dir).resolve()
-        
+
         if variant is None:
             actual_variant = loader.get_default_variant()
         else:
             actual_variant = variant
-        
+
         if split is None:
             actual_split = loader.get_default_split()
         else:
             actual_split = split
-        
+
         if sample_size is None:
             actual_sample_size = "full"
         else:
             actual_sample_size = sample_size
 
         # Log detailed loading arguments with actual resolved values
-        cls._logger.info(f"Loading dataset '{dataset_name}' with the following arguments:")
+        cls._logger.info(
+            f"Loading dataset '{dataset_name}' with the following arguments:"
+        )
         cls._logger.info(f"  - dataset_name: {dataset_name}")
         cls._logger.info(f"  - data_dir: {actual_data_dir}")
         cls._logger.info(f"  - variant: {actual_variant}")
@@ -289,12 +297,12 @@ class DatasetHub:
                     variant = loader.get_default_variant()
                     if variant is None:
                         variant = "full"  # Fallback default
-                
+
                 # Extract split if downloader needs it
                 split = load_kwargs.get("split")
                 if split is None:
                     split = loader.get_default_split()
-                
+
                 try:
                     # Download the dataset
                     download_kwargs = {"data_dir": data_dir, "force": False}
@@ -302,7 +310,7 @@ class DatasetHub:
                         download_kwargs["variant"] = variant
                     if split is not None:
                         download_kwargs["split"] = split
-                    
+
                     download_path = downloader.download(**download_kwargs)
                     cls._logger.info(
                         "Successfully downloaded %s to %s", dataset_name, download_path
@@ -324,20 +332,20 @@ class DatasetHub:
                 raise
 
     @classmethod
-    def list_available(cls) -> List[str]:
+    def list_available(cls) -> list[str]:
         """List all available dataset names."""
         if not cls._loaders:
             cls._register_default_loaders()
         return list(cls._loaders.keys())
 
     @classmethod
-    def get_info(cls, dataset_name: str) -> Dict[str, Any]:
+    def get_info(cls, dataset_name: str) -> dict[str, Any]:
         """Get information about a specific dataset."""
         loader = cls._get_loader(dataset_name)
         return loader.get_info()
 
     @classmethod
-    def get_loader_info(cls, dataset_name: str) -> Dict[str, Any]:
+    def get_loader_info(cls, dataset_name: str) -> dict[str, Any]:
         """Get detailed information about a dataset loader including supported parameters."""
         loader = cls._get_loader(dataset_name)
         info = loader.get_info()

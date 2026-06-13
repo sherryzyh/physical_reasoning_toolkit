@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import re
+from dataclasses import dataclass
 
 from sympy import simplify
 
@@ -82,10 +82,12 @@ def compare_numeric_like_answers(
     ):
         return AnswerComparison(False, comparison_mode, ("symbolic_factor_mismatch",))
 
-    aligned_pred_value, unit_diagnostics, used_unit_conversion = _aligned_pred_numeric_value(
-        pred_numeric,
-        ref_numeric,
-        context=context,
+    aligned_pred_value, unit_diagnostics, used_unit_conversion = (
+        _aligned_pred_numeric_value(
+            pred_numeric,
+            ref_numeric,
+            context=context,
+        )
     )
     if aligned_pred_value is None:
         return AnswerComparison(False, comparison_mode, unit_diagnostics)
@@ -119,7 +121,9 @@ def extract_numeric_comparable_answer(
     if answer.object_kind == AnswerObjectKind.NUMBER:
         numeric_value = answer.numeric_value
         if numeric_value is None:
-            numeric_value = parse_numeric_value(answer.numeric_text or answer.canonical_text)
+            numeric_value = parse_numeric_value(
+                answer.numeric_text or answer.canonical_text
+            )
         if numeric_value is None:
             return None
         return NumericComparableAnswer(
@@ -141,13 +145,10 @@ def extract_numeric_comparable_answer(
 
         numeric_value = quantity_numeric_magnitude(answer)
         if numeric_value is not None:
-            if (
-                symbolic_magnitude is not None
-                and _prefer_symbolic_quantity_salvage(
-                    answer,
-                    symbolic_magnitude,
-                    context=context,
-                )
+            if symbolic_magnitude is not None and _prefer_symbolic_quantity_salvage(
+                answer,
+                symbolic_magnitude,
+                context=context,
             ):
                 return NumericComparableAnswer(
                     coefficient_value=symbolic_magnitude.coefficient_value,
@@ -161,13 +162,10 @@ def extract_numeric_comparable_answer(
                 symbolic_factor_text="1",
                 unit=resolved_unit(answer, context=context),
             )
-        if (
-            symbolic_magnitude is not None
-            and _prefer_symbolic_quantity_salvage(
-                answer,
-                symbolic_magnitude,
-                context=context,
-            )
+        if symbolic_magnitude is not None and _prefer_symbolic_quantity_salvage(
+            answer,
+            symbolic_magnitude,
+            context=context,
         ):
             return NumericComparableAnswer(
                 coefficient_value=symbolic_magnitude.coefficient_value,
@@ -247,7 +245,9 @@ def extract_symbolic_magnitude(
         if question_unit_expr is not None:
             expression = _strip_question_unit_factor(expression, question_unit_expr)
 
-        free_symbols = tuple(sorted(expression.free_symbols, key=lambda symbol: symbol.name))
+        free_symbols = tuple(
+            sorted(expression.free_symbols, key=lambda symbol: symbol.name)
+        )
         if free_symbols:
             coefficient_expr, symbolic_factor = expression.as_independent(
                 *free_symbols,
@@ -317,10 +317,14 @@ def _prefer_symbolic_quantity_salvage(
         return False
 
     anchor_units = _quantity_anchor_units(answer=answer, context=context)
-    if answer.unit and anchor_units and _quantity_view_is_dimensionally_grounded(
-        answer.unit,
-        answer=answer,
-        context=context,
+    if (
+        answer.unit
+        and anchor_units
+        and _quantity_view_is_dimensionally_grounded(
+            answer.unit,
+            answer=answer,
+            context=context,
+        )
     ):
         return False
 
@@ -377,7 +381,9 @@ def _extract_quantity_view_comparable_answer(
     )
 
 
-def _quantity_view_precision_matches_preferred_unit(*, quantity_view, preferred_snapshot) -> bool:
+def _quantity_view_precision_matches_preferred_unit(
+    *, quantity_view, preferred_snapshot
+) -> bool:
     """Return whether source precision text is expressed in the preferred unit space."""
 
     source_snapshot = quantity_view.source
@@ -446,7 +452,8 @@ def _matched_question_unit_expr(
 
     if (
         not answer.unit
-        or context.question_unit_policy != QuestionUnitPolicy.OPTIONAL_IF_QUESTION_FIXED_UNIT
+        or context.question_unit_policy
+        != QuestionUnitPolicy.OPTIONAL_IF_QUESTION_FIXED_UNIT
         or not context.question_unit
     ):
         return None
@@ -461,7 +468,9 @@ def _strip_question_unit_factor(expression, question_unit_expr):
     if question_unit_expr is None:
         return expression
 
-    unit_symbols = tuple(sorted(question_unit_expr.free_symbols, key=lambda symbol: symbol.name))
+    unit_symbols = tuple(
+        sorted(question_unit_expr.free_symbols, key=lambda symbol: symbol.name)
+    )
     if not unit_symbols:
         return expression
 
@@ -514,7 +523,8 @@ def _implicit_question_unit(context: PhysicsQuestionSemantics) -> str | None:
     """Return the fixed question unit when bare numbers are allowed to omit it."""
 
     if (
-        context.question_unit_policy == QuestionUnitPolicy.OPTIONAL_IF_QUESTION_FIXED_UNIT
+        context.question_unit_policy
+        == QuestionUnitPolicy.OPTIONAL_IF_QUESTION_FIXED_UNIT
         and context.question_unit
     ):
         return context.question_unit

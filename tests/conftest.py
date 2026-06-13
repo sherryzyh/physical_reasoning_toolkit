@@ -2,21 +2,26 @@
 Pytest configuration and shared fixtures for PRKit tests.
 """
 
-import os
 import tempfile
 from pathlib import Path
-from typing import Any, Dict, List
 
 import pytest
 
-from prkit.core.domain import AnswerCategory, PhysicsDomain
-from prkit.core.domain import Answer, PhysicalDataset, PhysicsProblem
+from prkit.core.domain import (
+    Answer,
+    AnswerCategory,
+    PhysicalDataset,
+    PhysicsDomain,
+    PhysicsProblem,
+)
 
 
 @pytest.fixture
 def sample_answer_numerical():
     """Create a sample numerical answer."""
-    return Answer(value=42.0, answer_category=AnswerCategory.PHYSICAL_QUANTITY, unit="m/s")
+    return Answer(
+        value=42.0, answer_category=AnswerCategory.PHYSICAL_QUANTITY, unit="m/s"
+    )
 
 
 @pytest.fixture
@@ -46,7 +51,9 @@ def sample_physics_problem():
     return PhysicsProblem(
         problem_id="test_001",
         question="What is the speed of light?",
-        answer=Answer(value=3e8, answer_category=AnswerCategory.PHYSICAL_QUANTITY, unit="m/s"),
+        answer=Answer(
+            value=3e8, answer_category=AnswerCategory.PHYSICAL_QUANTITY, unit="m/s"
+        ),
         solution="The speed of light in vacuum is approximately 3 × 10^8 m/s",
         domain=PhysicsDomain.CLASSICAL_MECHANICS,
         language="en",

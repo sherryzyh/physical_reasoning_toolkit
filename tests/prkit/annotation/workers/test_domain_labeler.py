@@ -4,8 +4,6 @@ Tests for DomainLabeler.
 
 from unittest.mock import Mock, patch
 
-import pytest
-
 from prkit.annotation.annotations.domain import DomainAnnotation
 from prkit.annotation.workers.domain_labeler import DomainLabeler, DomainResponse
 from prkit.core.domain.physics_domain import PhysicsDomain
@@ -36,6 +34,7 @@ class TestDomainLabeler:
             subdomains=["kinematics"],
         )
         import json
+
         # Return JSON string that will be parsed by _call_llm_structured
         mock_client.chat.return_value = json.dumps(mock_response.model_dump())
         mock_create.return_value = mock_client
@@ -58,6 +57,7 @@ class TestDomainLabeler:
             subdomains=[],
         )
         import json
+
         # Return JSON string that will be parsed by _call_llm_structured
         mock_client.chat.return_value = json.dumps(mock_response.model_dump())
         mock_create.return_value = mock_client
@@ -88,12 +88,15 @@ class TestDomainLabeler:
         """Test that domain strings are normalized correctly."""
         mock_client = Mock()
         mock_response = DomainResponse(
-            domains=["classical-mechanics"],  # With hyphens - should normalize to classical_mechanics
+            domains=[
+                "classical-mechanics"
+            ],  # With hyphens - should normalize to classical_mechanics
             confidence=0.9,
             reasoning="Test",
             subdomains=[],
         )
         import json
+
         # Return JSON string that will be parsed by _call_llm_structured
         mock_client.chat.return_value = json.dumps(mock_response.model_dump())
         mock_create.return_value = mock_client

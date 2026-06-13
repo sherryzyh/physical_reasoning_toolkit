@@ -6,7 +6,7 @@ that only detects relevant physical theorems and principles in physics problems.
 """
 
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 from prkit.core.domain import PhysicalDataset
 
@@ -20,7 +20,7 @@ class TheoremLabelOnlyWorkflow:
         self,
         output_dir: str = "theorem_label_only_output",
         model: str = "gpt-5-mini",
-        config: Dict[str, Any] = None,
+        config: dict[str, Any] = None,
     ):
         self.output_dir = Path(output_dir)
         self.model = model
@@ -41,7 +41,7 @@ class TheoremLabelOnlyWorkflow:
             )
         )
 
-    def run(self, dataset: PhysicalDataset, **kwargs) -> Dict[str, Any]:
+    def run(self, dataset: PhysicalDataset, **kwargs) -> dict[str, Any]:
         """
         Run the theorem-only annotation workflow.
 
@@ -54,7 +54,7 @@ class TheoremLabelOnlyWorkflow:
         """
         return self.workflow.run(dataset, **kwargs)
 
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         """Get current workflow status."""
         return self.workflow.get_workflow_status()
 

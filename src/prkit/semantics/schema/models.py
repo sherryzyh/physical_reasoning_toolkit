@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -29,11 +29,11 @@ class _SemanticsModel(BaseModel):
 class PhysicsQuestionSemantics(_SemanticsModel):
     """Question-conditioned semantics that constrain answer interpretation."""
 
-    target_variable: Optional[str] = Field(
+    target_variable: str | None = Field(
         default=None,
         description="Primary target variable the question asks the solver to determine.",
     )
-    symbol_aliases: tuple["PhysicsSymbolAliasSemantics", ...] = Field(
+    symbol_aliases: tuple[PhysicsSymbolAliasSemantics, ...] = Field(
         default_factory=tuple,
         description="Question-conditioned alias groups that map alternate symbol names onto a canonical symbol for comparison.",
     )
@@ -53,11 +53,11 @@ class PhysicsQuestionSemantics(_SemanticsModel):
         default=QuestionUnitPolicy.NOT_APPLICABLE,
         description="How explicitly units must appear in the final answer.",
     )
-    question_unit: Optional[str] = Field(
+    question_unit: str | None = Field(
         default=None,
         description="Question-fixed output unit when the task specifies one.",
     )
-    dimension: Optional[str] = Field(
+    dimension: str | None = Field(
         default=None,
         description="Expected physical dimension metadata for the answer.",
     )
@@ -69,11 +69,11 @@ class PhysicsQuestionSemantics(_SemanticsModel):
         default_factory=tuple,
         description="Named answer parts required by the question.",
     )
-    coordinate_frame: Optional[str] = Field(
+    coordinate_frame: str | None = Field(
         default=None,
         description="Coordinate-frame convention that answers should follow.",
     )
-    sign_convention: Optional[str] = Field(
+    sign_convention: str | None = Field(
         default=None,
         description="Sign convention that answers should follow.",
     )
@@ -92,8 +92,8 @@ class PhysicsQuestionSemantics(_SemanticsModel):
     )
 
     def merged(
-        self, overrides: Optional[dict[str, Any]] = None
-    ) -> "PhysicsQuestionSemantics":
+        self, overrides: dict[str, Any] | None = None
+    ) -> PhysicsQuestionSemantics:
         """Return a copy updated with ``overrides``."""
         if not overrides:
             return self
@@ -110,11 +110,11 @@ class PhysicsEvaluationContract(_SemanticsModel):
     question_semantics: PhysicsQuestionSemantics = Field(
         description="Question-only semantics used as the contract base.",
     )
-    question_text: Optional[str] = Field(
+    question_text: str | None = Field(
         default=None,
         description="Question text copied into the contract for guarded bridge heuristics.",
     )
-    problem_type: Optional[str] = Field(
+    problem_type: str | None = Field(
         default=None,
         description="Problem type copied into the contract when available.",
     )
@@ -124,7 +124,7 @@ class PhysicsEvaluationContract(_SemanticsModel):
     expected_structure: AnswerStructure = Field(
         description="Expected top-level answer structure derived from the reference answer.",
     )
-    target_variable: Optional[str] = Field(
+    target_variable: str | None = Field(
         default=None,
         description="Target variable used during evaluation, usually from the reference answer when available.",
     )
@@ -141,8 +141,13 @@ class PhysicsEvaluationContract(_SemanticsModel):
     def comparison_context(self) -> PhysicsQuestionSemantics:
         """Return the question semantics augmented with contract-time target metadata."""
 
-        if self.target_variable and self.question_semantics.target_variable != self.target_variable:
-            return self.question_semantics.merged({"target_variable": self.target_variable})
+        if (
+            self.target_variable
+            and self.question_semantics.target_variable != self.target_variable
+        ):
+            return self.question_semantics.merged(
+                {"target_variable": self.target_variable}
+            )
         return self.question_semantics
 
 
@@ -165,10 +170,10 @@ class ContractValidationResult(_SemanticsModel):
 class PhysicsAnswerCaseSemantics(_SemanticsModel):
     """One branch of a piecewise answer semantics object."""
 
-    expression: "PhysicsAnswerSemantics" = Field(
+    expression: PhysicsAnswerSemantics = Field(
         description="The answer expression produced when the condition holds.",
     )
-    condition: "PhysicsAnswerSemantics" = Field(
+    condition: PhysicsAnswerSemantics = Field(
         description="The condition that activates the paired expression.",
     )
 
@@ -209,11 +214,11 @@ class PhysicalQuantitySnapshot(_SemanticsModel):
 class PhysicalQuantityView(_SemanticsModel):
     """Source and canonical deterministic views for a physical quantity answer."""
 
-    source: Optional[PhysicalQuantitySnapshot] = Field(
+    source: PhysicalQuantitySnapshot | None = Field(
         default=None,
         description="Parsed source quantity snapshot before canonical unit remapping.",
     )
-    canonical: Optional[PhysicalQuantitySnapshot] = Field(
+    canonical: PhysicalQuantitySnapshot | None = Field(
         default=None,
         description="Canonical normalized quantity snapshot used for comparison.",
     )
@@ -248,35 +253,35 @@ class PhysicsAnswerSemantics(_SemanticsModel):
         default=AnswerStructure.ATOMIC,
         description="Structural form of the normalized answer.",
     )
-    canonical_latex: Optional[str] = Field(
+    canonical_latex: str | None = Field(
         default=None,
         description="Canonical LaTeX surface when the answer is symbolic.",
     )
-    raw_text: Optional[str] = Field(
+    raw_text: str | None = Field(
         default=None,
         description="Original text surface used to derive this semantics object.",
     )
-    numeric_value: Optional[float] = Field(
+    numeric_value: float | None = Field(
         default=None,
         description="Parsed numeric magnitude when available.",
     )
-    numeric_text: Optional[str] = Field(
+    numeric_text: str | None = Field(
         default=None,
         description="Canonical numeric text surface when available.",
     )
-    unit: Optional[str] = Field(
+    unit: str | None = Field(
         default=None,
         description="Canonical unit string for physical-quantity answers.",
     )
-    dimension: Optional[str] = Field(
+    dimension: str | None = Field(
         default=None,
         description="Physical dimension metadata propagated onto the answer.",
     )
-    target_variable: Optional[str] = Field(
+    target_variable: str | None = Field(
         default=None,
         description="Target variable bound to the answer when known.",
     )
-    part_label: Optional[str] = Field(
+    part_label: str | None = Field(
         default=None,
         description="Named slot label for a child of a multi-part answer when the question defines distinct parts.",
     )
@@ -284,15 +289,15 @@ class PhysicsAnswerSemantics(_SemanticsModel):
         default_factory=tuple,
         description="Tensor-like shape metadata for structured numeric answers.",
     )
-    interval_open_left: Optional[bool] = Field(
+    interval_open_left: bool | None = Field(
         default=None,
         description="Whether an interval answer is open on the left endpoint.",
     )
-    interval_open_right: Optional[bool] = Field(
+    interval_open_right: bool | None = Field(
         default=None,
         description="Whether an interval answer is open on the right endpoint.",
     )
-    children: tuple["PhysicsAnswerSemantics", ...] = Field(
+    children: tuple[PhysicsAnswerSemantics, ...] = Field(
         default_factory=tuple,
         description="Child answer semantics for structured answers such as tuples or vectors.",
     )
@@ -300,27 +305,27 @@ class PhysicsAnswerSemantics(_SemanticsModel):
         default_factory=tuple,
         description="Piecewise branches pairing expressions with their activating conditions.",
     )
-    subject_to: tuple["PhysicsAnswerSemantics", ...] = Field(
+    subject_to: tuple[PhysicsAnswerSemantics, ...] = Field(
         default_factory=tuple,
         description="Global side conditions or constraints attached conjunctively to this answer.",
     )
-    choice_label: Optional[str] = Field(
+    choice_label: str | None = Field(
         default=None,
         description="Canonical label for multiple-choice answers.",
     )
-    boolean_value: Optional[bool] = Field(
+    boolean_value: bool | None = Field(
         default=None,
         description="Boolean interpretation when the answer is truth-valued.",
     )
-    sign_value: Optional[str] = Field(
+    sign_value: str | None = Field(
         default=None,
         description="Canonical sign or direction label when applicable.",
     )
-    coordinate_frame: Optional[str] = Field(
+    coordinate_frame: str | None = Field(
         default=None,
         description="Coordinate-frame metadata attached to the answer.",
     )
-    sign_convention: Optional[str] = Field(
+    sign_convention: str | None = Field(
         default=None,
         description="Sign-convention metadata attached to the answer.",
     )
@@ -333,12 +338,12 @@ class PhysicsAnswerSemantics(_SemanticsModel):
         default_factory=tuple,
         description="Non-fatal normalization or comparison diagnostics attached to the answer.",
     )
-    quantity_view: Optional[PhysicalQuantityView] = Field(
+    quantity_view: PhysicalQuantityView | None = Field(
         default=None,
         description="Deterministic parsed and canonical views for physical quantities.",
     )
 
-    def with_diagnostic(self, *messages: str) -> "PhysicsAnswerSemantics":
+    def with_diagnostic(self, *messages: str) -> PhysicsAnswerSemantics:
         """Return a copy extended with diagnostic messages."""
         return self.model_copy(
             update={"diagnostics": self.diagnostics + tuple(messages)}
@@ -365,15 +370,15 @@ class AnswerComparison(_SemanticsModel):
         default_factory=tuple,
         description="Diagnostic notes explaining mismatches or fallback paths.",
     )
-    validation_status: Optional[ContractValidationStatus] = Field(
+    validation_status: ContractValidationStatus | None = Field(
         default=None,
         description="Contract validation status that governed the final comparison path.",
     )
-    bridge_id: Optional[str] = Field(
+    bridge_id: str | None = Field(
         default=None,
         description="Named bridge that accepted the comparison when one was used.",
     )
-    bridge_tier: Optional[BridgeTier] = Field(
+    bridge_tier: BridgeTier | None = Field(
         default=None,
         description="Risk tier of the bridge that accepted the comparison when one was used.",
     )
@@ -382,7 +387,7 @@ class AnswerComparison(_SemanticsModel):
         description="Structured evidence explaining why a bridge was allowed.",
         json_schema_extra={"additionalProperties": False},
     )
-    policy_mode: Optional[ComparisonPolicyMode] = Field(
+    policy_mode: ComparisonPolicyMode | None = Field(
         default=None,
         description="Comparison policy mode in force for the verdict.",
     )

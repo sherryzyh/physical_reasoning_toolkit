@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -35,15 +35,15 @@ class SemanticsProblemRecord(_InferenceModel):
 
     problem_id: str = Field(description="Problem identifier.")
     question: str = Field(description="Problem question text.")
-    problem_type: Optional[str] = Field(
+    problem_type: str | None = Field(
         default=None,
         description="Problem type such as MC or OE.",
     )
-    domain: Optional[str] = Field(
+    domain: str | None = Field(
         default=None,
         description="Physics domain label when available.",
     )
-    language: Optional[str] = Field(
+    language: str | None = Field(
         default=None,
         description="Problem language code when available.",
     )
@@ -51,7 +51,7 @@ class SemanticsProblemRecord(_InferenceModel):
         default_factory=tuple,
         description="Multiple-choice options when present.",
     )
-    correct_option: Optional[int] = Field(
+    correct_option: int | None = Field(
         default=None,
         description="Zero-based correct-option index when available.",
     )
@@ -59,7 +59,7 @@ class SemanticsProblemRecord(_InferenceModel):
         default_factory=tuple,
         description="Attached image paths that were available during inference.",
     )
-    answer: Optional[str | dict[str, Any]] = Field(
+    answer: str | dict[str, Any] | None = Field(
         default=None,
         description=(
             "Dataset ground-truth answer when embedded, typically as plain source text "
@@ -71,11 +71,11 @@ class SemanticsProblemRecord(_InferenceModel):
 class SemanticsGeneratorInfo(_InferenceModel):
     """Metadata describing how an artifact was generated."""
 
-    provider: Optional[str] = Field(
+    provider: str | None = Field(
         default=None,
         description="Model-provider identifier such as openai or google.",
     )
-    model_name: Optional[str] = Field(
+    model_name: str | None = Field(
         default=None,
         description="Concrete model name used for generation.",
     )
@@ -84,7 +84,7 @@ class SemanticsGeneratorInfo(_InferenceModel):
     structured_output_mode: str = Field(
         description="json_schema, json_object, or prompt_only.",
     )
-    structured_output_strategy: Optional[str] = Field(
+    structured_output_strategy: str | None = Field(
         default=None,
         description="Provider-specific structured output strategy identifier.",
     )

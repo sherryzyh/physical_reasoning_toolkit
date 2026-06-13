@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, Final, List
+from typing import Any, Final
 
 # Aligned with the default grading prompt; extend alongside instruction changes.
-EXPECTED_ANSWER_TYPES: Final[List[str]] = [
+EXPECTED_ANSWER_TYPES: Final[list[str]] = [
     "numeric_value",
     "physical_quantity",
     "symbolic_expression",
@@ -18,7 +18,7 @@ EXPECTED_ANSWER_TYPES: Final[List[str]] = [
 
 JUDGE_VERDICT_SCHEMA_NAME: Final[str] = "llm_judge_verdict"
 
-RESPONSES_API_JUDGE_TEXT_FORMAT: Dict[str, Any] = {
+RESPONSES_API_JUDGE_TEXT_FORMAT: dict[str, Any] = {
     "type": "json_schema",
     "name": JUDGE_VERDICT_SCHEMA_NAME,
     "strict": True,
@@ -39,7 +39,7 @@ RESPONSES_API_JUDGE_TEXT_FORMAT: Dict[str, Any] = {
 }
 
 # Chat Completions API (json_schema) — used when Responses API rejects the prompt (moderation).
-CHAT_COMPLETIONS_JSON_SCHEMA_RESPONSE_FORMAT: Dict[str, Any] = {
+CHAT_COMPLETIONS_JSON_SCHEMA_RESPONSE_FORMAT: dict[str, Any] = {
     "type": "json_schema",
     "json_schema": {
         "name": JUDGE_VERDICT_SCHEMA_NAME,

@@ -34,7 +34,6 @@ from prkit.evaluation.utils.normalization import (
     normalize_text,
 )
 
-
 # =============================================================================
 # _normalize_unicode
 # =============================================================================
@@ -44,26 +43,26 @@ class TestNormalizeUnicode:
     """Tests for _normalize_unicode."""
 
     def test_unicode_minus_signs(self):
-        assert _normalize_unicode("5\u2212x") == "5-x"       # − MINUS SIGN
-        assert _normalize_unicode("5\u2013x") == "5-x"       # – EN DASH
-        assert _normalize_unicode("5\u2014x") == "5-x"       # — EM DASH
-        assert _normalize_unicode("5\u2010x") == "5-x"       # ‐ HYPHEN
-        assert _normalize_unicode("5\u2011x") == "5-x"       # ‑ NON-BREAKING HYPHEN
-        assert _normalize_unicode("5\uFF0Dx") == "5-x"       # ﹣ FULLWIDTH
+        assert _normalize_unicode("5\u2212x") == "5-x"  # − MINUS SIGN
+        assert _normalize_unicode("5\u2013x") == "5-x"  # – EN DASH
+        assert _normalize_unicode("5\u2014x") == "5-x"  # — EM DASH
+        assert _normalize_unicode("5\u2010x") == "5-x"  # ‐ HYPHEN
+        assert _normalize_unicode("5\u2011x") == "5-x"  # ‑ NON-BREAKING HYPHEN
+        assert _normalize_unicode("5\uff0dx") == "5-x"  # ﹣ FULLWIDTH
 
     def test_multiplication_division(self):
-        assert _normalize_unicode("3\u00d74") == r"3 \times 4"       # ×
-        assert _normalize_unicode("3\u00b74") == r"3 \cdot 4"       # · MIDDLE DOT
-        assert _normalize_unicode("3\u22c54") == r"3 \cdot 4"       # ⋅ DOT OPERATOR
-        assert _normalize_unicode("3\u22194") == r"3 \cdot 4"       # ∙ BULLET OPERATOR
-        assert _normalize_unicode("6\u00f72") == r"6 \div 2"       # ÷
+        assert _normalize_unicode("3\u00d74") == r"3 \times 4"  # ×
+        assert _normalize_unicode("3\u00b74") == r"3 \cdot 4"  # · MIDDLE DOT
+        assert _normalize_unicode("3\u22c54") == r"3 \cdot 4"  # ⋅ DOT OPERATOR
+        assert _normalize_unicode("3\u22194") == r"3 \cdot 4"  # ∙ BULLET OPERATOR
+        assert _normalize_unicode("6\u00f72") == r"6 \div 2"  # ÷
 
     def test_vulgar_fractions(self):
-        assert _normalize_unicode("\u00bd") == "1/2"         # ½
-        assert _normalize_unicode("\u2153") == "1/3"         # ⅓
-        assert _normalize_unicode("\u00bc") == "1/4"         # ¼
-        assert _normalize_unicode("\u00be") == "3/4"         # ¾
-        assert _normalize_unicode("\u215e") == "7/8"         # ⅞
+        assert _normalize_unicode("\u00bd") == "1/2"  # ½
+        assert _normalize_unicode("\u2153") == "1/3"  # ⅓
+        assert _normalize_unicode("\u00bc") == "1/4"  # ¼
+        assert _normalize_unicode("\u00be") == "3/4"  # ¾
+        assert _normalize_unicode("\u215e") == "7/8"  # ⅞
 
     def test_smart_quotes(self):
         assert _normalize_unicode("\u201chello\u201d") == '"hello"'
@@ -71,42 +70,42 @@ class TestNormalizeUnicode:
         assert _normalize_unicode("\u00abhi\u00bb") == '"hi"'
 
     def test_micro_sign_to_mu(self):
-        assert _normalize_unicode("\u00b5m") == "\u03bcm"    # µm → μm
+        assert _normalize_unicode("\u00b5m") == "\u03bcm"  # µm → μm
 
     def test_fullwidth_digits(self):
-        assert _normalize_unicode("\uFF11\uFF12\uFF13") == "123"
+        assert _normalize_unicode("\uff11\uff12\uff13") == "123"
 
     def test_fullwidth_letters(self):
-        assert _normalize_unicode("\uFF21\uFF22\uFF23") == "ABC"
-        assert _normalize_unicode("\uFF41\uFF42\uFF43") == "abc"
+        assert _normalize_unicode("\uff21\uff22\uff23") == "ABC"
+        assert _normalize_unicode("\uff41\uff42\uff43") == "abc"
 
     def test_fullwidth_punctuation(self):
-        assert _normalize_unicode("\uFF08x\uFF09") == "(x)"
-        assert _normalize_unicode("\uFF5Bk\uFF5D") == "{k}"
-        assert _normalize_unicode("a\uFF1Db") == "a=b"
+        assert _normalize_unicode("\uff08x\uff09") == "(x)"
+        assert _normalize_unicode("\uff5bk\uff5d") == "{k}"
+        assert _normalize_unicode("a\uff1db") == "a=b"
 
     def test_subscript_digits(self):
-        assert _normalize_unicode("x\u2082") == "x_2"        # x₂ → x_2
-        assert _normalize_unicode("H\u2082O") == "H_2O"      # H₂O → H_2O
-        assert _normalize_unicode("v\u2080") == "v_0"        # v₀ → v_0
+        assert _normalize_unicode("x\u2082") == "x_2"  # x₂ → x_2
+        assert _normalize_unicode("H\u2082O") == "H_2O"  # H₂O → H_2O
+        assert _normalize_unicode("v\u2080") == "v_0"  # v₀ → v_0
 
     def test_math_relational(self):
-        assert _normalize_unicode("a\u2264b") == r"a \leq b"      # ≤
-        assert _normalize_unicode("a\u2265b") == r"a \geq b"      # ≥
-        assert _normalize_unicode("a\u2260b") == r"a \neq b"      # ≠
+        assert _normalize_unicode("a\u2264b") == r"a \leq b"  # ≤
+        assert _normalize_unicode("a\u2265b") == r"a \geq b"  # ≥
+        assert _normalize_unicode("a\u2260b") == r"a \neq b"  # ≠
         assert _normalize_unicode("a\u2248b") == r"a\approx b"  # ≈
 
     def test_math_operators_and_propto(self):
-        assert _normalize_unicode("a\u00d7b") == r"a \times b"   # ×
-        assert _normalize_unicode("a\u00f7b") == r"a \div b"   # ÷
+        assert _normalize_unicode("a\u00d7b") == r"a \times b"  # ×
+        assert _normalize_unicode("a\u00f7b") == r"a \div b"  # ÷
         assert _normalize_unicode("a\u221db") == r"a \propto b"  # ∝
 
     def test_infinity_and_pm(self):
-        assert _normalize_unicode("\u221e") == r"\infty"          # ∞
-        assert _normalize_unicode("5\u00b13") == r"5 \pm 3"      # ±
+        assert _normalize_unicode("\u221e") == r"\infty"  # ∞
+        assert _normalize_unicode("5\u00b13") == r"5 \pm 3"  # ±
 
     def test_degree_sign(self):
-        assert _normalize_unicode("30\u00b0") == "30 deg"    # 30°
+        assert _normalize_unicode("30\u00b0") == "30 deg"  # 30°
 
     def test_idempotent(self):
         s = "3.14 m/s^2"
@@ -121,13 +120,16 @@ class TestUnicodeIntegrationNormalizeNumber:
     """Verify Unicode is eliminated before number parsing."""
 
     def test_unicode_minus_number(self):
-        assert normalize_number("5\u22123") == pytest.approx(-53) or normalize_number("\u22125") == -5.0
+        assert (
+            normalize_number("5\u22123") == pytest.approx(-53)
+            or normalize_number("\u22125") == -5.0
+        )
 
     def test_unicode_fraction_char(self):
         assert normalize_number("\u00bd") == pytest.approx(0.5)
 
     def test_fullwidth_digits(self):
-        assert normalize_number("\uFF14\uFF12") == 42.0
+        assert normalize_number("\uff14\uff12") == 42.0
 
 
 class TestUnicodeIntegrationNormalizeText:
@@ -137,7 +139,7 @@ class TestUnicodeIntegrationNormalizeText:
         assert normalize_text("\u201chello\u201d") == '"hello"'
 
     def test_fullwidth_in_text(self):
-        assert normalize_text("\uFF28ello") == "Hello"
+        assert normalize_text("\uff28ello") == "Hello"
 
 
 class TestUnicodeIntegrationNormalizeAnswer:
@@ -149,7 +151,7 @@ class TestUnicodeIntegrationNormalizeAnswer:
         assert val == pytest.approx(0.5)
 
     def test_fullwidth_integer(self):
-        cat, val = normalize_answer("\uFF14\uFF12")
+        cat, val = normalize_answer("\uff14\uff12")
         assert cat == AnswerCategory.NUMBER
         assert val == 42.0
 
@@ -159,7 +161,7 @@ class TestUnicodeIntegrationNormalizeAnswer:
         assert "9.8" in str(val)
 
     def test_unicode_minus_in_quantity(self):
-        cat, val = normalize_answer("\u221210 m/s")     # −10 m/s
+        cat, val = normalize_answer("\u221210 m/s")  # −10 m/s
         assert cat == AnswerCategory.PHYSICAL_QUANTITY
         assert "-10" in str(val)
 
@@ -499,8 +501,8 @@ class TestNormalizePhysicalQuantity:
         assert "-10000" in result
 
     def test_unicode_whitespace_normalized(self):
-        result = _normalize_physical_quantity("-10\u00A0\u3000m/s")
-        assert "\u00A0" not in result
+        result = _normalize_physical_quantity("-10\u00a0\u3000m/s")
+        assert "\u00a0" not in result
 
     def test_frac_in_units(self):
         result = _normalize_physical_quantity(r"1 \frac{\mathrm{kg}}{\mathrm{m}^3}")

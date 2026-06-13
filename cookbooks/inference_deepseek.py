@@ -15,15 +15,15 @@ Prerequisites:
 
 Usage:
     python cookbooks/inference_deepseek.py [model_name] [--prompt PROMPT]
-    
-    
+
+
 Examples:
     # Check if DeepSeek API key is configured
     python cookbooks/inference_deepseek.py --check
-    
+
     # Text inference with default model
     python cookbooks/inference_deepseek.py --prompt "What is quantum mechanics?"
-    
+
     # Text inference with specific model
     python cookbooks/inference_deepseek.py deepseek-chat --prompt "Explain quantum physics"
 """
@@ -35,9 +35,10 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from prkit.core import PRKitLogger
+
 # Import the model client
 from prkit.core.model_clients import create_model_client
-from prkit.core import PRKitLogger
 
 # Load environment variables from the repo root `.env`
 load_dotenv(Path(__file__).resolve().parents[1] / ".env", override=True)
@@ -51,18 +52,19 @@ def check_deepseek_status():
     logger.info("=" * 60)
     logger.info("Checking DeepSeek Configuration")
     logger.info("=" * 60)
-    
+
     # Check if API key is set
     api_key = os.environ.get("DEEPSEEK_API_KEY")
-    
+
     if api_key:
         # Mask the key for display
         masked_key = api_key[:8] + "..." + api_key[-4:] if len(api_key) > 12 else "***"
         logger.info(f"✅ DeepSeek API key is configured ({masked_key})")
-        
+
         # Try to verify OpenAI SDK is available (DeepSeek uses OpenAI-compatible API)
         try:
             from openai import OpenAI  # noqa: F401
+
             logger.info("✅ OpenAI SDK is available (required for DeepSeek)")
             logger.info("\n📋 Supported DeepSeek models:")
             logger.info("  • deepseek-chat (default, non-thinking mode)")
@@ -83,7 +85,9 @@ def check_deepseek_status():
         logger.error("❌ DeepSeek API key is not configured")
         logger.info("\n📋 To set up DeepSeek:")
         logger.info("  1. Get an API key from https://platform.deepseek.com/api_keys")
-        logger.info("  2. Set environment variable: `export DEEPSEEK_API_KEY=your_key_here`")
+        logger.info(
+            "  2. Set environment variable: `export DEEPSEEK_API_KEY=your_key_here`"
+        )
         logger.info("  3. Or add to .env file: `DEEPSEEK_API_KEY=your_key_here`")
         logger.info("  4. Install OpenAI SDK: `pip install openai`")
         return False
@@ -94,7 +98,7 @@ def run_inference(model_name: str, prompt: str, image_path: str = None):
     logger.info("=" * 60)
     logger.info("DeepSeek Inference")
     logger.info("=" * 60)
-    
+
     # Check DeepSeek status first
     logger.info("\n🔍 Checking DeepSeek configuration...")
     if not os.environ.get("DEEPSEEK_API_KEY"):
@@ -102,12 +106,14 @@ def run_inference(model_name: str, prompt: str, image_path: str = None):
         logger.info("💡 Set it with: `export DEEPSEEK_API_KEY=your_key_here`")
         sys.exit(1)
     logger.info("✅ DeepSeek API key is configured")
-    
+
     # Warn about image support
     if image_path:
         logger.warning("\n⚠️  Note: DeepSeek models do not support vision")
-        logger.warning("   Images will be ignored. Only text inference will be performed.")
-    
+        logger.warning(
+            "   Images will be ignored. Only text inference will be performed."
+        )
+
     # Create model client
     logger.info(f"\n🤖 Creating client for model: {model_name}")
     try:
@@ -115,34 +121,37 @@ def run_inference(model_name: str, prompt: str, image_path: str = None):
         logger.info(f"✅ Client created successfully (provider: {client.provider})")
     except ValueError as e:
         logger.error(f"❌ Model error: {e}")
-        logger.info(f"\n💡 Supported models: deepseek-chat, deepseek-reasoner")
+        logger.info("\n💡 Supported models: deepseek-chat, deepseek-reasoner")
         sys.exit(1)
     except Exception as e:
         logger.error(f"❌ Failed to create client: {e}")
         sys.exit(1)
-    
+
     # Run inference
-    logger.info(f"\n💬 Running inference...")
+    logger.info("\n💬 Running inference...")
     logger.info(f"   Prompt: {prompt}")
     if image_path:
-        logger.info(f"   ⚠️  Image provided but will be ignored (vision not supported)")
-    
+        logger.info("   ⚠️  Image provided but will be ignored (vision not supported)")
+
     try:
         # Note: image_paths parameter is accepted but images will be ignored
-        response = client.chat(user_prompt=prompt, image_paths=[image_path] if image_path else None)
-        
+        response = client.chat(
+            user_prompt=prompt, image_paths=[image_path] if image_path else None
+        )
+
         logger.info("\n" + "=" * 60)
         logger.info("Response:")
         logger.info("=" * 60)
         logger.info(response)
         logger.info("=" * 60)
         logger.info("✅ Inference completed successfully!")
-        
+
         return response
-        
+
     except Exception as e:
         logger.error(f"❌ Inference failed: {e}")
         import traceback
+
         logger.debug(traceback.format_exc())
         sys.exit(1)
 
@@ -156,18 +165,18 @@ def main():
 Examples:
   # Check DeepSeek configuration
   python cookbooks/inference_deepseek.py --check
-  
+
   # Simple text inference with default model
   python cookbooks/inference_deepseek.py --prompt "What is physics?"
-  
+
   # Custom model and prompt
   python cookbooks/inference_deepseek.py deepseek-chat --prompt "Explain quantum physics"
-  
+
   # Note: Vision inference is not supported
   # Images will be ignored if provided
-        """
+        """,
     )
-    
+
     parser.add_argument(
         "model",
         nargs="?",
@@ -192,14 +201,14 @@ Examples:
         action="store_true",
         help="Only check if DeepSeek is configured, then exit",
     )
-    
+
     args = parser.parse_args()
-    
+
     # If --check flag is set, only check status
     if args.check:
         success = check_deepseek_status()
         sys.exit(0 if success else 1)
-    
+
     # Otherwise, run inference
     run_inference(
         model_name=args.model,

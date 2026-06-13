@@ -3,34 +3,27 @@ Variable annotator for extracting variables from physics problems.
 """
 
 import json
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Union
+from dataclasses import dataclass
+from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from .base import BaseAnnotator
-from .domain_labeler import DomainLabeler
-from .theorem_detector import TheoremDetector
 
 
 @dataclass
 class VariableAnnotation:
     """Annotation for variables extracted from the problem."""
 
-    known_variables: Dict[str, Dict[str, Any]]
-    unknown_variables: Dict[str, Dict[str, Any]]
+    known_variables: dict[str, dict[str, Any]]
+    unknown_variables: dict[str, dict[str, Any]]
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary representation."""
         return {
             "known_variables": self.known_variables,
             "unknown_variables": self.unknown_variables,
         }
-
-
-from typing import Any, Dict, List, Optional, Union
-
-from pydantic import BaseModel, Field
 
 
 class VariableMetadata(BaseModel):
@@ -41,7 +34,7 @@ class VariableMetadata(BaseModel):
     known: bool = Field(
         description="Whether the variable value is given in the problem"
     )
-    value: Optional[Union[float, str]] = Field(
+    value: float | str | None = Field(
         default=None, description="Value if known, None if unknown"
     )
     unit: str = Field(default="", description="Unit of measurement")
@@ -51,7 +44,7 @@ class VariableMetadata(BaseModel):
 class VariableResponse(BaseModel):
     """Response model for variable extraction."""
 
-    variables: List[VariableMetadata] = Field(
+    variables: list[VariableMetadata] = Field(
         default_factory=list, description="List of all variables found in the problem"
     )
     problem_summary: str = Field(

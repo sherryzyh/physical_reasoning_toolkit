@@ -6,7 +6,7 @@ different comparators to evaluate answers.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional
+from typing import Any
 
 from prkit.core.domain.answer import Answer
 from prkit.evaluation.comparator.base import BaseComparator
@@ -15,10 +15,10 @@ from prkit.evaluation.comparator.base import BaseComparator
 class BaseEvaluator(ABC):
     """Base class for evaluators that use comparators."""
 
-    def __init__(self, comparator: Optional[BaseComparator] = None):
+    def __init__(self, comparator: BaseComparator | None = None):
         """
         Initialize the evaluator with a comparator.
-        
+
         Args:
             comparator: Comparator instance to use for comparing answers.
                        If None, a default comparator will be used.
@@ -27,19 +27,16 @@ class BaseEvaluator(ABC):
 
     @abstractmethod
     def evaluate(
-        self,
-        predicted_answer: Answer,
-        ground_truth_answer: Answer,
-        **kwargs: Any
-    ) -> Dict[str, Any]:
+        self, predicted_answer: Answer, ground_truth_answer: Answer, **kwargs: Any
+    ) -> dict[str, Any]:
         """
         Evaluate a predicted answer against a ground truth answer.
-        
+
         Args:
             predicted_answer: The predicted/student answer to evaluate
             ground_truth_answer: The ground truth/correct answer
             **kwargs: Additional arguments for evaluation
-            
+
         Returns:
             Dictionary containing evaluation results with keys such as:
             - accuracy_score: Accuracy score in [0, 1]
@@ -51,16 +48,16 @@ class BaseEvaluator(ABC):
     def set_comparator(self, comparator: BaseComparator) -> None:
         """
         Set or change the comparator used by this evaluator.
-        
+
         Args:
             comparator: Comparator instance to use
         """
         self.comparator = comparator
 
-    def get_comparator(self) -> Optional[BaseComparator]:
+    def get_comparator(self) -> BaseComparator | None:
         """
         Get the current comparator used by this evaluator.
-        
+
         Returns:
             The current comparator instance, or None if not set
         """

@@ -95,9 +95,19 @@ prkit = ["py.typed"]
 line-length = 88
 target-version = ['py310', 'py311', 'py312']
 
-[tool.isort]
-profile = "black"
-multi_line_output = 3
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+extend-exclude = ["legacy", "build", "dist", "htmlcov"]
+
+[tool.ruff.lint]
+# E501 (line length) is owned by black. Bugbear (B) is deferred to a later pass.
+select = ["E", "F", "I", "W", "UP"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+# __init__.py modules deliberately re-export names for the public API.
+"__init__.py" = ["F401"]
 
 [tool.mypy]
 python_version = "3.10"

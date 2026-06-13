@@ -7,15 +7,13 @@ and other components that need to reference the original papers.
 
 Usage:
     from prkit.datasets.citations import get_citation, CITATIONS
-    
+
     # Get citation for a specific dataset
     citation = get_citation("physreason")
-    
+
     # Access all citations
     all_citations = CITATIONS
 """
-
-from typing import Dict, Optional
 
 # PhysReason citation
 PHYSREASON_CITATION = """@inproceedings{zhang-etal-2025-physreason,
@@ -77,13 +75,13 @@ UGPHYSICS_CITATION = """@article{xu2025ugphysics,
 
 # PhyX citation
 PHYX_CITATION = """@misc{shen2025phyxdoesmodelwits,
-    title={PhyX: Does Your Model Have the "Wits" for Physical Reasoning?}, 
+    title={PhyX: Does Your Model Have the "Wits" for Physical Reasoning?},
     author={Hui Shen and Taiqiang Wu and Qi Han and Yunta Hsieh and Jizhou Wang and Yuyue Zhang and Yuxin Cheng and Zijian Hao and Yuansheng Ni and Xin Wang and Zhongwei Wan and Kai Zhang and Wendong Xu and Jing Xiong and Ping Luo and Wenhu Chen and Chaofan Tao and Zhuoqing Mao and Ngai Wong},
     year={2025},
     eprint={2505.15929},
     archivePrefix={arXiv},
     primaryClass={cs.AI},
-    url={https://arxiv.org/abs/2505.15929}, 
+    url={https://arxiv.org/abs/2505.15929},
 }"""
 
 # PHYSICS citation
@@ -111,7 +109,7 @@ PHYSICS_CITATION = """@inproceedings{feng-etal-2025-physics,
 }"""
 
 # Dictionary mapping dataset names to their citations
-CITATIONS: Dict[str, str] = {
+CITATIONS: dict[str, str] = {
     "physreason": PHYSREASON_CITATION,
     "physbench": PHYSBENCH_CITATION,
     "seephys": SEEPHYS_CITATION,
@@ -122,16 +120,16 @@ CITATIONS: Dict[str, str] = {
 }
 
 
-def get_citation(dataset_name: str) -> Optional[str]:
+def get_citation(dataset_name: str) -> str | None:
     """
     Get the citation for a specific dataset.
-    
+
     Args:
         dataset_name: Name of the dataset (e.g., "physreason", "seephys")
-        
+
     Returns:
         BibTeX citation string, or None if dataset not found
-        
+
     Examples:
         >>> citation = get_citation("physreason")
         >>> print(citation)
@@ -142,7 +140,7 @@ def get_citation(dataset_name: str) -> Optional[str]:
 def list_cited_datasets() -> list:
     """
     List all datasets that have citations available.
-    
+
     Returns:
         List of dataset names with citations
     """

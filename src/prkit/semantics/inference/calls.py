@@ -17,9 +17,11 @@ from prkit.core.model_clients.structured_output import (
     StructuredCallResult,
     StructuredOutputPolicy,
     build_json_schema_prompt_suffix,
-    extract_json_object as extract_structured_json_object,
     extract_json_payload,
     normalize_response_format,
+)
+from prkit.core.model_clients.structured_output import (
+    extract_json_object as extract_structured_json_object,
 )
 
 from ..comparison import (
@@ -61,9 +63,9 @@ from .prompts import (
 from .strict_models import (
     StrictPhysicsAnswerCaseSemantics,
     StrictPhysicsAnswerSemantics,
+    StrictPhysicsQuestionSemantics,
     StrictPredictionFinalAnswerResponse,
     StrictPredictionSemanticsResponse,
-    StrictPhysicsQuestionSemantics,
     StrictReferenceSemanticsResponse,
 )
 
@@ -502,10 +504,10 @@ def _run_structured_inference(
         repaired = _parse_response_model(response_model, result.raw_text)
         return repaired, result
     except ValueError:
-        if (
-            not require_native_json_schema
-            and result.structured_output_mode in {"prompt_only", "json_object"}
-        ):
+        if not require_native_json_schema and result.structured_output_mode in {
+            "prompt_only",
+            "json_object",
+        }:
             retry_raw_text = _retry_non_native_json_completion(
                 model_client,
                 prompt=prompt,
@@ -566,7 +568,9 @@ def _parse_response_model(response_model: type[BaseModel], raw_response: str):
     """Validate a raw model response against the expected Pydantic schema."""
 
     if raw_response is None:
-        raise ValueError(f"{response_model.__name__} inference returned no response text.")
+        raise ValueError(
+            f"{response_model.__name__} inference returned no response text."
+        )
 
     text = raw_response.strip()
     if not text:
@@ -624,9 +628,11 @@ def _normalize_response_payload(
         )
         answer_semantics = normalized.get("prediction_answer_semantics")
         if isinstance(answer_semantics, dict):
-            normalized["prediction_answer_semantics"] = _normalize_answer_semantics_payload(
-                answer_semantics,
-                path="prediction_answer_semantics",
+            normalized["prediction_answer_semantics"] = (
+                _normalize_answer_semantics_payload(
+                    answer_semantics,
+                    path="prediction_answer_semantics",
+                )
             )
             if "final_answer" not in normalized:
                 final_answer = _infer_final_answer_from_answer_semantics(
@@ -642,7 +648,9 @@ def _normalize_response_payload(
                 )
             )
         dropped_top_level = sorted(
-            set(payload) - set(normalized) - {"reference_answer_semantics", "reasoning_summary"}
+            set(payload)
+            - set(normalized)
+            - {"reference_answer_semantics", "reasoning_summary"}
         )
         if dropped_top_level:
             logger.debug(
@@ -668,9 +676,11 @@ def _normalize_response_payload(
         )
         answer_semantics = normalized.get("reference_answer_semantics")
         if isinstance(answer_semantics, dict):
-            normalized["reference_answer_semantics"] = _normalize_answer_semantics_payload(
-                answer_semantics,
-                path="reference_answer_semantics",
+            normalized["reference_answer_semantics"] = (
+                _normalize_answer_semantics_payload(
+                    answer_semantics,
+                    path="reference_answer_semantics",
+                )
             )
         dropped_top_level = sorted(
             set(payload) - set(normalized) - {"prediction_answer_semantics"}
@@ -811,7 +821,7 @@ def _normalize_answer_semantics_payload(payload: Any, *, path: str) -> Any:
             f"{key}={value}" for key, value in diagnostics.items()
         )
     elif isinstance(diagnostics, str):
-        normalized["diagnostics"] = (() if not diagnostics.strip() else (diagnostics,))
+        normalized["diagnostics"] = () if not diagnostics.strip() else (diagnostics,)
 
     for key in ("children", "subject_to"):
         value = normalized.get(key)
@@ -821,15 +831,13 @@ def _normalize_answer_semantics_payload(payload: Any, *, path: str) -> Any:
                 if key == "subject_to" and isinstance(item, str):
                     cleaned = item.strip()
                     normalized_items.append(
-                        (
-                            None
-                            if not cleaned
-                            else {
-                                "canonical_text": cleaned,
-                                "raw_text": cleaned,
-                                "object_kind": "relation",
-                            }
-                        )
+                        None
+                        if not cleaned
+                        else {
+                            "canonical_text": cleaned,
+                            "raw_text": cleaned,
+                            "object_kind": "relation",
+                        }
                     )
                     continue
                 normalized_items.append(
@@ -888,7 +896,9 @@ def _normalize_answer_case_payload(payload: Any, *, path: str) -> dict[str, Any]
     if not isinstance(payload, dict):
         return {}
 
-    normalized = {key: value for key, value in payload.items() if key in _STRICT_CASE_FIELDS}
+    normalized = {
+        key: value for key, value in payload.items() if key in _STRICT_CASE_FIELDS
+    }
     dropped_keys = sorted(set(payload) - set(normalized))
     if dropped_keys:
         logger.debug(
@@ -1103,10 +1113,7 @@ def _build_non_native_json_retry_prompt(
             "Keep `reasoning` to a brief 1-3 sentence summary, not a full derivation."
         )
     return (
-        prompt
-        + build_json_schema_prompt_suffix(schema)
-        + "\n"
-        + "\n".join(extra_lines)
+        prompt + build_json_schema_prompt_suffix(schema) + "\n" + "\n".join(extra_lines)
     )
 
 

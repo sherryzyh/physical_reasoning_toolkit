@@ -63,7 +63,9 @@ def _backfill_prediction_dir(source_dir: Path, *, output_dir: Path) -> None:
     results: list[dict[str, Any]] = []
 
     for index, (problem_id, path) in enumerate(sorted(artifacts.items()), start=1):
-        logger.info("[%s/%s] Backfilling prediction %s", index, len(artifacts), problem_id)
+        logger.info(
+            "[%s/%s] Backfilling prediction %s", index, len(artifacts), problem_id
+        )
         artifact = load_prediction_semantics_artifact(path)
         enriched = artifact.model_copy(
             update={
@@ -96,7 +98,9 @@ def _backfill_reference_dir(source_dir: Path, *, output_dir: Path) -> None:
     results: list[dict[str, Any]] = []
 
     for index, (problem_id, path) in enumerate(sorted(artifacts.items()), start=1):
-        logger.info("[%s/%s] Backfilling reference %s", index, len(artifacts), problem_id)
+        logger.info(
+            "[%s/%s] Backfilling reference %s", index, len(artifacts), problem_id
+        )
         artifact = load_reference_semantics_artifact(path)
         enriched = artifact.model_copy(
             update={
@@ -125,7 +129,9 @@ def _backfill_reference_dir(source_dir: Path, *, output_dir: Path) -> None:
 
 
 def _backfill_evaluation_dir(source_dir: Path, *, output_dir: Path) -> None:
-    source_problem_dir = source_dir / "problems" if (source_dir / "problems").is_dir() else source_dir
+    source_problem_dir = (
+        source_dir / "problems" if (source_dir / "problems").is_dir() else source_dir
+    )
     output_problem_dir = output_dir / "problems"
     output_problem_dir.mkdir(parents=True, exist_ok=True)
 
@@ -139,7 +145,9 @@ def _backfill_evaluation_dir(source_dir: Path, *, output_dir: Path) -> None:
         source_records.append((path, record))
 
     for index, (path, record) in enumerate(source_records, start=1):
-        logger.info("[%s/%s] Backfilling evaluation %s", index, len(source_records), path.stem)
+        logger.info(
+            "[%s/%s] Backfilling evaluation %s", index, len(source_records), path.stem
+        )
         enriched = record.model_copy(
             update={
                 "reference_answer_semantics": enrich_answer_quantity_views(

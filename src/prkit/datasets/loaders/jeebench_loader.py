@@ -34,7 +34,7 @@ Citation:
 import json
 import random
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from prkit.core import PRKitLogger
 from prkit.core.domain import PhysicalDataset
@@ -58,7 +58,7 @@ class JEEBenchLoader(BaseDatasetLoader):
     def description(self) -> str:
         return "JEEBench: JEE Advanced examination problems across Physics, Chemistry, and Mathematics"
 
-    def get_info(self) -> Dict[str, Any]:
+    def get_info(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "description": self.description,
@@ -77,7 +77,7 @@ class JEEBenchLoader(BaseDatasetLoader):
         }
 
     @property
-    def field_mapping(self) -> Dict[str, str]:
+    def field_mapping(self) -> dict[str, str]:
         """
         Define field mapping from JEEBench fields to standard PRKit fields.
 
@@ -93,10 +93,10 @@ class JEEBenchLoader(BaseDatasetLoader):
 
     def load(
         self,
-        data_dir: Union[str, Path, None] = None,
-        variant: Optional[str] = None,
-        split: Optional[str] = None,
-        sample_size: Optional[int] = None,
+        data_dir: str | Path | None = None,
+        variant: str | None = None,
+        split: str | None = None,
+        sample_size: int | None = None,
         **kwargs,
     ) -> PhysicalDataset:
         """
@@ -122,7 +122,7 @@ class JEEBenchLoader(BaseDatasetLoader):
             split = self.get_default_split() or "test"
         if variant is None:
             variant = self.get_default_variant() or "full"
-        
+
         # Validate variant and split
         self.validate_variant(variant)
         self.validate_split(split)
@@ -141,7 +141,7 @@ class JEEBenchLoader(BaseDatasetLoader):
 
         # Load and parse the JSON data
         try:
-            with open(dataset_file, "r", encoding="utf-8") as f:
+            with open(dataset_file, encoding="utf-8") as f:
                 data = json.load(f)
         except json.JSONDecodeError as e:
             raise ValueError(f"Invalid JSON in JEEBench dataset: {e}")
@@ -186,8 +186,8 @@ class JEEBenchLoader(BaseDatasetLoader):
         )
 
     def _apply_filters(
-        self, data: List[Dict[str, Any]], subject: Optional[str]
-    ) -> List[Dict[str, Any]]:
+        self, data: list[dict[str, Any]], subject: str | None
+    ) -> list[dict[str, Any]]:
         """Apply subject and question type filters to the data."""
         filtered_data = data
 
@@ -204,7 +204,7 @@ class JEEBenchLoader(BaseDatasetLoader):
 
         return filtered_data
 
-    def _process_metadata(self, metadata: Dict[str, Any]) -> Dict[str, Any]:
+    def _process_metadata(self, metadata: dict[str, Any]) -> dict[str, Any]:
         # "type": "problem_type",
 
         """Process metadata to create standardized problem fields."""
@@ -248,7 +248,7 @@ class JEEBenchLoader(BaseDatasetLoader):
 
         return metadata
 
-    def _extract_options_from_question(self, question: str) -> List[str]:
+    def _extract_options_from_question(self, question: str) -> list[str]:
         """
         Extract multiple choice options from the question text.
 
@@ -284,8 +284,8 @@ class JEEBenchLoader(BaseDatasetLoader):
         return options
 
     def get_subject_statistics(
-        self, data_dir: Union[str, Path, None] = None
-    ) -> Dict[str, Any]:
+        self, data_dir: str | Path | None = None
+    ) -> dict[str, Any]:
         """Get statistics about the JEEBench dataset by subject and question type."""
         try:
             # Load the dataset without filters
@@ -318,9 +318,7 @@ class JEEBenchLoader(BaseDatasetLoader):
             self.logger.error(f"Error getting statistics: {e}")
             return {}
 
-    def list_available_subjects(
-        self, data_dir: Union[str, Path, None] = None
-    ) -> List[str]:
+    def list_available_subjects(self, data_dir: str | Path | None = None) -> list[str]:
         """List all available subjects in the JEEBench dataset."""
         try:
             dataset = self.load(data_dir=data_dir, split="test")

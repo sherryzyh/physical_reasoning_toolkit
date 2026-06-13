@@ -2,7 +2,6 @@
 Base annotator class for physical problem annotation.
 """
 
-import os
 from abc import ABC, abstractmethod
 from typing import Any
 
@@ -73,7 +72,9 @@ class BaseAnnotator(ABC):
                     return response_format(**response_dict)
                 return None
 
-            response_text = self.llm_client.chat(full_prompt, response_format=response_format)
+            response_text = self.llm_client.chat(
+                full_prompt, response_format=response_format
+            )
             if response_text:
                 import json
 

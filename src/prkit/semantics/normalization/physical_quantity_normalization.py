@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import math
 import re
-from typing import Dict, List, Optional, Tuple
 
 from ..units import UNIT_ALIASES as _UNIT_ALIASES
 from ..units import UNIT_TO_BASE as _UNIT_TO_BASE
@@ -71,7 +70,9 @@ def _replace_superscript_exponents(text: str) -> str:
     )
 
 
-def _canonicalize_quantity_string(text: str, *, normalize_ohm_symbol: bool = True) -> str:
+def _canonicalize_quantity_string(
+    text: str, *, normalize_ohm_symbol: bool = True
+) -> str:
     """Normalize Unicode and lightweight LaTeX variants in quantity text."""
 
     text = text.strip()
@@ -144,7 +145,9 @@ def normalize_number(answer_str: str) -> float:
 
     fraction_match = _FRAC_LATEX_PATTERN.fullmatch(cleaned.strip())
     if fraction_match:
-        fraction_str = f"{fraction_match.group(1).strip()}/{fraction_match.group(2).strip()}"
+        fraction_str = (
+            f"{fraction_match.group(1).strip()}/{fraction_match.group(2).strip()}"
+        )
         value = _parse_numeric_base(fraction_str)
         return value if value is not None else float("nan")
 
@@ -181,7 +184,7 @@ def _canonicalize_unit_alias(token: str) -> str:
     return canonicalize_unit_alias(token)
 
 
-def _split_unit_exponent(token: str) -> Tuple[str, int]:
+def _split_unit_exponent(token: str) -> tuple[str, int]:
     """Split one unit token into its base symbol and integer exponent."""
 
     token = _replace_superscript_exponents(token.strip())
@@ -192,7 +195,7 @@ def _split_unit_exponent(token: str) -> Tuple[str, int]:
     return token, 1
 
 
-def _parse_unit_expression(unit_raw: str) -> List[Tuple[int, str, int]]:
+def _parse_unit_expression(unit_raw: str) -> list[tuple[int, str, int]]:
     """Parse a compound unit string into signed unit factors."""
 
     text = _canonicalize_quantity_unit_text(unit_raw)
@@ -203,11 +206,13 @@ def _parse_unit_expression(unit_raw: str) -> List[Tuple[int, str, int]]:
     if not text:
         return []
 
-    terms: List[Tuple[int, str, int]] = []
+    terms: list[tuple[int, str, int]] = []
     for index, side in enumerate(text.split("/")):
         sign = 1 if index == 0 else -1
-        raw_tokens = [raw_token.strip() for raw_token in side.split("*") if raw_token.strip()]
-        collapsed_tokens: List[str] = []
+        raw_tokens = [
+            raw_token.strip() for raw_token in side.split("*") if raw_token.strip()
+        ]
+        collapsed_tokens: list[str] = []
         token_index = 0
         while token_index < len(raw_tokens):
             if token_index + 1 < len(raw_tokens):
@@ -230,7 +235,7 @@ def _parse_unit_expression(unit_raw: str) -> List[Tuple[int, str, int]]:
     return terms
 
 
-def _normalize_unit_expression(unit_raw: str) -> Tuple[float, str]:
+def _normalize_unit_expression(unit_raw: str) -> tuple[float, str]:
     """Project a unit expression onto canonical base symbols and a scale factor."""
 
     terms = _parse_unit_expression(unit_raw)
@@ -238,22 +243,24 @@ def _normalize_unit_expression(unit_raw: str) -> Tuple[float, str]:
         return 1.0, re.sub(r"\s+", " ", unit_raw).strip()
 
     total_scale = 1.0
-    net_exponents: Dict[str, int] = {}
+    net_exponents: dict[str, int] = {}
     for sign, symbol, exponent in terms:
         base_symbol, factor = _UNIT_TO_BASE.get(symbol, (symbol, 1.0))
         signed_exponent = exponent if sign > 0 else -exponent
         total_scale *= factor**signed_exponent
         net_exponents[base_symbol] = net_exponents.get(base_symbol, 0) + signed_exponent
 
-    numerator_parts: List[str] = []
-    denominator_parts: List[str] = []
+    numerator_parts: list[str] = []
+    denominator_parts: list[str] = []
     for symbol in sorted(net_exponents):
         net = net_exponents[symbol]
         if net > 0:
             numerator_parts.append(symbol if net == 1 else f"{symbol}^{net}")
         elif net < 0:
             denom_exp = -net
-            denominator_parts.append(symbol if denom_exp == 1 else f"{symbol}^{denom_exp}")
+            denominator_parts.append(
+                symbol if denom_exp == 1 else f"{symbol}^{denom_exp}"
+            )
 
     if not numerator_parts:
         numerator_parts = ["1"]
@@ -266,7 +273,7 @@ def _normalize_unit_expression(unit_raw: str) -> Tuple[float, str]:
     return total_scale, unit_str
 
 
-def _split_numeric_and_unit(text: str) -> Optional[Tuple[str, str]]:
+def _split_numeric_and_unit(text: str) -> tuple[str, str] | None:
     """Split a quantity surface into its numeric and unit substrings."""
 
     compact = _canonicalize_quantity_string(text).strip()
@@ -282,7 +289,7 @@ def _split_numeric_and_unit(text: str) -> Optional[Tuple[str, str]]:
     return numeric_part, unit_part
 
 
-def _evaluate_numeric_expression(numeric_part: str) -> Optional[float]:
+def _evaluate_numeric_expression(numeric_part: str) -> float | None:
     """Evaluate the numeric portion of a quantity surface."""
 
     text = _canonicalize_quantity_string(numeric_part).replace(" ", "")
@@ -328,7 +335,9 @@ def _canonicalize_quantity_unit_text(
     """Normalize LaTeX-heavy unit text into a parser-friendly unit surface."""
 
     normalized = str(text)
-    normalized = re.sub(r"\\mathring\s*\{\s*\\mathrm\s*\{\s*A\s*\}\s*\}", " angstrom ", normalized)
+    normalized = re.sub(
+        r"\\mathring\s*\{\s*\\mathrm\s*\{\s*A\s*\}\s*\}", " angstrom ", normalized
+    )
     normalized = re.sub(r"\\mathring\s*\{\s*A\s*\}", " angstrom ", normalized)
     normalized = re.sub(r"\\AA\b", " angstrom ", normalized)
     normalized = re.sub(r"\\angstrom\b", " angstrom ", normalized)
@@ -344,7 +353,9 @@ def _canonicalize_quantity_unit_text(
     normalized = normalized.replace("~", " ")
     normalized = re.sub(r"\\mu(?=\s*[A-Za-z])", "μ", normalized)
     normalized = re.sub(r"(?<![A-Za-z])(μ|u)\s+(?=[A-Za-z])", r"\1", normalized)
-    normalized = re.sub(r"\\(?:mathrm|textrm|text|operatorname)\s*\{([^{}]*)\}", r"\1", normalized)
+    normalized = re.sub(
+        r"\\(?:mathrm|textrm|text|operatorname)\s*\{([^{}]*)\}", r"\1", normalized
+    )
     return re.sub(r"\s+", " ", normalized).strip()
 
 
@@ -391,7 +402,9 @@ def _try_parse_relation_wrapped_quantity(
     rhs_text = match.group("rhs").strip()
     if not _looks_like_relation_wrapped_target(lhs_text):
         return None
-    parsed_rhs = _try_parse_physical_quantity(_strip_quantity_approximation_prefix(rhs_text))
+    parsed_rhs = _try_parse_physical_quantity(
+        _strip_quantity_approximation_prefix(rhs_text)
+    )
     if parsed_rhs is None:
         return None
     return parsed_rhs, lhs_text
@@ -420,7 +433,7 @@ def _is_valid_unit_string(unit_raw: str) -> bool:
     )
 
 
-def _try_parse_physical_quantity(clean_str: str) -> Optional[str]:
+def _try_parse_physical_quantity(clean_str: str) -> str | None:
     """Normalize a raw quantity surface into canonical ``value unit`` text."""
 
     text = _UNICODE_WHITESPACE.sub(" ", clean_str).strip()
@@ -450,10 +463,12 @@ def _try_parse_physical_quantity(clean_str: str) -> Optional[str]:
     unit_scale, canonical_unit = _normalize_unit_expression(unit_raw)
     numeric_value *= unit_scale
     source_hint = numeric_part if unit_scale == 1.0 else None
-    return f"{_format_numeric_value(numeric_value, source_hint)} {canonical_unit}".strip()
+    return (
+        f"{_format_numeric_value(numeric_value, source_hint)} {canonical_unit}".strip()
+    )
 
 
-def _try_parse_number_only(clean_math: str) -> Optional[float]:
+def _try_parse_number_only(clean_math: str) -> float | None:
     """Parse numeric math text that does not carry an explicit unit."""
 
     text = _canonicalize_quantity_string(clean_math)
@@ -476,7 +491,7 @@ def _normalize_physical_quantity(clean_str: str) -> str:
     return re.sub(r"\s+", " ", _canonicalize_quantity_string(clean_str)).strip()
 
 
-def parse_physical_quantity(text: str) -> tuple[Optional[float], str, str]:
+def parse_physical_quantity(text: str) -> tuple[float | None, str, str]:
     """Parse a normalized physical quantity as ``(numeric_value, unit, numeric_text)``."""
 
     stripped = str(text).strip()
@@ -523,7 +538,9 @@ def synthesize_quantity_latex(
         return f"{numeric}\\,\\Omega"
 
     escaped_unit = unit_text.replace("%", r"\%")
-    scientific_match = re.fullmatch(r"([+-]?\d+(?:\.\d+)?)e([+-]?\d+)", numeric, re.IGNORECASE)
+    scientific_match = re.fullmatch(
+        r"([+-]?\d+(?:\.\d+)?)e([+-]?\d+)", numeric, re.IGNORECASE
+    )
     if scientific_match:
         coefficient = scientific_match.group(1)
         exponent = int(scientific_match.group(2))

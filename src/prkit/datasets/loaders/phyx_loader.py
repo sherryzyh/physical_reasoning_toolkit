@@ -10,11 +10,11 @@ For citation information, see prkit.datasets.citations.
 import json
 import random
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from prkit.core import PRKitLogger
-from prkit.core.domain.physics_domain import PhysicsDomain
 from prkit.core.domain import PhysicalDataset
+from prkit.core.domain.physics_domain import PhysicsDomain
 
 from .base_loader import BaseDatasetLoader
 
@@ -26,9 +26,9 @@ class PhyXLoader(BaseDatasetLoader):
         """Initialize the PhyX loader with a logger."""
         super().__init__()
         self.logger = PRKitLogger.get_logger(__name__)
-        
+
     @property
-    def modalities(self) -> List[str]:
+    def modalities(self) -> list[str]:
         """PhyX supports both text and image modalities."""
         return ["text", "image"]
 
@@ -40,7 +40,7 @@ class PhyXLoader(BaseDatasetLoader):
     def description(self) -> str:
         return "PhyX: A large-scale benchmark for physics-grounded reasoning in visual scenarios"
 
-    def get_info(self) -> Dict[str, Any]:
+    def get_info(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "description": self.description,
@@ -66,7 +66,7 @@ class PhyXLoader(BaseDatasetLoader):
         }
 
     @property
-    def field_mapping(self) -> Dict[str, str]:
+    def field_mapping(self) -> dict[str, str]:
         return {
             "id": "problem_id",
             "question": "question",
@@ -79,7 +79,7 @@ class PhyXLoader(BaseDatasetLoader):
         }
 
     @property
-    def DOMAIN_MAPPING(self) -> Dict[str, str]:
+    def DOMAIN_MAPPING(self) -> dict[str, str]:
         """Mapping of domain names to PhysicsDomain enum values."""
         # Note: Wave/Acoustics maps to OTHER since WAVE_ACOUSTICS is not yet in PhysicsDomain
         # This may need to be updated if WAVE_ACOUSTICS is added to the enum
@@ -100,16 +100,16 @@ class PhyXLoader(BaseDatasetLoader):
             "modern_physics": PhysicsDomain.MODERN_PHYSICS,
         }
 
-    def _process_metadata(self, metadata: Dict[str, Any]) -> Dict[str, Any]:
+    def _process_metadata(self, metadata: dict[str, Any]) -> dict[str, Any]:
         """Process metadata to create standardized problem fields."""
-        
+
         # Combine question and question_description
         question = metadata.get("question", "")
         question_description = metadata.get("question_description", "")
         if question_description and question_description.strip():
-            question = question_description.strip() + "\n\n" + question 
+            question = question_description.strip() + "\n\n" + question
         metadata["question"] = question
-        
+
         # Map domain
         domain = metadata.get("domain")
         if domain:
@@ -152,10 +152,10 @@ class PhyXLoader(BaseDatasetLoader):
 
     def load(
         self,
-        data_dir: Union[str, Path, None] = None,
-        variant: Optional[str] = None,
-        sample_size: Optional[int] = None,
-        split: Optional[str] = None,
+        data_dir: str | Path | None = None,
+        variant: str | None = None,
+        sample_size: int | None = None,
+        split: str | None = None,
         **kwargs,
     ) -> PhysicalDataset:
         """
@@ -176,7 +176,7 @@ class PhyXLoader(BaseDatasetLoader):
             variant = self.get_default_variant() or "test_mini"
         if split is None:
             split = self.get_default_split() or "test_mini"
-        
+
         # Validate variant and split
         self.validate_variant(variant)
         self.validate_split(split)
@@ -203,7 +203,7 @@ class PhyXLoader(BaseDatasetLoader):
                 json_file = json_files[0]
 
         # Load the JSON data
-        with open(json_file, "r", encoding="utf-8") as f:
+        with open(json_file, encoding="utf-8") as f:
             data = json.load(f)
 
         # Convert to unified format
@@ -214,9 +214,9 @@ class PhyXLoader(BaseDatasetLoader):
         for idx, problem_data in enumerate(data):
             try:
                 metadata = self.initialize_metadata(problem_data)
-                
+
                 metadata = self._process_metadata(metadata)
-                
+
                 # Ensure problem_id exists
                 if "problem_id" not in metadata or not metadata["problem_id"]:
                     metadata["problem_id"] = f"phyx_{split}_{idx}"

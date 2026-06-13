@@ -69,7 +69,9 @@ def test_quantity_unit_aliases_and_relation_wrappers_normalize_to_semantics() ->
     assert wavelength.quantity_view.canonical is not None
     assert wavelength.quantity_view.source.unit == "angstrom"
     assert wavelength.quantity_view.canonical.unit == "m"
-    assert wavelength.quantity_view.canonical.canonical_text == wavelength.canonical_text
+    assert (
+        wavelength.quantity_view.canonical.canonical_text == wavelength.canonical_text
+    )
 
     assert wavelength_aa.canonical_text == "1e-7 m"
     assert wavelength_aa.unit == "m"
@@ -90,7 +92,9 @@ def test_quantity_unit_aliases_and_relation_wrappers_normalize_to_semantics() ->
     assert time.canonical_latex == r"$t=5$ s"
 
 
-def test_dimension_standard_quantity_normalization_populates_canonical_top_level_fields() -> None:
+def test_dimension_standard_quantity_normalization_populates_canonical_top_level_fields() -> (
+    None
+):
     context = QuestionContext(dimension="acceleration")
     answer = normalize_physics_answer("3.20×10^2 cm s^-2", context=context)
 
@@ -138,7 +142,10 @@ def test_infinite_endpoint_interval_is_not_downgraded_to_tuple() -> None:
     interval_answer = normalize_physics_answer(r"(-\infty, 22.8)")
 
     assert interval_answer.structure == AnswerStructure.INTERVAL
-    assert [child.canonical_text for child in interval_answer.children] == ["-oo", "22.8"]
+    assert [child.canonical_text for child in interval_answer.children] == [
+        "-oo",
+        "22.8",
+    ]
     assert interval_answer.interval_open_left is True
     assert interval_answer.interval_open_right is True
 
@@ -291,7 +298,11 @@ def test_fixed_question_unit_allows_bare_number_but_required_unit_does_not() -> 
     [
         ("p_fig", "What is the current in Fig. 9.2?", "4.0 A"),
         ("p_region", "What is the field in Region II?", "3.0 T"),
-        ("p_series", "A battery is connected in series with a resistor. Find the current.", "2.0 A"),
+        (
+            "p_series",
+            "A battery is connected in series with a resistor. Find the current.",
+            "2.0 A",
+        ),
         ("p_space", "What is the potential in space around the charge?", "7.5 V"),
         ("p_circular", "What is the speed in circular motion?", "6.0 m/s"),
     ],
@@ -314,22 +325,30 @@ def test_infer_question_context_rejects_prose_after_in_keyword(
     assert context.question_unit_policy == QuestionUnitPolicy.REQUIRED
 
 
-def test_infer_question_context_drops_stopword_targets_but_keeps_symbol_targets() -> None:
+def test_infer_question_context_drops_stopword_targets_but_keeps_symbol_targets() -> (
+    None
+):
     prose_problems = [
         PhysicsProblem(
             problem_id="p_stopword_the",
             question="What is the magnitude of the force on the block?",
-            answer=Answer(value="25 N", answer_category=AnswerCategory.PHYSICAL_QUANTITY),
+            answer=Answer(
+                value="25 N", answer_category=AnswerCategory.PHYSICAL_QUANTITY
+            ),
         ),
         PhysicsProblem(
             problem_id="p_stopword_all",
             question="What is all?",
-            answer=Answer(value="25 N", answer_category=AnswerCategory.PHYSICAL_QUANTITY),
+            answer=Answer(
+                value="25 N", answer_category=AnswerCategory.PHYSICAL_QUANTITY
+            ),
         ),
         PhysicsProblem(
             problem_id="p_stopword_which",
             question="What is which?",
-            answer=Answer(value="25 N", answer_category=AnswerCategory.PHYSICAL_QUANTITY),
+            answer=Answer(
+                value="25 N", answer_category=AnswerCategory.PHYSICAL_QUANTITY
+            ),
         ),
     ]
     symbol_problem = PhysicsProblem(
@@ -496,9 +515,7 @@ def test_problem_answer_parts_take_precedence() -> None:
 
 
 def test_dataset_backed_relation_and_multi_part_strings() -> None:
-    relation_answer = normalize_physics_answer(
-        r"${\frac{2}{3}}{\sqrt{3}}\leq n<2$"
-    )
+    relation_answer = normalize_physics_answer(r"${\frac{2}{3}}{\sqrt{3}}\leq n<2$")
     multipart_answer = normalize_problem_answer(
         PhysicsProblem(
             problem_id="ugphysics-628",
@@ -545,7 +562,9 @@ def test_matrix_embedded_in_prose_normalizes_from_nested_brackets() -> None:
 
     assert matrix_answer.structure == AnswerStructure.MATRIX
     assert matrix_answer.shape == (2, 2)
-    assert [[cell.canonical_text for cell in row.children] for row in matrix_answer.children] == [
+    assert [
+        [cell.canonical_text for cell in row.children] for row in matrix_answer.children
+    ] == [
         ["2*a", "0"],
         ["0", "2*b"],
     ]

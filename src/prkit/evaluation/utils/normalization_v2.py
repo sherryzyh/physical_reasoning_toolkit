@@ -10,19 +10,12 @@
 
 import warnings
 
-warnings.warn(
-    "prkit.evaluation.utils.normalization_v2 is deprecated and will be removed in a "
-    "future release; import from prkit.evaluation.utils.normalization instead.",
-    DeprecationWarning,
-    stacklevel=2,
-)
-
 from .normalization import (
     _FRAC_LATEX_PATTERN,
     _FRACTION_RE,
     _FRACTION_TOKEN,
-    _NUMERIC_PREFIX_RE,
     _NUM_TOKEN,
+    _NUMERIC_PREFIX_RE,
     _POWER_RE,
     _POWER_TOKEN,
     _QUANTITY_PATTERN,
@@ -59,6 +52,13 @@ from .normalization import (
     normalize_expression,
     normalize_number,
     normalize_text,
+)
+
+warnings.warn(
+    "prkit.evaluation.utils.normalization_v2 is deprecated and will be removed in a "
+    "future release; import from prkit.evaluation.utils.normalization instead.",
+    DeprecationWarning,
+    stacklevel=2,
 )
 
 __all__ = [

@@ -7,7 +7,7 @@ It can be composed into larger annotation workflows.
 """
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from prkit.annotation.workers import TheoremDetector
 from prkit.core.domain.physics_problem import PhysicsProblem
@@ -32,7 +32,7 @@ class ReviewTheoremModule(BaseWorkflowModule):
         self,
         name: str = "theorem_reviewer",
         model: str = "o3-mini",
-        config: Optional[Dict[str, Any]] = None,
+        config: dict[str, Any] | None = None,
     ):
         super().__init__(name, model, config)
 
@@ -306,12 +306,12 @@ class ReviewTheoremModule(BaseWorkflowModule):
 
     def _review_single_theorem(
         self,
-        theorem: Dict[str, Any],
+        theorem: dict[str, Any],
         problem_question: str,
         problem_solution: str,
         theorem_index: int,
         total_theorems: int,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Review a single theorem with human feedback.
 
@@ -448,7 +448,7 @@ class ReviewTheoremModule(BaseWorkflowModule):
 
         return reviewed_theorem
 
-    def _get_human_feedback(self, prompt: str, valid_responses: List[str]) -> str:
+    def _get_human_feedback(self, prompt: str, valid_responses: list[str]) -> str:
         """
         Get human feedback with input validation.
 
@@ -496,7 +496,7 @@ class ReviewTheoremModule(BaseWorkflowModule):
             }
         )
 
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         """Get current module status with safety checks."""
         # Ensure all generic fields exist before returning status
         self.module_status.setdefault("total_problems", 0)

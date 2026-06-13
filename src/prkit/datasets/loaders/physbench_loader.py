@@ -8,7 +8,7 @@ import json
 import random
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
 
 from prkit.core import PRKitLogger
 from prkit.core.domain import PhysicalDataset
@@ -20,7 +20,7 @@ class PhysBenchLoader(BaseDatasetLoader):
     """Loader for the PhysBench benchmark."""
 
     JSON_FILENAME = "test.json"
-    VARIANT_TO_MODE: Dict[str, Optional[str]] = {
+    VARIANT_TO_MODE: dict[str, str | None] = {
         "full": None,
         "general": "general",
         "image_only": "image-only",
@@ -46,18 +46,18 @@ class PhysBenchLoader(BaseDatasetLoader):
         )
 
     @property
-    def modalities(self) -> List[str]:
+    def modalities(self) -> list[str]:
         """PhysBench uses text, image, and video inputs."""
         return ["text", "image", "video"]
 
     @property
-    def field_mapping(self) -> Dict[str, str]:
+    def field_mapping(self) -> dict[str, str]:
         return {
             "idx": "problem_id",
             "answer": "answer",
         }
 
-    def get_info(self) -> Dict[str, Any]:
+    def get_info(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "description": self.description,
@@ -98,10 +98,10 @@ class PhysBenchLoader(BaseDatasetLoader):
 
     def load(
         self,
-        data_dir: Union[str, Path, None] = None,
-        variant: Optional[str] = None,
-        split: Optional[str] = None,
-        sample_size: Optional[int] = None,
+        data_dir: str | Path | None = None,
+        variant: str | None = None,
+        split: str | None = None,
+        sample_size: int | None = None,
         **kwargs,
     ) -> PhysicalDataset:
         """
@@ -133,7 +133,7 @@ class PhysBenchLoader(BaseDatasetLoader):
                 "Expected the benchmark metadata at PhysBench/test.json."
             )
 
-        with open(json_file, "r", encoding="utf-8") as handle:
+        with open(json_file, encoding="utf-8") as handle:
             records = json.load(handle)
 
         if not isinstance(records, list):
@@ -193,10 +193,10 @@ class PhysBenchLoader(BaseDatasetLoader):
 
     def _filter_records(
         self,
-        records: List[Dict[str, Any]],
+        records: list[dict[str, Any]],
         variant: str,
         split: str,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         selected_mode = self.VARIANT_TO_MODE[variant]
 
         filtered = records
@@ -210,9 +210,9 @@ class PhysBenchLoader(BaseDatasetLoader):
 
     def _process_metadata(
         self,
-        metadata: Dict[str, Any],
+        metadata: dict[str, Any],
         data_dir: Path,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         raw_problem_id = metadata.pop("problem_id", None)
         source_split = metadata.pop("split", "unknown")
         mode = metadata.get("mode", "unknown")
@@ -259,7 +259,7 @@ class PhysBenchLoader(BaseDatasetLoader):
 
         return metadata
 
-    def _extract_options(self, question: str) -> List[str]:
+    def _extract_options(self, question: str) -> list[str]:
         matches = re.findall(
             r"(?:(?:^|\n)\s*([A-D])\.\s*(.+?))(?=(?:\n\s*[A-D]\.\s)|$)",
             question,
@@ -275,15 +275,15 @@ class PhysBenchLoader(BaseDatasetLoader):
     def _resolve_media_paths(
         self,
         data_dir: Path,
-        file_names: Union[str, List[str]],
-    ) -> Tuple[List[str], List[str], int]:
+        file_names: str | list[str],
+    ) -> tuple[list[str], list[str], int]:
         if isinstance(file_names, str):
             normalized_files = [file_names]
         else:
             normalized_files = list(file_names)
 
-        image_paths: List[str] = []
-        video_paths: List[str] = []
+        image_paths: list[str] = []
+        video_paths: list[str] = []
         missing_media_count = 0
 
         for file_name in normalized_files:

@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable
 
 from ..schema import (
     AnswerObjectKind,
@@ -14,8 +14,9 @@ from ..schema import (
     PhysicsEvaluationContract,
 )
 
-
-BridgePredicate = Callable[[PhysicsAnswerSemantics, PhysicsAnswerSemantics, PhysicsEvaluationContract], bool]
+BridgePredicate = Callable[
+    [PhysicsAnswerSemantics, PhysicsAnswerSemantics, PhysicsEvaluationContract], bool
+]
 
 
 @dataclass(frozen=True)
@@ -34,7 +35,10 @@ def _is_symbolic_bridge(
     contract: PhysicsEvaluationContract,
 ) -> bool:
     del pred, ref
-    return contract.question_semantics.question_symbolic_mode.value in {"expression", "either"}
+    return contract.question_semantics.question_symbolic_mode.value in {
+        "expression",
+        "either",
+    }
 
 
 def _is_relation_rhs_bridge(
@@ -232,6 +236,9 @@ def bridge_candidate_ids_for_answers(
 ) -> tuple[str, ...]:
     """Return bridge ids that can plausibly connect the concrete answer shapes."""
 
-    if pred.structure != AnswerStructure.ATOMIC or ref.structure != AnswerStructure.ATOMIC:
+    if (
+        pred.structure != AnswerStructure.ATOMIC
+        or ref.structure != AnswerStructure.ATOMIC
+    ):
         return ()
     return _bridge_candidate_ids_for_atomic_kinds(pred.object_kind, ref.object_kind)

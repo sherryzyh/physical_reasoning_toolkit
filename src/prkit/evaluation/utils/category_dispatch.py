@@ -10,21 +10,21 @@ callable from a mapping, with optional logging and plain-text fallback on unexpe
 
 from __future__ import annotations
 
-from typing import Callable, Mapping, Optional, Union
+from collections.abc import Callable, Mapping
 
 from prkit.core.domain.answer_category import AnswerCategory
 from prkit.evaluation.utils.compare_same_type import compare_plain_text
 from prkit.evaluation.utils.normalization import normalize_text
 
-SameCategoryCompareFn = Callable[[Union[float, str], Union[float, str]], bool]
+SameCategoryCompareFn = Callable[[float | str, float | str], bool]
 
 
 def compare_by_category(
     category: AnswerCategory,
-    predicted_norm: Union[float, str],
-    ground_truth_norm: Union[float, str],
+    predicted_norm: float | str,
+    ground_truth_norm: float | str,
     compare_fn_by_category: Mapping[AnswerCategory, SameCategoryCompareFn],
-    logger: Optional[object] = None,
+    logger: object | None = None,
 ) -> bool:
     """Compare two normalized values using the category-specific compare function.
 

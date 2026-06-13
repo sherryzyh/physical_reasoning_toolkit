@@ -35,14 +35,16 @@ def test_process_single_problem_persists_failure_result(tmp_path, monkeypatch):
         "format_problem_question_text_for_batch",
         lambda problem: problem.get("question"),
     )
-    success, _elapsed, problem_id, error_message = inference_script.process_single_problem(
-        problem={"problem_id": "123", "question": "What is shown?"},
-        index=1,
-        total_problems=1,
-        client=_ExplodingClient("provider timeout"),
-        output_dir=tmp_path,
-        dataset_name="seephys",
-        model_name="qwen3.6-plus",
+    success, _elapsed, problem_id, error_message = (
+        inference_script.process_single_problem(
+            problem={"problem_id": "123", "question": "What is shown?"},
+            index=1,
+            total_problems=1,
+            client=_ExplodingClient("provider timeout"),
+            output_dir=tmp_path,
+            dataset_name="seephys",
+            model_name="qwen3.6-plus",
+        )
     )
 
     assert success is False
@@ -64,14 +66,16 @@ def test_process_single_problem_marks_max_token_failure(tmp_path, monkeypatch):
         "format_problem_question_text_for_batch",
         lambda problem: problem.get("question"),
     )
-    success, _elapsed, problem_id, error_message = inference_script.process_single_problem(
-        problem={"problem_id": "456", "question": "Solve it."},
-        index=1,
-        total_problems=1,
-        client=_ExplodingClient("Request failed with finish_reason=length"),
-        output_dir=tmp_path,
-        dataset_name="seephys",
-        model_name="qwen3.6-plus",
+    success, _elapsed, problem_id, error_message = (
+        inference_script.process_single_problem(
+            problem={"problem_id": "456", "question": "Solve it."},
+            index=1,
+            total_problems=1,
+            client=_ExplodingClient("Request failed with finish_reason=length"),
+            output_dir=tmp_path,
+            dataset_name="seephys",
+            model_name="qwen3.6-plus",
+        )
     )
 
     assert success is False
@@ -90,14 +94,16 @@ def test_process_single_problem_persists_empty_success(tmp_path, monkeypatch):
         "format_problem_question_text_for_batch",
         lambda problem: problem.get("question"),
     )
-    success, _elapsed, problem_id, error_message = inference_script.process_single_problem(
-        problem={"problem_id": "789", "question": "Answer this."},
-        index=1,
-        total_problems=1,
-        client=_StaticClient(""),
-        output_dir=tmp_path,
-        dataset_name="seephys",
-        model_name="qwen3.6-plus",
+    success, _elapsed, problem_id, error_message = (
+        inference_script.process_single_problem(
+            problem={"problem_id": "789", "question": "Answer this."},
+            index=1,
+            total_problems=1,
+            client=_StaticClient(""),
+            output_dir=tmp_path,
+            dataset_name="seephys",
+            model_name="qwen3.6-plus",
+        )
     )
 
     assert success is True
