@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 
-from prkit.prkit_core.domain import PhysicalDataset, PhysicsProblem
+from prkit.core.domain import PhysicalDataset, PhysicsProblem
 
 from uncertainty_quantification_physical_reasoning.scripts import batch_prepare_common
 

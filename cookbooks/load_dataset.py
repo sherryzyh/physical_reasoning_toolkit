@@ -33,8 +33,8 @@ import sys
 from pathlib import Path
 
 # Import the dataset hub
-from prkit.prkit_datasets import DatasetHub
-from prkit.prkit_core import PRKitLogger
+from prkit.datasets import DatasetHub
+from prkit.core import PRKitLogger
 
 # Set up logger
 logger = PRKitLogger.get_logger(__name__)

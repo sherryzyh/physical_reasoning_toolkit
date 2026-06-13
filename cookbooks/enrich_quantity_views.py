@@ -11,15 +11,15 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from prkit.prkit_core import PRKitLogger
-from prkit.prkit_semantics.inference import (
+from prkit.core import PRKitLogger
+from prkit.semantics.inference import (
     load_prediction_semantics_artifact,
     load_reference_semantics_artifact,
     load_semantics_artifact,
     load_semantics_evaluation_record,
     save_semantics_json,
 )
-from prkit.prkit_semantics.normalization import enrich_answer_quantity_views
+from prkit.semantics.normalization import enrich_answer_quantity_views
 
 logger = PRKitLogger.get_logger(__name__)
 
