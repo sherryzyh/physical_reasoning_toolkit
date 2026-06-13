@@ -4,7 +4,12 @@ from __future__ import annotations
 
 import re
 
-from ..schema import AnswerComparison, AnswerObjectKind, PhysicsAnswerSemantics, PhysicsQuestionSemantics
+from ..schema import (
+    AnswerComparison,
+    AnswerObjectKind,
+    PhysicsAnswerSemantics,
+    PhysicsQuestionSemantics,
+)
 from .semantics import qualitative_label_candidates, sign_direction_candidates
 
 _LABEL_FAMILY_KINDS = frozenset(
@@ -30,24 +35,33 @@ def compare_label_family_fallback(
 
     if not pred.is_atomic or not ref.is_atomic:
         return None
-    if pred.object_kind not in _LABEL_FAMILY_KINDS or ref.object_kind not in _LABEL_FAMILY_KINDS:
+    if (
+        pred.object_kind not in _LABEL_FAMILY_KINDS
+        or ref.object_kind not in _LABEL_FAMILY_KINDS
+    ):
         return None
 
-    if _candidate_overlap(_terminal_polarity_candidates(pred), _terminal_polarity_candidates(ref)):
+    if _candidate_overlap(
+        _terminal_polarity_candidates(pred), _terminal_polarity_candidates(ref)
+    ):
         return AnswerComparison(
             True,
             "label_family_fallback",
             ("normalized_kind=terminal_polarity",),
         )
 
-    if _candidate_overlap(_sign_direction_candidates(pred), _sign_direction_candidates(ref)):
+    if _candidate_overlap(
+        _sign_direction_candidates(pred), _sign_direction_candidates(ref)
+    ):
         return AnswerComparison(
             True,
             "label_family_fallback",
             ("normalized_kind=sign_direction",),
         )
 
-    if _candidate_overlap(_qualitative_label_candidates(pred), _qualitative_label_candidates(ref)):
+    if _candidate_overlap(
+        _qualitative_label_candidates(pred), _qualitative_label_candidates(ref)
+    ):
         return AnswerComparison(
             True,
             "label_family_fallback",

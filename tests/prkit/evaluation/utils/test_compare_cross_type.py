@@ -1,6 +1,6 @@
 from prkit.core.domain.answer_category import AnswerCategory
-from prkit.evaluation.utils import cross_typed_match
 from prkit.evaluation.utils import compare_cross_type as compare_cross_type_module
+from prkit.evaluation.utils import cross_typed_match
 
 
 def test_split_respecting_parens_and_expand_gt_set():
@@ -82,7 +82,10 @@ def test_compare_text_against_formula_or_equation_gt_handles_errors_and_quantity
     monkeypatch.setattr(
         compare_cross_type_module,
         "extract_rhs_and_category",
-        lambda normalized, _category: (normalized.rsplit(",", 1)[-1].strip(" )"), AnswerCategory.PHYSICAL_QUANTITY),
+        lambda normalized, _category: (
+            normalized.rsplit(",", 1)[-1].strip(" )"),
+            AnswerCategory.PHYSICAL_QUANTITY,
+        ),
     )
 
     def fake_compare_formula(candidate_norm: str, gt_norm: str) -> bool:

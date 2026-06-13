@@ -22,7 +22,11 @@ class TestCitations:
         citation = get_citation("physreason")
         assert citation is not None
         assert isinstance(citation, str)
-        assert "@inproceedings" in citation or "@article" in citation or "@misc" in citation
+        assert (
+            "@inproceedings" in citation
+            or "@article" in citation
+            or "@misc" in citation
+        )
 
     def test_get_citation_phyx(self):
         """Test getting citation for PhyX dataset."""

@@ -31,11 +31,11 @@ from prkit.evaluation.llm_judge.schema import (
     RESPONSES_API_JUDGE_TEXT_FORMAT,
 )
 from prkit.evaluation.llm_judge.types import (
-    LLMJudgeResult,
     RESULT_SOURCE_LLM_JUDGE,
     RESULT_SOURCE_SKIPPED_LLM,
     RESULT_SOURCE_SMART_MATCH,
     RESULT_SOURCE_TYPED_MATCH,
+    LLMJudgeResult,
     ResultSource,
 )
 

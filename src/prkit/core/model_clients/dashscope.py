@@ -5,7 +5,7 @@ DashScope API client implementation.
 from __future__ import annotations
 
 import os
-from typing import Any, Dict
+from typing import Any
 
 from .openai_compatible_chat import OpenAICompatibleChatModel
 from .structured_output import (
@@ -91,7 +91,7 @@ class DashscopeModel(OpenAICompatibleChatModel):
     def resolve_base_url(self) -> str:
         return resolve_dashscope_base_url()
 
-    def get_client_kwargs(self) -> Dict[str, Any]:
+    def get_client_kwargs(self) -> dict[str, Any]:
         return {
             "timeout": resolve_dashscope_timeout_seconds(),
             "max_retries": resolve_dashscope_max_retries(),
@@ -110,7 +110,9 @@ class DashscopeModel(OpenAICompatibleChatModel):
 
         return None
 
-    def chat(self, user_prompt: str, image_paths=None, response_format=None, **kwargs: Any) -> str:
+    def chat(
+        self, user_prompt: str, image_paths=None, response_format=None, **kwargs: Any
+    ) -> str:
         extra_body = kwargs.get("extra_body")
         if extra_body is None:
             extra_body = {}
@@ -156,8 +158,12 @@ class DashscopeModel(OpenAICompatibleChatModel):
             strategy="dashscope_chat_json_schema",
             native_schema_enforced=True,
             accepted_artifact_modes=("json_schema", "json_object"),
-            accepted_artifact_strategies=("dashscope_chat_json_schema", "dashscope_json_object"),
-            response_format=spec.source_model or normalize_response_format(
+            accepted_artifact_strategies=(
+                "dashscope_chat_json_schema",
+                "dashscope_json_object",
+            ),
+            response_format=spec.source_model
+            or normalize_response_format(
                 {
                     "type": "json_schema",
                     "name": spec.name,

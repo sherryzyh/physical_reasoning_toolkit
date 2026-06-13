@@ -3,12 +3,8 @@ Tests for logging configuration: PRKitLogger.
 """
 
 import logging
-import os
 import sys
-from pathlib import Path
-from unittest.mock import MagicMock, patch
-
-import pytest
+from unittest.mock import patch
 
 from prkit.core.logging_config import ColoredFormatter, PRKitLogger
 
@@ -105,15 +101,9 @@ class TestPRKitLogger:
         try:
             PRKitLogger.add_file_handler(log_file, level=logging.INFO)
 
-            # Check that file handler was added to root logger
-            root_logger = logging.getLogger("prkit")
-            has_file_handler = any(
-                isinstance(h, logging.FileHandler) and h.baseFilename == str(log_file)
-                for h in root_logger.handlers
-            )
-            # May or may not have file handler depending on setup
-            assert True  # Just check that method doesn't raise
-        except Exception as e:
+            # Just check that the method runs without raising.
+            assert True
+        except Exception:
             # If file handler creation fails, that's okay for this test
             # Just verify the method exists and can be called
             pass
@@ -131,7 +121,7 @@ class TestPRKitLogger:
 
             logger = PRKitLogger.get_logger("global_test")
             assert logger.level <= logging.DEBUG
-        except Exception as e:
+        except Exception:
             # If setup fails, just verify logger can be created
             logger = PRKitLogger.get_logger("global_test")
             assert logger is not None
@@ -148,7 +138,7 @@ class TestPRKitLogger:
         for handler in handlers_to_remove:
             try:
                 handler.close()
-            except:
+            except Exception:
                 pass
             logger.removeHandler(handler)
 
@@ -158,7 +148,7 @@ class TestPRKitLogger:
         for handler in logger.handlers:
             try:
                 handler.flush()
-            except:
+            except Exception:
                 pass
 
         # Just verify logger exists and can log
@@ -183,7 +173,7 @@ class TestPRKitLogger:
         for handler in handlers_to_remove:
             try:
                 handler.close()
-            except:
+            except Exception:
                 pass
             logger.removeHandler(handler)
 
@@ -207,7 +197,7 @@ class TestPRKitLogger:
             for handler in handlers_to_remove:
                 try:
                     handler.close()
-                except:
+                except Exception:
                     pass
                 logger.removeHandler(handler)
 
@@ -229,8 +219,14 @@ class TestPRKitLogger:
     def test_colored_formatter_with_different_levels(self):
         """Test ColoredFormatter with different log levels."""
         formatter = ColoredFormatter()
-        levels = [logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL]
-        
+        levels = [
+            logging.DEBUG,
+            logging.INFO,
+            logging.WARNING,
+            logging.ERROR,
+            logging.CRITICAL,
+        ]
+
         for level in levels:
             record = logging.LogRecord(
                 name="test",
@@ -249,8 +245,10 @@ class TestPRKitLogger:
         """Test ColoredFormatter fallback when color setup encounters issues."""
         # Test that formatter handles exceptions gracefully by simulating conditions
         # that would trigger the exception handler (no terminal support)
-        with patch('sys.stdout.isatty', return_value=False), \
-             patch.dict('os.environ', {}, clear=True):
+        with (
+            patch("sys.stdout.isatty", return_value=False),
+            patch.dict("os.environ", {}, clear=True),
+        ):
             # Should still create formatter with fallback colors
             formatter = ColoredFormatter()
             assert hasattr(formatter, "COLORS")
@@ -280,7 +278,9 @@ class TestPRKitLogger:
         )
         assert isinstance(logger, logging.Logger)
         # Should have console handler but no file handler
-        has_file_handler = any(isinstance(h, logging.FileHandler) for h in logger.handlers)
+        has_file_handler = any(
+            isinstance(h, logging.FileHandler) for h in logger.handlers
+        )
         assert not has_file_handler
 
     def test_get_logger_with_selective_handlers_no_console(self):
@@ -308,14 +308,14 @@ class TestPRKitLogger:
         # Create multiple loggers
         logger1 = PRKitLogger.get_logger("level_test_1")
         logger2 = PRKitLogger.get_logger("level_test_2")
-        
+
         # Set level
         PRKitLogger.set_level(logging.DEBUG)
-        
+
         # Check both loggers have updated level
         assert logger1.level <= logging.DEBUG
         assert logger2.level <= logging.DEBUG
-        
+
         # Reset
         PRKitLogger.set_level(logging.INFO)
 
@@ -323,7 +323,7 @@ class TestPRKitLogger:
         """Test that add_file_handler creates parent directory."""
         log_file = temp_dir / "nested" / "dir" / "test.log"
         PRKitLogger.add_file_handler(log_file)
-        
+
         # Directory should be created
         assert log_file.parent.exists()
 
@@ -331,13 +331,13 @@ class TestPRKitLogger:
         """Test setup_global_config with custom format string."""
         log_file = temp_dir / "format_test.log"
         custom_format = "%(levelname)s - %(message)s"
-        
+
         PRKitLogger.setup_global_config(
             level=logging.INFO,
             log_file=log_file,
             format_string=custom_format,
         )
-        
+
         logger = PRKitLogger.get_logger("format_test")
         assert logger is not None
 
@@ -345,20 +345,20 @@ class TestPRKitLogger:
         """Test setup_global_config with custom date format."""
         log_file = temp_dir / "date_format_test.log"
         custom_date_format = "%Y/%m/%d"
-        
+
         PRKitLogger.setup_global_config(
             level=logging.INFO,
             log_file=log_file,
             date_format=custom_date_format,
         )
-        
+
         logger = PRKitLogger.get_logger("date_format_test")
         assert logger is not None
 
     def test_environment_config_log_level(self, monkeypatch, temp_dir):
         """Test environment variable PRKIT_LOG_LEVEL."""
         monkeypatch.setenv("PRKIT_LOG_LEVEL", "DEBUG")
-        
+
         # Create a new logger - should respect environment
         logger = PRKitLogger.get_logger("env_level_test")
         assert logger is not None
@@ -367,21 +367,21 @@ class TestPRKitLogger:
         """Test environment variable PRKIT_LOG_FILE."""
         log_file = temp_dir / "env_log.log"
         monkeypatch.setenv("PRKIT_LOG_FILE", str(log_file))
-        
+
         logger = PRKitLogger.get_logger("env_file_test")
         assert logger is not None
 
     def test_environment_config_console_disabled(self, monkeypatch):
         """Test environment variable PRKIT_LOG_CONSOLE=false."""
         monkeypatch.setenv("PRKIT_LOG_CONSOLE", "false")
-        
+
         logger = PRKitLogger.get_logger("env_console_test")
         assert logger is not None
 
     def test_environment_config_colors_disabled(self, monkeypatch):
         """Test environment variable PRKIT_LOG_COLORS=false."""
         monkeypatch.setenv("PRKIT_LOG_COLORS", "false")
-        
+
         PRKitLogger.disable_colors()
         assert PRKitLogger._colors_enabled is False
 
@@ -389,10 +389,10 @@ class TestPRKitLogger:
         """Test that logger handlers are preserved when getting existing logger."""
         logger1 = PRKitLogger.get_logger("preserve_test")
         handler_count_1 = len(logger1.handlers)
-        
+
         logger2 = PRKitLogger.get_logger("preserve_test")
         handler_count_2 = len(logger2.handlers)
-        
+
         # Should be the same logger instance
         assert logger1 is logger2
         # Handler count should be consistent
@@ -403,7 +403,7 @@ class TestPRKitLogger:
         formatter = ColoredFormatter()
         # Simulate colors disabled
         formatter._colors_available = False
-        
+
         record = logging.LogRecord(
             name="test",
             level=logging.INFO,
@@ -420,7 +420,7 @@ class TestPRKitLogger:
         """Test that get_logger creates new logger for new name."""
         logger1 = PRKitLogger.get_logger("new_test_1")
         logger2 = PRKitLogger.get_logger("new_test_2")
-        
+
         assert logger1 is not logger2
         assert logger1.name == "new_test_1"
         assert logger2.name == "new_test_2"
@@ -429,9 +429,9 @@ class TestPRKitLogger:
         """Test that new loggers inherit handlers from root logger."""
         # Setup root logger with handlers
         PRKitLogger.setup_global_config(level=logging.INFO, console_output=True)
-        
+
         # Create new logger
         logger = PRKitLogger.get_logger("inherit_handler_test")
-        
+
         # Should have handlers (at least from root)
         assert len(logger.handlers) >= 0  # May have handlers or not depending on setup

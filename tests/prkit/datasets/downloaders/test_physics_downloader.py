@@ -25,7 +25,9 @@ def _sample_jsonl_record(problem_id: str) -> bytes:
 
 def _write_complete_physics_tree(root: Path) -> None:
     downloader = PhysicsDownloader()
-    for relative_path in downloader._relative_file_paths():  # pylint: disable=protected-access
+    for (
+        relative_path
+    ) in downloader._relative_file_paths():  # pylint: disable=protected-access
         full_path = root / relative_path
         full_path.parent.mkdir(parents=True, exist_ok=True)
         problem_id = full_path.stem.replace("_dataset", "")
@@ -98,7 +100,9 @@ class TestPhysicsDownloader:
         """Test invalid PHYSICS variant/split combinations are rejected."""
         downloader = PhysicsDownloader()
 
-        with pytest.raises(ValueError, match="Unsupported PHYSICS variant/split combination"):
+        with pytest.raises(
+            ValueError, match="Unsupported PHYSICS variant/split combination"
+        ):
             downloader.download(
                 data_dir=temp_dir / "PHYSICS",
                 variant="hard",
@@ -112,7 +116,9 @@ class TestPhysicsDownloader:
 
         with patch.dict("sys.modules", {"requests": None}):
             with pytest.raises(ImportError, match="requests"):
-                downloader._do_download(download_dir)  # pylint: disable=protected-access
+                downloader._do_download(
+                    download_dir
+                )  # pylint: disable=protected-access
 
     def test_verify_valid_dataset(self, temp_dir):
         """Test verify succeeds on a complete PHYSICS tree."""

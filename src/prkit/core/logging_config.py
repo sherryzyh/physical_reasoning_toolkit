@@ -9,7 +9,6 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Any, Dict, Optional
 
 
 class ColoredFormatter(logging.Formatter):
@@ -95,7 +94,7 @@ class ColoredFormatter(logging.Formatter):
 class PRKitLogger:
     """Centralized logger for PRKit (physical-reasoning-toolkit) packages with consistent configuration."""
 
-    _loggers: Dict[str, logging.Logger] = {}
+    _loggers: dict[str, logging.Logger] = {}
     _default_level = logging.INFO
     _default_format = "%(asctime)s - %(name)s - %(levelname)s [%(filename)s, %(lineno)d] - %(message)s"
     _default_date_format = "%Y-%m-%d %H:%M:%S"
@@ -112,7 +111,7 @@ class PRKitLogger:
     def setup_global_config(
         cls,
         level: int = None,
-        log_file: Optional[Path] = None,
+        log_file: Path | None = None,
         console_output: bool = True,
         format_string: str = None,
         date_format: str = None,
@@ -253,7 +252,7 @@ class PRKitLogger:
             finally:
                 try:
                     del frame
-                except:
+                except Exception:
                     pass
 
         # Check if we already have this logger
@@ -304,7 +303,7 @@ class PRKitLogger:
                         new_handler.setFormatter(handler.formatter)
 
                     logger.addHandler(new_handler)
-            
+
             # Disable propagation to avoid duplicate logs when handlers are added
             logger.propagate = False
 
@@ -317,7 +316,7 @@ class PRKitLogger:
     def get_logger_with_selective_handlers(
         cls,
         name: str,
-        log_file: Optional[Path] = None,
+        log_file: Path | None = None,
         console_output: bool = True,
         level: int = None,
     ) -> logging.Logger:

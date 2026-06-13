@@ -2,8 +2,6 @@
 Tests for utility functions and helper modules.
 """
 
-import pytest
-
 from prkit.core.domain import AnswerCategory
 from prkit.datasets.loaders.base_loader import (
     detect_answer_category,

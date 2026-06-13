@@ -5,7 +5,8 @@ This evaluator uses a comparator to evaluate answers and can evaluate
 entire datasets, returning dataset-level statistics.
 """
 
-from typing import Any, Callable, Dict, List, Optional, Union
+from collections.abc import Callable
+from typing import Any
 
 from prkit.core.domain.answer import Answer
 from prkit.core.domain.physics_dataset import PhysicalDataset
@@ -22,7 +23,7 @@ class AccuracyEvaluator(BaseEvaluator):
     def __init__(self, comparator: BaseComparator | None = None):
         """
         Initialize the accuracy evaluator.
-        
+
         Args:
             comparator: Comparator instance to use. If None, defaults to
                        ExactMatchComparator.
@@ -33,18 +34,18 @@ class AccuracyEvaluator(BaseEvaluator):
 
     def evaluate(
         self,
-        predicted_answer: Union[str, Answer],
-        ground_truth_answer: Union[str, Answer],
-        **kwargs: Any
-    ) -> Dict[str, Any]:
+        predicted_answer: str | Answer,
+        ground_truth_answer: str | Answer,
+        **kwargs: Any,
+    ) -> dict[str, Any]:
         """
         Evaluate a predicted answer against a ground truth answer.
-        
+
         Args:
             predicted_answer: The predicted/student answer (string or Answer)
             ground_truth_answer: The ground truth/correct answer (string or Answer)
             **kwargs: Additional arguments (currently unused)
-            
+
         Returns:
             Dictionary containing evaluation results:
             - accuracy_score: Accuracy score in [0, 1]
@@ -62,10 +63,26 @@ class AccuracyEvaluator(BaseEvaluator):
             predicted_answer, ground_truth_answer
         )
 
-        pred_val = str(predicted_answer.value) if isinstance(predicted_answer, Answer) else str(predicted_answer)
-        gt_val = str(ground_truth_answer.value) if isinstance(ground_truth_answer, Answer) else str(ground_truth_answer)
-        pred_type = predicted_answer.answer_category.value if isinstance(predicted_answer, Answer) else "string"
-        gt_type = ground_truth_answer.answer_category.value if isinstance(ground_truth_answer, Answer) else "string"
+        pred_val = (
+            str(predicted_answer.value)
+            if isinstance(predicted_answer, Answer)
+            else str(predicted_answer)
+        )
+        gt_val = (
+            str(ground_truth_answer.value)
+            if isinstance(ground_truth_answer, Answer)
+            else str(ground_truth_answer)
+        )
+        pred_type = (
+            predicted_answer.answer_category.value
+            if isinstance(predicted_answer, Answer)
+            else "string"
+        )
+        gt_type = (
+            ground_truth_answer.answer_category.value
+            if isinstance(ground_truth_answer, Answer)
+            else "string"
+        )
 
         return {
             "accuracy_score": accuracy_score,
@@ -82,23 +99,23 @@ class AccuracyEvaluator(BaseEvaluator):
     def evaluate_dataset(
         self,
         dataset: PhysicalDataset,
-        predicted_answers: Optional[Dict[str, Answer]] = None,
-        answer_extractor: Optional[Callable[[PhysicsProblem], Answer]] = None,
-        **kwargs: Any
-    ) -> Dict[str, Any]:
+        predicted_answers: dict[str, Answer] | None = None,
+        answer_extractor: Callable[[PhysicsProblem], Answer] | None = None,
+        **kwargs: Any,
+    ) -> dict[str, Any]:
         """
         Evaluate a dataset and return dataset-level statistics.
-        
+
         The method can work in two modes:
         1. If `predicted_answers` is provided: uses a dictionary mapping problem_id to Answer
         2. If `answer_extractor` is provided: extracts predicted answers from each problem
-        
+
         Args:
             dataset: PhysicalDataset to evaluate
             predicted_answers: Optional dictionary mapping problem_id to predicted Answer
             answer_extractor: Optional function that takes a PhysicsProblem and returns Answer
             **kwargs: Additional arguments passed to individual evaluations
-            
+
         Returns:
             Dictionary containing dataset-level statistics:
             - overall_accuracy: Average accuracy score across all problems
@@ -116,15 +133,15 @@ class AccuracyEvaluator(BaseEvaluator):
                 "Either predicted_answers or answer_extractor must be provided"
             )
 
-        per_problem_results: List[Dict[str, Any]] = []
+        per_problem_results: list[dict[str, Any]] = []
         total_problems = len(dataset)
         evaluated_problems = 0
         failed_problems = 0
-        accuracy_scores: List[float] = []
+        accuracy_scores: list[float] = []
 
         # Statistics by domain and problem type
-        domain_stats: Dict[str, List[float]] = {}
-        problem_type_stats: Dict[str, List[float]] = {}
+        domain_stats: dict[str, list[float]] = {}
+        problem_type_stats: dict[str, list[float]] = {}
 
         for problem in dataset:
             problem_id = problem.problem_id
@@ -170,15 +187,15 @@ class AccuracyEvaluator(BaseEvaluator):
                                 "problem_id": problem_id,
                                 "accuracy_score": 0.0,
                                 "status": "extraction_failed",
-                                "details": {
-                                    "error": "Answer extractor returned None"
-                                },
+                                "details": {"error": "Answer extractor returned None"},
                             }
                         )
                         continue
 
                 # Evaluate the answer
-                eval_result = self.evaluate(predicted_answer, ground_truth_answer, **kwargs)
+                eval_result = self.evaluate(
+                    predicted_answer, ground_truth_answer, **kwargs
+                )
                 accuracy_score = eval_result["accuracy_score"]
                 accuracy_scores.append(accuracy_score)
                 evaluated_problems += 1
@@ -245,8 +262,7 @@ class AccuracyEvaluator(BaseEvaluator):
                     domain: len(scores) for domain, scores in domain_stats.items()
                 },
                 "problem_type_counts": {
-                    ptype: len(scores)
-                    for ptype, scores in problem_type_stats.items()
+                    ptype: len(scores) for ptype, scores in problem_type_stats.items()
                 },
             },
         }

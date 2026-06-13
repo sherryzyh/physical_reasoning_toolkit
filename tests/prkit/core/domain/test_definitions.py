@@ -2,8 +2,6 @@
 Tests for definitions: PhysicsDomain, AnswerCategory.
 """
 
-import pytest
-
 from prkit.core.domain import AnswerCategory, PhysicsDomain
 
 

@@ -10,10 +10,10 @@ from prkit.semantics import (
     PhysicsQuestionSemantics,
     QuestionSymbolicMode,
     QuestionUnitPolicy,
-    compare_protocol_answers,
-    compare_protocol_answers_legacy,
     coerce_protocol_answer,
     coerce_question_semantics,
+    compare_protocol_answers,
+    compare_protocol_answers_legacy,
     infer_prediction_question_semantics,
     normalize_physics_answer,
 )
@@ -177,7 +177,9 @@ def test_protocol_same_kind_quantity_uses_reference_precision() -> None:
     assert result.comparison_mode == "physical_quantity"
 
 
-def test_protocol_same_kind_quantity_rejects_prediction_coarser_than_reference() -> None:
+def test_protocol_same_kind_quantity_rejects_prediction_coarser_than_reference() -> (
+    None
+):
     pred = {
         "object_kind": "physical_quantity",
         "canonical_text": "0.78 s",
@@ -199,7 +201,9 @@ def test_protocol_same_kind_quantity_rejects_prediction_coarser_than_reference()
     assert result.comparison_mode == "physical_quantity"
 
 
-def test_protocol_quantity_comparison_uses_reference_significant_figures_across_units() -> None:
+def test_protocol_quantity_comparison_uses_reference_significant_figures_across_units() -> (
+    None
+):
     pred = {
         "object_kind": "physical_quantity",
         "canonical_text": "+4.23e-11 m",
@@ -221,7 +225,9 @@ def test_protocol_quantity_comparison_uses_reference_significant_figures_across_
     assert result.comparison_mode == "physical_quantity"
 
 
-def test_protocol_quantity_comparison_rejects_prediction_coarser_significant_figures_across_units() -> None:
+def test_protocol_quantity_comparison_rejects_prediction_coarser_significant_figures_across_units() -> (
+    None
+):
     pred = {
         "object_kind": "physical_quantity",
         "canonical_text": "+4.2e-11 m",
@@ -243,7 +249,9 @@ def test_protocol_quantity_comparison_rejects_prediction_coarser_significant_fig
     assert result.comparison_mode == "physical_quantity"
 
 
-def test_protocol_quantity_comparison_prefers_surface_numeric_text_when_numeric_value_is_base_projected() -> None:
+def test_protocol_quantity_comparison_prefers_surface_numeric_text_when_numeric_value_is_base_projected() -> (
+    None
+):
     pred = {
         "object_kind": "physical_quantity",
         "canonical_text": "1.1 kΩ",
@@ -265,7 +273,9 @@ def test_protocol_quantity_comparison_prefers_surface_numeric_text_when_numeric_
     assert result.comparison_mode == "physical_quantity"
 
 
-def test_protocol_quantity_view_base_projected_decimal_false_positive_is_rejected() -> None:
+def test_protocol_quantity_view_base_projected_decimal_false_positive_is_rejected() -> (
+    None
+):
     pred = _quantity_answer_with_view(
         "9.87e-4 m",
         raw_text="0.987 mm",
@@ -297,7 +307,9 @@ def test_protocol_quantity_view_base_projected_decimal_false_positive_is_rejecte
     assert result.comparison_mode == "physical_quantity"
 
 
-def test_protocol_quantity_view_base_projected_opposite_sign_false_positive_is_rejected() -> None:
+def test_protocol_quantity_view_base_projected_opposite_sign_false_positive_is_rejected() -> (
+    None
+):
     pred = _quantity_answer_with_view(
         "-4.2e-11 m",
         raw_text="−0.042 nm",
@@ -558,7 +570,9 @@ def test_protocol_quantity_comparison_handles_required_unit_normalization(
     assert result.comparison_mode == "physical_quantity"
 
 
-def test_protocol_quantity_comparison_falls_back_to_source_snapshot_when_canonical_is_missing() -> None:
+def test_protocol_quantity_comparison_falls_back_to_source_snapshot_when_canonical_is_missing() -> (
+    None
+):
     pred = {
         "object_kind": "physical_quantity",
         "canonical_text": "unparsed prediction",
@@ -600,7 +614,9 @@ def test_protocol_quantity_comparison_falls_back_to_source_snapshot_when_canonic
     assert result.comparison_mode == "physical_quantity"
 
 
-def test_protocol_quantity_comparison_rejects_half_step_boundary_false_positive() -> None:
+def test_protocol_quantity_comparison_rejects_half_step_boundary_false_positive() -> (
+    None
+):
     pred = {
         "object_kind": "physical_quantity",
         "canonical_text": "2 A",
@@ -622,7 +638,9 @@ def test_protocol_quantity_comparison_rejects_half_step_boundary_false_positive(
     assert result.comparison_mode == "physical_quantity"
 
 
-def test_protocol_quantity_comparison_does_not_collapse_distinct_scientific_values() -> None:
+def test_protocol_quantity_comparison_does_not_collapse_distinct_scientific_values() -> (
+    None
+):
     pred = {
         "object_kind": "physical_quantity",
         "canonical_text": "~10^-5 torr",
@@ -664,7 +682,9 @@ def test_parse_scalar_symbolic_expression_rejects_non_scalar_parses() -> None:
     assert parse_scalar_symbolic_expression("{1, 2}") is None
 
 
-def test_protocol_legacy_side_condition_surface_is_backfilled_before_comparison() -> None:
+def test_protocol_legacy_side_condition_surface_is_backfilled_before_comparison() -> (
+    None
+):
     pred = {
         "object_kind": "relation",
         "canonical_text": "E(r)=k/r, a<r<b; equivalently E(r)=k/r",
@@ -698,7 +718,9 @@ def test_protocol_relation_expression_coercion_uses_target_variable() -> None:
     assert result.comparison_mode == "relation_to_expression"
 
 
-def test_protocol_expression_comparison_extracts_prediction_rhs_from_approx_text() -> None:
+def test_protocol_expression_comparison_extracts_prediction_rhs_from_approx_text() -> (
+    None
+):
     pred = {
         "object_kind": "expression",
         "canonical_text": "d ≈ sqrt(lambda*P*L/(L+P))",
@@ -718,7 +740,9 @@ def test_protocol_expression_comparison_extracts_prediction_rhs_from_approx_text
     assert result.comparison_mode == "expression"
 
 
-def test_protocol_expression_comparison_extracts_prediction_rhs_from_approx_latex() -> None:
+def test_protocol_expression_comparison_extracts_prediction_rhs_from_approx_latex() -> (
+    None
+):
     pred = {
         "object_kind": "expression",
         "canonical_text": "d ≈ sqrt(lambda*P*L/(L+P))",
@@ -742,7 +766,9 @@ def test_protocol_expression_comparison_extracts_prediction_rhs_from_approx_late
     assert result.comparison_mode == "expression"
 
 
-def test_protocol_expression_comparison_parses_bracket_grouping_without_syntax_warning() -> None:
+def test_protocol_expression_comparison_parses_bracket_grouping_without_syntax_warning() -> (
+    None
+):
     pred = {
         "object_kind": "expression",
         "canonical_text": "(l/2)*[(1+sqrt(2))*cos(omega1*t)-(sqrt(2)-1)*cos(omega2*t)]",
@@ -774,7 +800,9 @@ def test_protocol_expression_comparison_parses_bracket_grouping_without_syntax_w
     assert not any(item.category is SyntaxWarning for item in caught)
 
 
-def test_protocol_expression_comparison_ignores_top_level_with_parameter_notes() -> None:
+def test_protocol_expression_comparison_ignores_top_level_with_parameter_notes() -> (
+    None
+):
     pred = {
         "object_kind": "expression",
         "canonical_text": (
@@ -917,7 +945,9 @@ def test_protocol_identical_atomic_text_legacy_path_matches_across_kinds() -> No
     assert result.comparison_mode == "identical_text"
 
 
-def test_protocol_identical_same_kind_sign_direction_text_ignores_auxiliary_field_mismatch() -> None:
+def test_protocol_identical_same_kind_sign_direction_text_ignores_auxiliary_field_mismatch() -> (
+    None
+):
     pred = {
         "object_kind": "sign_direction",
         "canonical_text": "A to B",
@@ -936,7 +966,9 @@ def test_protocol_identical_same_kind_sign_direction_text_ignores_auxiliary_fiel
     assert result.surface_shortcut_used is True
 
 
-def test_protocol_identical_same_kind_quantity_text_ignores_inconsistent_numeric_value_projection() -> None:
+def test_protocol_identical_same_kind_quantity_text_ignores_inconsistent_numeric_value_projection() -> (
+    None
+):
     pred = {
         "object_kind": "physical_quantity",
         "canonical_text": "530 pF",
@@ -1007,7 +1039,11 @@ def test_protocol_piecewise_records_compare_casewise() -> None:
             ),
             (
                 {"object_kind": "expression", "canonical_text": "-1*x"},
-                {"object_kind": "boolean", "canonical_text": "True", "boolean_value": True},
+                {
+                    "object_kind": "boolean",
+                    "canonical_text": "True",
+                    "boolean_value": True,
+                },
             ),
         ],
     }
@@ -1108,7 +1144,9 @@ def test_protocol_multi_part_respects_per_part_order() -> None:
 
 
 def test_protocol_coercion_helpers_accept_mapping_inputs() -> None:
-    context = coerce_question_semantics({"question_symbolic_mode": "relation", "tolerance": 1e-8})
+    context = coerce_question_semantics(
+        {"question_symbolic_mode": "relation", "tolerance": 1e-8}
+    )
     answer = coerce_protocol_answer(
         {
             "structure": "tuple",
@@ -1180,7 +1218,9 @@ def test_protocol_fixed_question_unit_accepts_bare_number_record() -> None:
     assert result.comparison_mode == "quantity_to_number"
 
 
-def test_protocol_expression_to_number_rejects_prediction_more_precise_than_decimal_reference() -> None:
+def test_protocol_expression_to_number_rejects_prediction_more_precise_than_decimal_reference() -> (
+    None
+):
     pred = {
         "object_kind": "expression",
         "canonical_text": "2/sqrt(3)",
@@ -1198,7 +1238,9 @@ def test_protocol_expression_to_number_rejects_prediction_more_precise_than_deci
     assert result.comparison_mode == "expression_to_number"
 
 
-def test_protocol_number_to_expression_uses_prediction_precision_for_nonterminating_reference_fraction() -> None:
+def test_protocol_number_to_expression_uses_prediction_precision_for_nonterminating_reference_fraction() -> (
+    None
+):
     pred = {
         "object_kind": "number",
         "canonical_text": "0.33",
@@ -1235,7 +1277,9 @@ def test_protocol_fixed_question_unit_accepts_zero_bare_number_record() -> None:
     assert result.comparison_mode == "quantity_to_number"
 
 
-def test_protocol_fixed_question_unit_bridge_rejects_base_projected_decimal_false_positive() -> None:
+def test_protocol_fixed_question_unit_bridge_rejects_base_projected_decimal_false_positive() -> (
+    None
+):
     context = {
         "question_unit_policy": "optional_if_question_fixed_unit",
         "question_unit": "m",
@@ -1282,8 +1326,14 @@ def test_protocol_required_unit_rejects_bare_number_record() -> None:
 
 
 def test_protocol_relation_like_expression_record_is_repaired() -> None:
-    pred = {"object_kind": "expression", "canonical_text": "I_g = I_0 cos^2(m g H L / (2 hbar v))"}
-    ref = {"object_kind": "relation", "canonical_text": "I_g = I_0 cos^2(m g H L / (2 hbar v))"}
+    pred = {
+        "object_kind": "expression",
+        "canonical_text": "I_g = I_0 cos^2(m g H L / (2 hbar v))",
+    }
+    ref = {
+        "object_kind": "relation",
+        "canonical_text": "I_g = I_0 cos^2(m g H L / (2 hbar v))",
+    }
 
     result = compare_protocol_answers(
         pred,
@@ -1294,7 +1344,9 @@ def test_protocol_relation_like_expression_record_is_repaired() -> None:
     assert result.equivalent is True
 
 
-def test_protocol_relation_repair_prefers_canonical_text_over_explanatory_raw_text() -> None:
+def test_protocol_relation_repair_prefers_canonical_text_over_explanatory_raw_text() -> (
+    None
+):
     pred = {
         "object_kind": "expression",
         "canonical_text": "v = sqrt(2qV/m)",
@@ -1350,7 +1402,9 @@ def test_protocol_malformed_quantity_with_symbolic_text_is_salvaged() -> None:
     assert result.equivalent is True
 
 
-def test_protocol_expression_quantity_bridge_rejects_prediction_more_precise_than_decimal_reference() -> None:
+def test_protocol_expression_quantity_bridge_rejects_prediction_more_precise_than_decimal_reference() -> (
+    None
+):
     pred = {
         "object_kind": "physical_quantity",
         "canonical_text": "2T/sqrt(3) s",
@@ -1385,9 +1439,19 @@ def test_protocol_expression_quantity_bridge_rejects_prediction_more_precise_tha
     assert result.comparison_mode == "expression_quantity"
 
 
-def test_protocol_symbolic_identifier_mislabeled_as_qualitative_label_is_salvaged() -> None:
-    pred = {"object_kind": "expression", "canonical_text": "T", "target_variable": "T_final"}
-    ref = {"object_kind": "qualitative_label", "canonical_text": "T", "target_variable": "T_f"}
+def test_protocol_symbolic_identifier_mislabeled_as_qualitative_label_is_salvaged() -> (
+    None
+):
+    pred = {
+        "object_kind": "expression",
+        "canonical_text": "T",
+        "target_variable": "T_final",
+    }
+    ref = {
+        "object_kind": "qualitative_label",
+        "canonical_text": "T",
+        "target_variable": "T_f",
+    }
 
     result = compare_protocol_answers(
         pred,
@@ -1458,7 +1522,10 @@ def test_protocol_choice_like_qualitative_label_matches_choice() -> None:
 
 def test_protocol_terminal_polarity_bridge_matches_sign_direction_and_label() -> None:
     pred = {"object_kind": "sign_direction", "canonical_text": "a is positive"}
-    ref = {"object_kind": "qualitative_label", "canonical_text": "terminal a is positive"}
+    ref = {
+        "object_kind": "qualitative_label",
+        "canonical_text": "terminal a is positive",
+    }
 
     result = compare_protocol_answers(pred, ref)
 
@@ -1543,7 +1610,9 @@ def test_protocol_plain_qualitative_label_is_not_repaired_into_expression() -> N
     assert result.comparison_mode == "qualitative_label"
 
 
-def test_protocol_label_family_fallback_rescues_same_kind_qualitative_direction_text() -> None:
+def test_protocol_label_family_fallback_rescues_same_kind_qualitative_direction_text() -> (
+    None
+):
     pred = {
         "object_kind": "qualitative_label",
         "canonical_text": "The force points to the left.",
@@ -1582,7 +1651,9 @@ def test_protocol_label_family_fallback_rescues_cross_kind_direction_text() -> N
     assert result.comparison_mode == "label_family_fallback"
 
 
-def test_protocol_label_family_fallback_does_not_merge_decrease_with_down_direction() -> None:
+def test_protocol_label_family_fallback_does_not_merge_decrease_with_down_direction() -> (
+    None
+):
     pred = {"object_kind": "sign_direction", "canonical_text": "down"}
     ref = {"object_kind": "qualitative_label", "canonical_text": "goes down"}
 
@@ -1606,7 +1677,10 @@ def test_protocol_spacing_only_relation_difference_is_ignored() -> None:
 
 
 def test_protocol_trig_equivalent_expressions_match() -> None:
-    pred = {"object_kind": "expression", "canonical_text": "-2 M A^2 sin theta cos theta"}
+    pred = {
+        "object_kind": "expression",
+        "canonical_text": "-2 M A^2 sin theta cos theta",
+    }
     ref = {"object_kind": "expression", "canonical_text": "-MA^2 sin(2theta)"}
 
     result = compare_protocol_answers(pred, ref)
@@ -1692,7 +1766,9 @@ def test_protocol_relation_comparison_applies_surface_symbol_aliases() -> None:
     assert result.equivalent is True
 
 
-def test_protocol_relation_expression_comparison_handles_adjacent_latex_function_arguments() -> None:
+def test_protocol_relation_expression_comparison_handles_adjacent_latex_function_arguments() -> (
+    None
+):
     pred = {
         "object_kind": "expression",
         "canonical_text": "sqrt(g/(l cos theta_0))",
@@ -1711,7 +1787,10 @@ def test_protocol_relation_expression_comparison_handles_adjacent_latex_function
     result = compare_protocol_answers(
         pred,
         ref,
-        context={"question_symbolic_mode": "either", "target_variable": r"\dot{\varphi}"},
+        context={
+            "question_symbolic_mode": "either",
+            "target_variable": r"\dot{\varphi}",
+        },
     )
 
     assert result.equivalent is True
@@ -1731,7 +1810,9 @@ def test_protocol_expression_rhs_rescue_excludes_sim_relation_like_text() -> Non
     assert result.comparison_mode == "expression"
 
 
-def test_protocol_relation_expression_coercion_does_not_extract_from_inequality() -> None:
+def test_protocol_relation_expression_coercion_does_not_extract_from_inequality() -> (
+    None
+):
     pred = {"object_kind": "relation", "canonical_text": "x < y"}
     ref = {"object_kind": "expression", "canonical_text": "y"}
 
@@ -1745,7 +1826,9 @@ def test_protocol_relation_expression_coercion_does_not_extract_from_inequality(
     assert result.comparison_mode == "object_kind_mismatch"
 
 
-def test_protocol_relation_expression_coercion_does_not_extract_from_proportionality() -> None:
+def test_protocol_relation_expression_coercion_does_not_extract_from_proportionality() -> (
+    None
+):
     pred = {"object_kind": "relation", "canonical_text": r"x \propto y"}
     ref = {"object_kind": "expression", "canonical_text": "y"}
 
@@ -1759,7 +1842,9 @@ def test_protocol_relation_expression_coercion_does_not_extract_from_proportiona
     assert result.comparison_mode == "object_kind_mismatch"
 
 
-def test_protocol_relation_expression_coercion_requires_simple_nonterminal_labels() -> None:
+def test_protocol_relation_expression_coercion_requires_simple_nonterminal_labels() -> (
+    None
+):
     pred = {"object_kind": "relation", "canonical_text": "x + 1 = y = z"}
     ref = {"object_kind": "expression", "canonical_text": "z"}
 
@@ -1778,8 +1863,7 @@ def test_protocol_matrix_records_are_rehydrated_from_text() -> None:
         "object_kind": "expression",
         "structure": "matrix",
         "canonical_text": (
-            "In the x,y coordinate system shown, the tensor is "
-            "[[2*a, 0], [0, 2*b]]."
+            "In the x,y coordinate system shown, the tensor is " "[[2*a, 0], [0, 2*b]]."
         ),
         "shape": [2, 2],
         "coordinate_frame": "x,y as shown; origin at center",
@@ -1871,7 +1955,9 @@ def test_protocol_near_zero_same_sign_quantities_still_match() -> None:
     assert result.comparison_mode == "physical_quantity"
 
 
-def test_protocol_zero_and_small_quantity_still_match_under_absolute_zero_tolerance() -> None:
+def test_protocol_zero_and_small_quantity_still_match_under_absolute_zero_tolerance() -> (
+    None
+):
     pred = _quantity_answer(
         "5e-11 J",
         numeric_value=5e-11,
@@ -1893,7 +1979,9 @@ def test_protocol_zero_and_small_quantity_still_match_under_absolute_zero_tolera
     assert result.comparison_mode == "physical_quantity"
 
 
-def test_protocol_relation_expression_comparison_tries_later_parseable_surface_candidates() -> None:
+def test_protocol_relation_expression_comparison_tries_later_parseable_surface_candidates() -> (
+    None
+):
     pred = {
         "object_kind": "relation",
         "canonical_text": "dPbar_dOmega = (omega0^4*a^2*Q^2/(8*pi^2*epsilon0*c^3))*sin^2(theta)",
@@ -1937,7 +2025,9 @@ def test_protocol_relation_matches_sameness_qualitative_label() -> None:
     assert result.comparison_mode == "relation_to_qualitative_label"
 
 
-def test_protocol_no_change_label_is_not_repaired_out_of_qualitative_zero_bridge() -> None:
+def test_protocol_no_change_label_is_not_repaired_out_of_qualitative_zero_bridge() -> (
+    None
+):
     pred = _quantity_answer(
         "0 J",
         numeric_value=0.0,
@@ -1965,7 +2055,9 @@ def test_protocol_no_change_label_is_not_repaired_out_of_qualitative_zero_bridge
     assert result.comparison_mode == "qualitative_zero"
 
 
-def test_protocol_safe_alias_policy_does_not_infer_placeholder_symbol_equivalence() -> None:
+def test_protocol_safe_alias_policy_does_not_infer_placeholder_symbol_equivalence() -> (
+    None
+):
     pred = {
         "object_kind": "relation",
         "canonical_text": "delta = pi + 2 i - 4 r, where sin i = n sin r",
@@ -2024,7 +2116,9 @@ def test_protocol_zero_label_family_is_not_broadened_by_flow_fix() -> None:
     assert result.equivalent is False
 
 
-def test_protocol_numeric_choice_surface_collision_is_rejected_in_audited_and_strict() -> None:
+def test_protocol_numeric_choice_surface_collision_is_rejected_in_audited_and_strict() -> (
+    None
+):
     pred = {"object_kind": "number", "canonical_text": "1", "numeric_value": 1.0}
     ref = {"object_kind": "choice", "canonical_text": "1", "choice_label": "1"}
     context = {"choice_space": ["1", "2", "3"]}
@@ -2134,7 +2228,11 @@ def test_protocol_required_unit_rejects_number_in_audited_mode() -> None:
 
 
 def test_protocol_relation_to_expression_bridge_is_audited_but_not_strict() -> None:
-    pred = {"object_kind": "relation", "canonical_text": "v = IR", "target_variable": "v"}
+    pred = {
+        "object_kind": "relation",
+        "canonical_text": "v = IR",
+        "target_variable": "v",
+    }
     ref = {"object_kind": "expression", "canonical_text": "IR"}
     context = {"question_symbolic_mode": "expression", "target_variable": "v"}
 

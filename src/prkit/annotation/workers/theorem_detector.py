@@ -3,7 +3,6 @@ Theorem annotator for identifying relevant physical theorems and principles.
 """
 
 import json
-from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -19,15 +18,15 @@ class TheoremDetail(BaseModel):
         ...,
         description="A clear description of what the theorem states and when it applies",
     )
-    equations: List[str] = Field(
+    equations: list[str] = Field(
         default_factory=list,
         description="Relevant mathematical equations and formulas associated with the theorem",
     )
-    domain: Optional[str] = Field(
+    domain: str | None = Field(
         None,
         description="The domain of physics this theorem belongs to (e.g., mechanics, electromagnetism, thermodynamics)",
     )
-    conditions: Optional[List[str]] = Field(
+    conditions: list[str] | None = Field(
         default_factory=list, description="Conditions under which the theorem applies"
     )
 
@@ -35,7 +34,7 @@ class TheoremDetail(BaseModel):
 class TheoremResponse(BaseModel):
     """Structured response containing identified physical theorems and principles."""
 
-    theorems: List[TheoremDetail] = Field(
+    theorems: list[TheoremDetail] = Field(
         ..., description="List of relevant physical theorems and principles"
     )
 

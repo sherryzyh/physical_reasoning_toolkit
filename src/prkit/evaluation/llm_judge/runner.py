@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, Optional
+from typing import Any
 
 from openai import BadRequestError, OpenAI
 
@@ -15,8 +15,10 @@ from prkit.evaluation.llm_judge.openai import (
     build_responses_api_judge_body,
 )
 from prkit.evaluation.llm_judge.parse import parse_judge_response
-from prkit.evaluation.llm_judge.schema import CHAT_COMPLETIONS_JSON_SCHEMA_RESPONSE_FORMAT
 from prkit.evaluation.llm_judge.payload import truncate_judge_payload
+from prkit.evaluation.llm_judge.schema import (
+    CHAT_COMPLETIONS_JSON_SCHEMA_RESPONSE_FORMAT,
+)
 from prkit.evaluation.llm_judge.types import LLMJudgeResult
 
 
@@ -27,10 +29,10 @@ class OpenAIJudgeRunner:
         self,
         *,
         model: str,
-        instructions: Optional[str] = None,
-        client: Optional[OpenAI] = None,
+        instructions: str | None = None,
+        client: OpenAI | None = None,
         fallback_chat_model: str = FALLBACK_CHAT_JUDGE_MODEL,
-        logger: Optional[Any] = None,
+        logger: Any | None = None,
     ) -> None:
         self._model_name = model
         self._instructions = instructions or DEFAULT_PHYSICS_GRADING_INSTRUCTIONS
@@ -48,7 +50,7 @@ class OpenAIJudgeRunner:
     def instructions(self) -> str:
         return self._instructions
 
-    def judge_via_responses(self, payload: Dict[str, Any]) -> LLMJudgeResult:
+    def judge_via_responses(self, payload: dict[str, Any]) -> LLMJudgeResult:
         request_params = build_responses_api_judge_body(
             self._model_name,
             payload,
@@ -58,7 +60,7 @@ class OpenAIJudgeRunner:
         response_text = response.output_text if response.output_text else ""
         return parse_judge_response(response_text)
 
-    def judge_via_chat_completions(self, payload: Dict[str, Any]) -> LLMJudgeResult:
+    def judge_via_chat_completions(self, payload: dict[str, Any]) -> LLMJudgeResult:
         """Fallback when Responses API rejects the prompt (e.g. moderation policy)."""
         response = self._client.chat.completions.create(
             model=self._fallback_chat_model,
@@ -74,7 +76,7 @@ class OpenAIJudgeRunner:
         content = response.choices[0].message.content or ""
         return parse_judge_response(content)
 
-    def judge(self, payload: Dict[str, Any]) -> LLMJudgeResult:
+    def judge(self, payload: dict[str, Any]) -> LLMJudgeResult:
         """Responses API, then truncated retry, then chat completions."""
         try:
             return self.judge_via_responses(payload)

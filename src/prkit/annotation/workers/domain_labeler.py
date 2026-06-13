@@ -2,9 +2,6 @@
 Domain annotator for physics problem classification.
 """
 
-from dataclasses import dataclass, field
-from typing import Any, Dict, List
-
 from pydantic import BaseModel
 
 from prkit.annotation.annotations.domain import DomainAnnotation
@@ -14,10 +11,10 @@ from .base import BaseAnnotator
 
 
 class DomainResponse(BaseModel):
-    domains: List[str]
+    domains: list[str]
     confidence: float
     reasoning: str
-    subdomains: List[str]
+    subdomains: list[str]
 
 
 class DomainLabeler(BaseAnnotator):
@@ -43,7 +40,7 @@ class DomainLabeler(BaseAnnotator):
         - electrodynamics
         - electricity
         - quantum_mechanics
-        - modern_physics    
+        - modern_physics
         - atomic_physics
         - high_energy_theory
         - thermodynamics

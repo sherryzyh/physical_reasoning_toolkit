@@ -7,7 +7,7 @@ from datetime import datetime
 
 import pytest
 
-from prkit.core.domain import PhysicsProblem, PhysicsSolution
+from prkit.core.domain import PhysicsSolution
 
 
 class TestPhysicsSolution:
@@ -58,7 +58,9 @@ class TestPhysicsSolution:
         )
         assert solution.get_domain() == "classical_mechanics"
 
-    def test_solution_get_problem_type(self, sample_physics_problem, sample_physics_problem_mc):
+    def test_solution_get_problem_type(
+        self, sample_physics_problem, sample_physics_problem_mc
+    ):
         """Test getting problem type."""
         solution_oe = PhysicsSolution(
             problem_id="test_001",
@@ -74,7 +76,9 @@ class TestPhysicsSolution:
         )
         assert solution_mc.get_problem_type() == "MC"
 
-    def test_solution_is_multiple_choice(self, sample_physics_problem, sample_physics_problem_mc):
+    def test_solution_is_multiple_choice(
+        self, sample_physics_problem, sample_physics_problem_mc
+    ):
         """Test checking if solution is for multiple choice problem."""
         solution_oe = PhysicsSolution(
             problem_id="test_001",
@@ -90,7 +94,9 @@ class TestPhysicsSolution:
         )
         assert solution_mc.is_multiple_choice() is True
 
-    def test_solution_is_open_ended(self, sample_physics_problem, sample_physics_problem_mc):
+    def test_solution_is_open_ended(
+        self, sample_physics_problem, sample_physics_problem_mc
+    ):
         """Test checking if solution is for open-ended problem."""
         solution_oe = PhysicsSolution(
             problem_id="test_001",
@@ -147,7 +153,9 @@ class TestPhysicsSolution:
         assert solution.intermediate_steps[0]["step_content"] == "Identify v, u, a, t"
         assert solution.intermediate_steps[0]["step_type"] == "reasoning"
 
-    def test_solution_add_intermediate_step_with_tool_usage(self, sample_physics_problem):
+    def test_solution_add_intermediate_step_with_tool_usage(
+        self, sample_physics_problem
+    ):
         """Test adding intermediate step with tool usage."""
         solution = PhysicsSolution(
             problem_id="test_001",

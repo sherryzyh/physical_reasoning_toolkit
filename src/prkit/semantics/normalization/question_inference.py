@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from typing import Any, Optional
+from typing import Any
 
 from prkit.core.domain import Answer, PhysicsProblem
 
@@ -162,7 +162,7 @@ _PREDICTION_REDACTED_ADDITIONAL_FIELDS = frozenset(
 )
 
 
-def _clean_inferred_question_unit(value: str | None) -> Optional[str]:
+def _clean_inferred_question_unit(value: str | None) -> str | None:
     """Normalize a candidate fixed-unit string and reject noisy false positives."""
 
     if value is None:
@@ -193,7 +193,7 @@ def _is_supported_question_unit(value: str) -> bool:
     return True
 
 
-def _clean_inferred_target_variable(value: str | None) -> Optional[str]:
+def _clean_inferred_target_variable(value: str | None) -> str | None:
     """Normalize a candidate target variable and reject filler tokens."""
 
     if value is None:
@@ -207,7 +207,7 @@ def _clean_inferred_target_variable(value: str | None) -> Optional[str]:
 
 
 def infer_question_semantics(
-    problem: PhysicsProblem, overrides: Optional[dict[str, Any]] = None
+    problem: PhysicsProblem, overrides: dict[str, Any] | None = None
 ) -> PhysicsQuestionSemantics:
     """Infer answer-aware question semantics.
 
@@ -220,7 +220,7 @@ def infer_question_semantics(
 
 
 def infer_reference_question_semantics(
-    problem: PhysicsProblem, overrides: Optional[dict[str, Any]] = None
+    problem: PhysicsProblem, overrides: dict[str, Any] | None = None
 ) -> PhysicsQuestionSemantics:
     """Infer conservative question-side semantics for reference generation."""
 
@@ -228,7 +228,7 @@ def infer_reference_question_semantics(
 
 
 def infer_prediction_question_semantics(
-    problem: PhysicsProblem, overrides: Optional[dict[str, Any]] = None
+    problem: PhysicsProblem, overrides: dict[str, Any] | None = None
 ) -> PhysicsQuestionSemantics:
     """Infer question-side semantics for prediction without using gold answers."""
 
@@ -239,14 +239,16 @@ def infer_prediction_question_semantics(
 
 
 def _infer_question_semantics_impl(
-    problem: PhysicsProblem, overrides: Optional[dict[str, Any]] = None
+    problem: PhysicsProblem, overrides: dict[str, Any] | None = None
 ) -> PhysicsQuestionSemantics:
     """Infer conservative question-side physics semantics."""
 
     question = problem.question or ""
     choice_space = _infer_choice_space(problem)
 
-    answer_text = _answer_to_raw_text(problem.answer) if problem.answer is not None else ""
+    answer_text = (
+        _answer_to_raw_text(problem.answer) if problem.answer is not None else ""
+    )
     target_variable = None
     if problem.answer is not None and hasattr(problem.answer, "value"):
         target_variable = _extract_equation_lhs(answer_text) or _extract_equation_lhs(
@@ -265,10 +267,14 @@ def _infer_question_semantics_impl(
 
     question_unit = None
     unit_policy = QuestionUnitPolicy.NOT_APPLICABLE
-    fixed_unit_match = None if _IN_TERMS_RE.search(question) else _FIXED_UNIT_RE.search(question)
+    fixed_unit_match = (
+        None if _IN_TERMS_RE.search(question) else _FIXED_UNIT_RE.search(question)
+    )
     needs_answer_unit_policy = False
     if fixed_unit_match:
-        inferred_question_unit = _clean_inferred_question_unit(fixed_unit_match.group(1))
+        inferred_question_unit = _clean_inferred_question_unit(
+            fixed_unit_match.group(1)
+        )
         if inferred_question_unit is not None:
             question_unit = inferred_question_unit
             unit_policy = QuestionUnitPolicy.OPTIONAL_IF_QUESTION_FIXED_UNIT
@@ -289,9 +295,8 @@ def _infer_question_semantics_impl(
     allowed_object_kinds = tuple(AnswerObjectKind)
     allowed_structures = tuple(AnswerStructure)
     if (
-        (problem.problem_type in {"MC", "MultipleMC"} or choice_space)
-        and not answer_parts
-    ):
+        problem.problem_type in {"MC", "MultipleMC"} or choice_space
+    ) and not answer_parts:
         allowed_object_kinds = (AnswerObjectKind.CHOICE,)
         allowed_structures = (
             (AnswerStructure.ATOMIC, AnswerStructure.MULTI_PART)
@@ -466,9 +471,7 @@ def _symbol_aliases_from_metadata(
         if isinstance(alias_values, str):
             alias_values = [alias_values]
         aliases_list = tuple(
-            alias
-            for value in alias_values
-            if (alias := _clean_symbol_name(value))
+            alias for value in alias_values if (alias := _clean_symbol_name(value))
         )
         if canonical_symbol:
             aliases.append(
@@ -561,7 +564,7 @@ def _replace_latex_symbol_commands(text: str) -> str:
     return normalized
 
 
-def _clean_symbol_name(value: Any) -> Optional[str]:
+def _clean_symbol_name(value: Any) -> str | None:
     """Validate and normalize one symbol candidate into token form."""
 
     if value is None:
@@ -616,7 +619,7 @@ def _answer_to_raw_text(answer: Any) -> str:
     return str(answer).strip()
 
 
-def _extract_equation_lhs(text: str) -> Optional[str]:
+def _extract_equation_lhs(text: str) -> str | None:
     """Extract the left-hand side of a simple equation-like surface."""
 
     stripped = _strip_math_wrappers(text)
@@ -628,7 +631,7 @@ def _extract_equation_lhs(text: str) -> Optional[str]:
     return None
 
 
-def _join_value_and_unit(value: Any, unit: Optional[Any]) -> str:
+def _join_value_and_unit(value: Any, unit: Any | None) -> str:
     """Join separate value and unit fields into one answer surface."""
 
     value_str = str(value).strip()

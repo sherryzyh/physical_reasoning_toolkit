@@ -8,10 +8,9 @@ without extra dependencies.
 from __future__ import annotations
 
 import re
-from typing import List
 
 
-def _tokenize(text: str) -> List[str]:
+def _tokenize(text: str) -> list[str]:
     s = text.strip().lower()
     s = re.sub(r"\s+", " ", s)
     if not s:
@@ -19,7 +18,7 @@ def _tokenize(text: str) -> List[str]:
     return s.split()
 
 
-def _lcs_length(a: List[str], b: List[str]) -> int:
+def _lcs_length(a: list[str], b: list[str]) -> int:
     """Length of longest common subsequence (dynamic programming)."""
     if not a or not b:
         return 0

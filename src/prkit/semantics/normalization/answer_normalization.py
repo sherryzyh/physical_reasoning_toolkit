@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import re
-from typing import Any, Iterable, Optional, Union
+from collections.abc import Iterable
+from typing import Any
 
 from prkit.core.domain import Answer, PhysicsProblem
 
@@ -17,12 +18,6 @@ from ..schema import (
     PhysicsQuestionSemantics,
     QuestionSymbolicMode,
 )
-from .question_inference import (
-    _answer_to_raw_text,
-    _extract_equation_lhs,
-    _problem_answer_parts,
-    infer_question_semantics,
-)
 from .atomic_kinds import NormalizedAtomicKind
 from .atomic_normalization import normalize_answer, normalize_expression
 from .math_text_normalization import (
@@ -35,6 +30,12 @@ from .physical_quantity_normalization import (
     synthesize_quantity_latex,
 )
 from .quantity_views import canonicalize_quantity_answer, enrich_answer_quantity_views
+from .question_inference import (
+    _answer_to_raw_text,
+    _extract_equation_lhs,
+    _problem_answer_parts,
+    infer_question_semantics,
+)
 
 _ENUMERATED_PART_RE = re.compile(r"\(\d+\)")
 _MATH_OPERATOR_RE = re.compile(r"[=+\-*/^_<>]|\\[A-Za-z]+|\b[a-zA-Z]\([^)]+\)")
@@ -113,7 +114,7 @@ _QUALITATIVE_ALIAS_GROUPS = {
 
 
 def normalize_problem_answer(
-    problem: PhysicsProblem, *, context: Optional[PhysicsQuestionSemantics] = None
+    problem: PhysicsProblem, *, context: PhysicsQuestionSemantics | None = None
 ) -> PhysicsAnswerSemantics:
     """Normalize a problem's answer into a ``PhysicsAnswerSemantics``."""
 
@@ -155,7 +156,9 @@ def normalize_problem_answer(
 
 
 def normalize_physics_answer(
-    answer: Union[str, Answer, PhysicsAnswerSemantics, Any], *, context: Optional[PhysicsQuestionSemantics] = None
+    answer: str | Answer | PhysicsAnswerSemantics | Any,
+    *,
+    context: PhysicsQuestionSemantics | None = None,
 ) -> PhysicsAnswerSemantics:
     """Normalize an answer-like value into a ``PhysicsAnswerSemantics``."""
 
@@ -208,7 +211,7 @@ def normalize_physics_answer(
 
 def _normalize_structured_text(
     raw_text: str, *, context: PhysicsQuestionSemantics
-) -> Optional[PhysicsAnswerSemantics]:
+) -> PhysicsAnswerSemantics | None:
     """Try the ordered set of structured parsers before falling back to atomic parsing."""
 
     text = _strip_math_wrappers(raw_text)
@@ -311,7 +314,8 @@ def _normalize_atomic_text(
                 canonical_latex=raw_text if _looks_like_latex(raw_text) else None,
                 raw_text=raw_text,
                 object_kind=AnswerObjectKind.RELATION,
-                target_variable=context.target_variable or _extract_equation_lhs(canonical_text),
+                target_variable=context.target_variable
+                or _extract_equation_lhs(canonical_text),
                 provenance=provenance,
             )
         return PhysicsAnswerSemantics(
@@ -356,7 +360,8 @@ def _normalize_atomic_text(
             canonical_latex=canonical_latex,
             raw_text=raw_text,
             object_kind=AnswerObjectKind.RELATION,
-            target_variable=context.target_variable or _extract_equation_lhs(canonical_text),
+            target_variable=context.target_variable
+            or _extract_equation_lhs(canonical_text),
             provenance=provenance,
         )
 
@@ -452,10 +457,10 @@ def _make_structured_outcome(
     children: Iterable[PhysicsAnswerSemantics],
     raw_text: str,
     context: PhysicsQuestionSemantics,
-    part_texts: Optional[Iterable[str]] = None,
-    provenance: Optional[dict[str, Any]] = None,
-    interval_open_left: Optional[bool] = None,
-    interval_open_right: Optional[bool] = None,
+    part_texts: Iterable[str] | None = None,
+    provenance: dict[str, Any] | None = None,
+    interval_open_left: bool | None = None,
+    interval_open_right: bool | None = None,
     cases: tuple[PhysicsAnswerCaseSemantics, ...] = (),
 ) -> PhysicsAnswerSemantics:
     """Build a structured answer object with derived kind, text, and shape metadata."""
@@ -495,7 +500,7 @@ def _make_structured_outcome(
 
 def _try_parse_interval(
     text: str, *, context: PhysicsQuestionSemantics
-) -> Optional[PhysicsAnswerSemantics]:
+) -> PhysicsAnswerSemantics | None:
     """Parse interval notation, including ``Interval(a, b)`` and bracket forms."""
 
     stripped = text.strip()
@@ -530,7 +535,9 @@ def _try_parse_interval(
     parts = _split_top_level(inner, {","})
     if len(parts) != 2:
         return None
-    if any(part.strip().startswith("[") and part.strip().endswith("]") for part in parts):
+    if any(
+        part.strip().startswith("[") and part.strip().endswith("]") for part in parts
+    ):
         return None
     children = tuple(
         normalize_physics_answer(part.strip(), context=_child_context(context))
@@ -548,17 +555,20 @@ def _try_parse_interval(
 
 def _try_parse_vector(
     text: str, *, context: PhysicsQuestionSemantics
-) -> Optional[PhysicsAnswerSemantics]:
+) -> PhysicsAnswerSemantics | None:
     """Parse angle-bracket vector notation like ``<x, y, z>``."""
 
     stripped = text.strip()
     if not (stripped.startswith("<") and stripped.endswith(">")):
         return None
-    parts = [part.strip() for part in _split_top_level(stripped[1:-1], {","}) if part.strip()]
+    parts = [
+        part.strip() for part in _split_top_level(stripped[1:-1], {","}) if part.strip()
+    ]
     if len(parts) < 2:
         return None
     children = tuple(
-        normalize_physics_answer(part, context=_child_context(context)) for part in parts
+        normalize_physics_answer(part, context=_child_context(context))
+        for part in parts
     )
     return _make_structured_outcome(
         structure=AnswerStructure.VECTOR,
@@ -570,7 +580,7 @@ def _try_parse_vector(
 
 def _try_parse_latex_matrix(
     text: str, *, context: PhysicsQuestionSemantics
-) -> Optional[PhysicsAnswerSemantics]:
+) -> PhysicsAnswerSemantics | None:
     """Parse LaTeX matrix environments into vectors or matrices."""
 
     match = _LATEX_MATRIX_ENV_RE.search(text.strip())
@@ -644,7 +654,7 @@ def _apply_matrix_prefix(prefix: str, cell: str) -> str:
 
 def _try_parse_basis_vector(
     text: str, *, context: PhysicsQuestionSemantics
-) -> Optional[PhysicsAnswerSemantics]:
+) -> PhysicsAnswerSemantics | None:
     """Parse basis-vector sums such as ``2\\hat{i} - 3\\hat{j}``."""
 
     stripped = text.strip()
@@ -692,17 +702,22 @@ def _try_parse_basis_vector(
     )
 
 
-def _try_parse_set(text: str, *, context: PhysicsQuestionSemantics) -> Optional[PhysicsAnswerSemantics]:
+def _try_parse_set(
+    text: str, *, context: PhysicsQuestionSemantics
+) -> PhysicsAnswerSemantics | None:
     """Parse brace-delimited unordered sets."""
 
     stripped = text.strip()
     if not (stripped.startswith("{") and stripped.endswith("}")):
         return None
-    parts = [part.strip() for part in _split_top_level(stripped[1:-1], {","}) if part.strip()]
+    parts = [
+        part.strip() for part in _split_top_level(stripped[1:-1], {","}) if part.strip()
+    ]
     if len(parts) < 2:
         return None
     children = tuple(
-        normalize_physics_answer(part, context=_child_context(context)) for part in parts
+        normalize_physics_answer(part, context=_child_context(context))
+        for part in parts
     )
     return _make_structured_outcome(
         structure=AnswerStructure.SET,
@@ -712,17 +727,22 @@ def _try_parse_set(text: str, *, context: PhysicsQuestionSemantics) -> Optional[
     )
 
 
-def _try_parse_tuple(text: str, *, context: PhysicsQuestionSemantics) -> Optional[PhysicsAnswerSemantics]:
+def _try_parse_tuple(
+    text: str, *, context: PhysicsQuestionSemantics
+) -> PhysicsAnswerSemantics | None:
     """Parse tuple-like answers and promote them to multipart answers when required."""
 
     stripped = text.strip()
     if not (stripped.startswith("(") and stripped.endswith(")")):
         return None
-    parts = [part.strip() for part in _split_top_level(stripped[1:-1], {","}) if part.strip()]
+    parts = [
+        part.strip() for part in _split_top_level(stripped[1:-1], {","}) if part.strip()
+    ]
     if len(parts) < 2:
         return None
     children = tuple(
-        normalize_physics_answer(part, context=_child_context(context)) for part in parts
+        normalize_physics_answer(part, context=_child_context(context))
+        for part in parts
     )
     structure = AnswerStructure.TUPLE
     if (
@@ -742,12 +762,14 @@ def _try_parse_tuple(text: str, *, context: PhysicsQuestionSemantics) -> Optiona
 
 def _try_parse_multi_part(
     text: str, *, context: PhysicsQuestionSemantics
-) -> Optional[PhysicsAnswerSemantics]:
+) -> PhysicsAnswerSemantics | None:
     """Parse enumerated or delimiter-separated multipart answers."""
 
     parts: list[str] = []
     if len(_ENUMERATED_PART_RE.findall(text)) >= 2:
-        parts = [part.strip() for part in _ENUMERATED_PART_RE.split(text) if part.strip()]
+        parts = [
+            part.strip() for part in _ENUMERATED_PART_RE.split(text) if part.strip()
+        ]
     elif ";" in text:
         parts = [part.strip() for part in _split_top_level(text, {";"}) if part.strip()]
         if any(_looks_like_alternate_formula_segment(part) for part in parts[1:]):
@@ -759,7 +781,9 @@ def _try_parse_multi_part(
         and context.required_parts
         and "," in text
     ):
-        comma_parts = [part.strip() for part in _split_top_level(text, {","}) if part.strip()]
+        comma_parts = [
+            part.strip() for part in _split_top_level(text, {","}) if part.strip()
+        ]
         if len(comma_parts) == len(context.required_parts):
             parts = comma_parts
     if len(parts) < 2:
@@ -769,7 +793,8 @@ def _try_parse_multi_part(
         for part in parts
     )
     children = tuple(
-        normalize_physics_answer(part, context=_child_context(context)) for part in normalized_parts
+        normalize_physics_answer(part, context=_child_context(context))
+        for part in normalized_parts
     )
     return _make_structured_outcome(
         structure=AnswerStructure.MULTI_PART,
@@ -782,7 +807,7 @@ def _try_parse_multi_part(
 
 def _try_parse_nested_brackets(
     text: str, *, context: PhysicsQuestionSemantics
-) -> Optional[PhysicsAnswerSemantics]:
+) -> PhysicsAnswerSemantics | None:
     """Parse nested bracket lists into vectors, matrices, or higher-rank tensors."""
 
     candidate = text.strip()
@@ -794,9 +819,7 @@ def _try_parse_nested_brackets(
         return None
 
     depth = _nested_depth(parsed)
-    structure = (
-        AnswerStructure.MATRIX if depth == 2 else AnswerStructure.TENSOR
-    )
+    structure = AnswerStructure.MATRIX if depth == 2 else AnswerStructure.TENSOR
     children = _normalize_nested_sequence(parsed, context=context)
     return _make_structured_outcome(
         structure=structure,
@@ -808,7 +831,7 @@ def _try_parse_nested_brackets(
 
 def _try_parse_piecewise(
     text: str, *, context: PhysicsQuestionSemantics
-) -> Optional[PhysicsAnswerSemantics]:
+) -> PhysicsAnswerSemantics | None:
     """Parse LaTeX or SymPy-style piecewise definitions."""
 
     latex_match = re.search(
@@ -844,9 +867,7 @@ def _try_parse_piecewise(
                 question_symbolic_mode=QuestionSymbolicMode.RELATION,
             ),
         )
-        cases.append(
-            PhysicsAnswerCaseSemantics(expression=expr, condition=condition)
-        )
+        cases.append(PhysicsAnswerCaseSemantics(expression=expr, condition=condition))
 
     case_tuple = tuple(cases)
     expr_children = tuple(case.expression for case in case_tuple)
@@ -859,7 +880,7 @@ def _try_parse_piecewise(
     )
 
 
-def _parse_nested_bracket_list(text: str) -> Optional[list[Any]]:
+def _parse_nested_bracket_list(text: str) -> list[Any] | None:
     """Recursively parse a bracketed comma-separated list into Python lists."""
 
     stripped = text.strip()
@@ -972,7 +993,9 @@ def _split_top_level(text: str, delimiters: set[str]) -> list[str]:
 def _extract_subject_to_segments(text: str) -> tuple[str, tuple[str, ...]] | None:
     """Extract one main answer segment plus trailing top-level side conditions."""
 
-    parts = [part.strip() for part in _split_top_level(text, {",", ";"}) if part.strip()]
+    parts = [
+        part.strip() for part in _split_top_level(text, {",", ";"}) if part.strip()
+    ]
     if len(parts) < 2:
         return None
 
@@ -1026,7 +1049,9 @@ def _looks_like_subject_to_constraint(text: str) -> bool:
 
     # Treat pure equalities conservatively so `x=1, y=2` is not misread as
     # one main answer plus a side condition.
-    return any(operator in stripped for operator in ("<", ">", "≤", "≥", "≠", "!", "∈", "∉"))
+    return any(
+        operator in stripped for operator in ("<", ">", "≤", "≥", "≠", "!", "∈", "∉")
+    )
 
 
 def _split_latex_rows(text: str) -> list[str]:
@@ -1036,8 +1061,10 @@ def _split_latex_rows(text: str) -> list[str]:
     current: list[str] = []
     index = 0
     while index < len(text):
-        if text[index] == "\\" and index + 1 < len(text) and (
-            text[index + 1] == "\\" or text[index + 1].isspace()
+        if (
+            text[index] == "\\"
+            and index + 1 < len(text)
+            and (text[index + 1] == "\\" or text[index + 1].isspace())
         ):
             row = "".join(current).strip()
             if row:
@@ -1061,11 +1088,15 @@ def _split_piecewise_row(row: str) -> tuple[str | None, str | None]:
     pair_text = row[1:-1] if row.startswith("(") and row.endswith(")") else row
     pair_text = pair_text.strip().rstrip(",").strip()
 
-    ampersand_parts = [part.strip() for part in _split_top_level(pair_text, {"&"}) if part.strip()]
+    ampersand_parts = [
+        part.strip() for part in _split_top_level(pair_text, {"&"}) if part.strip()
+    ]
     if len(ampersand_parts) == 2:
         return ampersand_parts[0], _strip_piecewise_condition_prefix(ampersand_parts[1])
 
-    comma_parts = [part.strip() for part in _split_top_level(pair_text, {","}) if part.strip()]
+    comma_parts = [
+        part.strip() for part in _split_top_level(pair_text, {","}) if part.strip()
+    ]
     if len(comma_parts) < 2:
         return None, None
     expression_text = ", ".join(comma_parts[:-1]).strip()
@@ -1130,14 +1161,14 @@ def _strip_math_wrappers(text: str) -> str:
     return stripped.strip()
 
 
-def _canonicalize_boolean(text: str) -> Optional[bool]:
+def _canonicalize_boolean(text: str) -> bool | None:
     """Return the canonical boolean value encoded by ``text``."""
 
     normalized = _normalize_phrase(text)
     return _BOOLEAN_CANONICAL.get(normalized)
 
 
-def _canonicalize_sign_direction(text: str) -> Optional[str]:
+def _canonicalize_sign_direction(text: str) -> str | None:
     """Return the canonical sign/direction label encoded by ``text``."""
 
     normalized = _normalize_phrase(text)
@@ -1147,7 +1178,7 @@ def _canonicalize_sign_direction(text: str) -> Optional[str]:
 def _canonicalize_choice(
     text: str,
     choice_space: tuple[str, ...],
-) -> Optional[str]:
+) -> str | None:
     """Match free-form answer text against the question's known choice labels."""
 
     stripped = re.sub(r"\\boxed\{([^}]+)\}", r"\1", text).strip()
@@ -1175,12 +1206,11 @@ def _try_expression_rescue(
     raw_text: str,
     *,
     context: PhysicsQuestionSemantics,
-) -> Optional[tuple[str, NormalizedAtomicKind]]:
+) -> tuple[str, NormalizedAtomicKind] | None:
     """Recover symbolic answers that the generic atomic normalizer would miss."""
 
-    if (
-        not _MATH_OPERATOR_RE.search(raw_text)
-        and not _looks_like_symbolic_identifier(raw_text, context=context)
+    if not _MATH_OPERATOR_RE.search(raw_text) and not _looks_like_symbolic_identifier(
+        raw_text, context=context
     ):
         return None
     normalized, success, expr_category = normalize_expression(raw_text)
@@ -1189,7 +1219,9 @@ def _try_expression_rescue(
         if _looks_like_relation_text(stripped):
             return stripped, NormalizedAtomicKind.RELATION
         return None
-    if expr_category == NormalizedAtomicKind.RELATION or _looks_like_relation_text(str(normalized)):
+    if expr_category == NormalizedAtomicKind.RELATION or _looks_like_relation_text(
+        str(normalized)
+    ):
         return str(normalized), NormalizedAtomicKind.RELATION
     if expr_category not in {
         NormalizedAtomicKind.EXPRESSION,
@@ -1209,7 +1241,7 @@ def _normalize_phrase(text: str) -> str:
 
 
 def _aggregate_object_kind(
-    children: tuple[PhysicsAnswerSemantics, ...]
+    children: tuple[PhysicsAnswerSemantics, ...],
 ) -> AnswerObjectKind:
     """Infer the common object kind represented by a structured answer's children."""
 
@@ -1219,7 +1251,8 @@ def _aggregate_object_kind(
     if all(child.object_kind == first_kind for child in children):
         return first_kind
     if all(
-        child.object_kind in {AnswerObjectKind.NUMBER, AnswerObjectKind.PHYSICAL_QUANTITY}
+        child.object_kind
+        in {AnswerObjectKind.NUMBER, AnswerObjectKind.PHYSICAL_QUANTITY}
         for child in children
     ):
         return AnswerObjectKind.PHYSICAL_QUANTITY
@@ -1230,15 +1263,19 @@ def _render_structured_text(
     *,
     structure: AnswerStructure,
     children: tuple[PhysicsAnswerSemantics, ...],
-    interval_open_left: Optional[bool] = None,
-    interval_open_right: Optional[bool] = None,
+    interval_open_left: bool | None = None,
+    interval_open_right: bool | None = None,
     cases: tuple[PhysicsAnswerCaseSemantics, ...] = (),
 ) -> str:
     """Render structured answer content back into canonical text form."""
 
     if structure == AnswerStructure.MULTI_PART:
         return "; ".join(
-            f"{child.part_label}: {child.canonical_text}" if child.part_label else child.canonical_text
+            (
+                f"{child.part_label}: {child.canonical_text}"
+                if child.part_label
+                else child.canonical_text
+            )
             for child in children
         )
     if structure == AnswerStructure.TUPLE:
@@ -1248,16 +1285,22 @@ def _render_structured_text(
     if structure == AnswerStructure.INTERVAL:
         left = "(" if interval_open_left else "["
         right = ")" if interval_open_right else "]"
-        return f"{left}{children[0].canonical_text}, {children[1].canonical_text}{right}"
+        return (
+            f"{left}{children[0].canonical_text}, {children[1].canonical_text}{right}"
+        )
     if structure == AnswerStructure.VECTOR:
         return f"<{', '.join(child.canonical_text for child in children)}>"
     if structure in {AnswerStructure.MATRIX, AnswerStructure.TENSOR}:
         return "[" + ", ".join(child.canonical_text for child in children) + "]"
     if structure == AnswerStructure.PIECEWISE:
-        return "Piecewise(" + ", ".join(
-            f"({case.expression.canonical_text}, {case.condition.canonical_text})"
-            for case in cases
-        ) + ")"
+        return (
+            "Piecewise("
+            + ", ".join(
+                f"({case.expression.canonical_text}, {case.condition.canonical_text})"
+                for case in cases
+            )
+            + ")"
+        )
     return "; ".join(child.canonical_text for child in children)
 
 
@@ -1292,7 +1335,9 @@ def _nested_depth(data: list[Any]) -> int:
     return 1 + _nested_depth(data[0])
 
 
-def _child_context(context: PhysicsQuestionSemantics, **overrides: Any) -> PhysicsQuestionSemantics:
+def _child_context(
+    context: PhysicsQuestionSemantics, **overrides: Any
+) -> PhysicsQuestionSemantics:
     """Derive the stricter child context used when parsing structured elements."""
 
     return context.model_copy(
@@ -1356,14 +1401,20 @@ def _label_multi_part_children(
     return tuple(updated_children)
 
 
-def _looks_like_symbolic_identifier(text: str, *, context: PhysicsQuestionSemantics) -> bool:
+def _looks_like_symbolic_identifier(
+    text: str, *, context: PhysicsQuestionSemantics
+) -> bool:
     """Detect lightweight symbolic identifiers that should be treated as expressions."""
 
-    if context.question_symbolic_mode not in {
-        QuestionSymbolicMode.EXPRESSION,
-        QuestionSymbolicMode.EITHER,
-        QuestionSymbolicMode.RELATION,
-    } and not context.target_variable:
+    if (
+        context.question_symbolic_mode
+        not in {
+            QuestionSymbolicMode.EXPRESSION,
+            QuestionSymbolicMode.EITHER,
+            QuestionSymbolicMode.RELATION,
+        }
+        and not context.target_variable
+    ):
         return False
     stripped = _strip_math_wrappers(text)
     if (

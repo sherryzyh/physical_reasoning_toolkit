@@ -82,7 +82,9 @@ def _build_problem() -> PhysicsProblem:
     return problem
 
 
-def test_build_reference_semantics_prompt_uses_problem_answer_and_solution_context() -> None:
+def test_build_reference_semantics_prompt_uses_problem_answer_and_solution_context() -> (
+    None
+):
     prompt = build_reference_semantics_prompt(_build_problem())
 
     assert "Domain: mechanics" in prompt
@@ -128,7 +130,10 @@ def test_build_prediction_semantics_prompt_uses_answer_blind_question_draft() ->
     prompt = build_prediction_semantics_prompt(problem)
 
     assert '"target_variable": "F"' not in prompt
-    assert '"required_parts": [\n    "displacement_value",\n    "time_value"\n  ]' in prompt
+    assert (
+        '"required_parts": [\n    "displacement_value",\n    "time_value"\n  ]'
+        in prompt
+    )
     assert "speed_slot" not in prompt
     assert "x_final" not in prompt
 
@@ -184,7 +189,9 @@ class _PredictionStubModelClient(BaseModelClient):
         )
 
 
-def test_infer_prediction_semantics_uses_native_json_schema_with_strict_response_model() -> None:
+def test_infer_prediction_semantics_uses_native_json_schema_with_strict_response_model() -> (
+    None
+):
     model_client = _PredictionStubModelClient()
 
     artifact = infer_prediction_semantics(
@@ -195,7 +202,9 @@ def test_infer_prediction_semantics_uses_native_json_schema_with_strict_response
     assert artifact.generator.structured_output_mode == "json_schema"
     assert model_client.last_response_format is not None
     assert model_client.last_response_format["type"] == "json_schema"
-    assert model_client.last_response_format["name"] == "StrictPredictionSemanticsResponse"
+    assert (
+        model_client.last_response_format["name"] == "StrictPredictionSemanticsResponse"
+    )
     assert "Return ONLY a JSON object matching this JSON Schema:" not in (
         model_client.last_prompt or ""
     )
@@ -220,7 +229,11 @@ class _AnthropicPlanStubModelClient(_PredictionStubModelClient):
                 native_schema_enforced=True,
                 accepted_artifact_modes=("json_schema",),
                 accepted_artifact_strategies=("anthropic_output_config",),
-                response_format={"type": "json_schema", "name": spec.name, "schema": spec.schema},
+                response_format={
+                    "type": "json_schema",
+                    "name": spec.name,
+                    "schema": spec.schema,
+                },
                 prompt_suffix=None,
             )
         return StructuredOutputPlan(
@@ -234,7 +247,9 @@ class _AnthropicPlanStubModelClient(_PredictionStubModelClient):
         )
 
 
-def test_resolve_prediction_response_model_prefers_compact_native_schema_when_available() -> None:
+def test_resolve_prediction_response_model_prefers_compact_native_schema_when_available() -> (
+    None
+):
     model_client = _AnthropicPlanStubModelClient()
 
     response_model = resolve_prediction_response_model(model_client)
@@ -314,8 +329,14 @@ def test_run_structured_inference_retries_with_prompt_only_when_allowed() -> Non
     assert len(model_client.prompts) == 2
     assert model_client.response_formats == [None, None]
     assert model_client.max_output_tokens == [4096, 8192]
-    assert "Return exactly one complete JSON object and nothing else." not in model_client.prompts[0]
-    assert "Return exactly one complete JSON object and nothing else." in model_client.prompts[1]
+    assert (
+        "Return exactly one complete JSON object and nothing else."
+        not in model_client.prompts[0]
+    )
+    assert (
+        "Return exactly one complete JSON object and nothing else."
+        in model_client.prompts[1]
+    )
 
 
 def test_resolve_max_output_tokens_uses_provider_defaults() -> None:
@@ -380,7 +401,9 @@ The derivation uses \frac{1}{2} and prose before the JSON payload.
     assert response.prediction_answer_semantics.object_kind.value == "physical_quantity"
 
 
-def test_parse_prediction_response_repairs_missing_fields_and_nested_prompt_only_deviations() -> None:
+def test_parse_prediction_response_repairs_missing_fields_and_nested_prompt_only_deviations() -> (
+    None
+):
     raw_response = json.dumps(
         {
             "question_semantics": {
@@ -416,7 +439,9 @@ def test_parse_prediction_response_repairs_missing_fields_and_nested_prompt_only
     assert response.prediction_answer_semantics.diagnostics == ()
 
 
-def test_parse_prediction_response_lifts_top_level_question_fields_and_derives_answer_semantics() -> None:
+def test_parse_prediction_response_lifts_top_level_question_fields_and_derives_answer_semantics() -> (
+    None
+):
     raw_response = json.dumps(
         {
             "reasoning": "Use the force balance.",
@@ -487,7 +512,9 @@ def test_parse_prediction_response_wraps_standalone_answer_semantics_object() ->
     assert response.prediction_answer_semantics.canonical_text == "sqrt(7)/2"
 
 
-def test_parse_prediction_response_repairs_symbolic_subject_to_and_stray_reference_field() -> None:
+def test_parse_prediction_response_repairs_symbolic_subject_to_and_stray_reference_field() -> (
+    None
+):
     raw_response = json.dumps(
         {
             "reasoning_summary": "Use mode expansion.",
@@ -509,7 +536,10 @@ def test_parse_prediction_response_repairs_symbolic_subject_to_and_stray_referen
     response = _parse_response_model(StrictPredictionSemanticsResponse, raw_response)
 
     assert response.question_semantics.question_symbolic_mode.value == "either"
-    assert response.prediction_answer_semantics.subject_to[0].object_kind.value == "relation"
+    assert (
+        response.prediction_answer_semantics.subject_to[0].object_kind.value
+        == "relation"
+    )
     assert response.prediction_answer_semantics.subject_to[0].canonical_text == (
         r"m, n \in \{0, 1, 2, ...\}, m+n > 0"
     )
@@ -556,7 +586,9 @@ def test_parse_prediction_response_strips_unknown_nested_answer_fields() -> None
     assert "components" not in dumped["prediction_answer_semantics"]["children"][1]
 
 
-def test_parse_prediction_response_strips_unknown_fields_in_cases_and_subject_to() -> None:
+def test_parse_prediction_response_strips_unknown_fields_in_cases_and_subject_to() -> (
+    None
+):
     raw_response = json.dumps(
         {
             "reasoning_summary": "Use the piecewise form.",
@@ -595,14 +627,26 @@ def test_parse_prediction_response_strips_unknown_fields_in_cases_and_subject_to
     response = _parse_response_model(StrictPredictionSemanticsResponse, raw_response)
     dumped = response.model_dump(mode="python")
 
-    assert dumped["prediction_answer_semantics"]["cases"][0]["expression"]["canonical_text"] == "x"
+    assert (
+        dumped["prediction_answer_semantics"]["cases"][0]["expression"][
+            "canonical_text"
+        ]
+        == "x"
+    )
     assert "label" not in dumped["prediction_answer_semantics"]["cases"][0]
-    assert "symbol" not in dumped["prediction_answer_semantics"]["cases"][0]["expression"]
-    assert "components" not in dumped["prediction_answer_semantics"]["cases"][0]["condition"]
+    assert (
+        "symbol" not in dumped["prediction_answer_semantics"]["cases"][0]["expression"]
+    )
+    assert (
+        "components"
+        not in dumped["prediction_answer_semantics"]["cases"][0]["condition"]
+    )
     assert "symbol" not in dumped["prediction_answer_semantics"]["subject_to"][0]
 
 
-def test_parse_prediction_response_still_fails_when_final_answer_is_unrecoverable() -> None:
+def test_parse_prediction_response_still_fails_when_final_answer_is_unrecoverable() -> (
+    None
+):
     raw_response = json.dumps(
         {
             "reasoning_summary": "No answer surface available.",
@@ -636,7 +680,9 @@ def test_parse_prediction_response_coerces_subject_to_string_lists() -> None:
 
     response = _parse_response_model(StrictPredictionSemanticsResponse, raw_response)
 
-    assert tuple(item.canonical_text for item in response.prediction_answer_semantics.subject_to) == (
+    assert tuple(
+        item.canonical_text for item in response.prediction_answer_semantics.subject_to
+    ) == (
         "L >> P",
         "d > 0",
     )
@@ -688,14 +734,20 @@ class _NoStructuredOutputModelClient(BaseModelClient):
         **kwargs: Any,
     ) -> str:
         del user_prompt, image_paths, response_format, kwargs
-        raise AssertionError("chat should not be called when native json_schema is unsupported")
+        raise AssertionError(
+            "chat should not be called when native json_schema is unsupported"
+        )
 
 
 def test_infer_prediction_semantics_requires_native_json_schema_support() -> None:
-    with pytest.raises(ValueError, match="requires native provider-enforced structured output support"):
+    with pytest.raises(
+        ValueError, match="requires native provider-enforced structured output support"
+    ):
         infer_prediction_semantics(_build_problem(), _NoStructuredOutputModelClient())
 
 
 def test_infer_reference_semantics_requires_native_json_schema_support() -> None:
-    with pytest.raises(ValueError, match="requires native provider-enforced structured output support"):
+    with pytest.raises(
+        ValueError, match="requires native provider-enforced structured output support"
+    ):
         infer_reference_semantics(_build_problem(), _NoStructuredOutputModelClient())

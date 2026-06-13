@@ -9,20 +9,12 @@ from uncertainty_quantification_physical_reasoning.scripts.script_physical_reaso
 
 
 def test_parse_after_think_unterminated_answer_tag():
-    response = (
-        "<solution>work</solution>\n\n"
-        "<answer>\n"
-        "final result"
-    )
+    response = "<solution>work</solution>\n\n" "<answer>\n" "final result"
 
     assert parse_after_think(response) == "final result"
 
 
 def test_parse_before_think_unterminated_answer_tag():
-    response = (
-        "<answer>\n"
-        "final result\n"
-        "<think>reasoning</think>"
-    )
+    response = "<answer>\n" "final result\n" "<think>reasoning</think>"
 
     assert parse_before_think(response) == "final result"

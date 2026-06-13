@@ -8,7 +8,6 @@ its answer kinds back to legacy `AnswerCategory` / string labels.
 from __future__ import annotations
 
 import re
-from typing import Union
 
 from latex2sympy2_extended import latex2sympy
 
@@ -19,23 +18,27 @@ from prkit.semantics.normalization.atomic_kinds import (
 )
 from prkit.semantics.normalization.atomic_normalization import (
     normalize_answer as _semantics_normalize_answer,
+)
+from prkit.semantics.normalization.atomic_normalization import (
     normalize_expression as _semantics_normalize_expression,
+)
+from prkit.semantics.normalization.atomic_normalization import (
     normalize_number,
 )
 from prkit.semantics.normalization.math_text_normalization import (
+    _UNICODE_WHITESPACE,
     _extract_math_content,
     _match_balanced_braces,
     _normalize_unicode,
     _starts_with_latex_delimiter,
-    _UNICODE_WHITESPACE,
     normalize_text,
 )
 from prkit.semantics.normalization.physical_quantity_normalization import (
     _FRAC_LATEX_PATTERN,
     _FRACTION_RE,
     _FRACTION_TOKEN,
-    _NUMERIC_PREFIX_RE,
     _NUM_TOKEN,
+    _NUMERIC_PREFIX_RE,
     _POWER_RE,
     _POWER_TOKEN,
     _QUANTITY_PATTERN,
@@ -98,7 +101,7 @@ def classify_expression(clean_str: str) -> str:
 
 def normalize_expression(
     answer_str: str,
-) -> tuple[Union[float, str], bool, str]:
+) -> tuple[float | str, bool, str]:
     """Normalize an expression while preserving legacy category labels."""
 
     normalized, success, kind = _semantics_normalize_expression(answer_str)
@@ -107,7 +110,7 @@ def normalize_expression(
 
 def normalize_answer(
     answer_str: str,
-) -> tuple[AnswerCategory, Union[float, str]]:
+) -> tuple[AnswerCategory, float | str]:
     """Normalize an answer string via the semantics-owned implementation."""
 
     kind, normalized = _semantics_normalize_answer(answer_str)

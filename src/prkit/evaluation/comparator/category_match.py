@@ -12,13 +12,13 @@ Subclass hooks: overriding ``_comparators`` affects :meth:`_compare_by_category`
 and :meth:`compare`.
 """
 
-from typing import Any, Optional, Union
+from typing import Any
 
 from prkit.core import PRKitLogger
 from prkit.core.domain.answer import Answer
 from prkit.core.domain.answer_category import AnswerCategory
 from prkit.evaluation.utils.answer_utils import same_comparison_category
-from prkit.evaluation.utils.normalization import normalize_answer, normalize_text
+from prkit.evaluation.utils.category_dispatch import compare_by_category
 from prkit.evaluation.utils.compare_same_type import (
     compare_formula,
     compare_number,
@@ -26,15 +26,14 @@ from prkit.evaluation.utils.compare_same_type import (
     compare_physical_quantity,
     compare_plain_text,
 )
-
-from prkit.evaluation.utils.category_dispatch import compare_by_category
+from prkit.evaluation.utils.normalization import normalize_answer, normalize_text
 
 from .base import BaseComparator
 
 
 def _typed_category_and_value(
-    answer: Union[str, Answer],
-) -> tuple[Optional[AnswerCategory], Union[float, str]]:
+    answer: str | Answer,
+) -> tuple[AnswerCategory | None, float | str]:
     if isinstance(answer, Answer):
         return answer.answer_category, str(answer.value)
     try:
@@ -72,8 +71,8 @@ class CategoryComparator(BaseComparator):
     def _compare_by_category(
         self,
         category: AnswerCategory,
-        predicted_norm: Union[float, str],
-        ground_truth_norm: Union[float, str],
+        predicted_norm: float | str,
+        ground_truth_norm: float | str,
     ) -> bool:
         """Compare two normalized values using the category-specific strategy."""
         return compare_by_category(
@@ -86,8 +85,8 @@ class CategoryComparator(BaseComparator):
 
     def compare(
         self,
-        answer1: Union[str, Answer],
-        answer2: Union[str, Answer],
+        answer1: str | Answer,
+        answer2: str | Answer,
         **kwargs: Any,
     ) -> bool:
         """
@@ -112,8 +111,8 @@ class CategoryComparator(BaseComparator):
 
     def accuracy_score(
         self,
-        answer1: Union[str, Answer],
-        answer2: Union[str, Answer],
+        answer1: str | Answer,
+        answer2: str | Answer,
         **kwargs: Any,
     ) -> float:
         """

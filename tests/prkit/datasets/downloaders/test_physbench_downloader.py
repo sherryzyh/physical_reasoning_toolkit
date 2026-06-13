@@ -52,7 +52,9 @@ class TestPhysBenchDownloader:
             ),
         ]
 
-        result = downloader._do_download(download_dir)  # pylint: disable=protected-access
+        result = downloader._do_download(
+            download_dir
+        )  # pylint: disable=protected-access
 
         assert result == download_dir
         assert (download_dir / "README.md").exists()

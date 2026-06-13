@@ -9,7 +9,6 @@ import os
 import shutil
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Dict, List, Optional, Union
 
 from prkit.core import PRKitLogger
 
@@ -42,7 +41,7 @@ class BaseDownloader(ABC):
 
     @property
     @abstractmethod
-    def download_info(self) -> Dict[str, any]:
+    def download_info(self) -> dict[str, any]:
         """
         Return download information including source URLs, formats, etc.
 
@@ -51,13 +50,13 @@ class BaseDownloader(ABC):
         """
         pass
 
-    def get_default_variant(self) -> Optional[str]:
+    def get_default_variant(self) -> str | None:
         """
         Get the default variant for this dataset downloader.
-        
+
         Returns "full" if available, otherwise returns the first available variant.
         Returns None if no variants are available.
-        
+
         Returns:
             Default variant string or None
         """
@@ -65,21 +64,21 @@ class BaseDownloader(ABC):
         variants = info.get("variants", [])
         if not variants:
             return None
-        
+
         # Prefer "full" if available
         if "full" in variants:
             return "full"
-        
+
         # Otherwise return the first variant
         return variants[0] if variants else None
 
-    def get_default_split(self) -> Optional[str]:
+    def get_default_split(self) -> str | None:
         """
         Get the default split for this dataset downloader.
-        
+
         Returns "full" if available, otherwise returns the first available split.
         Returns None if no splits are available.
-        
+
         Returns:
             Default split string or None
         """
@@ -87,28 +86,28 @@ class BaseDownloader(ABC):
         splits = info.get("splits", [])
         if not splits:
             return None
-        
+
         # Prefer "full" if available
         if "full" in splits:
             return "full"
-        
+
         # Otherwise return the first split
         return splits[0] if splits else None
 
-    def get_available_variants(self) -> List[str]:
+    def get_available_variants(self) -> list[str]:
         """
         Get list of available variants for this dataset downloader.
-        
+
         Returns:
             List of variant strings
         """
         info = self.download_info
         return info.get("variants", [])
 
-    def get_available_splits(self) -> List[str]:
+    def get_available_splits(self) -> list[str]:
         """
         Get list of available splits for this dataset downloader.
-        
+
         Returns:
             List of split strings
         """
@@ -118,10 +117,10 @@ class BaseDownloader(ABC):
     def validate_variant(self, variant: str) -> None:
         """
         Validate that a variant is available for this dataset downloader.
-        
+
         Args:
             variant: Variant to validate
-            
+
         Raises:
             ValueError: If variant is not available
         """
@@ -135,10 +134,10 @@ class BaseDownloader(ABC):
     def validate_split(self, split: str) -> None:
         """
         Validate that a split is available for this dataset downloader.
-        
+
         Args:
             split: Split to validate
-            
+
         Raises:
             ValueError: If split is not available
         """
@@ -151,7 +150,7 @@ class BaseDownloader(ABC):
 
     def download(
         self,
-        data_dir: Optional[Union[str, Path]] = None,
+        data_dir: str | Path | None = None,
         force: bool = False,
         **kwargs,
     ) -> Path:
@@ -219,7 +218,7 @@ class BaseDownloader(ABC):
         pass
 
     @abstractmethod
-    def verify(self, data_dir: Union[str, Path]) -> bool:
+    def verify(self, data_dir: str | Path) -> bool:
         """
         Verify that the downloaded dataset is complete and valid.
 
@@ -231,9 +230,7 @@ class BaseDownloader(ABC):
         """
         pass
 
-    def resolve_download_dir(
-        self, data_dir: Optional[Union[str, Path]] = None
-    ) -> Path:
+    def resolve_download_dir(self, data_dir: str | Path | None = None) -> Path:
         """
         Resolve download directory with support for DATASET_CACHE_DIR environment variable.
 
@@ -264,7 +261,7 @@ class BaseDownloader(ABC):
         home_data_dir = Path.home() / "PHYSICAL_REASONING_DATASETS"
         return home_data_dir.resolve() / self.dataset_name
 
-    def is_downloaded(self, data_dir: Optional[Union[str, Path]] = None) -> bool:
+    def is_downloaded(self, data_dir: str | Path | None = None) -> bool:
         """
         Check if the dataset is already downloaded.
 
@@ -285,7 +282,7 @@ class BaseDownloader(ABC):
             self.logger.warning(f"Verification failed: {e}")
             return False
 
-    def get_download_size(self) -> Optional[int]:
+    def get_download_size(self) -> int | None:
         """
         Get the estimated download size in bytes.
 
@@ -305,7 +302,7 @@ class BaseDownloader(ABC):
         info = self.download_info
         return info.get("source", "Unknown")
 
-    def clean_directory(self, data_dir: Optional[Union[str, Path]] = None) -> None:
+    def clean_directory(self, data_dir: str | Path | None = None) -> None:
         """
         Clean (delete) the dataset directory if it exists.
 
@@ -319,16 +316,12 @@ class BaseDownloader(ABC):
             OSError: If directory deletion fails
         """
         download_dir = self.resolve_download_dir(data_dir)
-        
+
         if download_dir.exists():
-            self.logger.info(
-                "Cleaning existing dataset directory: %s", download_dir
-            )
+            self.logger.info("Cleaning existing dataset directory: %s", download_dir)
             try:
                 shutil.rmtree(download_dir)
                 self.logger.info("Successfully cleaned directory: %s", download_dir)
             except OSError as e:
-                self.logger.error(
-                    "Failed to clean directory %s: %s", download_dir, e
-                )
+                self.logger.error("Failed to clean directory %s: %s", download_dir, e)
                 raise

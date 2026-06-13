@@ -10,10 +10,9 @@ Prerequisites:
 """
 
 import os
-from typing import Any, List, Optional, Union
+from typing import Any
 
 import ollama
-from pydantic import BaseModel
 
 from .base import BaseModelClient
 from .structured_output import (
@@ -43,13 +42,13 @@ class OllamaModel(BaseModelClient):
     supports_response_format_json_object = True
 
     @staticmethod
-    def check_ollama_running(base_url: Optional[str] = None) -> bool:
+    def check_ollama_running(base_url: str | None = None) -> bool:
         """
         Check if Ollama service is running and accessible.
-        
+
         Args:
             base_url: Optional base URL for Ollama API (defaults to http://localhost:11434)
-            
+
         Returns:
             True if Ollama is running and accessible, False otherwise
         """
@@ -63,7 +62,7 @@ class OllamaModel(BaseModelClient):
         except Exception:
             return False
 
-    def __init__(self, model: str, logger=None, base_url: Optional[str] = None):
+    def __init__(self, model: str, logger=None, base_url: str | None = None):
         """
         Initialize Ollama model client.
 
@@ -73,7 +72,7 @@ class OllamaModel(BaseModelClient):
                 - Prefixed form: 'ollama/qwen3-vl:8b'
             logger: Optional logger instance
             base_url: Optional base URL for Ollama API (defaults to http://localhost:11434)
-            
+
         Raises:
             ConnectionError: If Ollama service is not running or unreachable
         """
@@ -82,14 +81,14 @@ class OllamaModel(BaseModelClient):
         self.base_url = base_url
         # The ollama-python library uses a default client pointing to localhost:11434
         # but you can also use ollama.Client(host='...') if needed.
-        
+
         # Check if Ollama is running during initialization
         self._check_ollama_running()
 
     def _check_ollama_running(self):
         """
         Check if Ollama service is running and accessible.
-        
+
         Raises:
             ConnectionError: If Ollama service is not running or unreachable
         """
@@ -117,8 +116,8 @@ class OllamaModel(BaseModelClient):
     def chat(
         self,
         user_prompt: str,
-        image_paths: Optional[List[str]] = None,
-        response_format: Optional[Union[dict, type]] = None,
+        image_paths: list[str] | None = None,
+        response_format: dict | type | None = None,
         max_output_tokens: int = 65535,
         *args: Any,
         **kwargs: Any,
@@ -140,15 +139,15 @@ class OllamaModel(BaseModelClient):
 
         Returns:
             Response text from the model.
-            
+
         Raises:
             FileNotFoundError: If any image file path doesn't exist
             ConnectionError: If Ollama service becomes unreachable during inference
             ValueError: If the model is not found (not pulled in Ollama)
         """
         message = {
-            'role': 'user',
-            'content': user_prompt,
+            "role": "user",
+            "content": user_prompt,
         }
 
         request_format = None
@@ -163,7 +162,7 @@ class OllamaModel(BaseModelClient):
                 request_format = normalized["schema"]
 
         if image_paths:
-            # Ollama's python SDK can handle paths, but for consistency with your 
+            # Ollama's python SDK can handle paths, but for consistency with your
             # OpenAI implementation, we will ensure they exist.
             valid_images = []
             for path in image_paths:
@@ -171,11 +170,11 @@ class OllamaModel(BaseModelClient):
                     self.logger.error(f"Image not found: {path}")
                     raise FileNotFoundError(f"Image file not found: {path}")
                 valid_images.append(path)
-            
-            message['images'] = valid_images
+
+            message["images"] = valid_images
         options = {
-            'temperature': 0,
-            'num_predict': max_output_tokens,
+            "temperature": 0,
+            "num_predict": max_output_tokens,
             **kwargs,
         }
         # Note: Do NOT set num_gpu=99. It causes "memory layout cannot be allocated"
@@ -196,22 +195,24 @@ class OllamaModel(BaseModelClient):
                 response = client.chat(**request_kwargs)
             else:
                 response = ollama.chat(**request_kwargs)
-            
+
             # Handle both dict-like and object-like response access
             if hasattr(response, "message"):
                 return response.message.content
             else:
-                return response['message']['content']
-            
+                return response["message"]["content"]
+
         except Exception as e:
             # Check if it's a model not found error (ResponseError with 404 or model not found message)
             error_str = str(e).lower()
             error_type = type(e).__name__
-            
+
             # Handle model not found errors
-            if ("model" in error_str and "not found" in error_str) or \
-               (hasattr(e, 'status_code') and getattr(e, 'status_code') == 404) or \
-               (error_type == 'ResponseError' and "404" in error_str):
+            if (
+                ("model" in error_str and "not found" in error_str)
+                or (hasattr(e, "status_code") and getattr(e, "status_code") == 404)
+                or (error_type == "ResponseError" and "404" in error_str)
+            ):
                 error_msg = (
                     f"Model '{self.model}' not found in Ollama. "
                     f"Please pull the model first: `ollama pull {self.model}`\n"
@@ -220,10 +221,14 @@ class OllamaModel(BaseModelClient):
                 )
                 self.logger.error(error_msg)
                 raise ValueError(error_msg) from e
-            
+
             # Handle connection errors
-            if "connection" in error_str or "refused" in error_str or "unreachable" in error_str or \
-               (hasattr(e, 'status_code') and getattr(e, 'status_code', 0) >= 500):
+            if (
+                "connection" in error_str
+                or "refused" in error_str
+                or "unreachable" in error_str
+                or (hasattr(e, "status_code") and getattr(e, "status_code", 0) >= 500)
+            ):
                 error_msg = (
                     f"Ollama service is not running or unreachable at "
                     f"{self.base_url or 'http://localhost:11434'}. "
@@ -233,7 +238,7 @@ class OllamaModel(BaseModelClient):
                 )
                 self.logger.error(error_msg)
                 raise ConnectionError(error_msg) from e
-            
+
             # Re-raise other exceptions as-is
             self.logger.error(f"Ollama inference failed: {str(e)}")
             raise
@@ -251,7 +256,8 @@ class OllamaModel(BaseModelClient):
             native_schema_enforced=True,
             accepted_artifact_modes=("json_schema", "json_object"),
             accepted_artifact_strategies=("ollama_format_schema", "ollama_json_object"),
-            response_format=spec.source_model or normalize_response_format(
+            response_format=spec.source_model
+            or normalize_response_format(
                 {
                     "type": "json_schema",
                     "name": spec.name,

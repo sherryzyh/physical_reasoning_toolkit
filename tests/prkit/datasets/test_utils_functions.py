@@ -4,8 +4,7 @@ Tests for prkit.datasets/utils.py utility functions.
 
 import json
 
-from prkit.core.domain import AnswerCategory
-from prkit.core.domain import Answer, PhysicalDataset, PhysicsProblem
+from prkit.core.domain import Answer, AnswerCategory, PhysicalDataset, PhysicsProblem
 from prkit.datasets import utils
 
 
@@ -15,7 +14,9 @@ class TestSampleBalanced:
     def test_sample_balanced_by_domain(self, sample_problems_list):
         """Test sampling balanced by domain."""
         dataset = PhysicalDataset(problems=sample_problems_list)
-        balanced = utils.sample_balanced(dataset, "domain", samples_per_category=1, seed=42)
+        balanced = utils.sample_balanced(
+            dataset, "domain", samples_per_category=1, seed=42
+        )
 
         assert len(balanced) >= 1
         assert balanced.get_info().get("balanced_on") == "domain"
@@ -36,8 +37,12 @@ class TestSampleBalanced:
     def test_sample_balanced_with_seed(self, sample_problems_list):
         """Test that seed produces reproducible results."""
         dataset = PhysicalDataset(problems=sample_problems_list)
-        balanced1 = utils.sample_balanced(dataset, "domain", samples_per_category=1, seed=42)
-        balanced2 = utils.sample_balanced(dataset, "domain", samples_per_category=1, seed=42)
+        balanced1 = utils.sample_balanced(
+            dataset, "domain", samples_per_category=1, seed=42
+        )
+        balanced2 = utils.sample_balanced(
+            dataset, "domain", samples_per_category=1, seed=42
+        )
 
         assert len(balanced1) == len(balanced2)
         # Problem IDs should match (reproducibility)
@@ -86,7 +91,7 @@ class TestExportToJson:
         utils.export_to_json(dataset, output_path)
 
         assert output_path.exists()
-        with open(output_path, "r", encoding="utf-8") as f:
+        with open(output_path, encoding="utf-8") as f:
             data = json.load(f)
             assert "samples" in data
             assert len(data["samples"]) == len(dataset)
@@ -98,7 +103,7 @@ class TestExportToJson:
 
         utils.export_to_json(dataset, output_path, include_info=True)
 
-        with open(output_path, "r", encoding="utf-8") as f:
+        with open(output_path, encoding="utf-8") as f:
             data = json.load(f)
             assert "info" in data
             assert data["info"]["name"] == "test"
@@ -110,7 +115,7 @@ class TestExportToJson:
 
         utils.export_to_json(dataset, output_path, include_info=False)
 
-        with open(output_path, "r", encoding="utf-8") as f:
+        with open(output_path, encoding="utf-8") as f:
             data = json.load(f)
             assert "info" not in data
 
@@ -124,7 +129,9 @@ class TestFilterByKeywords:
         problem_with_keyword = PhysicsProblem(
             problem_id="keyword_test",
             question="What is the speed of light?",
-            answer=Answer(value=3e8, answer_category=AnswerCategory.PHYSICAL_QUANTITY, unit="m/s"),
+            answer=Answer(
+                value=3e8, answer_category=AnswerCategory.PHYSICAL_QUANTITY, unit="m/s"
+            ),
         )
         all_problems = list(sample_problems_list) + [problem_with_keyword]
         dataset = PhysicalDataset(problems=all_problems)
@@ -139,7 +146,9 @@ class TestFilterByKeywords:
         problem = PhysicsProblem(
             problem_id="test_case",
             question="What is the SPEED of light?",
-            answer=Answer(value=3e8, answer_category=AnswerCategory.PHYSICAL_QUANTITY, unit="m/s"),
+            answer=Answer(
+                value=3e8, answer_category=AnswerCategory.PHYSICAL_QUANTITY, unit="m/s"
+            ),
         )
         all_problems = list(sample_problems_list) + [problem]
         dataset = PhysicalDataset(problems=all_problems)
@@ -155,7 +164,9 @@ class TestFilterByKeywords:
         problem = PhysicsProblem(
             problem_id="test_case",
             question="What is the speed of light?",
-            answer=Answer(value=3e8, answer_category=AnswerCategory.PHYSICAL_QUANTITY, unit="m/s"),
+            answer=Answer(
+                value=3e8, answer_category=AnswerCategory.PHYSICAL_QUANTITY, unit="m/s"
+            ),
         )
         all_problems = list(sample_problems_list) + [problem]
         dataset = PhysicalDataset(problems=all_problems)
@@ -252,7 +263,9 @@ class TestValidateDatasetFormat:
         # Note: This is a simplified test since PhysicalDataset expects PhysicsProblem objects
         # In practice, this would be caught earlier, but we test the validation logic
         dataset = PhysicalDataset(problems=[problem])
-        report = utils.validate_dataset_format(dataset, required_fields=["question", "problem_id"])
+        report = utils.validate_dataset_format(
+            dataset, required_fields=["question", "problem_id"]
+        )
 
         # Should be valid since PhysicalDataset ensures problems have required fields
         # This test mainly verifies the function doesn't crash

@@ -2,10 +2,7 @@
 Tests for Answer model.
 """
 
-import pytest
-
-from prkit.core.domain import AnswerCategory
-from prkit.core.domain import Answer
+from prkit.core.domain import Answer, AnswerCategory
 
 
 class TestAnswer:
@@ -46,7 +43,9 @@ class TestAnswer:
     def test_answer_metadata_custom(self):
         """Test custom metadata."""
         metadata = {"source": "test", "confidence": 0.9}
-        answer = Answer(value=1, answer_category=AnswerCategory.NUMBER, metadata=metadata)
+        answer = Answer(
+            value=1, answer_category=AnswerCategory.NUMBER, metadata=metadata
+        )
         assert answer.metadata == metadata
 
     def test_answer_validation_numerical(self):
@@ -54,7 +53,9 @@ class TestAnswer:
         valid_answer = Answer(value=42.0, answer_category=AnswerCategory.NUMBER)
         assert valid_answer.validate() is True
 
-        invalid_answer = Answer(value="not a number", answer_category=AnswerCategory.NUMBER)
+        invalid_answer = Answer(
+            value="not a number", answer_category=AnswerCategory.NUMBER
+        )
         assert invalid_answer.validate() is False
 
     def test_answer_validation_symbolic(self):
@@ -107,7 +108,9 @@ class TestAnswer:
 
     def test_answer_textual_methods(self):
         """Test textual-specific methods."""
-        answer = Answer(value="This is a test answer", answer_category=AnswerCategory.TEXT)
+        answer = Answer(
+            value="This is a test answer", answer_category=AnswerCategory.TEXT
+        )
         assert answer.word_count() == 5
         assert answer.char_count() == 21  # "This is a test answer" = 21 chars
         assert answer.is_short() is True
@@ -202,7 +205,9 @@ class TestAnswer:
 
     def test_answer_textual_word_count_multiple_spaces(self):
         """Test word count with multiple spaces."""
-        answer = Answer(value="word1    word2   word3", answer_category=AnswerCategory.TEXT)
+        answer = Answer(
+            value="word1    word2   word3", answer_category=AnswerCategory.TEXT
+        )
         assert answer.word_count() == 3
 
     def test_answer_textual_is_long(self):

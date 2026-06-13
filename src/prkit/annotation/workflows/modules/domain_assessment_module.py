@@ -5,7 +5,7 @@ This module provides domain labeling functionality that can be composed
 into larger annotation workflows.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from prkit.annotation.workers import DomainLabeler
 
@@ -25,7 +25,7 @@ class DomainAssessmentModule(BaseWorkflowModule):
         self,
         name: str = "domain_labeler",
         model: str = "o3-mini",
-        config: Optional[Dict[str, Any]] = None,
+        config: dict[str, Any] | None = None,
     ):
         super().__init__(name, model, config)
 
@@ -134,7 +134,7 @@ class DomainAssessmentModule(BaseWorkflowModule):
                 "question": str(data),
             }
 
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         """Get current module status with safety checks."""
         # Ensure all generic fields exist before returning status
         self.module_status.setdefault("total_problems", 0)
@@ -150,7 +150,9 @@ class DomainAssessmentModule(BaseWorkflowModule):
             return result
 
         updated_problem = problem.copy()
-        updated_problem.additional_fields = dict(updated_problem.additional_fields or {})
+        updated_problem.additional_fields = dict(
+            updated_problem.additional_fields or {}
+        )
         updated_problem.additional_fields["domain_labeling"] = result.get(
             "domain_labeling"
         )

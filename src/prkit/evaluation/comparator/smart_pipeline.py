@@ -9,7 +9,8 @@ and :class:`~prkit.evaluation.comparator.smart_llm.SmartLLMComparator`.
 
 from __future__ import annotations
 
-from typing import Literal, Mapping, Optional, Protocol, Union
+from collections.abc import Mapping
+from typing import Literal, Protocol
 
 from prkit.core.domain.answer import Answer
 from prkit.core.domain.answer_category import AnswerCategory
@@ -33,21 +34,21 @@ class SmartMatchPipelineHost(Protocol):
     def _try_equation_from_text(
         self,
         text_raw: str,
-        gt_norm: Union[float, str],
+        gt_norm: float | str,
         gt_raw: str,
     ) -> bool: ...
 
     def _cross_type_match(
         self,
-        answer1: Union[str, Answer],
-        answer2: Union[str, Answer],
-    ) -> Optional[bool]: ...
+        answer1: str | Answer,
+        answer2: str | Answer,
+    ) -> bool | None: ...
 
 
 def run_smart_pipeline(
     comparator: SmartMatchPipelineHost,
-    answer1: Union[str, Answer],
-    answer2: Union[str, Answer],
+    answer1: str | Answer,
+    answer2: str | Answer,
 ) -> SmartPipelineResult:
     """Same-type, RHS, equation-from-text rescue, then cross-type.
 

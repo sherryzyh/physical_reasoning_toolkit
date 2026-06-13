@@ -5,13 +5,11 @@ Shared metadata and normalization helpers for the UGPhysics dataset.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Dict, List, Optional
-
 
 UGPHYSICS_DEFAULT_SUBDIR = "ugphysics"
 UGPHYSICS_LEGACY_SUBDIR = "UGPhysics"
 
-UGPHYSICS_DOMAIN_VARIANTS: Dict[str, str] = {
+UGPHYSICS_DOMAIN_VARIANTS: dict[str, str] = {
     "atomic_physics": "AtomicPhysics",
     "classical_electromagnetism": "ClassicalElectromagnetism",
     "classical_mechanics": "ClassicalMechanics",
@@ -78,7 +76,7 @@ def _warn(logger, message: str) -> None:
         logger.warning(message)
 
 
-def normalize_language_code(language: Optional[str]) -> Optional[str]:
+def normalize_language_code(language: str | None) -> str | None:
     """Normalize user-facing language aliases to UGPhysics split names."""
     if language is None:
         return None
@@ -97,7 +95,7 @@ def normalize_language_code(language: Optional[str]) -> Optional[str]:
     return aliases.get(normalized)
 
 
-def normalize_variant(variant: Optional[str], logger=None) -> str:
+def normalize_variant(variant: str | None, logger=None) -> str:
     """Normalize public and legacy UGPhysics variant names."""
     if variant is None:
         return "full"
@@ -136,8 +134,8 @@ def normalize_variant(variant: Optional[str], logger=None) -> str:
 
 
 def normalize_split(
-    split: Optional[str],
-    language: Optional[str] = None,
+    split: str | None,
+    language: str | None = None,
     logger=None,
 ) -> str:
     """Normalize public and legacy split names to UGPhysics language splits."""
@@ -152,10 +150,7 @@ def normalize_split(
 
     normalized_split = normalize_language_code(raw_split)
     if normalized_split in UGPHYSICS_SUPPORTED_SPLITS:
-        if (
-            normalized_language is not None
-            and normalized_language != normalized_split
-        ):
+        if normalized_language is not None and normalized_language != normalized_split:
             raise ValueError(
                 "Conflicting UGPhysics split/language request: "
                 f"split='{split}' and language='{language}'"
@@ -177,7 +172,7 @@ def normalize_split(
     )
 
 
-def get_requested_domain_dirs(variant: str) -> List[str]:
+def get_requested_domain_dirs(variant: str) -> list[str]:
     """Resolve a normalized UGPhysics variant to upstream directory names."""
     if variant == "full":
         return list(UGPHYSICS_DOMAIN_VARIANTS.values())
@@ -203,7 +198,7 @@ def get_variant_from_domain_dir(domain_dir: str) -> str:
     return UGPHYSICS_UPSTREAM_TO_VARIANT[domain_dir]
 
 
-def candidate_data_dirs(root: Path) -> List[Path]:
+def candidate_data_dirs(root: Path) -> list[Path]:
     """Return supported UGPhysics cache directory candidates under a root."""
     return [
         root / UGPHYSICS_DEFAULT_SUBDIR,

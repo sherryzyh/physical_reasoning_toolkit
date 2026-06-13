@@ -29,9 +29,11 @@ class TestUGPhysicsDownloader:
         """Direct downloader usage should resolve to the canonical full/en request."""
         downloader = UGPhysicsDownloader()
 
-        variant, split, domains, languages = downloader._resolve_requested_artifacts(  # pylint: disable=protected-access
-            variant=None,
-            split=None,
+        variant, split, domains, languages = (
+            downloader._resolve_requested_artifacts(  # pylint: disable=protected-access
+                variant=None,
+                split=None,
+            )
         )
 
         assert variant == "full"
@@ -44,10 +46,12 @@ class TestUGPhysicsDownloader:
         downloader = UGPhysicsDownloader()
 
         with patch.object(downloader.logger, "warning") as mock_warning:
-            variant, split, domains, languages = downloader._resolve_requested_artifacts(  # pylint: disable=protected-access
-                variant="mini",
-                split="test",
-                language="zh",
+            variant, split, domains, languages = (
+                downloader._resolve_requested_artifacts(  # pylint: disable=protected-access
+                    variant="mini",
+                    split="test",
+                    language="zh",
+                )
             )
 
         assert variant == "full"
@@ -73,7 +77,9 @@ class TestUGPhysicsDownloader:
 
         with patch.dict("sys.modules", {"datasets": None}):
             with pytest.raises(ImportError, match="datasets"):
-                downloader._do_download(download_dir)  # pylint: disable=protected-access
+                downloader._do_download(
+                    download_dir
+                )  # pylint: disable=protected-access
 
     @patch("datasets.load_dataset")
     def test_do_download_success_writes_manifest(self, mock_load_dataset, temp_dir):
@@ -192,7 +198,9 @@ class TestUGPhysicsDownloader:
             encoding="utf-8",
         )
 
-        with patch.object(downloader, "_do_download", return_value=download_dir) as mock_do_download:
+        with patch.object(
+            downloader, "_do_download", return_value=download_dir
+        ) as mock_do_download:
             result = downloader.download(
                 data_dir=download_dir,
                 variant="classical_mechanics",

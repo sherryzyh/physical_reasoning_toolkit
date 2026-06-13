@@ -9,7 +9,7 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from prkit.core import PRKitLogger
 from prkit.core.domain import PhysicalDataset
@@ -49,9 +49,9 @@ class WorkflowComposer:
     def __init__(
         self,
         name: str,
-        output_dir: Union[str, Path],
-        modules: Optional[List[BaseWorkflowModule]] = None,
-        config: Optional[Dict[str, Any]] = None,
+        output_dir: str | Path,
+        modules: list[BaseWorkflowModule] | None = None,
+        config: dict[str, Any] | None = None,
     ):
         self.name = name
         self.output_dir = Path(output_dir)
@@ -174,7 +174,7 @@ class WorkflowComposer:
         self.logger.info(f"Added module '{module.name}' to workflow")
         return self
 
-    def add_modules(self, modules: List[BaseWorkflowModule]) -> "WorkflowComposer":
+    def add_modules(self, modules: list[BaseWorkflowModule]) -> "WorkflowComposer":
         """
         Add multiple modules to the workflow chain.
 
@@ -223,7 +223,7 @@ class WorkflowComposer:
 
     def _process_problem_through_pipeline(
         self, problem: PhysicsProblem, **kwargs
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Process a single problem through the entire module pipeline.
 
@@ -383,7 +383,7 @@ class WorkflowComposer:
         else:
             return str(obj)
 
-    def run(self, dataset: PhysicalDataset, **kwargs) -> Dict[str, Any]:
+    def run(self, dataset: PhysicalDataset, **kwargs) -> dict[str, Any]:
         """
         Execute the composed workflow on a dataset.
 
@@ -419,7 +419,7 @@ class WorkflowComposer:
                 problem_pbar = tqdm(
                     dataset,
                     total=total_problems,
-                    desc=f"Processing problems",
+                    desc="Processing problems",
                     unit="problem",
                     leave=True,
                 )
@@ -445,10 +445,8 @@ class WorkflowComposer:
                 )
 
                 # Process problem and save result immediately (releases memory)
-                problem_results = self._process_problem_through_pipeline(
-                    problem, **kwargs
-                )
-                # Note: problem_results is already saved to individual file, no need to accumulate
+                # Result is saved to an individual file inside the call; nothing to accumulate here.
+                self._process_problem_through_pipeline(problem, **kwargs)
 
                 # Update progress bar with current counts
                 if TQDM_AVAILABLE and self.show_progress:
@@ -580,7 +578,7 @@ class WorkflowComposer:
     #         self.logger.error(f"Failed to save execution flow for problem {problem_id}: {e}")
 
     def _save_problem_result(
-        self, problem_id: str, problem_result: Dict[str, Any]
+        self, problem_id: str, problem_result: dict[str, Any]
     ) -> None:
         """Save individual problem result to a separate file."""
         # Create results subdirectory
@@ -596,7 +594,7 @@ class WorkflowComposer:
         except Exception as e:
             self.logger.error(f"Failed to save problem result for {problem_id}: {e}")
 
-    def _save_workflow_results(self, results: List[Any]) -> None:
+    def _save_workflow_results(self, results: list[Any]) -> None:
         """Save workflow results (actual problem data) to output directory."""
         results_file = self.output_dir / f"{self.name}_results.json"
         try:
@@ -618,11 +616,11 @@ class WorkflowComposer:
         except Exception as e:
             self.logger.error(f"Failed to save workflow status: {e}")
 
-    def get_workflow_status(self) -> Dict[str, Any]:
+    def get_workflow_status(self) -> dict[str, Any]:
         """Get current workflow status."""
         return self.workflow_status.copy()
 
-    def get_module_status(self, module_name: str) -> Optional[Dict[str, Any]]:
+    def get_module_status(self, module_name: str) -> dict[str, Any] | None:
         """Get status of a specific module."""
         if module_name in self.workflow_status["module_results"]:
             return self.workflow_status["module_results"][module_name].copy()

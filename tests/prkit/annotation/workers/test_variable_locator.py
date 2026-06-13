@@ -5,8 +5,6 @@ Tests for VariableLocator.
 import json
 from unittest.mock import Mock, patch
 
-import pytest
-
 from prkit.annotation.workers.variable_locator import (
     VariableAnnotation,
     VariableLocator,

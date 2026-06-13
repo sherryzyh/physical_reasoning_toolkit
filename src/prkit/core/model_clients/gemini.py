@@ -3,7 +3,7 @@ Google Gemini API client implementation.
 """
 
 import os
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 import PIL.Image
 from google import genai
@@ -47,8 +47,8 @@ class GeminiModel(BaseModelClient):
     def chat(
         self,
         user_prompt: str,
-        image_paths: Optional[List[str]] = None,
-        response_format: Optional[Union[Dict[str, Any], type]] = None,
+        image_paths: list[str] | None = None,
+        response_format: dict[str, Any] | type | None = None,
         max_output_tokens: int = 65535,
         *args: Any,
         **kwargs: Any,
@@ -90,7 +90,7 @@ class GeminiModel(BaseModelClient):
                         self.logger.error(f"Failed to load image at {path}: {str(e)}")
 
         # Build config with any additional kwargs
-        config_dict: Dict[str, Any] = {"max_output_tokens": max_output_tokens}
+        config_dict: dict[str, Any] = {"max_output_tokens": max_output_tokens}
         if kwargs:
             config_dict.update(kwargs)
 
@@ -132,7 +132,8 @@ class GeminiModel(BaseModelClient):
             native_schema_enforced=True,
             accepted_artifact_modes=("json_schema",),
             accepted_artifact_strategies=("gemini_response_json_schema",),
-            response_format=spec.source_model or normalize_response_format(
+            response_format=spec.source_model
+            or normalize_response_format(
                 {
                     "type": "json_schema",
                     "name": spec.name,
@@ -189,7 +190,7 @@ class GeminiModel(BaseModelClient):
         }
 
 
-def _extract_gemini_error_details(response: object) -> Optional[str]:
+def _extract_gemini_error_details(response: object) -> str | None:
     """Extract block reason and error details from Gemini response when text is empty."""
     parts = []
     try:

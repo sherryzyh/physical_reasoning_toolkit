@@ -2,9 +2,6 @@
 Tests for OpenAI model client.
 """
 
-import os
-import tempfile
-from pathlib import Path
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
@@ -61,7 +58,9 @@ class TestOpenAIModelValidation:
         assert _is_o_family_model("gpt-5.1") is False
         assert _is_o_family_model("gpt-4.1") is False
         assert _is_o_family_model("gemini-pro") is False
-        assert _is_o_family_model("openai") is False  # starts with 'o' but not followed by digit
+        assert (
+            _is_o_family_model("openai") is False
+        )  # starts with 'o' but not followed by digit
 
 
 class TestOpenAIModel:
@@ -133,7 +132,9 @@ class TestOpenAIModel:
         assert call_kwargs["input"][0]["content"][0]["type"] == "input_text"
         assert call_kwargs["input"][0]["content"][1]["type"] == "input_image"
         assert "image_url" in call_kwargs["input"][0]["content"][1]
-        assert call_kwargs["input"][0]["content"][1]["image_url"].startswith("data:image/png;base64,")
+        assert call_kwargs["input"][0]["content"][1]["image_url"].startswith(
+            "data:image/png;base64,"
+        )
 
     @patch("prkit.core.model_clients.openai.OpenAI")
     def test_chat_with_http_url(self, mock_openai_class):
@@ -146,14 +147,16 @@ class TestOpenAIModel:
 
         client = OpenAIModel(OPENAI_TEST_MODEL)
         response = client.chat(
-            "Describe this image",
-            image_paths=["https://example.com/image.jpg"]
+            "Describe this image", image_paths=["https://example.com/image.jpg"]
         )
 
         assert response == "URL image description"
         call_kwargs = mock_client.responses.create.call_args[1]
         assert len(call_kwargs["input"][0]["content"]) == 2  # text + image
-        assert call_kwargs["input"][0]["content"][1]["image_url"] == "https://example.com/image.jpg"
+        assert (
+            call_kwargs["input"][0]["content"][1]["image_url"]
+            == "https://example.com/image.jpg"
+        )
 
     @patch("prkit.core.model_clients.openai.OpenAI")
     def test_chat_with_base64_data_url(self, mock_openai_class):

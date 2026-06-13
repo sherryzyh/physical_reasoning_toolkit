@@ -27,10 +27,24 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="Evaluate one pair of saved semantics JSON files, or two directories of saved semantics artifacts.",
     )
-    parser.add_argument("--reference-file", type=str, default=None, help="Reference JSON artifact.")
-    parser.add_argument("--prediction-file", type=str, default=None, help="Prediction JSON artifact.")
-    parser.add_argument("--reference-dir", type=str, default=None, help="Directory of reference JSON artifacts.")
-    parser.add_argument("--prediction-dir", type=str, default=None, help="Directory of prediction JSON artifacts.")
+    parser.add_argument(
+        "--reference-file", type=str, default=None, help="Reference JSON artifact."
+    )
+    parser.add_argument(
+        "--prediction-file", type=str, default=None, help="Prediction JSON artifact."
+    )
+    parser.add_argument(
+        "--reference-dir",
+        type=str,
+        default=None,
+        help="Directory of reference JSON artifacts.",
+    )
+    parser.add_argument(
+        "--prediction-dir",
+        type=str,
+        default=None,
+        help="Directory of prediction JSON artifacts.",
+    )
     parser.add_argument(
         "--output-dir",
         type=str,
@@ -89,8 +103,12 @@ def _evaluate_directory_pair(
     prediction_dir: Path,
     output_dir: Path,
 ) -> None:
-    reference_files = _collect_artifacts(reference_dir, expected_type="reference_semantics")
-    prediction_files = _collect_artifacts(prediction_dir, expected_type="prediction_semantics")
+    reference_files = _collect_artifacts(
+        reference_dir, expected_type="reference_semantics"
+    )
+    prediction_files = _collect_artifacts(
+        prediction_dir, expected_type="prediction_semantics"
+    )
 
     common_problem_ids = sorted(set(reference_files) & set(prediction_files))
     manifest_results: list[dict[str, Any]] = []
@@ -139,9 +157,7 @@ def _evaluate_directory_pair(
         "output_dir": str(output_dir),
         "evaluated_problem_count": len(common_problem_ids),
         "equivalent_count": sum(
-            1
-            for row in manifest_results
-            if row["status"] == "ok" and row["equivalent"]
+            1 for row in manifest_results if row["status"] == "ok" and row["equivalent"]
         ),
         "missing_reference_problem_ids": missing_reference,
         "missing_prediction_problem_ids": missing_prediction,

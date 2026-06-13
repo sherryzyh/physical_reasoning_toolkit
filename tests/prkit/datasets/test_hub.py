@@ -131,6 +131,7 @@ class TestDatasetHub:
 
             def resolve_data_dir(self, data_dir, dataset_name=None):
                 from pathlib import Path
+
                 return Path("/tmp/mock_data")
 
         DatasetHub.register("mock_kwargs", MockLoader)
@@ -188,7 +189,9 @@ class TestDatasetHub:
             "final_answers": ["a = F/m"],
             "graphs": [],
         }
-        with open(data_dir / "mechanics_dataset.jsonl", "w", encoding="utf-8") as handle:
+        with open(
+            data_dir / "mechanics_dataset.jsonl", "w", encoding="utf-8"
+        ) as handle:
             handle.write(json.dumps(payload) + "\n")
 
         dataset = DatasetHub.load("physics")
@@ -217,7 +220,7 @@ class TestDatasetHub:
         # Access the downloader registry
         if not DatasetHub._downloaders:
             DatasetHub._register_default_downloaders()
-        
+
         assert "phyx" in DatasetHub._downloaders
         downloader = DatasetHub._get_downloader("phyx")
         assert downloader is not None
@@ -245,6 +248,7 @@ class TestDatasetHub:
 
     def test_load_with_default_variant_and_split(self):
         """Test loading with default variant and split."""
+
         class MockLoader(BaseDatasetLoader):
             @property
             def field_mapping(self):
@@ -254,7 +258,7 @@ class TestDatasetHub:
                 return {
                     "name": "mock",
                     "variants": ["full", "mini"],
-                    "splits": ["train", "test"]
+                    "splits": ["train", "test"],
                 }
 
             def get_default_variant(self):
@@ -273,6 +277,7 @@ class TestDatasetHub:
 
             def resolve_data_dir(self, data_dir, dataset_name=None):
                 from pathlib import Path
+
                 return Path("/tmp/mock_data")
 
             def load(self, data_dir=None, **kwargs):
@@ -291,6 +296,7 @@ class TestDatasetHub:
 
     def test_load_with_explicit_variant_and_split(self):
         """Test loading with explicitly provided variant and split."""
+
         class MockLoader(BaseDatasetLoader):
             @property
             def field_mapping(self):
@@ -300,7 +306,7 @@ class TestDatasetHub:
                 return {
                     "name": "mock",
                     "variants": ["full", "mini"],
-                    "splits": ["train", "test"]
+                    "splits": ["train", "test"],
                 }
 
             def get_default_variant(self):
@@ -319,6 +325,7 @@ class TestDatasetHub:
 
             def resolve_data_dir(self, data_dir, dataset_name=None):
                 from pathlib import Path
+
                 return Path("/tmp/mock_data")
 
             def load(self, data_dir=None, **kwargs):
@@ -337,6 +344,7 @@ class TestDatasetHub:
 
     def test_load_with_invalid_variant(self):
         """Test loading with invalid variant raises error."""
+
         class MockLoader(BaseDatasetLoader):
             @property
             def field_mapping(self):
@@ -349,7 +357,7 @@ class TestDatasetHub:
                 return {
                     "name": "mock",
                     "variants": ["full", "mini"],
-                    "splits": ["train"]
+                    "splits": ["train"],
                 }
 
             def get_default_variant(self):
@@ -367,6 +375,7 @@ class TestDatasetHub:
 
             def resolve_data_dir(self, data_dir, dataset_name=None):
                 from pathlib import Path
+
                 return Path("/tmp/mock_data")
 
         DatasetHub.register("mock_invalid_variant", MockLoader)
@@ -380,6 +389,7 @@ class TestDatasetHub:
 
     def test_load_with_invalid_split(self):
         """Test loading with invalid split raises error."""
+
         class MockLoader(BaseDatasetLoader):
             @property
             def field_mapping(self):
@@ -392,7 +402,7 @@ class TestDatasetHub:
                 return {
                     "name": "mock",
                     "variants": ["full"],
-                    "splits": ["train", "test"]
+                    "splits": ["train", "test"],
                 }
 
             def get_default_variant(self):
@@ -410,6 +420,7 @@ class TestDatasetHub:
 
             def resolve_data_dir(self, data_dir, dataset_name=None):
                 from pathlib import Path
+
                 return Path("/tmp/mock_data")
 
         DatasetHub.register("mock_invalid_split", MockLoader)
@@ -423,6 +434,7 @@ class TestDatasetHub:
 
     def test_load_without_default_variant(self):
         """Test loading when no default variant is set."""
+
         class MockLoader(BaseDatasetLoader):
             @property
             def field_mapping(self):
@@ -432,11 +444,7 @@ class TestDatasetHub:
                 return PhysicalDataset(problems=[], info={"name": "mock"})
 
             def get_info(self):
-                return {
-                    "name": "mock",
-                    "variants": [],
-                    "splits": ["train"]
-                }
+                return {"name": "mock", "variants": [], "splits": ["train"]}
 
             def get_default_variant(self):
                 return None
@@ -449,6 +457,7 @@ class TestDatasetHub:
 
             def resolve_data_dir(self, data_dir, dataset_name=None):
                 from pathlib import Path
+
                 return Path("/tmp/mock_data")
 
         DatasetHub.register("mock_no_variant", MockLoader)
@@ -462,6 +471,7 @@ class TestDatasetHub:
 
     def test_load_without_default_split(self):
         """Test loading when no default split is set."""
+
         class MockLoader(BaseDatasetLoader):
             @property
             def field_mapping(self):
@@ -471,11 +481,7 @@ class TestDatasetHub:
                 return PhysicalDataset(problems=[], info={"name": "mock"})
 
             def get_info(self):
-                return {
-                    "name": "mock",
-                    "variants": ["full"],
-                    "splits": []
-                }
+                return {"name": "mock", "variants": ["full"], "splits": []}
 
             def get_default_variant(self):
                 return "full"
@@ -488,6 +494,7 @@ class TestDatasetHub:
 
             def resolve_data_dir(self, data_dir, dataset_name=None):
                 from pathlib import Path
+
                 return Path("/tmp/mock_data")
 
         DatasetHub.register("mock_no_split", MockLoader)
@@ -510,11 +517,7 @@ class TestDatasetHub:
                 return {}
 
             def get_info(self):
-                return {
-                    "name": "mock",
-                    "variants": ["full"],
-                    "splits": ["train"]
-                }
+                return {"name": "mock", "variants": ["full"], "splits": ["train"]}
 
             def get_default_variant(self):
                 return "full"
@@ -572,11 +575,7 @@ class TestDatasetHub:
                 return {}
 
             def get_info(self):
-                return {
-                    "name": "mock",
-                    "variants": ["full"],
-                    "splits": ["train"]
-                }
+                return {"name": "mock", "variants": ["full"], "splits": ["train"]}
 
             def get_default_variant(self):
                 return "full"
@@ -617,11 +616,7 @@ class TestDatasetHub:
                 return {}
 
             def get_info(self):
-                return {
-                    "name": "mock",
-                    "variants": ["full"],
-                    "splits": ["train"]
-                }
+                return {"name": "mock", "variants": ["full"], "splits": ["train"]}
 
             def get_default_variant(self):
                 return "full"
@@ -660,8 +655,8 @@ class TestDatasetHub:
 
     def test_register_downloader(self):
         """Test registering a custom downloader."""
+
         from prkit.datasets.downloaders.base_downloader import BaseDownloader
-        from pathlib import Path
 
         class MockDownloader(BaseDownloader):
             @property
@@ -670,10 +665,7 @@ class TestDatasetHub:
 
             @property
             def download_info(self):
-                return {
-                    "variants": ["full"],
-                    "splits": ["train"]
-                }
+                return {"variants": ["full"], "splits": ["train"]}
 
             def _do_download(self, download_dir, **kwargs):
                 return download_dir

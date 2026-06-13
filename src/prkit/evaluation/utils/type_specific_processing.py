@@ -3,26 +3,25 @@
 from __future__ import annotations
 
 import re
-from typing import Optional, Union
 
 from prkit.core.domain.answer_category import AnswerCategory
+from prkit.evaluation.utils.normalization import normalize_answer
 from prkit.semantics.normalization.physical_quantity_normalization import (
     parse_physical_quantity as _parse_semantics_physical_quantity,
 )
-from prkit.evaluation.utils.normalization import normalize_answer
 
 _EQ_PATTERN = re.compile(r"^Eq\((.+),\s*(.+)\)$", re.DOTALL)
 
 
-def parse_physical_quantity(s: str) -> tuple[Optional[float], str, str]:
+def parse_physical_quantity(s: str) -> tuple[float | None, str, str]:
     """Parse normalized physical quantity as ``(numeric_value, unit, num_str)``."""
     return _parse_semantics_physical_quantity(s)
 
 
 def extract_rhs_and_category(
-    norm_value: Union[float, str],
+    norm_value: float | str,
     category: AnswerCategory,
-) -> tuple[Union[float, str], AnswerCategory]:
+) -> tuple[float | str, AnswerCategory]:
     """Extract equation RHS and re-normalize when input is equation-like."""
     if category != AnswerCategory.EQUATION:
         s = str(norm_value)
@@ -30,7 +29,7 @@ def extract_rhs_and_category(
             return norm_value, category
 
     s = str(norm_value)
-    rhs: Optional[str] = None
+    rhs: str | None = None
     eq_m = _EQ_PATTERN.match(s)
     if eq_m:
         rhs = eq_m.group(2).strip()

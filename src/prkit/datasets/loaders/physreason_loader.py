@@ -9,10 +9,9 @@ For citation information, see prkit.datasets.citations.
 
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from prkit.core import PRKitLogger
-from prkit.core.domain import PhysicsDomain
 from prkit.core.domain import PhysicalDataset
 from prkit.datasets.loaders.base_loader import BaseDatasetLoader
 
@@ -34,7 +33,7 @@ class PhysReasonLoader(BaseDatasetLoader):
     def description(self) -> str:
         return "PhysReason: Physics reasoning problems with step-by-step solutions"
 
-    def get_info(self) -> Dict[str, Any]:
+    def get_info(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "description": self.description,
@@ -66,11 +65,11 @@ class PhysReasonLoader(BaseDatasetLoader):
         }
 
     @property
-    def field_mapping(self) -> Dict[str, str]:
+    def field_mapping(self) -> dict[str, str]:
         """No field mapping needed for PhysReason"""
         return {}
 
-    def _process_metadata(self, metadata: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def _process_metadata(self, metadata: dict[str, Any]) -> list[dict[str, Any]]:
         """Process metadata to create standardized problem fields."""
         difficulty = metadata.get("difficulty", "")
         problem_type = "OE"
@@ -115,10 +114,10 @@ class PhysReasonLoader(BaseDatasetLoader):
 
     def load(
         self,
-        data_dir: Union[str, Path, None] = None,
-        variant: Optional[str] = None,
-        sample_size: Optional[int] = None,
-        split: Optional[str] = None,
+        data_dir: str | Path | None = None,
+        variant: str | None = None,
+        sample_size: int | None = None,
+        split: str | None = None,
         **kwargs,
     ) -> PhysicalDataset:
         """
@@ -139,7 +138,7 @@ class PhysReasonLoader(BaseDatasetLoader):
             variant = self.get_default_variant() or "full"
         if split is None:
             split = self.get_default_split() or "test"
-        
+
         # Validate variant and split
         self.validate_variant(variant)
         self.validate_split(split)
@@ -235,9 +234,7 @@ class PhysReasonLoader(BaseDatasetLoader):
 
         return dataset
 
-    def _load_problem_from_directory(
-        self, problem_dir: Path
-    ) -> Optional[Dict[str, Any]]:
+    def _load_problem_from_directory(self, problem_dir: Path) -> dict[str, Any] | None:
         """Load a single problem from its directory."""
         problem_file = problem_dir / "problem.json"
 
@@ -246,7 +243,7 @@ class PhysReasonLoader(BaseDatasetLoader):
             return None
 
         try:
-            with open(problem_file, "r", encoding="utf-8") as f:
+            with open(problem_file, encoding="utf-8") as f:
                 problem_data = json.load(f)
 
             # Add problem_id from directory name

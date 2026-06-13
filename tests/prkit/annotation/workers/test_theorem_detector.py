@@ -5,12 +5,10 @@ Tests for TheoremDetector.
 import json
 from unittest.mock import Mock, patch
 
-import pytest
-
 from prkit.annotation.annotations.theorem import TheoremAnnotation
 from prkit.annotation.workers.theorem_detector import (
-    TheoremDetector,
     TheoremDetail,
+    TheoremDetector,
     TheoremResponse,
 )
 
@@ -43,6 +41,7 @@ class TestTheoremDetector:
         mock_response = TheoremResponse(theorems=[theorem_detail])
         # _call_llm_structured now parses JSON and returns Pydantic model
         import json
+
         mock_client.chat.return_value = json.dumps(mock_response.model_dump())
         mock_create.return_value = mock_client
 

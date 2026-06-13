@@ -11,12 +11,12 @@ import os
 import re
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any
 
 from prkit.core import PRKitLogger
-from prkit.core.domain.answer_category import AnswerCategory
 from prkit.core.domain import PhysicalDataset, PhysicsProblem
 from prkit.core.domain.answer import Answer
+from prkit.core.domain.answer_category import AnswerCategory
 
 # Try to import PIL/Pillow for image loading
 try:
@@ -58,7 +58,9 @@ def raw_answer_to_text(value: Any) -> str:
     if value is None:
         return ""
     if isinstance(value, dict):
-        value_text = "" if value.get("value") is None else str(value.get("value")).strip()
+        value_text = (
+            "" if value.get("value") is None else str(value.get("value")).strip()
+        )
         unit_text = "" if value.get("unit") is None else str(value.get("unit")).strip()
         if value_text and unit_text:
             return f"{value_text} {unit_text}"
@@ -118,7 +120,7 @@ def is_pure_number(value: str) -> bool:
             parts = cleaned.split("/")
             if len(parts) == 2 and all(is_pure_number(p) for p in parts):
                 return True
-        except:
+        except Exception:
             pass
 
     # Handle decimals and integers
@@ -215,7 +217,7 @@ class BaseDatasetLoader(ABC):
     """
 
     @property
-    def modalities(self) -> List[str]:
+    def modalities(self) -> list[str]:
         """
         Get the list of modalities supported by this dataset.
 
@@ -227,7 +229,7 @@ class BaseDatasetLoader(ABC):
 
     @property
     @abstractmethod
-    def field_mapping(self) -> Dict[str, str]:
+    def field_mapping(self) -> dict[str, str]:
         """
         Define field mapping from dataset fields to standard PRKit fields.
 
@@ -237,7 +239,7 @@ class BaseDatasetLoader(ABC):
         pass
 
     @abstractmethod
-    def load(self, data_dir: Union[str, Path], **kwargs) -> PhysicalDataset:
+    def load(self, data_dir: str | Path, **kwargs) -> PhysicalDataset:
         """
         Load dataset from the specified directory.
 
@@ -251,7 +253,7 @@ class BaseDatasetLoader(ABC):
         pass
 
     @abstractmethod
-    def get_info(self) -> Dict[str, Any]:
+    def get_info(self) -> dict[str, Any]:
         """
         Get dataset information.
 
@@ -260,13 +262,13 @@ class BaseDatasetLoader(ABC):
         """
         pass
 
-    def get_default_variant(self) -> Optional[str]:
+    def get_default_variant(self) -> str | None:
         """
         Get the default variant for this dataset.
-        
+
         Returns "full" if available, otherwise returns the first available variant.
         Returns None if no variants are available.
-        
+
         Returns:
             Default variant string or None
         """
@@ -274,21 +276,21 @@ class BaseDatasetLoader(ABC):
         variants = info.get("variants", [])
         if not variants:
             return None
-        
+
         # Prefer "full" if available
         if "full" in variants:
             return "full"
-        
+
         # Otherwise return the first variant
         return variants[0] if variants else None
 
-    def get_default_split(self) -> Optional[str]:
+    def get_default_split(self) -> str | None:
         """
         Get the default split for this dataset.
-        
+
         Returns "full" if available, otherwise returns the first available split.
         Returns None if no splits are available.
-        
+
         Returns:
             Default split string or None
         """
@@ -296,28 +298,28 @@ class BaseDatasetLoader(ABC):
         splits = info.get("splits", [])
         if not splits:
             return None
-        
+
         # Prefer "full" if available
         if "full" in splits:
             return "full"
-        
+
         # Otherwise return the first split
         return splits[0] if splits else None
 
-    def get_available_variants(self) -> List[str]:
+    def get_available_variants(self) -> list[str]:
         """
         Get list of available variants for this dataset.
-        
+
         Returns:
             List of variant strings
         """
         info = self.get_info()
         return info.get("variants", [])
 
-    def get_available_splits(self) -> List[str]:
+    def get_available_splits(self) -> list[str]:
         """
         Get list of available splits for this dataset.
-        
+
         Returns:
             List of split strings
         """
@@ -327,10 +329,10 @@ class BaseDatasetLoader(ABC):
     def validate_variant(self, variant: str) -> None:
         """
         Validate that a variant is available for this dataset.
-        
+
         Args:
             variant: Variant to validate
-            
+
         Raises:
             ValueError: If variant is not available
         """
@@ -344,10 +346,10 @@ class BaseDatasetLoader(ABC):
     def validate_split(self, split: str) -> None:
         """
         Validate that a split is available for this dataset.
-        
+
         Args:
             split: Split to validate
-            
+
         Raises:
             ValueError: If split is not available
         """
@@ -358,7 +360,7 @@ class BaseDatasetLoader(ABC):
                 f"Available splits: {available}"
             )
 
-    def initialize_metadata(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def initialize_metadata(self, data: dict[str, Any]) -> dict[str, Any]:
         """
         Map dataset fields to standard PRKit fields using field_mapping.
 
@@ -501,7 +503,7 @@ class BaseDatasetLoader(ABC):
         # Default fallback
         return "en"
 
-    def validate_required_fields(self, data: Dict[str, Any]) -> List[str]:
+    def validate_required_fields(self, data: dict[str, Any]) -> list[str]:
         """
         Validate that problem data has required fields.
 
@@ -522,8 +524,8 @@ class BaseDatasetLoader(ABC):
 
     def _create_answer_from_raw(
         self,
-        metadata: Dict[str, Any],
-    ) -> Optional[Answer]:
+        metadata: dict[str, Any],
+    ) -> Answer | None:
         answer = metadata.get("answer")
         answer_category = metadata.get("answer_category", "")
         problem_type = metadata.get("problem_type", "")
@@ -566,8 +568,8 @@ class BaseDatasetLoader(ABC):
 
     def create_physics_problem(
         self,
-        metadata: Dict[str, Any],
-        data_dir: Optional[Union[str, Path]] = None,
+        metadata: dict[str, Any],
+        data_dir: str | Path | None = None,
     ) -> PhysicsProblem:
         """
         Create a PhysicsProblem instance from metadata.
@@ -670,7 +672,7 @@ class BaseDatasetLoader(ABC):
 
         return problem
 
-    def _determine_problem_type(self, data: Dict[str, Any]) -> str:
+    def _determine_problem_type(self, data: dict[str, Any]) -> str:
         """
         Determine the problem type based on the data structure.
 
@@ -690,7 +692,7 @@ class BaseDatasetLoader(ABC):
 
     @staticmethod
     def resolve_data_dir(
-        data_dir: Union[str, Path, None] = None, default_subdir: str = None
+        data_dir: str | Path | None = None, default_subdir: str = None
     ) -> Path:
         """
         Resolve data directory with support for DATASET_CACHE_DIR environment variable.
@@ -730,9 +732,9 @@ class BaseDatasetLoader(ABC):
 
     def load_images_from_paths(
         self,
-        image_paths: Union[str, List[str], None],
-        data_dir: Optional[Union[str, Path]] = None,
-    ) -> List[Any]:
+        image_paths: str | list[str] | None,
+        data_dir: str | Path | None = None,
+    ) -> list[Any]:
         """
         Load images from image paths and return PIL Image objects.
 
@@ -789,7 +791,9 @@ class BaseDatasetLoader(ABC):
 
         # Filter out empty strings and None values
         paths_list = [
-            path for path in paths_list if path and isinstance(path, str) and path.strip()
+            path
+            for path in paths_list
+            if path and isinstance(path, str) and path.strip()
         ]
 
         if not paths_list:
@@ -819,7 +823,7 @@ class BaseDatasetLoader(ABC):
                 if image.mode not in ("RGB", "L"):
                     image = image.convert("RGB")
                 loaded_images.append(image)
-            except (IOError, OSError) as e:
+            except OSError as e:
                 logger.warning(f"Failed to load image {path_obj}: {e}")
                 continue
 

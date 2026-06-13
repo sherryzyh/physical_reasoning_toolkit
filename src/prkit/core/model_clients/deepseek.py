@@ -5,7 +5,7 @@ DeepSeek API client implementation.
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from .openai_compatible_chat import OpenAICompatibleChatModel
 from .structured_output import (
@@ -29,8 +29,8 @@ class DeepseekModel(OpenAICompatibleChatModel):
     def _build_message_content(
         self,
         user_prompt: str,
-        image_paths: Optional[List[str]] = None,
-    ) -> str | List[Dict[str, Any]]:
+        image_paths: list[str] | None = None,
+    ) -> str | list[dict[str, Any]]:
         if image_paths:
             self.logger.warning(
                 "DeepSeek model %s does not support image inputs. "
@@ -43,11 +43,14 @@ class DeepseekModel(OpenAICompatibleChatModel):
     def _structured_prompt_for_chat(
         self,
         user_prompt: str,
-        response_format: Optional[Union[dict, type]],
+        response_format: dict | type | None,
     ) -> str:
         if response_format is None:
             return user_prompt
-        if isinstance(response_format, dict) and response_format.get("type") == "json_object":
+        if (
+            isinstance(response_format, dict)
+            and response_format.get("type") == "json_object"
+        ):
             return user_prompt
 
         spec = StructuredOutputSpec(
@@ -101,8 +104,8 @@ class DeepseekModel(OpenAICompatibleChatModel):
     def chat(
         self,
         user_prompt: str,
-        image_paths: Optional[List[str]] = None,
-        response_format: Optional[Union[dict, type]] = None,
+        image_paths: list[str] | None = None,
+        response_format: dict | type | None = None,
         **kwargs: Any,
     ) -> str:
         return super().chat(

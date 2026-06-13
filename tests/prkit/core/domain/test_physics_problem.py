@@ -2,14 +2,12 @@
 Tests for PhysicsProblem model.
 """
 
-from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
 
-from prkit.core.domain import AnswerCategory, PhysicsDomain
-from prkit.core.domain import Answer, PhysicsProblem
+from prkit.core.domain import Answer, AnswerCategory, PhysicsDomain, PhysicsProblem
 from prkit.core.domain import physics_problem as physics_problem_module
 
 
@@ -312,8 +310,12 @@ class TestPhysicsProblem:
         images = problem.load_images()
         assert images == ["converted:RGB"]
 
-    def test_problem_load_images_handles_no_pillow_and_io_errors(self, tmp_path, monkeypatch):
-        problem = PhysicsProblem(problem_id="test_001", question="Q", image_path=[str(tmp_path / "x.png")])
+    def test_problem_load_images_handles_no_pillow_and_io_errors(
+        self, tmp_path, monkeypatch
+    ):
+        problem = PhysicsProblem(
+            problem_id="test_001", question="Q", image_path=[str(tmp_path / "x.png")]
+        )
 
         monkeypatch.setattr(physics_problem_module, "PIL_AVAILABLE", False)
         with pytest.raises(ImportError, match="PIL/Pillow is required"):

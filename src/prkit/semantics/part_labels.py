@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from typing import Sequence
+from collections.abc import Sequence
 
 _TOKEN_RE = re.compile(r"[A-Za-z0-9]+")
 _PART_PHRASE_RE = re.compile(
@@ -107,14 +107,19 @@ def infer_named_part_labels_from_question(question: str | None) -> tuple[str, ..
             grouped[head].append(label)
         first_position.setdefault(head, match.start())
 
-    candidates = [(head, labels) for head, labels in grouped.items() if len(labels) >= 2]
+    candidates = [
+        (head, labels) for head, labels in grouped.items() if len(labels) >= 2
+    ]
     if not candidates:
         return ()
 
     preferred: list[tuple[str, list[str]]] = []
     for head, labels in candidates:
         head_text = head.replace("_", " ")
-        if re.search(rf"\b(?:each|both|respectively)\s+{re.escape(head_text)}s?\b", lowered_question):
+        if re.search(
+            rf"\b(?:each|both|respectively)\s+{re.escape(head_text)}s?\b",
+            lowered_question,
+        ):
             preferred.append((head, labels))
 
     pool = preferred or candidates
@@ -163,7 +168,9 @@ def infer_multi_part_part_labels(
         return ()
 
     canonical_required = tuple(
-        label for label in (canonicalize_part_label(part) for part in required_parts) if label
+        label
+        for label in (canonicalize_part_label(part) for part in required_parts)
+        if label
     )
     if not canonical_required or not has_named_part_labels(canonical_required):
         return tuple(None for _ in range(part_count))
@@ -180,7 +187,9 @@ def infer_multi_part_part_labels(
             if score > 0:
                 candidates.append((score, index, label))
 
-    for score, index, label in sorted(candidates, key=lambda item: (-item[0], item[1], item[2])):
+    for score, index, label in sorted(
+        candidates, key=lambda item: (-item[0], item[1], item[2])
+    ):
         if assignments[index] is None and label not in used_labels:
             assignments[index] = label
             used_labels.add(label)
@@ -202,7 +211,9 @@ def _build_alias_specs(required_parts: Sequence[str]) -> dict[str, dict[str, obj
         for label in required_parts
         if _content_tokens(label)
     ]
-    unique_initials = {initial for initial in content_initials if content_initials.count(initial) == 1}
+    unique_initials = {
+        initial for initial in content_initials if content_initials.count(initial) == 1
+    }
 
     specs: dict[str, dict[str, object]] = {}
     for label in required_parts:
@@ -226,7 +237,11 @@ def _build_alias_specs(required_parts: Sequence[str]) -> dict[str, dict[str, obj
 def _content_tokens(label: str) -> list[str]:
     """Return informative tokens from a canonical part label."""
 
-    return [token for token in label.split("_") if token and token not in _GENERIC_PART_TOKENS]
+    return [
+        token
+        for token in label.split("_")
+        if token and token not in _GENERIC_PART_TOKENS
+    ]
 
 
 def _match_part_label_score(text: str, spec: dict[str, object]) -> int:

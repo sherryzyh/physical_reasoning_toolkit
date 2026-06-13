@@ -8,13 +8,12 @@ physics problems requiring Python code implementation.
 import json
 import random
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 import pandas as pd
 
 from prkit.core import PRKitLogger
-from prkit.core.domain import PhysicsDomain
-from prkit.core.domain import PhysicalDataset
+from prkit.core.domain import PhysicalDataset, PhysicsDomain
 from prkit.datasets.loaders.base_loader import BaseDatasetLoader
 
 
@@ -36,7 +35,7 @@ class TPBenchLoader(BaseDatasetLoader):
         """Return the description of the dataset."""
         return "Physics problems requiring Python code implementation"
 
-    def get_info(self) -> Dict[str, Any]:
+    def get_info(self) -> dict[str, Any]:
         """Get dataset information."""
         return {
             "name": self.name,
@@ -59,7 +58,7 @@ class TPBenchLoader(BaseDatasetLoader):
         }
 
     @property
-    def field_mapping(self) -> Dict[str, str]:
+    def field_mapping(self) -> dict[str, str]:
         """
         Define field mapping from TPBench fields to standard PRKit fields.
 
@@ -76,7 +75,7 @@ class TPBenchLoader(BaseDatasetLoader):
         }
 
     @property
-    def DOMAIN_MAPPING(self) -> Dict[str, str]:
+    def DOMAIN_MAPPING(self) -> dict[str, str]:
         """Mapping of domain abbreviations to full domain names."""
         return {
             "QM": PhysicsDomain.QUANTUM_MECHANICS,
@@ -86,7 +85,7 @@ class TPBenchLoader(BaseDatasetLoader):
             "Cosmology": PhysicsDomain.COSMOLOGY,
         }
 
-    def _process_metadata(self, metadata: Dict[str, Any]):
+    def _process_metadata(self, metadata: dict[str, Any]):
         """Process metadata to create standardized problem fields."""
         metadata["answer_category"] = "formula"
         domain = metadata.get("domain")
@@ -97,11 +96,11 @@ class TPBenchLoader(BaseDatasetLoader):
 
     def load(
         self,
-        data_dir: Union[str, Path, None] = None,
-        split: Optional[str] = None,
-        variant: Optional[str] = None,
-        sample_size: Optional[int] = None,
-        per_domain: Optional[int] = None,
+        data_dir: str | Path | None = None,
+        split: str | None = None,
+        variant: str | None = None,
+        sample_size: int | None = None,
+        per_domain: int | None = None,
         language: str = "en",
         **kwargs,
     ) -> PhysicalDataset:
@@ -127,7 +126,7 @@ class TPBenchLoader(BaseDatasetLoader):
             split = self.get_default_split() or "public"
         if variant is None:
             variant = self.get_default_variant() or "full"
-        
+
         # Validate variant and split
         self.validate_variant(variant)
         self.validate_split(split)
@@ -216,8 +215,8 @@ class TPBenchLoader(BaseDatasetLoader):
         )
 
     def _load_from_dataframe(
-        self, df: pd.DataFrame, domain_problems: Dict, domain_counts: Dict
-    ) -> List:
+        self, df: pd.DataFrame, domain_problems: dict, domain_counts: dict
+    ) -> list:
         """Load problems from pandas DataFrame."""
         problems = []
 
@@ -254,8 +253,8 @@ class TPBenchLoader(BaseDatasetLoader):
         return problems
 
     def _load_from_json(
-        self, json_file: Path, domain_problems: Dict, domain_counts: Dict
-    ) -> List:
+        self, json_file: Path, domain_problems: dict, domain_counts: dict
+    ) -> list:
         """Load problems from JSON file."""
         problems = []
 
@@ -263,7 +262,7 @@ class TPBenchLoader(BaseDatasetLoader):
             raise FileNotFoundError(f"JSON file not found: {json_file}")
 
         try:
-            with open(json_file, "r", encoding="utf-8") as f:
+            with open(json_file, encoding="utf-8") as f:
                 data_list = json.load(f)
 
             if not data_list:
@@ -297,9 +296,7 @@ class TPBenchLoader(BaseDatasetLoader):
 
         return problems
 
-    def _get_domains(
-        self, data_dir: Union[str, Path], language: str = "en"
-    ) -> List[str]:
+    def _get_domains(self, data_dir: str | Path, language: str = "en") -> list[str]:
         """Get list of available domains in the dataset."""
         data_dir = Path(data_dir)
         if not data_dir.exists():

@@ -34,7 +34,9 @@ _LEGACY_ANSWER_FIELDS = frozenset(
 )
 
 
-def coerce_question_semantics(value: PhysicsQuestionSemantics | Mapping[str, Any] | None) -> PhysicsQuestionSemantics:
+def coerce_question_semantics(
+    value: PhysicsQuestionSemantics | Mapping[str, Any] | None,
+) -> PhysicsQuestionSemantics:
     """Coerce a context-like object into ``PhysicsQuestionSemantics``."""
 
     if value is None:
@@ -50,8 +52,7 @@ def coerce_question_semantics(value: PhysicsQuestionSemantics | Mapping[str, Any
     return PhysicsQuestionSemantics(
         target_variable=_optional_text(data.get("target_variable")),
         symbol_aliases=tuple(
-            _coerce_symbol_alias(alias)
-            for alias in data.get("symbol_aliases", ())
+            _coerce_symbol_alias(alias) for alias in data.get("symbol_aliases", ())
         ),
         allowed_object_kinds=_enum_tuple(
             AnswerObjectKind,
@@ -83,7 +84,9 @@ def coerce_question_semantics(value: PhysicsQuestionSemantics | Mapping[str, Any
         required_parts=_string_tuple(data.get("required_parts")),
         coordinate_frame=_optional_text(data.get("coordinate_frame")),
         sign_convention=_optional_text(data.get("sign_convention")),
-        tolerance=_float_value(data.get("tolerance"), PhysicsQuestionSemantics().tolerance),
+        tolerance=_float_value(
+            data.get("tolerance"), PhysicsQuestionSemantics().tolerance
+        ),
         choice_space=_string_tuple(data.get("choice_space")),
         metadata=dict(data.get("metadata") or {}),
     )
@@ -157,7 +160,9 @@ def _coerce_symbol_alias(
     )
 
 
-def coerce_protocol_answer(value: PhysicsAnswerSemantics | Mapping[str, Any]) -> PhysicsAnswerSemantics:
+def coerce_protocol_answer(
+    value: PhysicsAnswerSemantics | Mapping[str, Any],
+) -> PhysicsAnswerSemantics:
     """Coerce a protocol record or ``PhysicsAnswerSemantics`` into ``PhysicsAnswerSemantics``."""
 
     if isinstance(value, PhysicsAnswerSemantics):
@@ -172,7 +177,9 @@ def coerce_protocol_answer(value: PhysicsAnswerSemantics | Mapping[str, Any]) ->
         data.get("structure"),
         AnswerStructure.ATOMIC,
     )
-    children = tuple(coerce_protocol_answer(child) for child in data.get("children", ()))
+    children = tuple(
+        coerce_protocol_answer(child) for child in data.get("children", ())
+    )
     cases = tuple(_coerce_case(case) for case in data.get("cases", ()))
     subject_to = tuple(
         coerce_protocol_answer(child) for child in data.get("subject_to", ())
@@ -339,13 +346,19 @@ def _coerce_case(case: Any) -> PhysicsAnswerCaseSemantics:
         expression = case.get("expression")
         condition = case.get("condition")
         if expression is None or condition is None:
-            raise TypeError("Piecewise case mappings must define expression and condition.")
+            raise TypeError(
+                "Piecewise case mappings must define expression and condition."
+            )
         return PhysicsAnswerCaseSemantics(
             expression=coerce_protocol_answer(expression),
             condition=coerce_protocol_answer(condition),
         )
 
-    if isinstance(case, Sequence) and not isinstance(case, (str, bytes)) and len(case) == 2:
+    if (
+        isinstance(case, Sequence)
+        and not isinstance(case, (str, bytes))
+        and len(case) == 2
+    ):
         return PhysicsAnswerCaseSemantics(
             expression=coerce_protocol_answer(case[0]),
             condition=coerce_protocol_answer(case[1]),
@@ -385,7 +398,12 @@ def _coerce_quantity_snapshot(value: Any) -> PhysicalQuantitySnapshot | None:
     numeric_text = _optional_text(value.get("numeric_text"))
     unit = _optional_text(value.get("unit"))
     canonical_text = _optional_text(value.get("canonical_text"))
-    if numeric_value is None or numeric_text is None or unit is None or canonical_text is None:
+    if (
+        numeric_value is None
+        or numeric_text is None
+        or unit is None
+        or canonical_text is None
+    ):
         raise TypeError(
             "quantity_view snapshots must define numeric_value, numeric_text, unit, and canonical_text."
         )
@@ -456,9 +474,15 @@ def _infer_canonical_text(
             interval_open_right=interval_open_right,
         )
     if object_kind == AnswerObjectKind.NUMBER:
-        return numeric_text or _format_number(numeric_value) if numeric_value is not None else ""
+        return (
+            numeric_text or _format_number(numeric_value)
+            if numeric_value is not None
+            else ""
+        )
     if object_kind == AnswerObjectKind.PHYSICAL_QUANTITY:
-        number_text = numeric_text or (_format_number(numeric_value) if numeric_value is not None else "")
+        number_text = numeric_text or (
+            _format_number(numeric_value) if numeric_value is not None else ""
+        )
         return " ".join(part for part in (number_text, unit) if part).strip()
     if object_kind == AnswerObjectKind.CHOICE:
         return choice_label or ""
@@ -469,7 +493,9 @@ def _infer_canonical_text(
     return ""
 
 
-def _aggregate_object_kind(children: tuple[PhysicsAnswerSemantics, ...]) -> AnswerObjectKind:
+def _aggregate_object_kind(
+    children: tuple[PhysicsAnswerSemantics, ...],
+) -> AnswerObjectKind:
     """Infer a structured answer kind from its child answer kinds."""
 
     if not children:
@@ -478,7 +504,8 @@ def _aggregate_object_kind(children: tuple[PhysicsAnswerSemantics, ...]) -> Answ
     if all(child.object_kind == first_kind for child in children):
         return first_kind
     if all(
-        child.object_kind in {AnswerObjectKind.NUMBER, AnswerObjectKind.PHYSICAL_QUANTITY}
+        child.object_kind
+        in {AnswerObjectKind.NUMBER, AnswerObjectKind.PHYSICAL_QUANTITY}
         for child in children
     ):
         return AnswerObjectKind.PHYSICAL_QUANTITY
@@ -497,7 +524,11 @@ def _render_structured_text(
 
     if structure == AnswerStructure.MULTI_PART:
         return "; ".join(
-            f"{child.part_label}: {child.canonical_text}" if child.part_label else child.canonical_text
+            (
+                f"{child.part_label}: {child.canonical_text}"
+                if child.part_label
+                else child.canonical_text
+            )
             for child in children
         )
     if structure == AnswerStructure.TUPLE:
@@ -507,7 +538,9 @@ def _render_structured_text(
     if structure == AnswerStructure.INTERVAL and len(children) == 2:
         left = "(" if interval_open_left else "["
         right = ")" if interval_open_right else "]"
-        return f"{left}{children[0].canonical_text}, {children[1].canonical_text}{right}"
+        return (
+            f"{left}{children[0].canonical_text}, {children[1].canonical_text}{right}"
+        )
     if structure == AnswerStructure.VECTOR:
         return f"<{', '.join(child.canonical_text for child in children)}>"
     if structure in {AnswerStructure.MATRIX, AnswerStructure.TENSOR}:
@@ -549,16 +582,19 @@ def _looks_like_relation(text: str) -> bool:
     """Return whether a text surface resembles a relation rather than a value."""
 
     stripped = text.strip()
-    return any(token in stripped for token in ("<=", ">=", "<", ">", "=")) or stripped.startswith(
-        ("Eq(", "Le(", "Lt(", "Ge(", "Gt(", "And(")
-    )
+    return any(
+        token in stripped for token in ("<=", ">=", "<", ">", "=")
+    ) or stripped.startswith(("Eq(", "Le(", "Lt(", "Ge(", "Gt(", "And("))
 
 
 def _looks_like_expression(text: str) -> bool:
     """Return whether a text surface resembles a symbolic expression."""
 
     stripped = text.strip()
-    return any(token in stripped for token in ("+", "-", "*", "/", "^", "sqrt", "sin(", "cos(", "("))
+    return any(
+        token in stripped
+        for token in ("+", "-", "*", "/", "^", "sqrt", "sin(", "cos(", "(")
+    )
 
 
 def _format_number(value: float) -> str:
@@ -567,7 +603,9 @@ def _format_number(value: float) -> str:
     return format(float(value), ".15g")
 
 
-def _enum_tuple(enum_cls: type, raw_value: Any, default: tuple[Any, ...]) -> tuple[Any, ...]:
+def _enum_tuple(
+    enum_cls: type, raw_value: Any, default: tuple[Any, ...]
+) -> tuple[Any, ...]:
     """Coerce a sequence of raw values into a tuple of enum members."""
 
     if raw_value is None:

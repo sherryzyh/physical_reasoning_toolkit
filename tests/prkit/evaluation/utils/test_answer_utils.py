@@ -55,15 +55,34 @@ class TestSameComparisonCategory:
 
     def test_same_category_returns_true(self):
         """Same category should return True."""
-        assert same_comparison_category(AnswerCategory.NUMBER, AnswerCategory.NUMBER) is True
-        assert same_comparison_category(AnswerCategory.TEXT, AnswerCategory.TEXT) is True
-        assert same_comparison_category(AnswerCategory.FORMULA, AnswerCategory.FORMULA) is True
+        assert (
+            same_comparison_category(AnswerCategory.NUMBER, AnswerCategory.NUMBER)
+            is True
+        )
+        assert (
+            same_comparison_category(AnswerCategory.TEXT, AnswerCategory.TEXT) is True
+        )
+        assert (
+            same_comparison_category(AnswerCategory.FORMULA, AnswerCategory.FORMULA)
+            is True
+        )
 
     def test_different_categories_return_false(self):
         """Different categories should return False."""
-        assert same_comparison_category(AnswerCategory.NUMBER, AnswerCategory.TEXT) is False
-        assert same_comparison_category(AnswerCategory.FORMULA, AnswerCategory.EQUATION) is False
-        assert same_comparison_category(AnswerCategory.PHYSICAL_QUANTITY, AnswerCategory.OPTION) is False
+        assert (
+            same_comparison_category(AnswerCategory.NUMBER, AnswerCategory.TEXT)
+            is False
+        )
+        assert (
+            same_comparison_category(AnswerCategory.FORMULA, AnswerCategory.EQUATION)
+            is False
+        )
+        assert (
+            same_comparison_category(
+                AnswerCategory.PHYSICAL_QUANTITY, AnswerCategory.OPTION
+            )
+            is False
+        )
 
     def test_all_categories_self_match(self):
         """Each category matches itself."""

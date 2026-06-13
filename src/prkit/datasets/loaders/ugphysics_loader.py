@@ -9,11 +9,10 @@ import json
 import random  # Added for per_domain sampling
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from prkit.core import PRKitLogger
-from prkit.core.domain import PhysicsDomain
-from prkit.core.domain import PhysicalDataset
+from prkit.core.domain import PhysicalDataset, PhysicsDomain
 from prkit.datasets.loaders.base_loader import BaseDatasetLoader
 from prkit.datasets.ugphysics_common import (
     UGPHYSICS_DEFAULT_SUBDIR,
@@ -51,7 +50,7 @@ class UGPhysicsLoader(BaseDatasetLoader):
             "English and Chinese splits"
         )
 
-    def get_info(self) -> Dict[str, Any]:
+    def get_info(self) -> dict[str, Any]:
         """Get dataset information."""
         return {
             "name": self.name,
@@ -87,7 +86,7 @@ class UGPhysicsLoader(BaseDatasetLoader):
         }
 
     @property
-    def field_mapping(self) -> Dict[str, str]:
+    def field_mapping(self) -> dict[str, str]:
         """
         Define field mapping from UGPhysics fields to standard PRKit fields.
 
@@ -104,7 +103,7 @@ class UGPhysicsLoader(BaseDatasetLoader):
         }
 
     @property
-    def DOMAIN_MAPPING(self) -> Dict[str, str]:
+    def DOMAIN_MAPPING(self) -> dict[str, str]:
         """Mapping of domain abbreviations to full domain names."""
         return {
             "AtomicPhysics": PhysicsDomain.ATOMIC_PHYSICS,
@@ -122,7 +121,7 @@ class UGPhysicsLoader(BaseDatasetLoader):
             "WaveOptics": PhysicsDomain.WAVE_OPTICS,
         }
 
-    def _process_metadata(self, metadata: Dict[str, Any], domain_name: str):
+    def _process_metadata(self, metadata: dict[str, Any], domain_name: str):
         """Process metadata to create standardized problem fields."""
         metadata["domain"] = self.DOMAIN_MAPPING.get(
             domain_name,
@@ -228,7 +227,7 @@ class UGPhysicsLoader(BaseDatasetLoader):
         text = re.sub(r"^\$(.*)\$$", r"\1", text)
         return text.strip()
 
-    def _split_answer_parts(self, value: Any) -> List[str]:
+    def _split_answer_parts(self, value: Any) -> list[str]:
         """Split a multi-answer field into normalized answer parts."""
         text = self._clean_answer_text(value)
         if not text:
@@ -245,7 +244,7 @@ class UGPhysicsLoader(BaseDatasetLoader):
         return answer
 
     @staticmethod
-    def _normalize_unit(value: Any) -> Optional[str]:
+    def _normalize_unit(value: Any) -> str | None:
         """Normalize unit strings and treat null-ish values as missing units."""
         if value is None:
             return None
@@ -255,7 +254,7 @@ class UGPhysicsLoader(BaseDatasetLoader):
             return None
         return normalized
 
-    def _format_physical_answer(self, value: str, unit: Optional[str]) -> str:
+    def _format_physical_answer(self, value: str, unit: str | None) -> str:
         """Build a stable string for multi-part physical quantity answers."""
         if unit:
             return f"{value} {unit}"
@@ -263,7 +262,7 @@ class UGPhysicsLoader(BaseDatasetLoader):
 
     def _resolve_data_dir(
         self,
-        data_dir: Union[str, Path, None],
+        data_dir: str | Path | None,
     ) -> Path:
         """Resolve the UGPhysics cache directory with legacy-case compatibility."""
         if data_dir is not None:
@@ -278,12 +277,12 @@ class UGPhysicsLoader(BaseDatasetLoader):
 
     def load(
         self,
-        data_dir: Union[str, Path, None] = None,
-        split: Optional[str] = None,
-        variant: Optional[str] = None,
-        sample_size: Optional[int] = None,
-        per_domain: Optional[int] = None,
-        language: Optional[str] = None,
+        data_dir: str | Path | None = None,
+        split: str | None = None,
+        variant: str | None = None,
+        sample_size: int | None = None,
+        per_domain: int | None = None,
+        language: str | None = None,
         **kwargs,
     ) -> PhysicalDataset:
         """
@@ -339,7 +338,7 @@ class UGPhysicsLoader(BaseDatasetLoader):
             domain_problems[domain_name] = []  # Initialize domain problems list
 
             try:
-                with open(domain_file, "r", encoding="utf-8") as f:
+                with open(domain_file, encoding="utf-8") as f:
                     for line_num, line in enumerate(f, 1):
                         if line.strip():
                             try:
@@ -415,17 +414,19 @@ class UGPhysicsLoader(BaseDatasetLoader):
 
     def _get_domains(
         self,
-        data_dir: Union[str, Path],
+        data_dir: str | Path,
         split: str = "en",
-        requested_domains: Optional[List[str]] = None,
-    ) -> List[str]:
+        requested_domains: list[str] | None = None,
+    ) -> list[str]:
         """Get list of available domains in the dataset."""
         data_dir = Path(data_dir)
         if not data_dir.exists():
             self.logger.error(f"Data directory does not exist: {data_dir}")
             return []
 
-        candidate_domains = requested_domains or list(UGPHYSICS_DOMAIN_VARIANTS.values())
+        candidate_domains = requested_domains or list(
+            UGPHYSICS_DOMAIN_VARIANTS.values()
+        )
         found_domains = []
         for domain in candidate_domains:
             domain_dir = data_dir / domain

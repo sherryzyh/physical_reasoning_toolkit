@@ -10,7 +10,7 @@ import json
 import shutil
 import time
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any
 
 from .base_downloader import BaseDownloader
 
@@ -30,7 +30,7 @@ class PHYBenchDownloader(BaseDownloader):
         return "PHYBench"
 
     @property
-    def download_info(self) -> Dict[str, Any]:
+    def download_info(self) -> dict[str, Any]:
         """Return download information."""
         return {
             "source": "HuggingFace Datasets Server",
@@ -46,9 +46,9 @@ class PHYBenchDownloader(BaseDownloader):
 
     def download(
         self,
-        data_dir: Optional[Union[str, Path]] = None,
+        data_dir: str | Path | None = None,
         force: bool = False,
-        split: Optional[str] = None,
+        split: str | None = None,
         **kwargs,
     ) -> Path:
         """
@@ -72,10 +72,10 @@ class PHYBenchDownloader(BaseDownloader):
         # Use default if not provided
         if split is None:
             split = self.get_default_split() or "train"
-        
+
         # Validate split
         self.validate_split(split)
-        
+
         # Call parent download method which handles force logic
         return super().download(data_dir=data_dir, force=force, split=split, **kwargs)
 
@@ -105,9 +105,7 @@ class PHYBenchDownloader(BaseDownloader):
             RuntimeError: If download fails
         """
         if split != "train":
-            raise ValueError(
-                f"PHYBench dataset only has 'train' split. Got: {split}"
-            )
+            raise ValueError(f"PHYBench dataset only has 'train' split. Got: {split}")
 
         # Check if requests library is available
         try:
@@ -128,7 +126,7 @@ class PHYBenchDownloader(BaseDownloader):
             # Base URL for HuggingFace datasets server API
             dataset_name = "Eureka-Lab/PHYBench"
             base_url = "https://datasets-server.huggingface.co/rows"
-            
+
             # Parameters for the API request
             params = {
                 "dataset": dataset_name,
@@ -140,15 +138,15 @@ class PHYBenchDownloader(BaseDownloader):
             self.logger.info("Fetching dataset info...")
             info_params = params.copy()
             info_params.update({"offset": 0, "length": 1})
-            
+
             response = requests.get(base_url, params=info_params, timeout=60)
             response.raise_for_status()
             info_data = response.json()
-            
+
             total_rows = info_data.get("num_rows_total", 0)
             if total_rows == 0:
                 raise RuntimeError("Dataset appears to be empty or inaccessible")
-            
+
             self.logger.info("Total rows in dataset: %d", total_rows)
 
             # Paginate through all rows
@@ -225,7 +223,7 @@ class PHYBenchDownloader(BaseDownloader):
             # The loader expects files like PHYBench-questions_v1.json
             # We'll save the main file as PHYBench-questions_v1.json (for "full" variant)
             output_file = download_dir / "PHYBench-questions_v1.json"
-            
+
             self.logger.info("Saving data to %s...", output_file)
             with open(output_file, "w", encoding="utf-8") as f:
                 json.dump(all_rows, f, indent=2, ensure_ascii=False)
@@ -239,7 +237,7 @@ class PHYBenchDownloader(BaseDownloader):
 
             return download_dir
 
-        except (ImportError, ValueError) as e:
+        except (ImportError, ValueError):
             # Re-raise ImportError and ValueError as-is (don't wrap)
             raise
         except (OSError, RuntimeError) as e:
@@ -253,7 +251,7 @@ class PHYBenchDownloader(BaseDownloader):
             self.logger.error("Failed to download PHYBench dataset: %s", e)
             raise RuntimeError(f"Download failed: {e}") from e
 
-    def verify(self, data_dir: Union[str, Path]) -> bool:
+    def verify(self, data_dir: str | Path) -> bool:
         """
         Verify that the downloaded dataset is complete and valid.
 
@@ -285,13 +283,11 @@ class PHYBenchDownloader(BaseDownloader):
 
         # Verify that it's a valid JSON file containing a list
         try:
-            with open(json_file, "r", encoding="utf-8") as f:
+            with open(json_file, encoding="utf-8") as f:
                 data = json.load(f)
 
             if not isinstance(data, list):
-                self.logger.warning(
-                    "JSON file does not contain a list: %s", json_file
-                )
+                self.logger.warning("JSON file does not contain a list: %s", json_file)
                 return False
 
             if len(data) == 0:
@@ -319,6 +315,6 @@ class PHYBenchDownloader(BaseDownloader):
                 "JSON file is not valid JSON: %s. Error: %s", json_file, e
             )
             return False
-        except IOError as e:
+        except OSError as e:
             self.logger.warning("Failed to read JSON file: %s. Error: %s", json_file, e)
             return False

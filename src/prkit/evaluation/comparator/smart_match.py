@@ -11,12 +11,16 @@ If none resolves the pair, this comparator returns ``False`` / score ``0.0``.
 """
 
 import re
-from typing import Optional, Union
 
 from prkit.core import PRKitLogger
 from prkit.core.domain.answer import Answer
 from prkit.core.domain.answer_category import AnswerCategory
 from prkit.evaluation.utils.answer_utils import same_comparison_category
+from prkit.evaluation.utils.category_dispatch import compare_by_category
+from prkit.evaluation.utils.compare_cross_type import (
+    compare_text_against_formula_or_equation_gt,
+    extract_rhs_and_category,
+)
 from prkit.evaluation.utils.compare_same_type import (
     compare_formula,
     compare_number,
@@ -25,16 +29,10 @@ from prkit.evaluation.utils.compare_same_type import (
     compare_plain_text,
     parse_physical_quantity,
 )
-from prkit.evaluation.utils.compare_cross_type import (
-    compare_text_against_formula_or_equation_gt,
-    extract_rhs_and_category,
-)
 from prkit.evaluation.utils.normalization import normalize_answer, normalize_text
 
-from prkit.evaluation.utils.category_dispatch import compare_by_category
-
 from .base import BaseComparator
-from .smart_pipeline import SmartPipelineResult, run_smart_pipeline
+from .smart_pipeline import run_smart_pipeline
 
 # Matches LaTeX-delimited math expressions in free text.
 # Alternation order matters: $$...$$ must precede $...$ to avoid partial matches.
@@ -54,8 +52,8 @@ def _extract_latex_equations(text: str) -> list[str]:
 
 
 def _typed_category_and_value(
-    answer: Union[str, Answer],
-) -> tuple[Optional[AnswerCategory], Union[float, str]]:
+    answer: str | Answer,
+) -> tuple[AnswerCategory | None, float | str]:
     """Get typed category and normalized value for an answer."""
     if isinstance(answer, Answer):
         return answer.answer_category, str(answer.value)
@@ -93,7 +91,7 @@ class SmartMatchComparator(BaseComparator):
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _extract_equation_rhs_raw(raw_text: str) -> Optional[str]:
+    def _extract_equation_rhs_raw(raw_text: str) -> str | None:
         """Extract RHS from a raw equation string (e.g. ``$T_B = 355\\,K$``).
 
         For multi-line text only the first line is considered, so subsidiary
@@ -117,9 +115,9 @@ class SmartMatchComparator(BaseComparator):
     @staticmethod
     def _compare_numeric_with_renormalized(
         numeric_cat: AnswerCategory,
-        numeric_value: Union[float, str],
+        numeric_value: float | str,
         rhs_raw: str,
-    ) -> Optional[bool]:
+    ) -> bool | None:
         """Compare a NUMBER or PHYSICAL_QUANTITY value against a re-normalized
         raw RHS string extracted from an equation.
 
@@ -156,9 +154,9 @@ class SmartMatchComparator(BaseComparator):
 
     @staticmethod
     def _compare_formula_with_renormalized(
-        formula_value: Union[float, str],
+        formula_value: float | str,
         rhs_raw: str,
-    ) -> Optional[bool]:
+    ) -> bool | None:
         """Compare a FORMULA value against a re-normalized raw RHS string
         extracted from an equation on the other side."""
         try:
@@ -192,7 +190,7 @@ class SmartMatchComparator(BaseComparator):
     def _try_equation_from_text(
         self,
         text_raw: str,
-        gt_norm: Union[float, str],
+        gt_norm: float | str,
         gt_raw: str,
     ) -> bool:
         """Try matching by extracting an embedded LaTeX equation from text.
@@ -251,9 +249,9 @@ class SmartMatchComparator(BaseComparator):
 
     def _cross_type_match(
         self,
-        answer1: Union[str, Answer],
-        answer2: Union[str, Answer],
-    ) -> Optional[bool]:
+        answer1: str | Answer,
+        answer2: str | Answer,
+    ) -> bool | None:
         """Positive-only cross-type matching for pairs that same-type
         comparison could not resolve.
 
@@ -283,14 +281,17 @@ class SmartMatchComparator(BaseComparator):
             except (ValueError, TypeError, ZeroDivisionError, AttributeError):
                 pass
         # --- NUMBER (pred) vs PHYSICAL_QUANTITY (gt) ---
-        if pred_cat == AnswerCategory.NUMBER and gt_cat == AnswerCategory.PHYSICAL_QUANTITY:
+        if (
+            pred_cat == AnswerCategory.NUMBER
+            and gt_cat == AnswerCategory.PHYSICAL_QUANTITY
+        ):
             try:
                 gt_num, _, gt_num_str = parse_physical_quantity(str(gt_value))
                 if gt_num is None or not compare_number(pred_value, gt_num_str):
                     return False
             except (ValueError, TypeError, ZeroDivisionError, AttributeError):
                 pass
-    
+
         # --- TEXT(pred) vs FORMULA / EQUATION (gt) ---
         if pred_cat == AnswerCategory.TEXT and gt_cat in (
             AnswerCategory.FORMULA,
@@ -334,15 +335,13 @@ class SmartMatchComparator(BaseComparator):
                 )
                 if match is True:
                     return True
-        
+
         # --- EQUATION (GT) vs FORMULA (pred) ---
         if gt_cat == AnswerCategory.EQUATION and pred_cat == AnswerCategory.FORMULA:
             gt_raw = str(answer2).strip()
             rhs = self._extract_equation_rhs_raw(gt_raw)
             if rhs is not None:
-                match = self._compare_formula_with_renormalized(
-                    pred_value, rhs
-                )
+                match = self._compare_formula_with_renormalized(pred_value, rhs)
                 if match is True:
                     return True
 
@@ -354,9 +353,7 @@ class SmartMatchComparator(BaseComparator):
             pred_raw = str(answer1).strip()
             rhs = self._extract_equation_rhs_raw(pred_raw)
             if rhs is not None:
-                match = self._compare_numeric_with_renormalized(
-                    gt_cat, gt_value, rhs
-                )
+                match = self._compare_numeric_with_renormalized(gt_cat, gt_value, rhs)
                 if match is True:
                     return True
 
@@ -365,9 +362,7 @@ class SmartMatchComparator(BaseComparator):
             pred_raw = str(answer1).strip()
             rhs = self._extract_equation_rhs_raw(pred_raw)
             if rhs is not None:
-                match = self._compare_formula_with_renormalized(
-                    gt_value, rhs
-                )
+                match = self._compare_formula_with_renormalized(gt_value, rhs)
                 if match is True:
                     return True
 
@@ -379,8 +374,8 @@ class SmartMatchComparator(BaseComparator):
 
     def compare(
         self,
-        answer1: Union[str, Answer],
-        answer2: Union[str, Answer],
+        answer1: str | Answer,
+        answer2: str | Answer,
     ) -> bool:
         """
         True when either same-type comparison, RHS-extracted same-type
@@ -396,8 +391,8 @@ class SmartMatchComparator(BaseComparator):
 
     def accuracy_score(
         self,
-        answer1: Union[str, Answer],
-        answer2: Union[str, Answer],
+        answer1: str | Answer,
+        answer2: str | Answer,
     ) -> float:
         """1.0 if :meth:`compare` is True, else 0.0."""
         is_match = self.compare(answer1, answer2)

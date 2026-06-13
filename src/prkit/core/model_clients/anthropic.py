@@ -3,22 +3,23 @@
 import json
 import os
 import re
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from pydantic import BaseModel
 
 try:
-    from anthropic import Anthropic, transform_schema as anthropic_transform_schema
+    from anthropic import Anthropic
+    from anthropic import transform_schema as anthropic_transform_schema
 except ImportError:  # pragma: no cover - tested via runtime error path
     Anthropic = None
     anthropic_transform_schema = None
 
 from .base import BaseModelClient
 from .structured_output import (
-    build_json_schema_prompt_suffix,
     StructuredOutputPlan,
     StructuredOutputPolicy,
     StructuredOutputSpec,
+    build_json_schema_prompt_suffix,
     normalize_response_format,
 )
 from .utils import encode_image_to_base64
@@ -42,7 +43,7 @@ def _detect_image_media_type(image_path: str) -> str:
     return mime_types.get(ext, "image/jpeg")
 
 
-def _parse_data_url(data_url: str) -> Dict[str, str]:
+def _parse_data_url(data_url: str) -> dict[str, str]:
     """
     Parse a data URL into media_type and base64 payload for Anthropic image blocks.
 
@@ -74,9 +75,11 @@ def _block_attr(block: Any, name: str) -> Any:
     return getattr(block, name, None)
 
 
-def _extract_tool_use_json(content_blocks: List[Any]) -> str:
+def _extract_tool_use_json(content_blocks: list[Any]) -> str:
     """Return the emitted Anthropic tool input as a JSON string."""
-    tool_blocks = [block for block in content_blocks if _block_attr(block, "type") == "tool_use"]
+    tool_blocks = [
+        block for block in content_blocks if _block_attr(block, "type") == "tool_use"
+    ]
     if len(tool_blocks) != 1:
         text_chunks = [
             str(text)
@@ -99,7 +102,7 @@ def _extract_tool_use_json(content_blocks: List[Any]) -> str:
     return json.dumps(tool_input, ensure_ascii=False)
 
 
-def _extract_text_json(content_blocks: List[Any]) -> str:
+def _extract_text_json(content_blocks: list[Any]) -> str:
     text_chunks = [
         str(text)
         for block in content_blocks
@@ -140,7 +143,9 @@ def _anthropic_native_schema_incompatibility(spec: StructuredOutputSpec) -> str 
     return "; ".join(issues)
 
 
-def _anthropic_transformed_response_format(spec: StructuredOutputSpec) -> dict[str, Any]:
+def _anthropic_transformed_response_format(
+    spec: StructuredOutputSpec,
+) -> dict[str, Any]:
     """Build the internal response_format contract while honoring Anthropic SDK transforms."""
 
     transformed_schema = (
@@ -185,8 +190,8 @@ class AnthropicModel(BaseModelClient):
     def chat(
         self,
         user_prompt: str,
-        image_paths: Optional[List[str]] = None,
-        response_format: Optional[Union[dict, type]] = None,
+        image_paths: list[str] | None = None,
+        response_format: dict | type | None = None,
         max_output_tokens: int = 1024,
         *args: Any,
         **kwargs: Any,
@@ -218,7 +223,7 @@ class AnthropicModel(BaseModelClient):
         if response_format is not None:
             normalized_response_format = normalize_response_format(response_format)
 
-        content: List[Dict[str, Any]] = [{"type": "text", "text": user_prompt}]
+        content: list[dict[str, Any]] = [{"type": "text", "text": user_prompt}]
         if image_paths:
             for image_path in image_paths:
                 if image_path.startswith("data:"):

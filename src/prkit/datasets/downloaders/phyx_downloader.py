@@ -10,13 +10,14 @@ import json
 import shutil
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from .base_downloader import BaseDownloader
 
 # Try to import PIL for image handling
 try:
     from PIL import Image
+
     PIL_AVAILABLE = True
 except ImportError:
     PIL_AVAILABLE = False
@@ -39,7 +40,7 @@ class PhyXDownloader(BaseDownloader):
         return "phyx"
 
     @property
-    def download_info(self) -> Dict[str, Any]:
+    def download_info(self) -> dict[str, Any]:
         """Return download information."""
         return {
             "source": "HuggingFace Datasets Server",
@@ -56,9 +57,9 @@ class PhyXDownloader(BaseDownloader):
 
     def download(
         self,
-        data_dir: Optional[Union[str, Path]] = None,
+        data_dir: str | Path | None = None,
         force: bool = False,
-        split: Optional[str] = None,
+        split: str | None = None,
         **kwargs,
     ) -> Path:
         """
@@ -82,10 +83,10 @@ class PhyXDownloader(BaseDownloader):
         # Use default if not provided
         if split is None:
             split = self.get_default_split() or "test_mini"
-        
+
         # Validate split
         self.validate_split(split)
-        
+
         # Call parent download method which handles force logic
         return super().download(data_dir=data_dir, force=force, split=split, **kwargs)
 
@@ -146,19 +147,23 @@ class PhyXDownloader(BaseDownloader):
             # This allows downloading the entire split in one go
             try:
                 import datasets
-                self.logger.info("Using HuggingFace datasets library to download entire split...")
-                
+
+                self.logger.info(
+                    "Using HuggingFace datasets library to download entire split..."
+                )
+
                 # Download the entire split using datasets library
                 dataset = datasets.load_dataset(
-                    "Cloudriver/PhyX",
-                    split=split,
-                    trust_remote_code=False
+                    "Cloudriver/PhyX", split=split, trust_remote_code=False
                 )
-                
+
                 # Convert to list of dictionaries
                 all_rows = [row for row in dataset]
-                self.logger.info("Successfully downloaded %d rows using datasets library", len(all_rows))
-                
+                self.logger.info(
+                    "Successfully downloaded %d rows using datasets library",
+                    len(all_rows),
+                )
+
             except ImportError:
                 # Fallback to using the rows API - but note that it has limits
                 self.logger.warning(
@@ -166,7 +171,7 @@ class PhyXDownloader(BaseDownloader):
                     "For best results, install it with: pip install datasets"
                 )
                 self.logger.info("Attempting to use rows API (may have limitations)...")
-                
+
                 # First, get the total number of rows
                 self.logger.info("Fetching dataset info...")
                 info_params = params.copy()
@@ -181,7 +186,7 @@ class PhyXDownloader(BaseDownloader):
                     raise RuntimeError("Dataset appears to be empty or inaccessible")
 
                 self.logger.info("Total rows in dataset: %d", total_rows)
-                
+
                 # Fetch all rows without specifying offset or length parameters
                 # The API should return all available rows starting from the beginning
                 request_params = params.copy()
@@ -193,9 +198,13 @@ class PhyXDownloader(BaseDownloader):
 
                 for attempt in range(max_retries):
                     try:
-                        self.logger.info("Fetching all rows in a single request (no length limit)...")
+                        self.logger.info(
+                            "Fetching all rows in a single request (no length limit)..."
+                        )
                         response = requests.get(
-                            base_url, params=request_params, timeout=600  # 10 minute timeout for large datasets
+                            base_url,
+                            params=request_params,
+                            timeout=600,  # 10 minute timeout for large datasets
                         )
                         response.raise_for_status()
                         data = response.json()
@@ -212,12 +221,13 @@ class PhyXDownloader(BaseDownloader):
                                 all_rows.append(row_data)
 
                         self.logger.info("Successfully fetched %d rows", len(all_rows))
-                        
+
                         # Verify we got all rows
                         if len(all_rows) < total_rows:
                             self.logger.warning(
                                 "Only fetched %d out of %d rows. API may have limits.",
-                                len(all_rows), total_rows
+                                len(all_rows),
+                                total_rows,
                             )
                         break
 
@@ -277,7 +287,11 @@ class PhyXDownloader(BaseDownloader):
                                 "Row %d is not serializable: %s. Row keys: %s",
                                 i,
                                 row_err,
-                                list(row.keys()) if isinstance(row, dict) else type(row),
+                                (
+                                    list(row.keys())
+                                    if isinstance(row, dict)
+                                    else type(row)
+                                ),
                             )
                     raise
 
@@ -321,21 +335,21 @@ class PhyXDownloader(BaseDownloader):
             raise RuntimeError(f"Download failed: {e}") from e
 
     def _process_rows_for_json(
-        self, rows: List[Dict[str, Any]], download_dir: Path
-    ) -> List[Dict[str, Any]]:
+        self, rows: list[dict[str, Any]], download_dir: Path
+    ) -> list[dict[str, Any]]:
         """
         Process rows to handle images and convert to JSON-serializable format.
-        
+
         This method:
         1. Creates an images directory
         2. Extracts PIL Image objects and saves them as files
         3. Replaces image objects with file paths
         4. Handles other non-serializable objects
-        
+
         Args:
             rows: List of row dictionaries from the dataset
             download_dir: Directory where images will be saved
-            
+
         Returns:
             List of processed row dictionaries that are JSON-serializable
         """
@@ -343,29 +357,31 @@ class PhyXDownloader(BaseDownloader):
         images_dir = download_dir / "images"
         images_dir.mkdir(parents=True, exist_ok=True)
         self.logger.info("Created images directory: %s", images_dir)
-        
+
         processed_rows = []
-        
+
         for idx, row in enumerate(rows):
             try:
                 # Ensure row is a dictionary
                 if not isinstance(row, dict):
                     self.logger.warning(
-                        "Row %d is not a dictionary (type: %s), skipping", idx, type(row)
+                        "Row %d is not a dictionary (type: %s), skipping",
+                        idx,
+                        type(row),
                     )
                     continue
-                
+
                 processed_row = {}
-                
+
                 # Get problem ID for naming images
                 problem_id = row.get("id") or row.get("index") or idx
-                
+
                 # Process each field in the row
                 for key, value in row.items():
                     try:
                         # Ensure key is a string
                         key_str = str(key) if not isinstance(key, str) else key
-                        
+
                         # Handle image fields - check common image field names
                         if key_str in ["image", "images", "image_path", "image_paths"]:
                             image_paths = self._process_image_field(
@@ -387,43 +403,43 @@ class PhyXDownloader(BaseDownloader):
                         )
                         # Skip this field but continue processing
                         continue
-                
+
                 processed_rows.append(processed_row)
             except Exception as e:
                 self.logger.warning(
                     "Error processing row %d: %s. Skipping row.", idx, e
                 )
                 continue
-        
+
         self.logger.info(
             "Processed %d rows, saved images to %s", len(processed_rows), images_dir
         )
         return processed_rows
-    
+
     def _process_image_field(
         self,
         image_value: Any,
         problem_id: Any,
         fallback_idx: int,
         images_dir: Path,
-    ) -> List[str]:
+    ) -> list[str]:
         """
         Process an image field value and save images to files.
-        
+
         Args:
             image_value: The image value (can be PIL Image, list of images, dict, etc.)
             problem_id: Problem ID for naming images
             fallback_idx: Fallback index if problem_id is not usable
             images_dir: Directory to save images
-            
+
         Returns:
             List of relative image paths
         """
         image_paths = []
-        
+
         if image_value is None:
             return image_paths
-        
+
         # Convert problem_id to string for filename
         try:
             if isinstance(problem_id, (int, float)):
@@ -432,15 +448,13 @@ class PhyXDownloader(BaseDownloader):
                 problem_id_str = str(problem_id)
         except (ValueError, TypeError):
             problem_id_str = str(fallback_idx)
-        
+
         # Handle PIL Image objects
         if PIL_AVAILABLE and isinstance(image_value, Image.Image):
-            img_path = self._save_pil_image(
-                image_value, problem_id_str, 0, images_dir
-            )
+            img_path = self._save_pil_image(image_value, problem_id_str, 0, images_dir)
             if img_path:
                 image_paths.append(img_path)
-        
+
         # Handle list/tuple of images
         elif isinstance(image_value, (list, tuple)):
             for img_idx, img_item in enumerate(image_value):
@@ -458,7 +472,7 @@ class PhyXDownloader(BaseDownloader):
                         )
                         if img_path:
                             image_paths.append(img_path)
-        
+
         # Handle dict with image data
         elif isinstance(image_value, dict):
             if "bytes" in image_value:
@@ -470,12 +484,10 @@ class PhyXDownloader(BaseDownloader):
             elif PIL_AVAILABLE and "image" in image_value:
                 img = image_value["image"]
                 if isinstance(img, Image.Image):
-                    img_path = self._save_pil_image(
-                        img, problem_id_str, 0, images_dir
-                    )
+                    img_path = self._save_pil_image(img, problem_id_str, 0, images_dir)
                     if img_path:
                         image_paths.append(img_path)
-        
+
         # Handle bytes directly
         elif isinstance(image_value, bytes):
             img_path = self._save_bytes_image(
@@ -483,43 +495,43 @@ class PhyXDownloader(BaseDownloader):
             )
             if img_path:
                 image_paths.append(img_path)
-        
+
         return image_paths
-    
+
     def _save_pil_image(
         self, pil_image: Any, problem_id: str, img_idx: int, images_dir: Path
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         Save a PIL Image object to a file.
-        
+
         Args:
             pil_image: PIL Image object
             problem_id: Problem ID string
             img_idx: Image index within the problem
             images_dir: Directory to save the image
-            
+
         Returns:
             Relative path to the saved image, or None if saving failed
         """
         if not PIL_AVAILABLE:
             return None
-        
+
         try:
             # Determine filename
             if img_idx == 0:
                 img_filename = f"{problem_id}.png"
             else:
                 img_filename = f"{problem_id}_{img_idx}.png"
-            
+
             img_path = images_dir / img_filename
-            
+
             # Convert to RGB if necessary (handles RGBA, P, etc.)
             if pil_image.mode not in ("RGB", "L"):
                 pil_image = pil_image.convert("RGB")
-            
+
             # Save the image
             pil_image.save(img_path, "PNG")
-            
+
             # Return relative path
             return f"images/{img_filename}"
         except Exception as e:
@@ -530,19 +542,19 @@ class PhyXDownloader(BaseDownloader):
                 e,
             )
             return None
-    
+
     def _save_bytes_image(
         self, img_bytes: bytes, problem_id: str, img_idx: int, images_dir: Path
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         Save image bytes to a file.
-        
+
         Args:
             img_bytes: Image bytes
             problem_id: Problem ID string
             img_idx: Image index within the problem
             images_dir: Directory to save the image
-            
+
         Returns:
             Relative path to the saved image, or None if saving failed
         """
@@ -554,19 +566,19 @@ class PhyXDownloader(BaseDownloader):
                 ext = ".png"
             else:
                 ext = ".png"  # Default to PNG
-            
+
             # Determine filename
             if img_idx == 0:
                 img_filename = f"{problem_id}{ext}"
             else:
                 img_filename = f"{problem_id}_{img_idx}{ext}"
-            
+
             img_path = images_dir / img_filename
-            
+
             # Save the bytes
             with open(img_path, "wb") as f:
                 f.write(img_bytes)
-            
+
             # Return relative path
             return f"images/{img_filename}"
         except Exception as e:
@@ -577,34 +589,35 @@ class PhyXDownloader(BaseDownloader):
                 e,
             )
             return None
-    
+
     def _make_json_serializable(self, obj: Any) -> Any:
         """
         Recursively convert an object to JSON-serializable format.
-        
+
         Args:
             obj: Object to convert
-            
+
         Returns:
             JSON-serializable version of the object
         """
         # Handle None
         if obj is None:
             return None
-        
+
         # Handle PIL Images (should be caught earlier, but safety check)
         if PIL_AVAILABLE and isinstance(obj, Image.Image):
             # Return None - images should be handled separately
             return None
-        
+
         # Handle bytes
         if isinstance(obj, bytes):
             import base64
+
             try:
                 return base64.b64encode(obj).decode("utf-8")
             except Exception:
                 return ""
-        
+
         # Handle dict
         if isinstance(obj, dict):
             result = {}
@@ -613,19 +626,19 @@ class PhyXDownloader(BaseDownloader):
                 key_str = str(k) if not isinstance(k, str) else k
                 result[key_str] = self._make_json_serializable(v)
             return result
-        
+
         # Handle list/tuple
         if isinstance(obj, (list, tuple)):
             return [self._make_json_serializable(item) for item in obj]
-        
+
         # Handle set
         if isinstance(obj, set):
             return [self._make_json_serializable(item) for item in obj]
-        
+
         # Handle numpy types
         try:
             import numpy as np
-            
+
             if isinstance(obj, np.ndarray):
                 try:
                     return obj.tolist()
@@ -639,11 +652,11 @@ class PhyXDownloader(BaseDownloader):
                 return str(obj)
         except ImportError:
             pass
-        
+
         # Handle basic types that are already JSON serializable
         if isinstance(obj, (str, int, float, bool)):
             return obj
-        
+
         # Try to serialize directly
         try:
             json.dumps(obj)
@@ -667,14 +680,16 @@ class PhyXDownloader(BaseDownloader):
                     type(obj),
                 )
                 return ""
-    
-    def _fix_json_serialization(self, data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+
+    def _fix_json_serialization(
+        self, data: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """
         More aggressively fix JSON serialization issues.
-        
+
         Args:
             data: List of dictionaries to fix
-            
+
         Returns:
             Fixed list of dictionaries
         """
@@ -686,16 +701,16 @@ class PhyXDownloader(BaseDownloader):
                         "Row %d is not a dict (type: %s), skipping", idx, type(row)
                     )
                     continue
-                
+
                 fixed_row = {}
                 for key, value in row.items():
                     try:
                         # Ensure key is a string
                         key_str = str(key) if not isinstance(key, str) else key
-                        
+
                         # Convert value to JSON-serializable format
                         serialized_value = self._make_json_serializable(value)
-                        
+
                         # Validate that the value can be serialized
                         json.dumps(serialized_value)
                         fixed_row[key_str] = serialized_value
@@ -717,24 +732,24 @@ class PhyXDownloader(BaseDownloader):
                             e,
                         )
                         fixed_row[str(key)] = None
-                
+
                 # Validate the entire row can be serialized
                 try:
                     json.dumps(fixed_row)
                     fixed_data.append(fixed_row)
                 except (TypeError, ValueError) as e:
                     self.logger.warning(
-                        "Row %d still not serializable after fixing: %s. Skipping row.", idx, e
+                        "Row %d still not serializable after fixing: %s. Skipping row.",
+                        idx,
+                        e,
                     )
                     continue
             except Exception as e:
-                self.logger.warning(
-                    "Failed to fix row %d, skipping: %s", idx, e
-                )
+                self.logger.warning("Failed to fix row %d, skipping: %s", idx, e)
                 continue
         return fixed_data
 
-    def verify(self, data_dir: Union[str, Path]) -> bool:
+    def verify(self, data_dir: str | Path) -> bool:
         """
         Verify that the downloaded dataset is complete and valid.
 
@@ -770,13 +785,11 @@ class PhyXDownloader(BaseDownloader):
 
         # Verify that it's a valid JSON file containing a list
         try:
-            with open(json_file, "r", encoding="utf-8") as f:
+            with open(json_file, encoding="utf-8") as f:
                 data = json.load(f)
 
             if not isinstance(data, list):
-                self.logger.warning(
-                    "JSON file does not contain a list: %s", json_file
-                )
+                self.logger.warning("JSON file does not contain a list: %s", json_file)
                 return False
 
             if len(data) == 0:
@@ -804,6 +817,6 @@ class PhyXDownloader(BaseDownloader):
                 "JSON file is not valid JSON: %s. Error: %s", json_file, e
             )
             return False
-        except IOError as e:
+        except OSError as e:
             self.logger.warning("Failed to read JSON file: %s. Error: %s", json_file, e)
             return False

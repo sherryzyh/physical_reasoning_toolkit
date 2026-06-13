@@ -9,7 +9,7 @@ import json
 import shutil
 import zipfile
 from pathlib import Path
-from typing import Any, Dict, Union
+from typing import Any
 
 from .base_downloader import BaseDownloader
 
@@ -31,7 +31,7 @@ class PhysBenchDownloader(BaseDownloader):
         return "PhysBench"
 
     @property
-    def download_info(self) -> Dict[str, Any]:
+    def download_info(self) -> dict[str, Any]:
         return {
             "source": "Hugging Face dataset files",
             "repository": "USC-PSI-Lab/PhysBench",
@@ -119,7 +119,7 @@ class PhysBenchDownloader(BaseDownloader):
             self.logger.error("Failed to download PhysBench: %s", exc)
             raise RuntimeError(f"Download failed: {exc}") from exc
 
-    def verify(self, data_dir: Union[str, Path]) -> bool:
+    def verify(self, data_dir: str | Path) -> bool:
         data_dir = Path(data_dir)
         json_file = data_dir / "test.json"
         if not json_file.exists():
@@ -127,7 +127,7 @@ class PhysBenchDownloader(BaseDownloader):
             return False
 
         try:
-            with open(json_file, "r", encoding="utf-8") as handle:
+            with open(json_file, encoding="utf-8") as handle:
                 data = json.load(handle)
         except (OSError, json.JSONDecodeError) as exc:
             self.logger.warning("Failed to validate PhysBench metadata: %s", exc)

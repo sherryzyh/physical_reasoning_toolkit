@@ -10,10 +10,10 @@ For citation information, see prkit.datasets.citations.
 import json
 import random
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
-from prkit.core.domain.physics_domain import PhysicsDomain
 from prkit.core.domain import PhysicalDataset
+from prkit.core.domain.physics_domain import PhysicsDomain
 
 from .base_loader import BaseDatasetLoader
 
@@ -29,7 +29,7 @@ class PHYBenchLoader(BaseDatasetLoader):
     def description(self) -> str:
         return "PHYBench: A comprehensive physics benchmark dataset with problems across various physics domains"
 
-    def get_info(self) -> Dict[str, Any]:
+    def get_info(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "description": self.description,
@@ -55,7 +55,7 @@ class PHYBenchLoader(BaseDatasetLoader):
         }
 
     @property
-    def field_mapping(self) -> Dict[str, str]:
+    def field_mapping(self) -> dict[str, str]:
         return {
             "id": "problem_id",
             "tag": "domain",
@@ -65,7 +65,7 @@ class PHYBenchLoader(BaseDatasetLoader):
         }
 
     @property
-    def DOMAIN_MAPPING(self) -> Dict[str, str]:
+    def DOMAIN_MAPPING(self) -> dict[str, str]:
         """Mapping of domain abbreviations to full domain names."""
         return {
             "MECHANICS": PhysicsDomain.MECHANICS,
@@ -76,7 +76,7 @@ class PHYBenchLoader(BaseDatasetLoader):
             "ADVANCED": PhysicsDomain.ADVANCED_PHYSICS,
         }
 
-    def _process_metadata(self, metadata: Dict[str, Any]) -> Dict[str, Any]:
+    def _process_metadata(self, metadata: dict[str, Any]) -> dict[str, Any]:
         """Process metadata to create standardized problem fields."""
 
         metadata["answer_category"] = "formula"
@@ -89,10 +89,10 @@ class PHYBenchLoader(BaseDatasetLoader):
 
     def load(
         self,
-        data_dir: Union[str, Path, None] = None,
-        variant: Optional[str] = None,
-        sample_size: Optional[int] = None,
-        split: Optional[str] = None,
+        data_dir: str | Path | None = None,
+        variant: str | None = None,
+        sample_size: int | None = None,
+        split: str | None = None,
         **kwargs,
     ) -> PhysicalDataset:
         """
@@ -112,7 +112,7 @@ class PHYBenchLoader(BaseDatasetLoader):
             variant = self.get_default_variant() or "full"
         if split is None:
             split = self.get_default_split() or "train"
-        
+
         # Validate variant and split
         self.validate_variant(variant)
         self.validate_split(split)
@@ -140,7 +140,7 @@ class PHYBenchLoader(BaseDatasetLoader):
             raise FileNotFoundError(f"PHYBench file not found: {json_file}")
 
         # Load the JSON data
-        with open(json_file, "r", encoding="utf-8") as f:
+        with open(json_file, encoding="utf-8") as f:
             data = json.load(f)
 
         # Convert to unified format

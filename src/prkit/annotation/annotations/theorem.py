@@ -1,14 +1,14 @@
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 @dataclass
 class TheoremAnnotation:
     """Annotation for relevant physical theorems and principles."""
 
-    theorems: List[Dict[str, Any]] = field(default_factory=list)
+    theorems: list[dict[str, Any]] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary representation."""
         return {
             "theorems": self.theorems,

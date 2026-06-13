@@ -4,15 +4,15 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Any, Dict, Optional
+from typing import Any
 
 from prkit.evaluation.llm_judge.schema import EXPECTED_ANSWER_TYPES
-from prkit.evaluation.llm_judge.types import LLMJudgeResult, RESULT_SOURCE_LLM_JUDGE
+from prkit.evaluation.llm_judge.types import RESULT_SOURCE_LLM_JUDGE, LLMJudgeResult
 
 _EXPECTED_SET = frozenset(EXPECTED_ANSWER_TYPES)
 
 
-def extract_json_object(text: str) -> Optional[Dict[str, Any]]:
+def extract_json_object(text: str) -> dict[str, Any] | None:
     """Return the first JSON object found in *text*, or ``None``."""
     raw = text.strip()
     try:
@@ -82,7 +82,9 @@ def parse_judge_response(response_text: str) -> LLMJudgeResult:
         )
 
     lower = raw.lower()
-    verdict = "correct" if "correct" in lower and "incorrect" not in lower else "incorrect"
+    verdict = (
+        "correct" if "correct" in lower and "incorrect" not in lower else "incorrect"
+    )
     return LLMJudgeResult(
         verdict,
         0.5,

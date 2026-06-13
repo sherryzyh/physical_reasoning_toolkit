@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import functools
 import math
-from typing import Tuple, Union
 
 from .atomic_kinds import NormalizedAtomicKind
-from .expression_normalization import _normalize_symbolic_expression, classify_expression
+from .expression_normalization import (
+    _normalize_symbolic_expression,
+    classify_expression,
+)
 from .math_text_normalization import (
     _contains_latex_commands,
     _extract_math_content,
@@ -26,7 +28,7 @@ from .physical_quantity_normalization import (
 
 def normalize_expression(
     answer_str: str,
-) -> Tuple[Union[float, str], bool, NormalizedAtomicKind]:
+) -> tuple[float | str, bool, NormalizedAtomicKind]:
     """Normalize an answer surface that should be interpreted as math.
 
     The return value packages three pieces of information:
@@ -45,7 +47,11 @@ def normalize_expression(
 
     expr_kind = classify_expression(clean_math)
     if expr_kind == NormalizedAtomicKind.PHYSICAL_QUANTITY:
-        return _normalize_physical_quantity(clean_math), True, NormalizedAtomicKind.PHYSICAL_QUANTITY
+        return (
+            _normalize_physical_quantity(clean_math),
+            True,
+            NormalizedAtomicKind.PHYSICAL_QUANTITY,
+        )
 
     if expr_kind == NormalizedAtomicKind.EXPRESSION:
         rescued_number = _try_parse_number_only(clean_math)
@@ -62,7 +68,7 @@ def normalize_expression(
 @functools.lru_cache(maxsize=8192)
 def normalize_answer(
     answer_str: str,
-) -> Tuple[NormalizedAtomicKind, Union[float, str]]:
+) -> tuple[NormalizedAtomicKind, float | str]:
     """Normalize a raw atomic answer into a coarse kind plus payload.
 
     The helper intentionally stops short of building full
@@ -84,9 +90,13 @@ def normalize_answer(
                 NormalizedAtomicKind.PHYSICAL_QUANTITY,
                 _normalize_physical_quantity(clean_str),
             )
-        if expr_kind == NormalizedAtomicKind.RELATION and _looks_like_math_expression(clean_str):
+        if expr_kind == NormalizedAtomicKind.RELATION and _looks_like_math_expression(
+            clean_str
+        ):
             effective_had_latex = had_latex or _contains_latex_commands(clean_str)
-            normalized, success = _normalize_symbolic_expression(clean_str, effective_had_latex)
+            normalized, success = _normalize_symbolic_expression(
+                clean_str, effective_had_latex
+            )
             if success:
                 return NormalizedAtomicKind.RELATION, normalized
 

@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 from prkit.core.domain import Answer, PhysicsProblem
 
 from ..normalization import (
@@ -47,8 +45,8 @@ Rules:
 def build_reference_semantics_prompt(
     problem: PhysicsProblem,
     *,
-    draft_question_semantics: Optional[PhysicsQuestionSemantics] = None,
-    draft_reference_answer_semantics: Optional[PhysicsAnswerSemantics] = None,
+    draft_question_semantics: PhysicsQuestionSemantics | None = None,
+    draft_reference_answer_semantics: PhysicsAnswerSemantics | None = None,
 ) -> str:
     """Build the prompt for reference-semantics generation."""
 
@@ -57,7 +55,9 @@ def build_reference_semantics_prompt(
             f"Problem {problem.problem_id} does not provide `problem.answer`."
         )
 
-    question_draft = draft_question_semantics or infer_reference_question_semantics(problem)
+    question_draft = draft_question_semantics or infer_reference_question_semantics(
+        problem
+    )
     reference_draft = draft_reference_answer_semantics or normalize_physics_answer(
         problem.answer,
         context=question_draft,
@@ -85,12 +85,14 @@ def build_reference_semantics_prompt(
 def build_prediction_semantics_prompt(
     problem: PhysicsProblem,
     *,
-    draft_question_semantics: Optional[PhysicsQuestionSemantics] = None,
+    draft_question_semantics: PhysicsQuestionSemantics | None = None,
     include_prediction_answer_semantics: bool = True,
 ) -> str:
     """Build the prompt for prediction-semantics generation."""
 
-    question_draft = draft_question_semantics or infer_prediction_question_semantics(problem)
+    question_draft = draft_question_semantics or infer_prediction_question_semantics(
+        problem
+    )
 
     sections = [
         _COMMON_ROLE,

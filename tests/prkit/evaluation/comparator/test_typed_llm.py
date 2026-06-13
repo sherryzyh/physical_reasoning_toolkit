@@ -110,8 +110,12 @@ def test_text_exact_match_uses_local_plaintext_shortcut():
         '{"verdict":"incorrect","confidence":0.2,"expected_answer_type":"textual_concept","reasoning":"should not be called"}'
     )
     comp = TypedLLMComparator(client=dummy)
-    pred = Answer(value="mechanical energy is conserved", answer_category=AnswerCategory.TEXT)
-    gt = Answer(value="mechanical energy is conserved", answer_category=AnswerCategory.TEXT)
+    pred = Answer(
+        value="mechanical energy is conserved", answer_category=AnswerCategory.TEXT
+    )
+    gt = Answer(
+        value="mechanical energy is conserved", answer_category=AnswerCategory.TEXT
+    )
     assert comp.compare(pred, gt) is True
     assert comp.last_result is not None
     assert comp.last_result.raw_response == "local_shortcut"
@@ -123,7 +127,10 @@ def test_formula_with_text_macro_routes_to_llm_not_quick_path():
         '{"verdict":"correct","confidence":0.88,"expected_answer_type":"symbolic_expression","reasoning":"gradient and slope are equivalent labels"}'
     )
     comp = TypedLLMComparator(client=dummy)
-    assert comp.compare(r"M = \frac{\text{slope}}{G}", r"M=\frac{\text{gradient}}{G}") is True
+    assert (
+        comp.compare(r"M = \frac{\text{slope}}{G}", r"M=\frac{\text{gradient}}{G}")
+        is True
+    )
     assert comp.last_result is not None
     assert comp.last_result.raw_response != "local_shortcut"
     assert dummy.responses.last_params is not None
@@ -241,8 +248,18 @@ def test_equation_question_formula_vs_equation_routes_to_llm_when_plaintext_not_
 
 
 def test_infer_symbolic_answer_is_expression():
-    assert infer_symbolic_answer_is_expression("What is the speed in terms of $a$ and $b$?") is True
-    assert infer_symbolic_answer_is_expression("Write the equation of motion for the system.") is False
+    assert (
+        infer_symbolic_answer_is_expression(
+            "What is the speed in terms of $a$ and $b$?"
+        )
+        is True
+    )
+    assert (
+        infer_symbolic_answer_is_expression(
+            "Write the equation of motion for the system."
+        )
+        is False
+    )
     assert infer_symbolic_answer_is_expression("Solve the problem.") is None
     assert (
         infer_symbolic_answer_is_expression(
@@ -256,8 +273,18 @@ def test_infer_symbolic_answer_is_expression():
         )
         is False
     )
-    assert infer_symbolic_answer_is_expression("图中（I）是 $t=0$ 时的波形图，写出波动方程的表达式。") is True
-    assert infer_symbolic_answer_is_expression("图示为两个简谐振动的 $x-t$ 曲线，试分别写出其简谐振动方程。") is False
+    assert (
+        infer_symbolic_answer_is_expression(
+            "图中（I）是 $t=0$ 时的波形图，写出波动方程的表达式。"
+        )
+        is True
+    )
+    assert (
+        infer_symbolic_answer_is_expression(
+            "图示为两个简谐振动的 $x-t$ 曲线，试分别写出其简谐振动方程。"
+        )
+        is False
+    )
 
 
 def test_symbolic_answer_is_expression_kwarg_overrides_question():
@@ -378,7 +405,9 @@ def test_helper_functions_cover_fallback_paths(monkeypatch):
     assert (
         _symbolic_operand_for_expression_compare(AnswerCategory.TEXT, "ignored") is None
     )
-    assert _compare_physical_quantity_same_unit_pool_placeholder("1", "m", "100", "cm") == (
+    assert _compare_physical_quantity_same_unit_pool_placeholder(
+        "1", "m", "100", "cm"
+    ) == (
         False,
         False,
     )
@@ -391,7 +420,9 @@ def test_helper_functions_cover_fallback_paths(monkeypatch):
     assert _typed_category_and_value(" ?? ") == (None, "??")
 
 
-def test_compare_formula_or_equation_as_expressions_handles_non_symbolic_cases(monkeypatch):
+def test_compare_formula_or_equation_as_expressions_handles_non_symbolic_cases(
+    monkeypatch,
+):
     assert (
         _compare_formula_or_equation_as_expressions(
             AnswerCategory.TEXT,

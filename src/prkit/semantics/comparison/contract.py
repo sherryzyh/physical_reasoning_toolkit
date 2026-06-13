@@ -51,7 +51,9 @@ def build_evaluation_contract(
         enabled_bridge_ids = tuple(BRIDGE_REGISTRY)
 
     question_text = getattr(problem, "question", None) if problem is not None else None
-    problem_type = getattr(problem, "problem_type", None) if problem is not None else None
+    problem_type = (
+        getattr(problem, "problem_type", None) if problem is not None else None
+    )
 
     return PhysicsEvaluationContract(
         question_semantics=question,
@@ -81,9 +83,7 @@ def validate_answer_against_contract(
     coercible = False
 
     if resolved_answer.structure not in question.allowed_structures:
-        diagnostics.append(
-            f"structure_not_admitted:{resolved_answer.structure.value}"
-        )
+        diagnostics.append(f"structure_not_admitted:{resolved_answer.structure.value}")
         violating = True
 
     if resolved_answer.object_kind not in question.allowed_object_kinds:
@@ -177,10 +177,17 @@ def validate_answer_against_contract(
             bridge_candidates.append("quantity_to_number")
             coercible = True
 
-    if question.choice_space and resolved_contract.expected_object_kind == AnswerObjectKind.CHOICE:
+    if (
+        question.choice_space
+        and resolved_contract.expected_object_kind == AnswerObjectKind.CHOICE
+    ):
         if resolved_answer.object_kind == AnswerObjectKind.CHOICE:
-            label = (resolved_answer.choice_label or resolved_answer.canonical_text or "").strip()
-            if label and label.lower() not in {item.lower() for item in question.choice_space}:
+            label = (
+                resolved_answer.choice_label or resolved_answer.canonical_text or ""
+            ).strip()
+            if label and label.lower() not in {
+                item.lower() for item in question.choice_space
+            }:
                 diagnostics.append(f"choice_out_of_space:{label}")
                 violating = True
         else:
@@ -197,9 +204,7 @@ def validate_answer_against_contract(
 
     deduped_candidates = tuple(dict.fromkeys(bridge_candidates))
     filtered_candidates = tuple(
-        candidate
-        for candidate in deduped_candidates
-        if candidate in BRIDGE_REGISTRY
+        candidate for candidate in deduped_candidates if candidate in BRIDGE_REGISTRY
     )
     if coercible and not filtered_candidates:
         coercible = False

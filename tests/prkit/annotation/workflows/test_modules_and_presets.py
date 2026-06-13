@@ -98,7 +98,9 @@ def test_domain_assessment_module_failure_and_problem_output(mock_labeler_class)
 
 
 @patch("prkit.annotation.workflows.modules.domain_assessment_module.DomainLabeler")
-def test_domain_assessment_module_missing_result_and_attaches_metadata(mock_labeler_class):
+def test_domain_assessment_module_missing_result_and_attaches_metadata(
+    mock_labeler_class,
+):
     mock_labeler = MagicMock()
     mock_labeler.work.return_value = None
     mock_labeler_class.return_value = mock_labeler
@@ -122,14 +124,20 @@ def test_domain_assessment_module_missing_result_and_attaches_metadata(mock_labe
 
 
 @patch("prkit.annotation.workflows.modules.review_theorem_module.TheoremDetector")
-def test_review_theorem_module_get_human_feedback_and_single_review(mock_detector_class, monkeypatch):
+def test_review_theorem_module_get_human_feedback_and_single_review(
+    mock_detector_class, monkeypatch
+):
     mock_detector_class.return_value = MagicMock()
     module = ReviewTheoremModule(model="claude-sonnet-4-6")
 
     responses = iter(["maybe", "y", "y", "n", "Conditions are incomplete"])
     monkeypatch.setattr("builtins.input", lambda _prompt="": next(responses))
 
-    theorem = {"name": "Newton's second law", "equations": ["F = ma"], "conditions": ["constant mass"]}
+    theorem = {
+        "name": "Newton's second law",
+        "equations": ["F = ma"],
+        "conditions": ["constant mass"],
+    }
     reviewed = module._review_single_theorem(theorem, "Q", "S", 1, 1)
 
     assert reviewed["is_relevant"] is True
@@ -156,7 +164,9 @@ def test_review_theorem_module_reviews_irrelevant_and_incorrect_equations(
     equation_issue = module._review_single_theorem(theorem, "Q", "S", 1, 1)
 
     assert irrelevant["is_relevant"] is False
-    assert irrelevant["equations_feedback"] == "Not applicable - theorem is not relevant"
+    assert (
+        irrelevant["equations_feedback"] == "Not applicable - theorem is not relevant"
+    )
     assert equation_issue["equations_correct"] is False
     assert equation_issue["equations_feedback"] == "Equation is wrong"
     assert equation_issue["conditions_valid"] is True
@@ -212,8 +222,12 @@ def test_review_theorem_module_missing_theorems_and_process_without_predictions(
     assert missing[0]["is_missing_theorem"] is True
     assert result["theorems"] == []
     assert output.additional_fields["missing_theorems"] == missing
-    assert output.additional_fields["theorem_metadata"]["detection"] == {"source": "detector"}
-    assert output.additional_fields["theorem_metadata"]["review"] == {"problem_id": "p1"}
+    assert output.additional_fields["theorem_metadata"]["detection"] == {
+        "source": "detector"
+    }
+    assert output.additional_fields["theorem_metadata"]["review"] == {
+        "problem_id": "p1"
+    }
 
 
 @patch("prkit.annotation.workflows.modules.review_theorem_module.TheoremDetector")
@@ -349,7 +363,9 @@ def test_domain_only_workflow_uses_patched_composer_and_module(monkeypatch, tmp_
     assert workflow.get_status()["modules"] == 0
 
 
-def test_theorem_label_only_workflow_uses_patched_composer_and_module(monkeypatch, tmp_path):
+def test_theorem_label_only_workflow_uses_patched_composer_and_module(
+    monkeypatch, tmp_path
+):
     fake_module = object()
     monkeypatch.setattr(
         "prkit.annotation.workflows.presets.theorem_label_only_workflow.WorkflowComposer",

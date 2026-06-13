@@ -5,7 +5,7 @@ This module provides theorem detection functionality that can be composed
 into larger annotation workflows.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from prkit.annotation.workers import TheoremDetector
 
@@ -24,7 +24,7 @@ class DetectTheoremModule(BaseWorkflowModule):
         self,
         name: str = "theorem_detector",
         model: str = "o3-mini",
-        config: Optional[Dict[str, Any]] = None,
+        config: dict[str, Any] | None = None,
     ):
         super().__init__(name, model, config)
 
@@ -170,7 +170,7 @@ class DetectTheoremModule(BaseWorkflowModule):
             }
         )
 
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         """Get current module status with safety checks."""
         # Ensure all generic fields exist before returning status
         self.module_status.setdefault("total_problems", 0)

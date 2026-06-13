@@ -35,10 +35,7 @@ class TestDashscopeModel:
 
         assert client.model == DASHSCOPE_TEST_MODEL
         assert client.provider == "dashscope"
-        assert (
-            client.base_url
-            == "https://dashscope-us.aliyuncs.com/compatible-mode/v1"
-        )
+        assert client.base_url == "https://dashscope-us.aliyuncs.com/compatible-mode/v1"
         mock_openai_class.assert_called_once_with(
             api_key="test-key",
             base_url="https://dashscope-us.aliyuncs.com/compatible-mode/v1",
@@ -131,11 +128,15 @@ class TestDashscopeModel:
         assert response == '{"answer":"ok"}'
         call_kwargs = mock_client.chat.completions.create.call_args.kwargs
         assert call_kwargs["model"] == DASHSCOPE_TEST_MODEL
-        assert call_kwargs["messages"] == [{"role": "user", "content": "Return JSON only."}]
+        assert call_kwargs["messages"] == [
+            {"role": "user", "content": "Return JSON only."}
+        ]
         assert call_kwargs["extra_body"] == {"enable_thinking": False}
         assert "max_tokens" not in call_kwargs
         assert call_kwargs["response_format"]["type"] == "json_schema"
-        assert call_kwargs["response_format"]["json_schema"]["name"] == "ExampleResponse"
+        assert (
+            call_kwargs["response_format"]["json_schema"]["name"] == "ExampleResponse"
+        )
 
     @patch("prkit.core.model_clients.openai_compatible_chat.OpenAI")
     @patch("prkit.core.model_clients.base.load_project_dotenv")

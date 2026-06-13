@@ -1,6 +1,4 @@
-from pathlib import Path
-
-from prkit.core.domain import AnswerCategory, PhysicsDomain, PhysicalDataset
+from prkit.core.domain import AnswerCategory, PhysicalDataset, PhysicsDomain
 from prkit.datasets.loaders.base_loader import (
     BaseDatasetLoader,
     detect_answer_category,

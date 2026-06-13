@@ -35,7 +35,7 @@ import json
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -66,7 +66,7 @@ PROMPT_INSTRUCTION = (
 )
 
 
-def get_image_paths(problem: Any) -> Optional[List[str]]:
+def get_image_paths(problem: Any) -> list[str] | None:
     """Extract image paths from a problem (PhysicsProblem or dict)."""
     img = (
         problem.get("image_path")
@@ -86,9 +86,9 @@ def get_image_paths(problem: Any) -> Optional[List[str]]:
 def run_inference(
     model_name: str = "gpt-5-mini",
     dataset_name: str = "seephys",
-    max_problems: Optional[int] = 1,
+    max_problems: int | None = 1,
     auto_download: bool = True,
-    output_dir: Optional[Union[str, Path]] = None,
+    output_dir: str | Path | None = None,
 ) -> None:
     """
     Run structured inference on SeePhys dataset.
@@ -142,7 +142,7 @@ def run_inference(
     logger.info(f"\n📁 Output directory: {output_dir}")
 
     # 4. Run inference on each problem
-    results: List[Dict[str, Any]] = []
+    results: list[dict[str, Any]] = []
     for i, problem in enumerate(dataset):
         problem_id = problem.get("problem_id", f"problem_{i}")
         question = problem.get("question", "")
@@ -152,7 +152,7 @@ def run_inference(
 
         full_prompt = f"{PROMPT_INSTRUCTION}\n\nQuestion:\n{question}"
 
-        result_row: Dict[str, Any] = {
+        result_row: dict[str, Any] = {
             "problem_id": problem_id,
             "question": question,
             "reason": None,
@@ -206,7 +206,9 @@ def run_inference(
 
     # 5. Save results
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    output_file = output_dir / f"seephys_{model_name.replace('/', '_')}_{timestamp}.json"
+    output_file = (
+        output_dir / f"seephys_{model_name.replace('/', '_')}_{timestamp}.json"
+    )
 
     output_data = {
         "dataset_name": dataset_name,

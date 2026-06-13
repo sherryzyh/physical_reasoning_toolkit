@@ -11,10 +11,10 @@ import base64
 def encode_image_to_base64(image_path: str) -> str:
     """
     Encode an image file to base64 data string format.
-    
+
     Args:
         image_path: Path to the image file
-        
+
     Returns:
         Base64-encoded data string
     """

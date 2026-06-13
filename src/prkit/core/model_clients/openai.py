@@ -10,13 +10,13 @@ Supported OpenAI models:
 """
 
 import os
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from openai import OpenAI
 from pydantic import BaseModel
 
-from .base import BaseModelClient
 from ..project_env import ensure_openai_api_key
+from .base import BaseModelClient
 from .structured_output import (
     StructuredOutputPlan,
     StructuredOutputPolicy,
@@ -27,7 +27,7 @@ from .structured_output import (
 from .utils import encode_image_to_base64
 
 
-def _ensure_additional_properties_false(schema: Dict[str, Any]) -> Dict[str, Any]:
+def _ensure_additional_properties_false(schema: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(schema, dict):
         return schema
 
@@ -50,7 +50,7 @@ def _ensure_additional_properties_false(schema: Dict[str, Any]) -> Dict[str, Any
     return result
 
 
-def _strip_ref_siblings(schema: Dict[str, Any]) -> Dict[str, Any]:
+def _strip_ref_siblings(schema: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(schema, dict):
         return schema
     if "$ref" not in schema:
@@ -58,7 +58,7 @@ def _strip_ref_siblings(schema: Dict[str, Any]) -> Dict[str, Any]:
     return {"$ref": schema["$ref"]}
 
 
-def ensure_openai_strict_json_schema(schema: Dict[str, Any]) -> Dict[str, Any]:
+def ensure_openai_strict_json_schema(schema: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(schema, dict):
         return schema
 
@@ -79,8 +79,7 @@ def ensure_openai_strict_json_schema(schema: Dict[str, Any]) -> Dict[str, Any]:
         union_value = result.get(union_key)
         if isinstance(union_value, list):
             result[union_key] = [
-                ensure_openai_strict_json_schema(item)
-                for item in union_value
+                ensure_openai_strict_json_schema(item) for item in union_value
             ]
 
     if "$defs" in result and isinstance(result["$defs"], dict):
@@ -100,45 +99,46 @@ def _openai_native_schema_incompatibility(spec: StructuredOutputSpec) -> str | N
         return "allOf is not supported by OpenAI structured outputs"
     return None
 
+
 def _is_supported_openai_model(model: str) -> bool:
     """
     Check if the OpenAI model is supported.
-    
+
     Supported OpenAI models:
     - gpt-4.1 (and variants like gpt-4.1-mini, gpt-4.1-nano)
     - gpt-5xxxx (gpt-5, gpt-5.1, gpt-5.2, gpt-5.1-mini, etc.)
     - o-family (o3, o4, o4-mini, etc. - models starting with 'o' followed by number)
-    
+
     Args:
         model: Model name to check
-        
+
     Returns:
         True if the model is supported, False otherwise
     """
     model_lower = model.lower()
-    
+
     # Check for o-family (o3, o4, o4-mini, etc. - starts with 'o' followed by number)
     if len(model_lower) > 1 and model_lower[0] == "o" and model_lower[1].isdigit():
         return True
-    
+
     # Check for gpt-4.1
     if model_lower.startswith("gpt-4.1"):
         return True
-    
+
     # Check for gpt-5xxxx
     if model_lower.startswith("gpt-5"):
         return True
-    
+
     return False
 
 
 def _is_o_family_model(model: str) -> bool:
     """
     Check if the model is an o-family reasoning model.
-    
+
     Args:
         model: Model name to check
-        
+
     Returns:
         True if the model is an o-family model, False otherwise
     """
@@ -146,23 +146,22 @@ def _is_o_family_model(model: str) -> bool:
     return len(model_lower) > 1 and model_lower[0] == "o" and model_lower[1].isdigit()
 
 
-
 def prepare_image_url_from_image_path(image_path: str) -> str:
     """
     Prepare an image URL from a file path, URL, or base64 data URL.
-    
+
     Args:
         image_path: Can be:
                    - File path: "/path/to/image.jpg" - will be encoded to base64
                    - HTTP/HTTPS URL: "https://example.com/image.jpg" - used as-is
                    - Base64 data URL: "data:image/jpeg;base64,..." - used as-is
-        
+
     Returns:
         Image URL in the appropriate format:
         - Base64 data URL for file paths (e.g., "data:image/jpeg;base64,...")
         - Original URL for HTTP/HTTPS URLs
         - Original string for base64 data URLs
-        
+
     Raises:
         FileNotFoundError: If image_path is a file path that doesn't exist
         IOError: If there's an error reading the image file
@@ -170,29 +169,29 @@ def prepare_image_url_from_image_path(image_path: str) -> str:
     # If it's already a data URL, return as-is
     if image_path.startswith("data:"):
         return image_path
-    
+
     # If it's an HTTP/HTTPS URL, return as-is
     if image_path.startswith("http://") or image_path.startswith("https://"):
         return image_path
-    
+
     # Otherwise, treat it as a file path
     if not os.path.exists(image_path):
         raise FileNotFoundError(f"Image file not found: {image_path}")
-    
+
     # Determine MIME type from file extension
     ext = os.path.splitext(image_path)[1].lower()
     mime_types = {
-        '.jpg': 'image/jpeg',
-        '.jpeg': 'image/jpeg',
-        '.png': 'image/png',
-        '.gif': 'image/gif',
-        '.webp': 'image/webp',
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".png": "image/png",
+        ".gif": "image/gif",
+        ".webp": "image/webp",
     }
-    mime_type = mime_types.get(ext, 'image/jpeg')  # Default to jpeg
-    
+    mime_type = mime_types.get(ext, "image/jpeg")  # Default to jpeg
+
     base64_image_string = encode_image_to_base64(image_path)
     image_url = f"data:{mime_type};base64,{base64_image_string}"
-    
+
     return image_url
 
 
@@ -229,8 +228,8 @@ class OpenAIModel(BaseModelClient):
     def chat(
         self,
         user_prompt: str,
-        image_paths: Optional[List[str]] = None,
-        response_format: Optional[Union[Dict[str, Any], type]] = None,
+        image_paths: list[str] | None = None,
+        response_format: dict[str, Any] | type | None = None,
         *args: Any,
         **kwargs: Any,
     ) -> str:
@@ -272,7 +271,9 @@ class OpenAIModel(BaseModelClient):
                 }
             }
             if normalized.get("description") is not None:
-                request_params["text"]["format"]["description"] = normalized["description"]
+                request_params["text"]["format"]["description"] = normalized[
+                    "description"
+                ]
 
         # Use role/content format for all models
         content = [{"type": "input_text", "text": user_prompt}]
@@ -280,9 +281,7 @@ class OpenAIModel(BaseModelClient):
         if image_paths:
             for image_path in image_paths:
                 image_url = prepare_image_url_from_image_path(image_path)
-                content.append(
-                    {"type": "input_image", "image_url": image_url}
-                )
+                content.append({"type": "input_image", "image_url": image_url})
 
         request_params["input"] = [{"role": "user", "content": content}]
 
@@ -344,13 +343,17 @@ class OpenAIModel(BaseModelClient):
             native_schema_enforced=True,
             accepted_artifact_modes=("json_schema",),
             accepted_artifact_strategies=("openai_responses_json_schema",),
-            response_format=spec.source_model or normalize_response_format(spec.source_model or {
-                "type": "json_schema",
-                "name": spec.name,
-                "schema": spec.schema,
-                "strict": spec.strict,
-                "description": spec.description,
-            }),
+            response_format=spec.source_model
+            or normalize_response_format(
+                spec.source_model
+                or {
+                    "type": "json_schema",
+                    "name": spec.name,
+                    "schema": spec.schema,
+                    "strict": spec.strict,
+                    "description": spec.description,
+                }
+            ),
         )
 
     def _build_batch_structured_request(
@@ -384,7 +387,10 @@ class OpenAIModel(BaseModelClient):
         content: list[dict[str, Any]] = [{"type": "input_text", "text": user_prompt}]
         for image_path in image_paths:
             content.append(
-                {"type": "input_image", "image_url": prepare_image_url_from_image_path(image_path)}
+                {
+                    "type": "input_image",
+                    "image_url": prepare_image_url_from_image_path(image_path),
+                }
             )
 
         body: dict[str, Any] = {

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, Optional
+from typing import Any
 
 from prkit.evaluation.llm_judge.instructions import DEFAULT_PHYSICS_GRADING_INSTRUCTIONS
 from prkit.evaluation.llm_judge.schema import RESPONSES_API_JUDGE_TEXT_FORMAT
@@ -14,10 +14,10 @@ FALLBACK_CHAT_JUDGE_MODEL = "gpt-5.4-mini"
 
 def build_responses_api_judge_body(
     model: str,
-    payload: Dict[str, Any],
+    payload: dict[str, Any],
     *,
-    instructions: Optional[str] = None,
-) -> Dict[str, Any]:
+    instructions: str | None = None,
+) -> dict[str, Any]:
     """JSON body for ``POST /v1/responses`` (sync or OpenAI Batch ``/v1/responses``)."""
     ins = instructions or DEFAULT_PHYSICS_GRADING_INSTRUCTIONS
     return {

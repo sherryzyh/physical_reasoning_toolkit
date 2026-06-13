@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, Optional, Union
+from typing import Any
 
 from prkit.core.domain.answer import Answer
 
 
-def answer_to_text_and_category(answer: Union[str, Answer]) -> tuple[str, str]:
+def answer_to_text_and_category(answer: str | Answer) -> tuple[str, str]:
     """Plain text and category label for embedding in a judge JSON payload."""
     if isinstance(answer, Answer):
         return str(answer).strip(), answer.answer_category.value
@@ -24,10 +24,10 @@ def clean_answer_text(answer_text: str) -> str:
 
 
 def build_standard_answer_judge_payload(
-    predicted: Union[str, Answer],
-    ground_truth: Union[str, Answer],
-    question: Optional[str],
-) -> Dict[str, Any]:
+    predicted: str | Answer,
+    ground_truth: str | Answer,
+    question: str | None,
+) -> dict[str, Any]:
     """Standard physics payload: ``question``, ``ground_truth``, ``model_answer``."""
     pred_text, pred_cat = answer_to_text_and_category(predicted)
     gt_text, gt_cat = answer_to_text_and_category(ground_truth)
@@ -44,7 +44,9 @@ def build_standard_answer_judge_payload(
     }
 
 
-def truncate_judge_payload(payload: Dict[str, Any], max_chars: int = 4096) -> Dict[str, Any]:
+def truncate_judge_payload(
+    payload: dict[str, Any], max_chars: int = 4096
+) -> dict[str, Any]:
     """Copy *payload* with truncated question / answer texts (policy / moderation retries)."""
 
     def _trim(s: str) -> str:

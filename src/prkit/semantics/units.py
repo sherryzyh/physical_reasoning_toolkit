@@ -482,11 +482,17 @@ def normalize_unit_text(text: str | None) -> str:
     if not text:
         return ""
     normalized = _strip_text_wrappers(text)
-    normalized = re.sub(r"\\mathring\s*\{\s*\\mathrm\s*\{\s*A\s*\}\s*\}", "angstrom", normalized)
+    normalized = re.sub(
+        r"\\mathring\s*\{\s*\\mathrm\s*\{\s*A\s*\}\s*\}", "angstrom", normalized
+    )
     normalized = re.sub(r"\\mathring\s*\{\s*A\s*\}", "angstrom", normalized)
-    normalized = normalized.replace("\\AA", "angstrom").replace("\\angstrom", "angstrom")
+    normalized = normalized.replace("\\AA", "angstrom").replace(
+        "\\angstrom", "angstrom"
+    )
     normalized = _TEXT_WRAPPER_RE.sub(r"\1", normalized)
-    normalized = normalized.replace("Ω", "ohm").replace("°", "deg").replace("Å", "angstrom")
+    normalized = (
+        normalized.replace("Ω", "ohm").replace("°", "deg").replace("Å", "angstrom")
+    )
     normalized = normalized.replace("μ", "u").replace("µ", "u")
     normalized = normalized.replace("%", "percent")
     normalized = normalized.replace("·", "*").replace("×", "*")
@@ -523,7 +529,9 @@ def unit_conversion_factor(from_unit: str | None, to_unit: str | None) -> float 
         return None
 
 
-def convert_numeric_value(value: float, from_unit: str | None, to_unit: str | None) -> float | None:
+def convert_numeric_value(
+    value: float, from_unit: str | None, to_unit: str | None
+) -> float | None:
     """Convert a numeric value between units when the conversion is dimensionally valid."""
 
     factor = unit_conversion_factor(from_unit, to_unit)
