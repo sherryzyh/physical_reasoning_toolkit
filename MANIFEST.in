@@ -8,6 +8,9 @@ recursive-include src/prkit *.md
 recursive-include src/prkit *.txt
 recursive-include src/prkit *.rst
 
+# Include the PEP 561 typing marker
+include src/prkit/py.typed
+
 # Exclude unnecessary files
 recursive-exclude * __pycache__
 recursive-exclude * *.py[co]

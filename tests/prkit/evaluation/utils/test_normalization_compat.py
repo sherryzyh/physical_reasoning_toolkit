@@ -1,5 +1,16 @@
+import importlib
+
+import pytest
+
 from prkit.evaluation.utils import normalization as current_normalization
 from prkit.evaluation.utils import normalization_v1, normalization_v2
+
+
+@pytest.mark.parametrize("module_name", ["normalization_v1", "normalization_v2"])
+def test_legacy_normalization_modules_emit_deprecation_warning(module_name):
+    module = importlib.import_module(f"prkit.evaluation.utils.{module_name}")
+    with pytest.warns(DeprecationWarning, match="deprecated"):
+        importlib.reload(module)
 
 
 def test_normalization_v1_reexports_current_helpers():
