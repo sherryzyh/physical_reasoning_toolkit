@@ -1,41 +1,32 @@
 """
-PRKit - Physical Reasoning Toolkit
+PRKit — Physical Reasoning Toolkit.
 
-A comprehensive toolkit for physical reasoning, annotation, and dataset management.
+A toolkit for physical-reasoning dataset loading, multi-provider LLM inference,
+answer evaluation/semantics, and annotation workflows.
 
-Package name: physical-reasoning-toolkit
-Import name: prkit
+PyPI package name: ``physical-reasoning-toolkit``
+Import name: ``prkit``
+
+Subpackages:
+    - :mod:`prkit.core` — domain models, model clients, logging.
+    - :mod:`prkit.datasets` — dataset hub, loaders, downloaders.
+    - :mod:`prkit.evaluation` — comparators, evaluators, LLM judge.
+    - :mod:`prkit.semantics` — physics-aware answer normalization & comparison.
+    - :mod:`prkit.annotation` — annotation workers and workflows.
 """
 
-# Make subpackages importable at top level (e.g., `from prkit.prkit_datasets import DatasetHub` or `from prkit_datasets import DatasetHub`)
-# Note: PyPI package name is "physical-reasoning-toolkit", import name is "prkit"
-import sys
+from importlib.metadata import PackageNotFoundError, version
 
-# Import and expose subpackages at top level
 try:
-    from . import (
-        prkit_annotation,
-        prkit_core,
-        prkit_datasets,
-        prkit_evaluation,
-        prkit_semantics,
-    )
+    __version__ = version("physical-reasoning-toolkit")
+except PackageNotFoundError:  # running from a source tree without an installed dist
+    __version__ = "0.0.0.dev0"
 
-    # Make them available as top-level modules
-    sys.modules["prkit_core"] = prkit_core
-    sys.modules["prkit_datasets"] = prkit_datasets
-    sys.modules["prkit_annotation"] = prkit_annotation
-    sys.modules["prkit_evaluation"] = prkit_evaluation
-    sys.modules["prkit_semantics"] = prkit_semantics
-
-    # Import main components for easy access
-    from .prkit_core import PRKitLogger
-    from .prkit_core.domain import AnswerCategory, PhysicsDomain, PhysicalDataset, PhysicsProblem
-except ImportError:
-    # Allow package to be imported even if subpackages aren't installed
-    pass
+from .core import PRKitLogger
+from .core.domain import AnswerCategory, PhysicalDataset, PhysicsDomain, PhysicsProblem
 
 __all__ = [
+    "__version__",
     "PRKitLogger",
     "PhysicsProblem",
     "PhysicalDataset",

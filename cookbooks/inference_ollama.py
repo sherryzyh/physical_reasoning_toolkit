@@ -33,8 +33,8 @@ import sys
 from pathlib import Path
 
 # Import the model client
-from prkit.prkit_core.model_clients import create_model_client, OllamaModel
-from prkit.prkit_core import PRKitLogger
+from prkit.core.model_clients import create_model_client, OllamaModel
+from prkit.core import PRKitLogger
 
 # Set up logger
 logger = PRKitLogger.get_logger(__name__)

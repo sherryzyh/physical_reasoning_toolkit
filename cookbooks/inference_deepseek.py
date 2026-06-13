@@ -36,8 +36,8 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 # Import the model client
-from prkit.prkit_core.model_clients import create_model_client
-from prkit.prkit_core import PRKitLogger
+from prkit.core.model_clients import create_model_client
+from prkit.core import PRKitLogger
 
 # Load environment variables from the repo root `.env`
 load_dotenv(Path(__file__).resolve().parents[1] / ".env", override=True)

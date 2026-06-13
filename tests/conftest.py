@@ -9,8 +9,8 @@ from typing import Any, Dict, List
 
 import pytest
 
-from prkit.prkit_core.domain import AnswerCategory, PhysicsDomain
-from prkit.prkit_core.domain import Answer, PhysicalDataset, PhysicsProblem
+from prkit.core.domain import AnswerCategory, PhysicsDomain
+from prkit.core.domain import Answer, PhysicalDataset, PhysicsProblem
 
 
 @pytest.fixture

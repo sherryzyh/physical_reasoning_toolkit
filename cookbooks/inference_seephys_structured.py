@@ -39,9 +39,9 @@ from typing import Any, Dict, List, Optional, Union
 
 from pydantic import BaseModel, Field
 
-from prkit.prkit_core import PRKitLogger
-from prkit.prkit_core.model_clients import create_model_client
-from prkit.prkit_datasets import DatasetHub
+from prkit.core import PRKitLogger
+from prkit.core.model_clients import create_model_client
+from prkit.datasets import DatasetHub
 
 logger = PRKitLogger.get_logger(__name__)
 

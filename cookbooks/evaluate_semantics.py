@@ -11,8 +11,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from prkit.prkit_core import PRKitLogger
-from prkit.prkit_semantics import (
+from prkit.core import PRKitLogger
+from prkit.semantics import (
     evaluate_saved_semantics,
     load_semantics_artifact,
     save_semantics_json,
