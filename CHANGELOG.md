@@ -9,6 +9,9 @@ Production releases follow semantic versioning. TestPyPI validation builds use P
 
 ### Added
 
+- **`prkit` command-line interface** (`prkit list`, `prkit info <dataset>`, `prkit download <dataset>`, `prkit --version`) for dataset workflows, installed via the `prkit` console script.
+- PEP 561 typing support: ships a `py.typed` marker and the `Typing :: Typed` classifier.
+- `ruff` linting + import sorting, a `.pre-commit-config.yaml`, a `Makefile`, and GitHub Actions CI (lint, format check, type check, tests on Python 3.10–3.12) plus a release workflow.
 - Repository-level GitHub custom agent profiles under `.github/agents/` for maintenance, coverage work, and package publishing.
 - `scripts/release_package.py` for automated build and publish workflows to TestPyPI and PyPI.
 - Focused pytest coverage for release automation logic, including version validation and confirmation flow.
@@ -16,6 +19,9 @@ Production releases follow semantic versioning. TestPyPI validation builds use P
 
 ### Changed
 
+- **BREAKING: renamed subpackages** to drop the redundant `prkit_` prefix — import from `prkit.core`, `prkit.datasets`, `prkit.evaluation`, `prkit.annotation`, `prkit.semantics` (previously `prkit.prkit_core`, etc.). The `sys.modules` top-level aliasing hack was removed.
+- The model-client factory is now an extensible provider registry (`register_model_client`) instead of an if/elif chain; image/MIME/data-URL helpers are centralized in `prkit.core.model_clients.utils`.
+- Packaging: removed the erroneous `pip` runtime dependency, expanded trove classifiers (Python 3.11/3.12, Education, OS Independent), and aligned `black` / `requires-python` targets.
 - Release publishing now uses automated version selection instead of manual version bumps.
 - `publish-testpypi` now computes the next `<current-pypi>.postN` version automatically.
 - `publish-pypi` now computes the next patch release automatically.
@@ -28,6 +34,10 @@ Production releases follow semantic versioning. TestPyPI validation builds use P
 
 - JEEBench loader handling for numeric answer categories and retained metadata.
 - Workflow module behavior in domain assessment, theorem review, and workflow composition paths.
+
+### Deprecated
+
+- `prkit.evaluation.utils.normalization_v1` and `normalization_v2` now emit `DeprecationWarning`; import from `prkit.evaluation.utils.normalization` instead.
 
 ## [0.1.0] - 2026-02-11
 

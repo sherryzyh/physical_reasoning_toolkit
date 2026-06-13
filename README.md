@@ -9,15 +9,15 @@ PRKit applies a “unified interface” idea to the full physical-reasoning loop
 PRKit centers on **core components** that define the physical reasoning ontology. Three integrated subpackages build on this foundation:
 
 - **Core components**: `PhysicsDomain`, `AnswerCategory`, `PhysicsProblem`, `Answer`, `PhysicalDataset`, `PhysicsSolution`, `BaseModelClient`, `create_model_client`, `PRKitLogger`—the shared abstractions used across the toolkit.
-- **`prkit_datasets`**: A Datasets-like hub that downloads/loads benchmarks into the unified schema (`PhysicsProblem`, `PhysicalDataset`).
-- **`prkit_annotation`**: Workflow-oriented tools for structured, lower-level labels (e.g., domain/subdomain, theorem usage).
-- **`prkit_evaluation`**: Evaluate-like components for physics-oriented scoring and comparison (e.g., symbolic/numerical answer matching).
+- **`prkit.datasets`**: A Datasets-like hub that downloads/loads benchmarks into the unified schema (`PhysicsProblem`, `PhysicalDataset`).
+- **`prkit.annotation`**: Workflow-oriented tools for structured, lower-level labels (e.g., domain/subdomain, theorem usage).
+- **`prkit.evaluation`**: Evaluate-like components for physics-oriented scoring and comparison (e.g., symbolic/numerical answer matching).
 
 ### 💡 Quick Example
 
 ```python
-from prkit.prkit_datasets import DatasetHub
-from prkit.prkit_core.model_clients import create_model_client
+from prkit.datasets import DatasetHub
+from prkit.core.model_clients import create_model_client
 
 # Load any benchmark into the unified schema (PhysicsProblem, PhysicalDataset)
 dataset = DatasetHub.load("physreason", variant="full", split="test")
@@ -102,22 +102,39 @@ export PRKIT_LOG_FILE=/var/log/prkit.log  # Optional: defaults to {cwd}/prkit_lo
 ```bash
 python -c "
 import prkit
-from prkit.prkit_datasets import DatasetHub
-from prkit.prkit_annotation.workflows import WorkflowComposer
+from prkit.datasets import DatasetHub
+from prkit.annotation.workflows import WorkflowComposer
 print('✅ All packages imported successfully!')
 print(f'PRKit version: {prkit.__version__}')
 "
 ```
+
+## 💻 Command-Line Interface
+
+Installing the package provides a `prkit` console command for dataset workflows:
+
+```bash
+prkit --version                          # Print the installed version
+prkit list                               # List available datasets
+prkit info ugphysics                     # Show dataset metadata (JSON)
+prkit download ugphysics                 # Download a dataset into the cache dir
+prkit download seephys --split test      # Download a specific split
+prkit download phyx --data-dir ./data    # Download into a custom directory
+```
+
+Every command is a thin wrapper over `DatasetHub`, so the cache directory,
+variants, and splits behave exactly as they do in the Python API.
 
 ## 🏗️ Repository Structure
 
 ```
 physical_reasoning_toolkit/
 ├── src/prkit/                       # Main package (modern src-layout)
-│   ├── prkit_core/                  # Core components (domain models, model clients, logging)
-│   ├── prkit_datasets/              # Dataset loading and management
-│   ├── prkit_annotation/            # Annotation workflows and tools
-│   └── prkit_evaluation/            # Evaluation metrics and benchmarks
+│   ├── core/                        # Core components (domain models, model clients, logging)
+│   ├── datasets/                    # Dataset loading and management
+│   ├── annotation/                  # Annotation workflows and tools
+│   ├── evaluation/                  # Evaluation metrics and benchmarks
+│   └── semantics/                   # Physics-aware answer normalization and comparison
 ├── tests/                           # Unit tests
 ├── pyproject.toml                   # Package configuration
 ├── LICENSE                          # MIT License
@@ -139,14 +156,14 @@ physical_reasoning_toolkit/
 
 ## 📦 Package Overview
 
-The toolkit is organized around **core components** and three subpackages that use them. Subpackages depend only on `prkit_core`; there are no direct dependencies between `prkit_datasets`, `prkit_annotation`, and `prkit_evaluation`.
+The toolkit is organized around **core components** and three subpackages that use them. Subpackages depend only on `prkit.core`; there are no direct dependencies between `prkit.datasets`, `prkit.annotation`, and `prkit.evaluation`.
 
 | Component | Purpose |
 |-----------|---------|
-| `prkit_core` | Core components, see below |
-| `prkit_datasets` | Dataset hub: loaders, downloaders, unified schema |
-| `prkit_evaluation` | Comparators and accuracy metrics |
-| `prkit_annotation` | Workflow pipelines for domain/theorem annotation |
+| `prkit.core` | Core components, see below |
+| `prkit.datasets` | Dataset hub: loaders, downloaders, unified schema |
+| `prkit.evaluation` | Comparators and accuracy metrics |
+| `prkit.annotation` | Workflow pipelines for domain/theorem annotation |
 
 
 ### Core Components 🔧
@@ -165,17 +182,17 @@ The essential building blocks of the physical-reasoning-toolkit. All datasets, i
 📖 See [CORE.md](CORE.md) for the full domain model, entity relationships, subpackage dependency diagram, and import reference.
 
 
-### prkit_evaluation 📈
+### prkit.evaluation 📈
 Answer comparators (symbolic, numerical, textual, option-based), accuracy evaluator, and physics-focused assessment protocols.
 
 📖 [EVALUATION.md](EVALUATION.md)
 
-### prkit_datasets 📊
+### prkit.datasets 📊
 Dataset hub with a Datasets-like interface: `DatasetHub.load()` for PHYBench, PhysReason, UGPhysics, SeePhys, PhyX (plus JEEBench, TPBench loaders). Auto-download, variant selection, and reproducible sampling.
 
 📖 [DATASETS.md](DATASETS.md)
 
-### prkit_annotation 🏷️
+### prkit.annotation 🏷️
 Modular workflows (domain classification, theorem extraction) via `WorkflowComposer` and presets. Model-assisted and human-in-the-loop.
 
 📖 [ANNOTATION.md](ANNOTATION.md)

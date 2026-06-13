@@ -76,14 +76,14 @@ The following table shows which physics domains are available in each dataset:
 
 ## Overview
 
-`prkit_datasets` provides streamlined access to multiple physical reasoning datasets with a unified API. All datasets are converted to a standardized format, making it easy to switch between benchmarks and compose them for analysis.
+`prkit.datasets` provides streamlined access to multiple physical reasoning datasets with a unified API. All datasets are converted to a standardized format, making it easy to switch between benchmarks and compose them for analysis.
 
 Note: dataset loading is only one part of PRKit; see `README.md` for the full toolkit scope (core models, annotation workflows, evaluation utilities, and model providers).
 
 ## Quick Start
 
 ```python
-from prkit.prkit_datasets import DatasetHub
+from prkit.datasets import DatasetHub
 
 # List available datasets
 available_datasets = DatasetHub.list_available()
@@ -400,7 +400,7 @@ solution_json = solution.to_json()
 ### Basic Loading
 
 ```python
-from prkit.prkit_datasets import DatasetHub
+from prkit.datasets import DatasetHub
 
 dataset = DatasetHub.load("ugphysics")
 ```
@@ -409,7 +409,7 @@ dataset = DatasetHub.load("ugphysics")
 
 ```python
 # Load specific split
-from prkit.prkit_datasets import DatasetHub
+from prkit.datasets import DatasetHub
 
 dataset = DatasetHub.load("ugphysics", split="test")
 
@@ -427,7 +427,7 @@ dataset = DatasetHub.load("physreason", variant="full", auto_download=True)
 
 ```python
 # List available datasets
-from prkit.prkit_datasets import DatasetHub
+from prkit.datasets import DatasetHub
 
 available = DatasetHub.list_available()
 print(f"Available datasets: {available}")
@@ -443,7 +443,7 @@ print(f"Total problems: {info['total_problems']}")
 
 ```python
 # Load multiple datasets
-from prkit.prkit_datasets import DatasetHub
+from prkit.datasets import DatasetHub
 
 datasets = {}
 for name in ["phybench", "physreason", "ugphysics"]:
@@ -473,7 +473,7 @@ Default locations:
 ## Citations
 
 ```python
-from prkit.prkit_datasets import citations
+from prkit.datasets import citations
 
 # Get citation for a dataset
 physreason_citation = citations.get_citation("physreason")
@@ -487,7 +487,7 @@ Supported citations: PhysReason, SeePhys, PHYBench, UGPhysics, PhyX
 
 ## Utilities
 
-Utility functions available in `prkit.prkit_datasets.utils`:
+Utility functions available in `prkit.datasets.utils`:
 
 - `sample_balanced()`: Sample balanced subset by categorical field
 - `get_statistics()`: Get dataset statistics
@@ -498,7 +498,7 @@ Utility functions available in `prkit.prkit_datasets.utils`:
 
 **Example:**
 ```python
-from prkit.prkit_datasets.utils import get_statistics, sample_balanced
+from prkit.datasets.utils import get_statistics, sample_balanced
 
 # Get statistics
 stats = get_statistics(dataset)
@@ -544,4 +544,4 @@ To add a new dataset:
 4. Register the loader/downloader in `DatasetHub`
 5. Add dataset information to this documentation
 
-See existing loaders in `src/prkit/prkit_datasets/loaders/` for examples.
+See existing loaders in `src/prkit/datasets/loaders/` for examples.

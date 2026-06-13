@@ -37,7 +37,7 @@ Enumeration of physics subfields supported by PRKit, aligned with common benchma
 
 **Usage:**
 ```python
-from prkit.prkit_core.domain import PhysicsDomain
+from prkit.core.domain import PhysicsDomain
 
 domain = PhysicsDomain.from_string("quantum mechanics")  # → PhysicsDomain.QUANTUM_MECHANICS
 domain = PhysicsDomain.from_string("unknown")           # → PhysicsDomain.OTHER
@@ -179,10 +179,10 @@ Unified interface for running inference across multiple providers (LLMs and VLMs
 | DashScope | `qwen3.6-plus`, `dashscope/qwen3.6-plus` | OpenAI-compatible Chat Completions API; `DASHSCOPE_REGION` or `DASHSCOPE_BASE_URL` can override region | `DASHSCOPE_API_KEY` |
 | Ollama | `qwen3-vl`, `qwen3-vl:8b-instruct` | Local runtime; vision depends on model | (none) |
 
-**Notes:** Provider selection is model-driven—you specify a model string, not a provider. For image inputs, pass absolute file paths, HTTP(S) URLs, or `data:image/...;base64,...` strings. See `src/prkit/prkit_core/model_clients/ARCHITECTURE.md` for implementation details.
+**Notes:** Provider selection is model-driven—you specify a model string, not a provider. For image inputs, pass absolute file paths, HTTP(S) URLs, or `data:image/...;base64,...` strings. See `src/prkit/core/model_clients/ARCHITECTURE.md` for implementation details.
 
 ```python
-from prkit.prkit_core.model_clients import create_model_client
+from prkit.core.model_clients import create_model_client
 
 client = create_model_client("gpt-4.1-mini")
 print(client.chat("State Newton's second law in one sentence."))
@@ -200,7 +200,7 @@ print(text)
 Centralized logger for consistent logging across PRKit packages. Provides colored console output, optional file logging, and environment-based configuration via `PRKIT_LOG_LEVEL`, `PRKIT_LOG_FILE`, `PRKIT_LOG_CONSOLE`, `PRKIT_LOG_COLORS`. Default log file: `{cwd}/prkit_logs/prkit.log`.
 
 ```python
-from prkit.prkit_core import PRKitLogger
+from prkit.core import PRKitLogger
 
 logger = PRKitLogger.get_logger(__name__)
 logger.info("Message")
@@ -264,29 +264,29 @@ logger.info("Message")
 
 ### Subpackage Dependencies
 
-All sub-packages depend only on `prkit_core`; no direct dependencies between `prkit_datasets` and `prkit_evaluation`.
+All sub-packages depend only on `prkit.core`; no direct dependencies between `prkit.datasets` and `prkit.evaluation`.
 
 ```mermaid
 flowchart TB
 
-    subgraph annotation["prkit_annotation"]
+    subgraph annotation["prkit.annotation"]
         ANO[Annotator]
     end
 
 
-    subgraph core["prkit_core"]
+    subgraph core["prkit.core"]
         PD[PhysicalDataset]
         PP[PhysicsProblem]
         AN[Answer]
         PS[PhysicsSolution]
     end
 
-    subgraph evaluation["prkit_evaluation"]
+    subgraph evaluation["prkit.evaluation"]
         EV[Evaluator]
         CMP[Comparator]
     end
 
-    subgraph datasets["prkit_datasets"]
+    subgraph datasets["prkit.datasets"]
         DH[DatasetHub]
         DSL[DatasetLoader]
         DD[Downloader]
@@ -314,8 +314,8 @@ flowchart TB
 
 | Package | Uses from Core | Produces / Operates On |
 |---------|----------------|------------------------|
-| prkit_datasets | PhysicalDataset, PhysicsProblem, Answer, AnswerCategory, PhysicsDomain, PRKitLogger | PhysicalDataset (via DatasetLoader.load) |
-| prkit_evaluation | PhysicsProblem, Answer, AnswerCategory, Comparator | Accuracy scores (via AccuracyEvaluator.evaluate) |
+| prkit.datasets | PhysicalDataset, PhysicsProblem, Answer, AnswerCategory, PhysicsDomain, PRKitLogger | PhysicalDataset (via DatasetLoader.load) |
+| prkit.evaluation | PhysicsProblem, Answer, AnswerCategory, Comparator | Accuracy scores (via AccuracyEvaluator.evaluate) |
 
 ---
 
@@ -323,7 +323,7 @@ flowchart TB
 
 ```python
 # Core components
-from prkit.prkit_core.domain import (
+from prkit.core.domain import (
     PhysicsDomain,
     AnswerCategory,
     Answer,
@@ -333,8 +333,8 @@ from prkit.prkit_core.domain import (
 )
 
 # Utility components
-from prkit.prkit_core import PRKitLogger
-from prkit.prkit_core.model_clients import create_model_client, BaseModelClient
+from prkit.core import PRKitLogger
+from prkit.core.model_clients import create_model_client, BaseModelClient
 ```
 
 ---

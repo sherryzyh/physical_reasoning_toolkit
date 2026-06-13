@@ -1,6 +1,6 @@
 # Annotation
 
-`prkit_annotation` provides workflow-oriented tools for adding structured annotations to physical reasoning datasets. The focus is on **fine-grained labels** (beyond just the final answer), such as domains/subdomains and theorems/principles involved in a problem.
+`prkit.annotation` provides workflow-oriented tools for adding structured annotations to physical reasoning datasets. The focus is on **fine-grained labels** (beyond just the final answer), such as domains/subdomains and theorems/principles involved in a problem.
 
 ## Overview
 
@@ -17,8 +17,8 @@ Workflows write detailed artifacts to an `output_dir` (including per-problem tra
 ### Domain-only annotation
 
 ```python
-from prkit.prkit_datasets import DatasetHub
-from prkit.prkit_annotation.workflows.presets import DomainOnlyWorkflow
+from prkit.datasets import DatasetHub
+from prkit.annotation.workflows.presets import DomainOnlyWorkflow
 
 dataset = DatasetHub.load("physreason", variant="mini", split="test", auto_download=True)
 
@@ -31,8 +31,8 @@ print(result["workflow_status"]["problem_stats"])
 ### Theorem-only annotation
 
 ```python
-from prkit.prkit_datasets import DatasetHub
-from prkit.prkit_annotation.workflows.presets import TheoremLabelOnlyWorkflow
+from prkit.datasets import DatasetHub
+from prkit.annotation.workflows.presets import TheoremLabelOnlyWorkflow
 
 dataset = DatasetHub.load("physreason", variant="mini", split="test", auto_download=True)
 
@@ -48,7 +48,7 @@ For custom pipelines, use `WorkflowComposer` and add modules in sequence. Each m
 
 See:
 
-- `src/prkit/prkit_annotation/workflows/workflow_composer.py`
-- `src/prkit/prkit_annotation/workflows/modules/`
-- `src/prkit/prkit_annotation/workflows/presets/`
+- `src/prkit/annotation/workflows/workflow_composer.py`
+- `src/prkit/annotation/workflows/modules/`
+- `src/prkit/annotation/workflows/presets/`
 
