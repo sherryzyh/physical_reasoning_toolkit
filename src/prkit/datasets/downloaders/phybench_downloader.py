@@ -49,7 +49,7 @@ class PHYBenchDownloader(BaseDownloader):
         data_dir: str | Path | None = None,
         force: bool = False,
         split: str | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> Path:
         """
         Download the PHYBench dataset from HuggingFace.
@@ -83,7 +83,7 @@ class PHYBenchDownloader(BaseDownloader):
         self,
         download_dir: Path,
         split: str = "train",
-        **kwargs,
+        **kwargs: Any,
     ) -> Path:
         """
         Perform the actual PHYBench dataset download.
@@ -128,7 +128,7 @@ class PHYBenchDownloader(BaseDownloader):
             base_url = "https://datasets-server.huggingface.co/rows"
 
             # Parameters for the API request
-            params = {
+            params: dict[str, Any] = {
                 "dataset": dataset_name,
                 "config": "default",
                 "split": split,
@@ -152,7 +152,7 @@ class PHYBenchDownloader(BaseDownloader):
             # Paginate through all rows
             # HuggingFace API allows up to 100 rows per request
             batch_size = 100
-            all_rows = []
+            all_rows: list[dict[str, Any]] = []
             max_retries = 3
             retry_delay = 5  # seconds
 

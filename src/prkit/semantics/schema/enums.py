@@ -12,7 +12,7 @@ class _StrEnum(str, Enum):
     """Enum subclass with string values and friendly ``str()`` output."""
 
     def __str__(self) -> str:
-        return self.value
+        return str(self.value)
 
 
 class AnswerObjectKind(_StrEnum):

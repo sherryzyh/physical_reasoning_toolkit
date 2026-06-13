@@ -9,10 +9,11 @@ and :class:`~prkit.evaluation.comparator.smart_llm.SmartLLMComparator`.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Mapping
 from typing import Literal, Protocol
 
-from prkit.core.domain.answer import Answer
+from prkit.core.domain.answer import Answer, AnswerValue
 from prkit.core.domain.answer_category import AnswerCategory
 from prkit.evaluation.utils.answer_utils import same_comparison_category
 from prkit.evaluation.utils.category_dispatch import (
@@ -28,13 +29,16 @@ SmartPipelineResult = Literal["match", "no_match", "inconclusive"]
 class SmartMatchPipelineHost(Protocol):
     """Minimum interface required to run :func:`run_smart_pipeline`."""
 
-    _comparators: Mapping[AnswerCategory, SameCategoryCompareFn]
-    logger: object
+    @property
+    def _comparators(self) -> Mapping[AnswerCategory, SameCategoryCompareFn]: ...
+
+    @property
+    def logger(self) -> logging.Logger: ...
 
     def _try_equation_from_text(
         self,
         text_raw: str,
-        gt_norm: float | str,
+        gt_norm: AnswerValue,
         gt_raw: str,
     ) -> bool: ...
 
@@ -59,12 +63,12 @@ def run_smart_pipeline(
     """
     # pylint: disable=protected-access
     if isinstance(answer1, Answer):
-        pred_norm = str(answer1.value)
+        pred_norm: AnswerValue = answer1.value
         pred_cat = answer1.answer_category
     else:
         pred_cat, pred_norm = normalize_answer(answer1)
     if isinstance(answer2, Answer):
-        gt_norm = str(answer2.value)
+        gt_norm: AnswerValue = answer2.value
         gt_cat = answer2.answer_category
     else:
         gt_cat, gt_norm = normalize_answer(answer2)

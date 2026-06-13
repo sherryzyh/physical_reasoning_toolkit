@@ -4,6 +4,7 @@ Shared helpers for OpenAI-compatible chat-completions providers.
 
 from __future__ import annotations
 
+import logging
 import os
 from typing import Any
 
@@ -37,7 +38,7 @@ class OpenAICompatibleChatModel(BaseModelClient):
     def get_client_kwargs(self) -> dict[str, Any]:
         return {}
 
-    def __init__(self, model: str, logger=None):
+    def __init__(self, model: str, logger: logging.Logger | None = None) -> None:
         normalized_model = self.normalize_model_name(model)
         super().__init__(normalized_model, logger)
         base_url = self.resolve_base_url()

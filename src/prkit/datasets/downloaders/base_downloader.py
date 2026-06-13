@@ -9,6 +9,7 @@ import os
 import shutil
 from abc import ABC, abstractmethod
 from pathlib import Path
+from typing import Any
 
 from prkit.core import PRKitLogger
 
@@ -24,7 +25,7 @@ class BaseDownloader(ABC):
     - Error handling
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the downloader with a logger."""
         self.logger = PRKitLogger.get_logger(self.__class__.__module__)
 
@@ -41,7 +42,7 @@ class BaseDownloader(ABC):
 
     @property
     @abstractmethod
-    def download_info(self) -> dict[str, any]:
+    def download_info(self) -> dict[str, Any]:
         """
         Return download information including source URLs, formats, etc.
 
@@ -49,6 +50,15 @@ class BaseDownloader(ABC):
             Dictionary containing download metadata
         """
         pass
+
+    def _download_info_strings(self, key: str) -> list[str]:
+        """Return a string-list metadata value from ``download_info``."""
+        value = self.download_info.get(key, [])
+        if isinstance(value, list):
+            return [item for item in value if isinstance(item, str)]
+        if isinstance(value, tuple):
+            return [item for item in value if isinstance(item, str)]
+        return []
 
     def get_default_variant(self) -> str | None:
         """
@@ -60,8 +70,7 @@ class BaseDownloader(ABC):
         Returns:
             Default variant string or None
         """
-        info = self.download_info
-        variants = info.get("variants", [])
+        variants = self.get_available_variants()
         if not variants:
             return None
 
@@ -82,8 +91,7 @@ class BaseDownloader(ABC):
         Returns:
             Default split string or None
         """
-        info = self.download_info
-        splits = info.get("splits", [])
+        splits = self.get_available_splits()
         if not splits:
             return None
 
@@ -101,8 +109,7 @@ class BaseDownloader(ABC):
         Returns:
             List of variant strings
         """
-        info = self.download_info
-        return info.get("variants", [])
+        return self._download_info_strings("variants")
 
     def get_available_splits(self) -> list[str]:
         """
@@ -111,8 +118,7 @@ class BaseDownloader(ABC):
         Returns:
             List of split strings
         """
-        info = self.download_info
-        return info.get("splits", [])
+        return self._download_info_strings("splits")
 
     def validate_variant(self, variant: str) -> None:
         """
@@ -152,7 +158,7 @@ class BaseDownloader(ABC):
         self,
         data_dir: str | Path | None = None,
         force: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> Path:
         """
         Download the dataset to the specified directory.
@@ -197,7 +203,7 @@ class BaseDownloader(ABC):
     def _do_download(
         self,
         download_dir: Path,
-        **kwargs,
+        **kwargs: Any,
     ) -> Path:
         """
         Perform the actual dataset download.
@@ -289,8 +295,8 @@ class BaseDownloader(ABC):
         Returns:
             Size in bytes, or None if size cannot be determined
         """
-        info = self.download_info
-        return info.get("size_bytes")
+        size_bytes = self.download_info.get("size_bytes")
+        return size_bytes if isinstance(size_bytes, int) else None
 
     def get_download_source(self) -> str:
         """
@@ -299,8 +305,8 @@ class BaseDownloader(ABC):
         Returns:
             Source description string
         """
-        info = self.download_info
-        return info.get("source", "Unknown")
+        source = self.download_info.get("source", "Unknown")
+        return source if isinstance(source, str) else str(source)
 
     def clean_directory(self, data_dir: str | Path | None = None) -> None:
         """

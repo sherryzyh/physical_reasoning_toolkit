@@ -11,7 +11,7 @@ import math
 DEFAULT_NUMBER_EPSILON = 1e-10
 
 
-def decimal_places(x) -> int:
+def decimal_places(x: int | float | str) -> int:
     """
     Infer the number of decimal places.
 

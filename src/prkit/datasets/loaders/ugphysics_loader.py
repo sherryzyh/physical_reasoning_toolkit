@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from prkit.core import PRKitLogger
-from prkit.core.domain import PhysicalDataset, PhysicsDomain
+from prkit.core.domain import PhysicalDataset, PhysicsDomain, PhysicsProblem
 from prkit.datasets.loaders.base_loader import BaseDatasetLoader
 from prkit.datasets.ugphysics_common import (
     UGPHYSICS_DEFAULT_SUBDIR,
@@ -32,7 +32,7 @@ from prkit.datasets.ugphysics_common import (
 class UGPhysicsLoader(BaseDatasetLoader):
     """Loader for UGPhysics dataset."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the UGPhysics loader with a logger."""
         super().__init__()
         self.logger = PRKitLogger.get_logger(__name__)
@@ -103,7 +103,7 @@ class UGPhysicsLoader(BaseDatasetLoader):
         }
 
     @property
-    def DOMAIN_MAPPING(self) -> dict[str, str]:
+    def DOMAIN_MAPPING(self) -> dict[str, PhysicsDomain]:
         """Mapping of domain abbreviations to full domain names."""
         return {
             "AtomicPhysics": PhysicsDomain.ATOMIC_PHYSICS,
@@ -121,7 +121,9 @@ class UGPhysicsLoader(BaseDatasetLoader):
             "WaveOptics": PhysicsDomain.WAVE_OPTICS,
         }
 
-    def _process_metadata(self, metadata: dict[str, Any], domain_name: str):
+    def _process_metadata(
+        self, metadata: dict[str, Any], domain_name: str
+    ) -> dict[str, Any]:
         """Process metadata to create standardized problem fields."""
         metadata["domain"] = self.DOMAIN_MAPPING.get(
             domain_name,
@@ -162,7 +164,7 @@ class UGPhysicsLoader(BaseDatasetLoader):
             if is_multiple_answer:
                 answer_parts = self._split_answer_parts(raw_answers)
                 unit_parts = self._split_answer_parts(raw_unit)
-                normalized_parts = []
+                normalized_parts: list[dict[str, str | None]] = []
                 for index, answer_part in enumerate(answer_parts):
                     unit_part = (
                         self._normalize_unit(unit_parts[index])
@@ -177,7 +179,7 @@ class UGPhysicsLoader(BaseDatasetLoader):
                     )
                 metadata["answer_category"] = "text"
                 metadata["answer"] = "; ".join(
-                    self._format_physical_answer(part["value"], part["unit"])
+                    self._format_physical_answer(str(part["value"] or ""), part["unit"])
                     for part in normalized_parts
                 )
                 metadata["answer_parts"] = normalized_parts
@@ -283,7 +285,7 @@ class UGPhysicsLoader(BaseDatasetLoader):
         sample_size: int | None = None,
         per_domain: int | None = None,
         language: str | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> PhysicalDataset:
         """
         Load the UGPhysics dataset.
@@ -324,9 +326,9 @@ class UGPhysicsLoader(BaseDatasetLoader):
                 f"Available directories: {available_dirs}"
             )
 
-        problems = []
-        domain_counts = {}
-        domain_problems = {}  # Track problems per domain for sampling
+        problems: list[PhysicsProblem] = []
+        domain_counts: dict[str, int] = {}
+        domain_problems: dict[str, list[PhysicsProblem]] = {}
 
         for domain_name in domains:
             domain_file = data_dir / domain_name / f"{split}.jsonl"
@@ -427,7 +429,7 @@ class UGPhysicsLoader(BaseDatasetLoader):
         candidate_domains = requested_domains or list(
             UGPHYSICS_DOMAIN_VARIANTS.values()
         )
-        found_domains = []
+        found_domains: list[str] = []
         for domain in candidate_domains:
             domain_dir = data_dir / domain
             jsonl_file = domain_dir / f"{split}.jsonl"

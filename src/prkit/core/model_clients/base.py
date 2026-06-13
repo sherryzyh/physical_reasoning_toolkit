@@ -4,6 +4,7 @@ Base model client interface for multiple AI model providers.
 
 from __future__ import annotations
 
+import logging
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from typing import Any, TypeVar
@@ -32,12 +33,19 @@ class BaseModelClient(ABC):
     supports_response_format_json_schema = False
     supports_response_format_json_object = False
 
-    def __init__(self, model: str, logger=None):
+    def __init__(self, model: str, logger: logging.Logger | None = None) -> None:
         load_project_dotenv(__file__)
         self.model = model
-        self.client = None
-        self.provider = None
+        self.provider: str | None = None
         self.logger = logger if logger else PRKitLogger.get_logger(__name__)
+
+    def __getattr__(self, name: str) -> None:
+        if name == "client":
+            return None
+        raise AttributeError(name)
+
+    def _provider_name(self) -> str:
+        return self.provider or "unknown"
 
     @property
     def supports_native_structured_output(self) -> bool:
@@ -68,7 +76,7 @@ class BaseModelClient(ABC):
             structured_policy=structured_policy,
         )
         if structured_policy == "native_required" and not plan.native_schema_enforced:
-            provider = self.provider or "unknown"
+            provider = self._provider_name()
             raise ValueError(
                 "Structured output requires native provider-enforced schema support. "
                 f"Got provider={provider!r} model={self.model!r} "
@@ -169,12 +177,10 @@ class BaseModelClient(ABC):
         if self.supports_response_format_json_schema:
             return StructuredOutputPlan(
                 mode="json_schema",
-                strategy=f"{(self.provider or 'unknown')}_json_schema",
+                strategy=f"{self._provider_name()}_json_schema",
                 native_schema_enforced=True,
                 accepted_artifact_modes=("json_schema",),
-                accepted_artifact_strategies=(
-                    f"{(self.provider or 'unknown')}_json_schema",
-                ),
+                accepted_artifact_strategies=(f"{self._provider_name()}_json_schema",),
                 response_format=normalize_response_format(
                     spec.source_model
                     or {
@@ -189,23 +195,19 @@ class BaseModelClient(ABC):
         if self.supports_response_format_json_object:
             return StructuredOutputPlan(
                 mode="json_object",
-                strategy=f"{(self.provider or 'unknown')}_json_object",
+                strategy=f"{self._provider_name()}_json_object",
                 native_schema_enforced=False,
                 accepted_artifact_modes=("json_object", "prompt_only"),
-                accepted_artifact_strategies=(
-                    f"{(self.provider or 'unknown')}_json_object",
-                ),
+                accepted_artifact_strategies=(f"{self._provider_name()}_json_object",),
                 response_format={"type": "json_object"},
                 prompt_suffix=build_json_schema_prompt_suffix(spec.schema),
             )
         return StructuredOutputPlan(
             mode="prompt_only",
-            strategy=f"{(self.provider or 'unknown')}_prompt_only",
+            strategy=f"{self._provider_name()}_prompt_only",
             native_schema_enforced=False,
             accepted_artifact_modes=("prompt_only",),
-            accepted_artifact_strategies=(
-                f"{(self.provider or 'unknown')}_prompt_only",
-            ),
+            accepted_artifact_strategies=(f"{self._provider_name()}_prompt_only",),
             response_format=None,
             prompt_suffix=build_json_schema_prompt_suffix(spec.schema),
         )
@@ -248,7 +250,7 @@ class BaseModelClient(ABC):
             structured_output_mode=plan.mode,
             structured_output_strategy=plan.strategy,
             native_schema_enforced=plan.native_schema_enforced,
-            provider=self.provider or "unknown",
+            provider=self._provider_name(),
             model_name=self.model,
         )
 
@@ -282,5 +284,5 @@ class BaseModelClient(ABC):
             kwargs,
         )
         raise NotImplementedError(
-            f"Batch structured requests are not implemented for provider={self.provider!r}."
+            f"Batch structured requests are not implemented for provider={self._provider_name()!r}."
         )

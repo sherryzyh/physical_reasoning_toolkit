@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from prkit.core import PRKitLogger
-from prkit.core.domain import PhysicalDataset
+from prkit.core.domain import PhysicalDataset, PhysicsProblem
 
 from .base_loader import BaseDatasetLoader
 
@@ -29,7 +29,7 @@ class PhysBenchLoader(BaseDatasetLoader):
     IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif"}
     VIDEO_SUFFIXES = {".mp4", ".webm", ".mov", ".avi", ".mkv"}
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the PhysBench loader with a logger."""
         super().__init__()
         self.logger = PRKitLogger.get_logger(__name__)
@@ -102,7 +102,7 @@ class PhysBenchLoader(BaseDatasetLoader):
         variant: str | None = None,
         split: str | None = None,
         sample_size: int | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> PhysicalDataset:
         """
         Load PhysBench from a local cache directory.
@@ -150,7 +150,7 @@ class PhysBenchLoader(BaseDatasetLoader):
         if sample_size is not None and sample_size < len(records):
             records = random.sample(records, sample_size)
 
-        problems = []
+        problems: list[PhysicsProblem] = []
         for index, record in enumerate(records):
             try:
                 metadata = self.initialize_metadata(record)

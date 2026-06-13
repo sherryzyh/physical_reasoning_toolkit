@@ -25,7 +25,7 @@ from sympy.core.basic import Basic
 from sympy.core.function import count_ops
 from sympy.core.sympify import SympifyError
 
-from prkit.core.domain.answer import Answer
+from prkit.core.domain.answer import Answer, AnswerValue
 from prkit.evaluation.utils.number_utils import (
     DEFAULT_NUMBER_EPSILON,
     decimal_places,
@@ -36,33 +36,32 @@ from prkit.evaluation.utils.type_specific_processing import parse_physical_quant
 _log = logging.getLogger(__name__)
 
 
-CategoryCompareFn = Callable[[float | str, float | str], bool]
+ComparableAnswerValue = Answer | AnswerValue
+CategoryCompareFn = Callable[[AnswerValue, AnswerValue], bool]
+
+
+def _raw_answer_value(value: ComparableAnswerValue) -> AnswerValue:
+    return value.value if isinstance(value, Answer) else value
+
+
+def _answer_text(value: ComparableAnswerValue) -> str:
+    return str(_raw_answer_value(value))
 
 
 def compare_number(
-    predicted_norm: float | Answer,
-    ground_truth_norm: float | Answer,
+    predicted_norm: ComparableAnswerValue,
+    ground_truth_norm: ComparableAnswerValue,
     epsilon: float = DEFAULT_NUMBER_EPSILON,
 ) -> bool:
     """Compare two normalized numbers with precision-aware logic."""
-    if isinstance(predicted_norm, Answer):
-        predicted_norm = predicted_norm.value
-    if isinstance(ground_truth_norm, Answer):
-        ground_truth_norm = ground_truth_norm.value
+    predicted_value = _raw_answer_value(predicted_norm)
+    ground_truth_value = _raw_answer_value(ground_truth_norm)
 
-    pred = (
-        float(predicted_norm)
-        if not isinstance(predicted_norm, float)
-        else predicted_norm
-    )
-    gt = (
-        float(ground_truth_norm)
-        if not isinstance(ground_truth_norm, float)
-        else ground_truth_norm
-    )
+    pred = float(predicted_value)
+    gt = float(ground_truth_value)
 
-    gt_dp = decimal_places(ground_truth_norm)
-    pred_dp = decimal_places(predicted_norm)
+    gt_dp = decimal_places(ground_truth_value)
+    pred_dp = decimal_places(predicted_value)
     if pred_dp > gt_dp:
         pred = round_to_decimal_places(pred, gt_dp)
 
@@ -70,17 +69,12 @@ def compare_number(
 
 
 def compare_plain_text(
-    predicted_norm: str | Answer,
-    ground_truth_norm: str | Answer,
+    predicted_norm: ComparableAnswerValue,
+    ground_truth_norm: ComparableAnswerValue,
 ) -> bool:
     """Compare two normalized strings with GT-as-substring acceptance."""
-    if isinstance(predicted_norm, Answer):
-        predicted_norm = predicted_norm.value
-    if isinstance(ground_truth_norm, Answer):
-        ground_truth_norm = ground_truth_norm.value
-
-    pred_str = str(predicted_norm)
-    gt_str = str(ground_truth_norm)
+    pred_str = _answer_text(predicted_norm)
+    gt_str = _answer_text(ground_truth_norm)
     if pred_str == gt_str:
         return True
     if gt_str and gt_str in pred_str:
@@ -89,15 +83,14 @@ def compare_plain_text(
 
 
 def compare_option(
-    predicted_norm: str | Answer | float,
-    ground_truth_norm: str | Answer | float,
+    predicted_norm: ComparableAnswerValue,
+    ground_truth_norm: ComparableAnswerValue,
 ) -> bool:
     """Compare multiple-choice / option labels (case-insensitive, stripped)."""
-    if isinstance(predicted_norm, Answer):
-        predicted_norm = predicted_norm.value
-    if isinstance(ground_truth_norm, Answer):
-        ground_truth_norm = ground_truth_norm.value
-    return str(predicted_norm).strip().upper() == str(ground_truth_norm).strip().upper()
+    return (
+        _answer_text(predicted_norm).strip().upper()
+        == _answer_text(ground_truth_norm).strip().upper()
+    )
 
 
 def _parse_physical_quantity(s: str) -> tuple[float | None, str]:
@@ -107,11 +100,13 @@ def _parse_physical_quantity(s: str) -> tuple[float | None, str]:
 
 
 def compare_physical_quantity(
-    predicted_norm: str | Answer,
-    ground_truth_norm: str | Answer,
+    predicted_norm: ComparableAnswerValue,
+    ground_truth_norm: ComparableAnswerValue,
     epsilon: float = DEFAULT_NUMBER_EPSILON,
 ) -> bool:
     """Compare two normalized physical quantities (value + unit)."""
+    pred_num: AnswerValue | None
+    gt_num: AnswerValue | None
     if isinstance(predicted_norm, Answer):
         pred_num = predicted_norm.value
         pred_num_str = str(predicted_norm.value)
@@ -120,8 +115,8 @@ def compare_physical_quantity(
             f"{pred_num} {pred_unit}" if pred_unit is not None else str(pred_num)
         )
     else:
-        pred_num, pred_unit, pred_num_str = parse_physical_quantity(predicted_norm)
-        pred_string = predicted_norm
+        pred_string = _answer_text(predicted_norm)
+        pred_num, pred_unit, pred_num_str = parse_physical_quantity(pred_string)
 
     if isinstance(ground_truth_norm, Answer):
         gt_num = ground_truth_norm.value
@@ -129,8 +124,8 @@ def compare_physical_quantity(
         gt_unit = ground_truth_norm.unit
         gt_string = f"{gt_num} {gt_unit}" if gt_unit is not None else str(gt_num)
     else:
-        gt_num, gt_unit, gt_num_str = parse_physical_quantity(ground_truth_norm)
-        gt_string = ground_truth_norm
+        gt_string = _answer_text(ground_truth_norm)
+        gt_num, gt_unit, gt_num_str = parse_physical_quantity(gt_string)
 
     if pred_unit == gt_unit and pred_num is not None and gt_num is not None:
         return compare_number(pred_num_str, gt_num_str, epsilon)
@@ -164,7 +159,7 @@ _MAX_HEAVY_SIMPLIFY_OPS = 55
 _NUM_EQUIV_EXPENSIVE_NODES = (Integral, Derivative, Sum, Product)
 
 
-def _sympy_multi_strategy_equal(pred_sym, gt_sym) -> bool:
+def _sympy_multi_strategy_equal(pred_sym: Basic, gt_sym: Basic) -> bool:
     """Try multiple SymPy simplification strategies to test equivalence.
 
     Returns True as soon as any strategy confirms equality, False only if
@@ -217,7 +212,7 @@ def _sympy_multi_strategy_equal(pred_sym, gt_sym) -> bool:
     return False
 
 
-def _numerical_equivalence(pred_sym, gt_sym) -> bool | None:
+def _numerical_equivalence(pred_sym: Basic, gt_sym: Basic) -> bool | None:
     """Check equivalence by evaluating at multiple random points.
 
     Returns True if all trials match within tolerance, False if any trial
@@ -257,8 +252,8 @@ def _numerical_equivalence(pred_sym, gt_sym) -> bool | None:
 
 
 def compare_formula(
-    predicted_norm: str | Answer,
-    ground_truth_norm: str | Answer,
+    predicted_norm: ComparableAnswerValue,
+    ground_truth_norm: ComparableAnswerValue,
 ) -> bool:
     """Compare normalized formulas using a cascade of strategies.
 
@@ -272,14 +267,8 @@ def compare_formula(
       4. Normalized text fallback — exact string match after whitespace /
          LaTeX cleanup (last resort).
     """
-    pred_expression = (
-        predicted_norm.value if isinstance(predicted_norm, Answer) else predicted_norm
-    )
-    gt_expression = (
-        ground_truth_norm.value
-        if isinstance(ground_truth_norm, Answer)
-        else ground_truth_norm
-    )
+    pred_expression = _answer_text(predicted_norm)
+    gt_expression = _answer_text(ground_truth_norm)
 
     try:
         pred_sym = sympify(_formula_to_sympify(pred_expression))

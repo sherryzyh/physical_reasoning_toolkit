@@ -9,19 +9,20 @@ import logging
 import os
 import sys
 from pathlib import Path
+from types import FrameType
 
 
 class ColoredFormatter(logging.Formatter):
     """Custom formatter that adds colors to console output with fallbacks."""
 
-    def __init__(self, fmt=None, datefmt=None):
+    def __init__(self, fmt: str | None = None, datefmt: str | None = None) -> None:
         super().__init__(fmt, datefmt)
         self._setup_colors()
 
-    def _setup_colors(self):
+    def _setup_colors(self) -> None:
         """Set up color support using ANSI codes only."""
         self._colors_available = False
-        self.COLORS = {}
+        self.COLORS: dict[str, str] = {}
 
         # Use ANSI codes for colors
         try:
@@ -68,7 +69,7 @@ class ColoredFormatter(logging.Formatter):
             }
             self._colors_available = False
 
-    def format(self, record):
+    def format(self, record: logging.LogRecord) -> str:
         """Format the log record with colors or visual indicators."""
         # Get the original formatted message
         formatted = super().format(record)
@@ -103,18 +104,18 @@ class PRKitLogger:
     class ConsoleFilter(logging.Filter):
         """Filter to mark console records for colored output."""
 
-        def filter(self, record):
+        def filter(self, record: logging.LogRecord) -> bool:
             record.console_output = True
             return True
 
     @classmethod
     def setup_global_config(
         cls,
-        level: int = None,
+        level: int | None = None,
         log_file: Path | None = None,
         console_output: bool = True,
-        format_string: str = None,
-        date_format: str = None,
+        format_string: str | None = None,
+        date_format: str | None = None,
     ) -> None:
         """
         Set up global logging configuration for all PRKit packages.
@@ -221,7 +222,7 @@ class PRKitLogger:
     @classmethod
     def get_logger(
         cls,
-        name: str = None,
+        name: str | None = None,
     ) -> logging.Logger:
         """
         Get a logger instance for the specified name.
@@ -236,12 +237,13 @@ class PRKitLogger:
             # Get the calling module's name
             import inspect
 
-            frame = inspect.currentframe()
+            frame: FrameType | None = inspect.currentframe()
             try:
                 # Go up one frame to get the caller
-                caller_frame = frame.f_back
+                caller_frame = frame.f_back if frame is not None else None
                 if caller_frame:
-                    module_name = inspect.getmodule(caller_frame).__name__
+                    module = inspect.getmodule(caller_frame)
+                    module_name = module.__name__ if module is not None else "prkit"
                     # Extract the relevant part for logging
                     if "prkit" in module_name:
                         name = module_name
@@ -275,7 +277,9 @@ class PRKitLogger:
                     # Ensure parent directory exists before creating FileHandler
                     log_path = Path(handler.baseFilename)
                     log_path.parent.mkdir(parents=True, exist_ok=True)
-                    new_handler = logging.FileHandler(handler.baseFilename)
+                    new_handler: logging.Handler = logging.FileHandler(
+                        handler.baseFilename
+                    )
                     new_handler.setLevel(handler.level)
 
                     # Preserve colored formatting for file handlers
@@ -318,7 +322,7 @@ class PRKitLogger:
         name: str,
         log_file: Path | None = None,
         console_output: bool = True,
-        level: int = None,
+        level: int | None = None,
     ) -> logging.Logger:
         """
         Get a logger instance with selective handler configuration.
@@ -494,7 +498,7 @@ class PRKitLogger:
                         ]
 
     @classmethod
-    def add_file_handler(cls, log_file: Path, level: int = None) -> None:
+    def add_file_handler(cls, log_file: Path, level: int | None = None) -> None:
         """Add a file handler to all existing loggers."""
         if level is None:
             level = cls._default_level

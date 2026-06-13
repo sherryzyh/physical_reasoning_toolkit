@@ -78,7 +78,7 @@ class UGPhysicsDownloader(BaseDownloader):
         domains: list[str] | None = None,
         languages: list[str] | None = None,
         language: str | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> Path:
         """
         Download the UGPhysics dataset from HuggingFace.
@@ -146,7 +146,7 @@ class UGPhysicsDownloader(BaseDownloader):
         split: str | None = None,
         domains: list[str] | None = None,
         languages: list[str] | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> Path:
         """
         Perform the actual UGPhysics dataset download.
@@ -190,8 +190,8 @@ class UGPhysicsDownloader(BaseDownloader):
 
             dataset_name = "UGPhysics/ugphysics"
             total_problems = 0
-            file_records = []
-            failures = []
+            file_records: list[dict[str, Any]] = []
+            failures: list[str] = []
 
             for domain in domains:
                 domain_dir = download_dir / domain

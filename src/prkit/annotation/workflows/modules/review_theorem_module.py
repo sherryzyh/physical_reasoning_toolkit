@@ -33,7 +33,7 @@ class ReviewTheoremModule(BaseWorkflowModule):
         name: str = "theorem_reviewer",
         model: str = "o3-mini",
         config: dict[str, Any] | None = None,
-    ):
+    ) -> None:
         super().__init__(name, model, config)
 
         # Initialize the theorem detector
@@ -60,7 +60,7 @@ class ReviewTheoremModule(BaseWorkflowModule):
             }
         )
 
-    def process(self, problem: PhysicsProblem, **kwargs) -> dict[str, Any]:
+    def process(self, problem: PhysicsProblem, **kwargs: Any) -> dict[str, Any]:
         """
         Process input data and return theorem review results.
 
@@ -90,7 +90,8 @@ class ReviewTheoremModule(BaseWorkflowModule):
             len(theorems),
         )
 
-        review_stats = {
+        del kwargs
+        review_stats: dict[str, int] = {
             "reviewed_theorems": 0,
             "relevant_theorems": 0,
             "correct_equations": 0,
@@ -98,7 +99,7 @@ class ReviewTheoremModule(BaseWorkflowModule):
             "missing_theorems": 0,
             "total_theorems": len(theorems),
         }
-        reviewed_theorems = []
+        reviewed_theorems: list[dict[str, Any]] = []
 
         # Review the predicted theorems
         if theorems:
@@ -177,7 +178,7 @@ class ReviewTheoremModule(BaseWorkflowModule):
 
         return result
 
-    def _review_missing_theorems(self, problem: PhysicsProblem):
+    def _review_missing_theorems(self, problem: PhysicsProblem) -> list[dict[str, Any]]:
         """
         Review missing theorems for a problem.
 
@@ -214,7 +215,7 @@ class ReviewTheoremModule(BaseWorkflowModule):
         print("Enter 'DONE' when you're finished adding missing theorems.")
         print("=" * 80)
 
-        missing_theorems = []
+        missing_theorems: list[dict[str, Any]] = []
         theorem_counter = 1
 
         while True:
@@ -245,7 +246,7 @@ class ReviewTheoremModule(BaseWorkflowModule):
                 print(
                     f"Enter equations for '{theorem_name}' (one per line, empty line to finish):"
                 )
-                equations = []
+                equations: list[str] = []
                 while True:
                     equation = input("  Equation: ").strip()
                     if equation == "":
@@ -262,7 +263,7 @@ class ReviewTheoremModule(BaseWorkflowModule):
                 print(
                     f"Enter conditions for '{theorem_name}' (one per line, empty line to finish):"
                 )
-                conditions = []
+                conditions: list[str] = []
                 while True:
                     condition = input("  Condition: ").strip()
                     if condition == "":
@@ -551,7 +552,7 @@ class ReviewTheoremModule(BaseWorkflowModule):
         # Remove "theorems" from additional_fields (if it exists)
         new_problem.additional_fields.pop("theorems", None)
 
-        theorem_metadata = {}
+        theorem_metadata: dict[str, Any] = {}
         detection_metadata = new_problem.additional_fields.pop(
             "theorem_detection_metadata", None
         )

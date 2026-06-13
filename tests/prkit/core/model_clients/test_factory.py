@@ -6,11 +6,16 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from prkit.core.model_clients import create_model_client
+from prkit.core.model_clients import (
+    ProviderRule,
+    create_model_client,
+    register_model_client,
+)
 from prkit.core.model_clients.anthropic import AnthropicModel
 from prkit.core.model_clients.base import BaseModelClient
 from prkit.core.model_clients.dashscope import DashscopeModel
 from prkit.core.model_clients.deepseek import DeepseekModel
+from prkit.core.model_clients.factory import _PROVIDER_RULES
 from prkit.core.model_clients.gemini import GeminiModel
 from prkit.core.model_clients.ollama import OllamaModel
 from prkit.core.model_clients.openai import OpenAIModel
@@ -202,3 +207,33 @@ class TestCreateModelClient:
         ]
         for client in clients:
             assert isinstance(client, BaseModelClient)
+
+    def test_register_model_client_appends_custom_rule(self):
+        """Test that custom provider rules are supported without changing factory code."""
+        sentinel_client = MagicMock(spec=BaseModelClient)
+        rule = ProviderRule(
+            name="custom",
+            matches=lambda model: model == "custom-model",
+            load=lambda model, logger: sentinel_client,
+        )
+
+        register_model_client(rule)
+        try:
+            assert create_model_client("custom-model") is sentinel_client
+        finally:
+            _PROVIDER_RULES.remove(rule)
+
+    def test_register_model_client_can_prepend_rule(self):
+        """Test that prepended rules take precedence over built-in providers."""
+        sentinel_client = MagicMock(spec=BaseModelClient)
+        rule = ProviderRule(
+            name="custom-openai",
+            matches=lambda model: model == "gpt-4.1",
+            load=lambda model, logger: sentinel_client,
+        )
+
+        register_model_client(rule, prepend=True)
+        try:
+            assert create_model_client("gpt-4.1") is sentinel_client
+        finally:
+            _PROVIDER_RULES.remove(rule)

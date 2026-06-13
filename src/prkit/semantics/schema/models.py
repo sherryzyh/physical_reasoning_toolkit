@@ -177,13 +177,13 @@ class PhysicsAnswerCaseSemantics(_SemanticsModel):
         description="The condition that activates the paired expression.",
     )
 
-    def __iter__(self):
+    def __iter__(self) -> Any:
         """Expose backward-compatible tuple-style iteration."""
 
         yield self.expression
         yield self.condition
 
-    def __getitem__(self, index: int):
+    def __getitem__(self, index: int) -> PhysicsAnswerSemantics:
         """Expose backward-compatible tuple-style indexing."""
 
         return (self.expression, self.condition)[index]
@@ -408,17 +408,18 @@ class AnswerComparison(_SemanticsModel):
         policy_mode: ComparisonPolicyMode | None = None,
         surface_shortcut_used: bool = False,
     ) -> None:
-        super().__init__(
-            equivalent=equivalent,
-            comparison_mode=comparison_mode,
-            diagnostics=diagnostics,
-            validation_status=validation_status,
-            bridge_id=bridge_id,
-            bridge_tier=bridge_tier,
-            bridge_evidence=bridge_evidence or {},
-            policy_mode=policy_mode,
-            surface_shortcut_used=surface_shortcut_used,
-        )
+        data: dict[str, Any] = {
+            "equivalent": equivalent,
+            "comparison_mode": comparison_mode,
+            "diagnostics": diagnostics,
+            "validation_status": validation_status,
+            "bridge_id": bridge_id,
+            "bridge_tier": bridge_tier,
+            "bridge_evidence": bridge_evidence or {},
+            "policy_mode": policy_mode,
+            "surface_shortcut_used": surface_shortcut_used,
+        }
+        super().__init__(**data)
 
 
 PhysicsAnswerCaseSemantics.model_rebuild()

@@ -5,9 +5,10 @@ from __future__ import annotations
 import json
 import logging
 import re
+from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeVar
 
 from pydantic import BaseModel, ValidationError
 
@@ -36,9 +37,11 @@ from ..normalization import (
     normalize_physics_answer,
 )
 from ..schema import (
+    AnswerComparison,
     AnswerObjectKind,
     AnswerStructure,
     ComparisonPolicyMode,
+    PhysicsAnswerSemantics,
     PhysicsQuestionSemantics,
 )
 from .artifacts import (
@@ -79,6 +82,7 @@ _STRICT_ANSWER_FIELDS = frozenset(StrictPhysicsAnswerSemantics.model_fields)
 _STRICT_CASE_FIELDS = frozenset(StrictPhysicsAnswerCaseSemantics.model_fields)
 _VALID_ALLOWED_OBJECT_KINDS = frozenset(kind.value for kind in AnswerObjectKind)
 _VALID_ALLOWED_STRUCTURES = frozenset(kind.value for kind in AnswerStructure)
+ResponseModelT = TypeVar("ResponseModelT", bound=BaseModel)
 
 
 @dataclass(frozen=True)
@@ -448,7 +452,7 @@ def compare_saved_semantics(
     prediction_artifact: PredictionSemanticsArtifact | str | Path,
     *,
     policy_mode: ComparisonPolicyMode | str | None = None,
-):
+) -> AnswerComparison:
     """Compare two saved semantics artifacts and return only the verdict."""
 
     return evaluate_saved_semantics(
@@ -462,12 +466,12 @@ def _run_structured_inference(
     model_client: BaseModelClient,
     *,
     prompt: str,
-    response_model: type[BaseModel],
+    response_model: type[ResponseModelT],
     image_paths: tuple[str, ...],
     max_output_tokens: int | None = None,
     require_native_json_schema: bool = False,
     **chat_kwargs: Any,
-):
+) -> tuple[ResponseModelT, StructuredCallResult[ResponseModelT]]:
     """Run one semantics-generation request through the typed structured-output API."""
 
     structured_policy: StructuredOutputPolicy = (
@@ -564,7 +568,9 @@ def ensure_semantics_native_json_schema_support(model_client: BaseModelClient) -
     )
 
 
-def _parse_response_model(response_model: type[BaseModel], raw_response: str):
+def _parse_response_model(
+    response_model: type[ResponseModelT], raw_response: str
+) -> ResponseModelT:
     """Validate a raw model response against the expected Pydantic schema."""
 
     if raw_response is None:
@@ -699,7 +705,7 @@ def _extract_json_object(text: str) -> dict[str, Any] | None:
     return extract_structured_json_object(text)
 
 
-def _iter_braced_json_candidates(text: str):
+def _iter_braced_json_candidates(text: str) -> Iterator[str]:
     """Yield balanced brace substrings that could be JSON objects."""
 
     start_indices = [index for index, char in enumerate(text) if char == "{"]
@@ -947,13 +953,18 @@ def _infer_final_answer_from_answer_semantics(payload: dict[str, Any]) -> str | 
     return None
 
 
-def _strict_answer_payload(answer_semantics: Any) -> dict[str, Any]:
+def _strict_answer_payload(
+    answer_semantics: PhysicsAnswerSemantics | StrictPhysicsAnswerSemantics,
+) -> dict[str, Any]:
     """Project a canonical answer semantics object into the strict provider payload shape."""
 
-    return _normalize_answer_semantics_payload(
+    normalized = _normalize_answer_semantics_payload(
         answer_semantics.model_dump(mode="python"),
         path="prediction_answer_semantics",
     )
+    if not isinstance(normalized, dict):
+        raise TypeError("Strict answer payload normalization must return a dict")
+    return normalized
 
 
 def _merge_question_semantics_fallbacks(

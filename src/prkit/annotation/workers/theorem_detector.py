@@ -3,6 +3,7 @@ Theorem annotator for identifying relevant physical theorems and principles.
 """
 
 import json
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -42,7 +43,7 @@ class TheoremResponse(BaseModel):
 class TheoremDetector(BaseAnnotator):
     """Annotator for identifying relevant physical theorems and principles."""
 
-    def work(self, question: str, **kwargs) -> TheoremAnnotation:
+    def work(self, question: str, **kwargs: Any) -> TheoremAnnotation:
         """Identify relevant physical theorems and principles."""
 
         prompt = f"""

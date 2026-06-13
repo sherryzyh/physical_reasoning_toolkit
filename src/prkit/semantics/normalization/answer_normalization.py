@@ -958,8 +958,8 @@ def _normalize_nested_sequence(
 def _split_top_level(text: str, delimiters: set[str]) -> list[str]:
     """Split ``text`` on delimiters while respecting nested bracket depth."""
 
-    parts = []
-    current = []
+    parts: list[str] = []
+    current: list[str] = []
     depth_paren = depth_bracket = depth_brace = 0
     for char in text:
         if char == "(":
@@ -1119,8 +1119,8 @@ def _strip_piecewise_condition_prefix(text: str) -> str:
 def _split_additive_terms(text: str) -> list[str]:
     """Split an additive vector expression into signed top-level terms."""
 
-    terms = []
-    current = []
+    terms: list[str] = []
+    current: list[str] = []
     depth_paren = depth_bracket = depth_brace = 0
     for index, char in enumerate(text):
         if char == "(":

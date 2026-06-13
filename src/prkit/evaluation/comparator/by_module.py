@@ -7,6 +7,7 @@ package submodule name (the Python module stem, e.g. ``\"smart_match\"`` for
 from __future__ import annotations
 
 import importlib
+from typing import Any
 
 from prkit.evaluation.comparator.base import BaseComparator
 
@@ -84,13 +85,16 @@ def build_comparator(
         )
 
     mod = importlib.import_module(f"prkit.evaluation.comparator.{name}")
-    cls: type[BaseComparator] = getattr(mod, _MODULE_CLASS[name])
+    cls: type[Any] = getattr(mod, _MODULE_CLASS[name])
 
     if name in _MODULES_ACCEPTING_MODEL:
         m = model if model is not None else DEFAULT_MODEL
-        return cls(model=m)
+        comparator = cls(model=m)
+    elif name in _MODULES_WITH_ROUGE_THRESHOLD:
+        comparator = cls(rouge_threshold=rouge_threshold)
+    else:
+        comparator = cls()
 
-    if name in _MODULES_WITH_ROUGE_THRESHOLD:
-        return cls(rouge_threshold=rouge_threshold)
-
-    return cls()
+    if not isinstance(comparator, BaseComparator):
+        raise TypeError(f"{cls.__name__} is not a BaseComparator")
+    return comparator

@@ -13,14 +13,14 @@ from typing import Any
 import pandas as pd
 
 from prkit.core import PRKitLogger
-from prkit.core.domain import PhysicalDataset, PhysicsDomain
+from prkit.core.domain import PhysicalDataset, PhysicsDomain, PhysicsProblem
 from prkit.datasets.loaders.base_loader import BaseDatasetLoader
 
 
 class TPBenchLoader(BaseDatasetLoader):
     """Loader for TPBench dataset."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the TPBench loader with a logger."""
         super().__init__()
         self.logger = PRKitLogger.get_logger(__name__)
@@ -75,7 +75,7 @@ class TPBenchLoader(BaseDatasetLoader):
         }
 
     @property
-    def DOMAIN_MAPPING(self) -> dict[str, str]:
+    def DOMAIN_MAPPING(self) -> dict[str, PhysicsDomain]:
         """Mapping of domain abbreviations to full domain names."""
         return {
             "QM": PhysicsDomain.QUANTUM_MECHANICS,
@@ -85,7 +85,7 @@ class TPBenchLoader(BaseDatasetLoader):
             "Cosmology": PhysicsDomain.COSMOLOGY,
         }
 
-    def _process_metadata(self, metadata: dict[str, Any]):
+    def _process_metadata(self, metadata: dict[str, Any]) -> dict[str, Any]:
         """Process metadata to create standardized problem fields."""
         metadata["answer_category"] = "formula"
         domain = metadata.get("domain")
@@ -102,7 +102,7 @@ class TPBenchLoader(BaseDatasetLoader):
         sample_size: int | None = None,
         per_domain: int | None = None,
         language: str = "en",
-        **kwargs,
+        **kwargs: Any,
     ) -> PhysicalDataset:
         """
         Load the TPBench dataset.
@@ -145,9 +145,9 @@ class TPBenchLoader(BaseDatasetLoader):
         parquet_file = data_dir / "data" / "public-00000-of-00001.parquet"
         json_file = data_dir / "tpbench_samples.json"
 
-        problems = []
-        domain_counts = {}
-        domain_problems = {}  # Track problems per domain for sampling
+        problems: list[PhysicsProblem] = []
+        domain_counts: dict[str, int] = {}
+        domain_problems: dict[str, list[PhysicsProblem]] = {}
 
         # Try loading from parquet file
         if parquet_file.exists():
@@ -187,7 +187,7 @@ class TPBenchLoader(BaseDatasetLoader):
                     )
 
         # Collect all problems and count by domain
-        all_problems = []
+        all_problems: list[PhysicsProblem] = []
         for domain_name, domain_problem_list in domain_problems.items():
             all_problems.extend(domain_problem_list)
             domain_counts[domain_name] = len(domain_problem_list)
@@ -215,10 +215,14 @@ class TPBenchLoader(BaseDatasetLoader):
         )
 
     def _load_from_dataframe(
-        self, df: pd.DataFrame, domain_problems: dict, domain_counts: dict
-    ) -> list:
+        self,
+        df: pd.DataFrame,
+        domain_problems: dict[str, list[PhysicsProblem]],
+        domain_counts: dict[str, int],
+    ) -> list[PhysicsProblem]:
         """Load problems from pandas DataFrame."""
-        problems = []
+        del domain_counts
+        problems: list[PhysicsProblem] = []
 
         if df.empty:
             raise ValueError("DataFrame is empty")
@@ -236,7 +240,7 @@ class TPBenchLoader(BaseDatasetLoader):
                     metadata=metadata,
                 )
 
-                domain = metadata.get("domain", "Unknown")
+                domain = str(metadata.get("domain", "Unknown"))
                 if domain not in domain_problems:
                     domain_problems[domain] = []
                 domain_problems[domain].append(problem)
@@ -253,10 +257,14 @@ class TPBenchLoader(BaseDatasetLoader):
         return problems
 
     def _load_from_json(
-        self, json_file: Path, domain_problems: dict, domain_counts: dict
-    ) -> list:
+        self,
+        json_file: Path,
+        domain_problems: dict[str, list[PhysicsProblem]],
+        domain_counts: dict[str, int],
+    ) -> list[PhysicsProblem]:
         """Load problems from JSON file."""
-        problems = []
+        del domain_counts
+        problems: list[PhysicsProblem] = []
 
         if not json_file.exists():
             raise FileNotFoundError(f"JSON file not found: {json_file}")
@@ -278,7 +286,7 @@ class TPBenchLoader(BaseDatasetLoader):
                         metadata=metadata,
                     )
 
-                    domain = metadata.get("domain", "Unknown")
+                    domain = str(metadata.get("domain", "Unknown"))
                     if domain not in domain_problems:
                         domain_problems[domain] = []
                     domain_problems[domain].append(problem)

@@ -303,8 +303,8 @@ The smallest reproducible path is deterministic question inference, answer
 normalization, contract construction, and evaluation.
 
 ```python
-from prkit.prkit_core.domain import Answer, AnswerCategory, PhysicsProblem
-from prkit.prkit_semantics import (
+from prkit.core.domain import Answer, AnswerCategory, PhysicsProblem
+from prkit.semantics import (
     ComparisonPolicyMode,
     build_evaluation_contract,
     compare_protocol_answers,
@@ -353,7 +353,7 @@ question semantics, answer semantics, generator metadata, evaluation contract,
 policy, and final result.
 
 ```python
-from prkit.prkit_semantics import (
+from prkit.semantics import (
     evaluate_saved_semantics,
     infer_prediction_semantics,
     infer_reference_semantics,
@@ -469,7 +469,7 @@ where broad matching falsely accepts physically different answers.
 Important public entry points:
 
 ```python
-from prkit.prkit_semantics import (
+from prkit.semantics import (
     infer_reference_question_semantics,
     infer_prediction_question_semantics,
     normalize_physics_answer,

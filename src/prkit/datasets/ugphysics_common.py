@@ -5,6 +5,7 @@ Shared metadata and normalization helpers for the UGPhysics dataset.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 UGPHYSICS_DEFAULT_SUBDIR = "ugphysics"
 UGPHYSICS_LEGACY_SUBDIR = "UGPhysics"
@@ -71,7 +72,7 @@ UGPHYSICS_SPLIT_TOTALS = {
 }
 
 
-def _warn(logger, message: str) -> None:
+def _warn(logger: Any | None, message: str) -> None:
     if logger is not None and hasattr(logger, "warning"):
         logger.warning(message)
 
@@ -95,7 +96,7 @@ def normalize_language_code(language: str | None) -> str | None:
     return aliases.get(normalized)
 
 
-def normalize_variant(variant: str | None, logger=None) -> str:
+def normalize_variant(variant: str | None, logger: Any | None = None) -> str:
     """Normalize public and legacy UGPhysics variant names."""
     if variant is None:
         return "full"
@@ -136,7 +137,7 @@ def normalize_variant(variant: str | None, logger=None) -> str:
 def normalize_split(
     split: str | None,
     language: str | None = None,
-    logger=None,
+    logger: Any | None = None,
 ) -> str:
     """Normalize public and legacy split names to UGPhysics language splits."""
     normalized_language = normalize_language_code(language)

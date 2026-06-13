@@ -2,6 +2,7 @@
 Google Gemini API client implementation.
 """
 
+import logging
 import os
 from typing import Any
 
@@ -18,6 +19,7 @@ from .structured_output import (
     extract_schema_for_gemini,
     normalize_response_format,
 )
+from .utils import detect_image_mime_type, encode_image_to_base64
 
 
 class GeminiModel(BaseModelClient):
@@ -25,7 +27,7 @@ class GeminiModel(BaseModelClient):
 
     supports_response_format_json_schema = True
 
-    def __init__(self, model: str, logger=None):
+    def __init__(self, model: str, logger: logging.Logger | None = None) -> None:
         """
         Initialize Gemini model client.
 
@@ -42,7 +44,6 @@ class GeminiModel(BaseModelClient):
             # Will try to pick up from GEMINI_API_KEY env var automatically
             self.genai_client = genai.Client()
         self.provider = "google"
-        self.client = None
 
     def chat(
         self,
@@ -72,7 +73,7 @@ class GeminiModel(BaseModelClient):
         """
         # Prepare content parts
         # Start with the text prompt
-        contents_parts = [user_prompt]
+        contents_parts: list[Any] = [user_prompt]
 
         # Process images if provided
         if image_paths:
@@ -214,18 +215,8 @@ def _extract_gemini_error_details(response: object) -> str | None:
 
 
 def _guess_mime_type(path: str) -> str:
-    ext = os.path.splitext(path)[1].lower()
-    return {
-        ".jpg": "image/jpeg",
-        ".jpeg": "image/jpeg",
-        ".png": "image/png",
-        ".gif": "image/gif",
-        ".webp": "image/webp",
-    }.get(ext, "image/jpeg")
+    return detect_image_mime_type(path)
 
 
 def _encode_image_file_base64(path: str) -> str:
-    import base64
-
-    with open(path, "rb") as handle:
-        return base64.b64encode(handle.read()).decode("utf-8")
+    return encode_image_to_base64(path)

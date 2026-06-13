@@ -64,7 +64,7 @@ class PhysicsDownloader(BaseDownloader):
         force: bool = False,
         variant: str | None = None,
         split: str | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> Path:
         """
         Download the PHYSICS dataset.
@@ -95,7 +95,7 @@ class PhysicsDownloader(BaseDownloader):
         download_dir: Path,
         variant: str = "full",
         split: str = "full",
-        **kwargs,
+        **kwargs: Any,
     ) -> Path:
         """
         Download the PHYSICS benchmark files into the PRKit cache layout.
@@ -208,7 +208,7 @@ class PhysicsDownloader(BaseDownloader):
                 )
         return relative_paths
 
-    def _download_file(self, requests, url: str, target_path: Path) -> None:
+    def _download_file(self, requests: Any, url: str, target_path: Path) -> None:
         max_retries = 3
         retry_delay_seconds = 3
 

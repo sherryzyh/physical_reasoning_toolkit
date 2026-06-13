@@ -58,7 +58,7 @@ class VariableLocator(BaseAnnotator):
     def work(
         self,
         question: str,
-        **kwargs,
+        **kwargs: Any,
     ) -> VariableAnnotation:
         """Extract variables from the problem statement."""
 

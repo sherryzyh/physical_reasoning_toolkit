@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Sequence
+from typing import TypedDict
 
 _TOKEN_RE = re.compile(r"[A-Za-z0-9]+")
 _PART_PHRASE_RE = re.compile(
@@ -55,6 +56,11 @@ _IGNORED_DESCRIPTOR_TOKENS = frozenset(
         "two",
     }
 )
+
+
+class _AliasSpec(TypedDict):
+    aliases: tuple[str, ...]
+    initial: str | None
 
 
 def canonicalize_part_label(text: str | None) -> str | None:
@@ -203,7 +209,7 @@ def infer_multi_part_part_labels(
     return tuple(assignments)
 
 
-def _build_alias_specs(required_parts: Sequence[str]) -> dict[str, dict[str, object]]:
+def _build_alias_specs(required_parts: Sequence[str]) -> dict[str, _AliasSpec]:
     """Build lightweight alias specs used to score part-label matches."""
 
     content_initials = [
@@ -215,7 +221,7 @@ def _build_alias_specs(required_parts: Sequence[str]) -> dict[str, dict[str, obj
         initial for initial in content_initials if content_initials.count(initial) == 1
     }
 
-    specs: dict[str, dict[str, object]] = {}
+    specs: dict[str, _AliasSpec] = {}
     for label in required_parts:
         content_tokens = _content_tokens(label)
         aliases = {label.replace("_", " "), label}
@@ -244,7 +250,7 @@ def _content_tokens(label: str) -> list[str]:
     ]
 
 
-def _match_part_label_score(text: str, spec: dict[str, object]) -> int:
+def _match_part_label_score(text: str, spec: _AliasSpec) -> int:
     """Score how strongly one answer surface suggests a required part label.
 
     Higher scores prefer explicit aliases near the start of the answer,

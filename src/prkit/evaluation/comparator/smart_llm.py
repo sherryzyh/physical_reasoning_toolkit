@@ -9,9 +9,10 @@ LLM judge; otherwise the deterministic outcome is final.
 
 from __future__ import annotations
 
-from typing import Any, assert_never
+from typing import Any
 
 from openai import OpenAI
+from typing_extensions import assert_never
 
 from prkit.core.domain.answer import Answer
 from prkit.evaluation.llm_judge import (

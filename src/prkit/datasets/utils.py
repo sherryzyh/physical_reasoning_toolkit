@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from prkit.core.domain.physics_dataset import PhysicalDataset
+from prkit.core.domain.physics_problem import PhysicsProblem
 
 
 def sample_balanced(
@@ -33,15 +34,15 @@ def sample_balanced(
         random.seed(seed)
 
     # Group samples by the specified field
-    categories = {}
+    categories: dict[str, list[PhysicsProblem]] = {}
     for sample in dataset:
-        category = sample.get(field, "unknown")
+        category = str(sample.get(field, "unknown"))
         if category not in categories:
             categories[category] = []
         categories[category].append(sample)
 
     # Sample from each category
-    balanced_samples = []
+    balanced_samples: list[PhysicsProblem] = []
     for category, samples in categories.items():
         if len(samples) >= samples_per_category:
             selected = random.sample(samples, samples_per_category)
@@ -75,7 +76,7 @@ def get_statistics(dataset: PhysicalDataset) -> dict[str, Any]:
     Returns:
         Dictionary containing dataset statistics
     """
-    stats = {
+    stats: dict[str, Any] = {
         "total_samples": len(dataset),
         "fields": list(dataset[0].keys()) if len(dataset) > 0 else [],
     }
@@ -120,7 +121,7 @@ def export_to_json(
     """
     output_path = Path(output_path)
 
-    export_data = {"samples": dataset.to_list()}
+    export_data: dict[str, Any] = {"samples": dataset.to_list()}
 
     if include_info:
         export_data["info"] = dataset.get_info()
@@ -132,7 +133,7 @@ def export_to_json(
 def filter_by_keywords(
     dataset: PhysicalDataset,
     keywords: list[str],
-    fields: list[str] = None,
+    fields: list[str] | None = None,
     case_sensitive: bool = False,
 ) -> PhysicalDataset:
     """
@@ -153,7 +154,7 @@ def filter_by_keywords(
     if not case_sensitive:
         keywords = [kw.lower() for kw in keywords]
 
-    def matches_keywords(sample):
+    def matches_keywords(sample: PhysicsProblem) -> bool:
         for field in fields:
             if field in sample:
                 text = str(sample[field])
@@ -190,7 +191,7 @@ def create_cross_validation_splits(
     random.shuffle(indices)
 
     # Create splits
-    splits = []
+    splits: list[tuple[PhysicalDataset, PhysicalDataset]] = []
     fold_size = len(dataset) // n_splits
 
     for i in range(n_splits):
@@ -209,7 +210,7 @@ def create_cross_validation_splits(
 
 
 def validate_dataset_format(
-    dataset: PhysicalDataset, required_fields: list[str] = None
+    dataset: PhysicalDataset, required_fields: list[str] | None = None
 ) -> dict[str, Any]:
     """
     Validate dataset format and check for consistency.
@@ -224,7 +225,7 @@ def validate_dataset_format(
     if required_fields is None:
         required_fields = ["problem_id", "question"]
 
-    report = {"valid": True, "issues": [], "warnings": []}
+    report: dict[str, Any] = {"valid": True, "issues": [], "warnings": []}
 
     if len(dataset) == 0:
         report["valid"] = False
@@ -247,7 +248,7 @@ def validate_dataset_format(
 
     # Check for duplicate problem IDs
     if "problem_id" in first_sample:
-        problem_ids = []
+        problem_ids: list[Any] = []
         for sample in dataset:
             try:
                 problem_ids.append(sample["problem_id"])

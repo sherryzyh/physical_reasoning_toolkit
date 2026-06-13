@@ -6,7 +6,7 @@ The PhysicsSolution class captures both the problem and the LLM's reasoning and 
 """
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
@@ -32,11 +32,10 @@ class PhysicsSolution:
     problem: PhysicsProblem
     agent_answer: str
 
-    # Optional metadata fields
-    metadata: dict[str, Any] | None = None
-    intermediate_steps: list[dict[str, Any]] | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
+    intermediate_steps: list[dict[str, Any]] = field(default_factory=list)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate and initialize the solution after creation."""
         # Initialize metadata if not provided
         if self.metadata is None:
@@ -51,6 +50,18 @@ class PhysicsSolution:
             raise ValueError(
                 f"Problem ID mismatch: {self.problem_id} != {self.problem.problem_id}"
             )
+
+    def _metadata(self) -> dict[str, Any]:
+        """Return metadata as a mutable dictionary."""
+        if self.metadata is None:
+            self.metadata = {}
+        return self.metadata
+
+    def _intermediate_steps(self) -> list[dict[str, Any]]:
+        """Return intermediate steps as a mutable list."""
+        if self.intermediate_steps is None:
+            self.intermediate_steps = []
+        return self.intermediate_steps
 
     # ============================================================================
     # Core PhysicsSolution Methods
@@ -86,7 +97,7 @@ class PhysicsSolution:
         step_content: str,
         step_type: str | None = None,
         tool_usage: dict[str, Any] | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """Add an intermediate step to the solution process."""
         step = {
@@ -96,18 +107,18 @@ class PhysicsSolution:
             "tool_usage": tool_usage or {},
             **kwargs,
         }
-        self.intermediate_steps.append(step)
+        self._intermediate_steps().append(step)
 
     def get_intermediate_step(self, step_name: str) -> dict[str, Any] | None:
         """Get a specific intermediate step by name."""
-        for step in self.intermediate_steps:
+        for step in self._intermediate_steps():
             if step["step_name"] == step_name:
                 return step
         return None
 
     def get_all_step_names(self) -> list[str]:
         """Get all intermediate step names."""
-        return [step["step_name"] for step in self.intermediate_steps]
+        return [step["step_name"] for step in self._intermediate_steps()]
 
     # ============================================================================
     # Metadata Management
@@ -115,15 +126,15 @@ class PhysicsSolution:
 
     def add_metadata(self, key: str, value: Any) -> None:
         """Add or update metadata."""
-        self.metadata[key] = value
+        self._metadata()[key] = value
 
     def get_metadata(self, key: str, default: Any = None) -> Any:
         """Get metadata value by key."""
-        return self.metadata.get(key, default)
+        return self._metadata().get(key, default)
 
     def has_metadata(self, key: str) -> bool:
         """Check if metadata key exists."""
-        return key in self.metadata
+        return key in self._metadata()
 
     # ============================================================================
     # Export and Serialization
@@ -139,8 +150,8 @@ class PhysicsSolution:
                 else str(self.problem)
             ),
             "agent_answer": self.agent_answer,
-            "metadata": self.metadata,
-            "intermediate_steps": self.intermediate_steps,
+            "metadata": self._metadata(),
+            "intermediate_steps": self._intermediate_steps(),
         }
 
     def to_json(self, indent: int = 2) -> str:
@@ -151,7 +162,7 @@ class PhysicsSolution:
     def from_dict(cls, data: dict[str, Any]) -> "PhysicsSolution":
         """Create a PhysicsSolution instance from a dictionary."""
         # Create a copy to avoid modifying the original
-        data_copy = data.copy()
+        data_copy: dict[str, Any] = data.copy()
 
         # Handle timestamp conversion (store in metadata if present)
         if "timestamp" in data_copy:
@@ -165,9 +176,7 @@ class PhysicsSolution:
 
         # Handle problem conversion if it's a dict
         if isinstance(data_copy.get("problem"), dict):
-            # This would require PhysicsProblem.from_dict() method
-            # For now, we'll keep it as a dict
-            pass
+            data_copy["problem"] = PhysicsProblem.from_dict(data_copy["problem"])
 
         return cls(**data_copy)
 
@@ -181,7 +190,7 @@ class PhysicsSolution:
             "problem_id": self.problem_id,
             "domain": self.get_domain(),
             "problem_type": self.get_problem_type(),
-            "intermediate_steps_count": len(self.intermediate_steps),
+            "intermediate_steps_count": len(self._intermediate_steps()),
         }
 
     def __str__(self) -> str:

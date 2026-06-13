@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from typing import Any
 
 from sympy import simplify
 
@@ -11,6 +12,8 @@ from ..normalization import materialize_quantity_view
 from ..schema import (
     AnswerComparison,
     AnswerObjectKind,
+    PhysicalQuantitySnapshot,
+    PhysicalQuantityView,
     PhysicsAnswerSemantics,
     PhysicsQuestionSemantics,
     QuestionUnitPolicy,
@@ -286,7 +289,7 @@ _PLAIN_NUMERIC_LITERAL_RE = re.compile(
 
 def _coefficient_text(
     answer: PhysicsAnswerSemantics,
-    coefficient_expr,
+    coefficient_expr: Any,
     *,
     source_text: str | None = None,
 ) -> str | None:
@@ -382,7 +385,9 @@ def _extract_quantity_view_comparable_answer(
 
 
 def _quantity_view_precision_matches_preferred_unit(
-    *, quantity_view, preferred_snapshot
+    *,
+    quantity_view: PhysicalQuantityView,
+    preferred_snapshot: PhysicalQuantitySnapshot,
 ) -> bool:
     """Return whether source precision text is expressed in the preferred unit space."""
 
@@ -447,7 +452,7 @@ def _matched_question_unit_expr(
     answer: PhysicsAnswerSemantics,
     *,
     context: PhysicsQuestionSemantics,
-):
+) -> Any | None:
     """Return the parsed fixed question unit when it matches the answer unit."""
 
     if (
@@ -462,7 +467,7 @@ def _matched_question_unit_expr(
     return parse_scalar_symbolic_expression(context.question_unit)
 
 
-def _strip_question_unit_factor(expression, question_unit_expr):
+def _strip_question_unit_factor(expression: Any, question_unit_expr: Any | None) -> Any:
     """Remove a fixed question-unit factor when it is explicitly present."""
 
     if question_unit_expr is None:

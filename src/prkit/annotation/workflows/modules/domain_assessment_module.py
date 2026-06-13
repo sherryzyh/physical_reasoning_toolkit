@@ -8,8 +8,9 @@ into larger annotation workflows.
 from typing import Any
 
 from prkit.annotation.workers import DomainLabeler
+from prkit.core.domain.physics_problem import PhysicsProblem
 
-from .base_module import BaseWorkflowModule
+from .base_module import BaseWorkflowModule, WorkflowProblemInput
 
 
 class DomainAssessmentModule(BaseWorkflowModule):
@@ -26,7 +27,7 @@ class DomainAssessmentModule(BaseWorkflowModule):
         name: str = "domain_labeler",
         model: str = "o3-mini",
         config: dict[str, Any] | None = None,
-    ):
+    ) -> None:
         super().__init__(name, model, config)
 
         # Initialize the domain annotator
@@ -42,7 +43,9 @@ class DomainAssessmentModule(BaseWorkflowModule):
             }
         )
 
-    def process(self, data: Any, **kwargs) -> Any:
+    def process(
+        self, problem: WorkflowProblemInput, **kwargs: Any
+    ) -> dict[str, Any] | None:
         """
         Process input data and return domain labeling.
 
@@ -53,16 +56,10 @@ class DomainAssessmentModule(BaseWorkflowModule):
         Returns:
             Domain labeling result
         """
-        # Extract question text from various input formats
-        if isinstance(data, dict):
-            question = data.get("question", data.get("content", ""))
-            problem_id = data.get("problem_id", "unknown")
-        elif hasattr(data, "question"):
-            question = data.question
-            problem_id = getattr(data, "problem_id", "unknown")
-        else:
-            question = str(data)
-            problem_id = "unknown"
+        del kwargs
+        problem = self._coerce_problem_input(problem)
+        question = problem.question
+        problem_id = problem.problem_id
 
         try:
             # Increment total problems counter
@@ -94,7 +91,7 @@ class DomainAssessmentModule(BaseWorkflowModule):
                     self.module_status["problems_with_multiple_domains"] += 1
 
             # Create result that preserves input data and adds domain labeling
-            result = {
+            result: dict[str, Any] = {
                 "status": "SUCCESS",
                 "problem_id": problem_id,
                 "question": question,
@@ -113,13 +110,6 @@ class DomainAssessmentModule(BaseWorkflowModule):
                 },
             }
 
-            # Preserve any existing data from previous modules if this is chained data
-            if isinstance(data, dict):
-                # Copy over previous annotations and metadata but don't override our new ones
-                for key, value in data.items():
-                    if key not in result:
-                        result[key] = value
-
             return result
 
         except Exception as e:
@@ -131,7 +121,7 @@ class DomainAssessmentModule(BaseWorkflowModule):
                 "status": "FAILED",
                 "error": str(e),
                 "problem_id": problem_id,
-                "question": str(data),
+                "question": question,
             }
 
     def get_status(self) -> dict[str, Any]:
@@ -142,17 +132,14 @@ class DomainAssessmentModule(BaseWorkflowModule):
         self.module_status.setdefault("failed_problems", 0)
         return super().get_status()
 
-    def _form_output_as_a_problem(self, result: Any, problem: Any) -> Any:
+    def _form_output_as_a_problem(
+        self, result: dict[str, Any], problem: WorkflowProblemInput
+    ) -> PhysicsProblem | dict[str, Any]:
         """Attach domain-labeling output to a copied ``PhysicsProblem`` instance."""
-        from prkit.core.domain.physics_problem import PhysicsProblem
-
         if not isinstance(problem, PhysicsProblem):
             return result
-
         updated_problem = problem.copy()
-        updated_problem.additional_fields = dict(
-            updated_problem.additional_fields or {}
-        )
+        updated_problem.additional_fields = dict(updated_problem.additional_fields)
         updated_problem.additional_fields["domain_labeling"] = result.get(
             "domain_labeling"
         )

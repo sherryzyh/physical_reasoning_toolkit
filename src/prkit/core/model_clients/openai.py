@@ -9,7 +9,7 @@ Supported OpenAI models:
 - o-family (o3, o4, o4-mini, etc. - models starting with 'o' followed by number)
 """
 
-import os
+import logging
 from typing import Any
 
 from openai import OpenAI
@@ -24,7 +24,7 @@ from .structured_output import (
     build_json_schema_prompt_suffix,
     normalize_response_format,
 )
-from .utils import encode_image_to_base64
+from .utils import prepare_image_url_from_path
 
 
 def _ensure_additional_properties_false(schema: dict[str, Any]) -> dict[str, Any]:
@@ -166,33 +166,7 @@ def prepare_image_url_from_image_path(image_path: str) -> str:
         FileNotFoundError: If image_path is a file path that doesn't exist
         IOError: If there's an error reading the image file
     """
-    # If it's already a data URL, return as-is
-    if image_path.startswith("data:"):
-        return image_path
-
-    # If it's an HTTP/HTTPS URL, return as-is
-    if image_path.startswith("http://") or image_path.startswith("https://"):
-        return image_path
-
-    # Otherwise, treat it as a file path
-    if not os.path.exists(image_path):
-        raise FileNotFoundError(f"Image file not found: {image_path}")
-
-    # Determine MIME type from file extension
-    ext = os.path.splitext(image_path)[1].lower()
-    mime_types = {
-        ".jpg": "image/jpeg",
-        ".jpeg": "image/jpeg",
-        ".png": "image/png",
-        ".gif": "image/gif",
-        ".webp": "image/webp",
-    }
-    mime_type = mime_types.get(ext, "image/jpeg")  # Default to jpeg
-
-    base64_image_string = encode_image_to_base64(image_path)
-    image_url = f"data:{mime_type};base64,{base64_image_string}"
-
-    return image_url
+    return prepare_image_url_from_path(image_path)
 
 
 class OpenAIModel(BaseModelClient):
@@ -200,7 +174,7 @@ class OpenAIModel(BaseModelClient):
 
     supports_response_format_json_schema = True
 
-    def __init__(self, model: str, logger=None):
+    def __init__(self, model: str, logger: logging.Logger | None = None) -> None:
         """
         Initialize OpenAI model client.
 
@@ -256,27 +230,24 @@ class OpenAIModel(BaseModelClient):
             IOError: If there's an error reading any image file
         """
         # Build request parameters
-        request_params = {"model": self.model}
+        request_params: dict[str, Any] = {"model": self.model}
 
         # Add structured output if requested
         if response_format is not None:
             normalized = normalize_response_format(response_format)
             strict_schema = ensure_openai_strict_json_schema(normalized["schema"])
-            request_params["text"] = {
-                "format": {
-                    "type": "json_schema",
-                    "name": normalized["name"],
-                    "schema": strict_schema,
-                    "strict": normalized["strict"],
-                }
+            text_format: dict[str, Any] = {
+                "type": "json_schema",
+                "name": normalized["name"],
+                "schema": strict_schema,
+                "strict": normalized["strict"],
             }
+            request_params["text"] = {"format": text_format}
             if normalized.get("description") is not None:
-                request_params["text"]["format"]["description"] = normalized[
-                    "description"
-                ]
+                text_format["description"] = normalized["description"]
 
         # Use role/content format for all models
-        content = [{"type": "input_text", "text": user_prompt}]
+        content: list[dict[str, Any]] = [{"type": "input_text", "text": user_prompt}]
 
         if image_paths:
             for image_path in image_paths:
@@ -297,8 +268,9 @@ class OpenAIModel(BaseModelClient):
             request_params.update(kwargs)
 
         response = self.client.responses.create(**request_params)
-        self.logger.info(f"Response: {response.output_text}")
-        return response.output_text
+        text = str(response.output_text)
+        self.logger.info(f"Response: {text}")
+        return text
 
     def _resolve_structured_output_plan(
         self,

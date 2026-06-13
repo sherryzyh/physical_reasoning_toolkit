@@ -51,7 +51,7 @@ class PhysReasonDownloader(BaseDownloader):
         data_dir: str | Path | None = None,
         force: bool = False,
         variant: str | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> Path:
         """
         Download the PhysReason dataset from HuggingFace.
@@ -88,7 +88,7 @@ class PhysReasonDownloader(BaseDownloader):
         self,
         download_dir: Path,
         variant: str = "full",
-        **kwargs,
+        **kwargs: Any,
     ) -> Path:
         """
         Perform the actual PhysReason dataset download.

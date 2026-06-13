@@ -36,7 +36,9 @@ class BaseComparator(ABC):
         pass
 
     @abstractmethod
-    def accuracy_score(self, answer1: Answer, answer2: Answer) -> float:
+    def accuracy_score(
+        self, answer1: str | Answer, answer2: str | Answer, **kwargs: Any
+    ) -> float:
         """
         Compute a normalized accuracy score between two answers in [0, 1].
 

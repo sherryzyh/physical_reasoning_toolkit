@@ -36,7 +36,7 @@ import os
 from pathlib import Path
 
 
-def _ensure_cache_directory():
+def _ensure_cache_directory() -> None:
     """
     Ensure the default dataset cache directory exists.
 

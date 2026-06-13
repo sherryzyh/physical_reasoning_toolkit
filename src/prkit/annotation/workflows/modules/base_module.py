@@ -7,10 +7,12 @@ that can be chained together to create complex annotation workflows.
 
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal, overload
 
 from prkit.core import PRKitLogger
 from prkit.core.domain.physics_problem import PhysicsProblem
+
+WorkflowProblemInput = PhysicsProblem | dict[str, Any] | str
 
 
 class BaseWorkflowModule(ABC):
@@ -23,7 +25,7 @@ class BaseWorkflowModule(ABC):
 
     def __init__(
         self, name: str, model: str = "gpt-5-mini", config: dict[str, Any] | None = None
-    ):
+    ) -> None:
         # Setup module logging - the workflow will configure this properly
         self.logger = PRKitLogger.get_logger(f"{__name__}.{name}")
         self.logger.info(f"Initializing module {name} with model {model}")
@@ -33,7 +35,7 @@ class BaseWorkflowModule(ABC):
         self.config = config or {}
 
         # Initialize module status
-        self.module_status = {
+        self.module_status: dict[str, Any] = {
             "module_name": name,
             "model": model,
             "execution_time_seconds": 0,
@@ -65,8 +67,19 @@ class BaseWorkflowModule(ABC):
         # Override in subclasses if needed
         pass
 
+    def _coerce_problem_input(self, problem: WorkflowProblemInput) -> PhysicsProblem:
+        """Normalize direct module inputs to a concrete ``PhysicsProblem``."""
+        if isinstance(problem, PhysicsProblem):
+            return problem
+        if isinstance(problem, dict):
+            return PhysicsProblem(
+                problem_id=str(problem.get("problem_id", "unknown")),
+                question=str(problem.get("question", "")),
+            )
+        return PhysicsProblem(problem_id="unknown", question=str(problem))
+
     @abstractmethod
-    def process(self, problem: PhysicsProblem, **kwargs) -> dict[str, Any] | None:
+    def process(self, problem: PhysicsProblem, **kwargs: Any) -> dict[str, Any] | None:
         """
         Process a single problem.
 
@@ -79,9 +92,25 @@ class BaseWorkflowModule(ABC):
         """
         raise NotImplementedError(f"{self.__class__} must implement process()")
 
+    @overload
     def run(
-        self, problem: PhysicsProblem, problem_as_output: bool = True, **kwargs
-    ) -> PhysicsProblem | dict[str, Any]:
+        self,
+        problem: PhysicsProblem,
+        problem_as_output: Literal[True] = True,
+        **kwargs: Any,
+    ) -> PhysicsProblem: ...
+
+    @overload
+    def run(
+        self,
+        problem: PhysicsProblem,
+        problem_as_output: Literal[False],
+        **kwargs: Any,
+    ) -> dict[str, Any] | None: ...
+
+    def run(
+        self, problem: PhysicsProblem, problem_as_output: bool = True, **kwargs: Any
+    ) -> PhysicsProblem | dict[str, Any] | None:
         """
         Run the module on a single problem.
 
@@ -121,7 +150,7 @@ class BaseWorkflowModule(ABC):
                 # Update validity_count if result_validity is set (optional feature)
                 if self.module_status.get("result_validity") == "VALID":
                     self.module_status["validity_count"] = (
-                        self.module_status.get("validity_count", 0) + 1
+                        int(self.module_status.get("validity_count", 0)) + 1
                     )
             else:
                 # Processing failed (returned None)
@@ -151,11 +180,19 @@ class BaseWorkflowModule(ABC):
         # (results are stored in workflow_results.json, not workflow_status.json)
 
         # Handle output formatting
+        output: PhysicsProblem | dict[str, Any] | None
         if problem_as_output:
             # Only try to form output as problem if we have a valid result
             if result is not None:
                 self.logger.info(f"Result: {type(result)}")
-                output = self._form_output_as_a_problem(result=result, problem=problem)
+                formed_output = self._form_output_as_a_problem(
+                    result=result, problem=problem
+                )
+                if not isinstance(formed_output, PhysicsProblem):
+                    raise TypeError(
+                        "_form_output_as_a_problem must return PhysicsProblem"
+                    )
+                output = formed_output
             else:
                 # If no result, return the original problem (or a copy)
                 output = problem.copy()
@@ -172,8 +209,8 @@ class BaseWorkflowModule(ABC):
 
     @abstractmethod
     def _form_output_as_a_problem(
-        self, result: Any, problem: PhysicsProblem
-    ) -> PhysicsProblem:
+        self, result: dict[str, Any], problem: PhysicsProblem
+    ) -> PhysicsProblem | dict[str, Any]:
         """
         Form the output as a PhysicsProblem object.
         """

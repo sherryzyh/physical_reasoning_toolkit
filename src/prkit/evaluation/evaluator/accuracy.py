@@ -20,7 +20,7 @@ from .base import BaseEvaluator
 class AccuracyEvaluator(BaseEvaluator):
     """Evaluator that uses a comparator to evaluate answers and datasets."""
 
-    def __init__(self, comparator: BaseComparator | None = None):
+    def __init__(self, comparator: BaseComparator | None = None) -> None:
         """
         Initialize the accuracy evaluator.
 
@@ -179,6 +179,7 @@ class AccuracyEvaluator(BaseEvaluator):
                     predicted_answer = predicted_answers[problem_id]
                 else:
                     # Use answer_extractor
+                    assert answer_extractor is not None
                     predicted_answer = answer_extractor(problem)
                     if predicted_answer is None:
                         failed_problems += 1

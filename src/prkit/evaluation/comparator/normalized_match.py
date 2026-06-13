@@ -73,7 +73,9 @@ class NormalizedMatchComparator(BaseComparator):
                 return False
             return norm1 == norm2
 
-    def accuracy_score(self, answer1: str | Answer, answer2: str | Answer) -> float:
+    def accuracy_score(
+        self, answer1: str | Answer, answer2: str | Answer, **kwargs: Any
+    ) -> float:
         """
         Compute accuracy score for normalized match comparison.
 
@@ -86,4 +88,4 @@ class NormalizedMatchComparator(BaseComparator):
         Returns:
             1.0 if answers match after normalization, 0.0 otherwise
         """
-        return 1.0 if self.compare(answer1, answer2) else 0.0
+        return 1.0 if self.compare(answer1, answer2, **kwargs) else 0.0

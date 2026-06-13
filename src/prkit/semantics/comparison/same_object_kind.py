@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 from ..schema import (
     AnswerComparison,
     AnswerObjectKind,
@@ -157,7 +159,7 @@ def _symbolic_compare(
     right: str | None,
     *,
     tolerance: float,
-    alias_map,
+    alias_map: Mapping[str, str] | None,
 ) -> bool:
     """Dispatch symbolic comparison to expression or relation matching."""
 
@@ -182,7 +184,7 @@ def _prediction_rhs_matches_expression(
     ref_fallback: str | None,
     *,
     context: PhysicsQuestionSemantics,
-    alias_map,
+    alias_map: Mapping[str, str] | None,
 ) -> bool:
     """Retry expression comparison against a prediction-side extracted RHS."""
 
@@ -222,7 +224,7 @@ def _relation_alternatives_match(
     ref_fallback: str | None,
     *,
     tolerance: float,
-    alias_map,
+    alias_map: Mapping[str, str] | None,
 ) -> bool:
     """Retry relation comparison across explicitly signposted equivalent forms."""
 
@@ -254,7 +256,7 @@ def _relation_compare_candidates(
     primary: str,
     fallback: str | None,
     *,
-    alias_map,
+    alias_map: Mapping[str, str] | None,
 ) -> tuple[str, ...]:
     """Collect unique relation-candidate surfaces from the available symbolic texts."""
 

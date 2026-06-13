@@ -18,7 +18,10 @@ from prkit.core import PRKitLogger
 from prkit.core.domain.answer import Answer
 from prkit.core.domain.answer_category import AnswerCategory
 from prkit.evaluation.utils.answer_utils import same_comparison_category
-from prkit.evaluation.utils.category_dispatch import compare_by_category
+from prkit.evaluation.utils.category_dispatch import (
+    SameCategoryCompareFn,
+    compare_by_category,
+)
 from prkit.evaluation.utils.compare_same_type import (
     compare_formula,
     compare_number,
@@ -54,7 +57,7 @@ class CategoryComparator(BaseComparator):
     the LLM judge but are ignored — this comparator does not call an LLM.
     """
 
-    DEFAULT_COMPARATORS = {
+    DEFAULT_COMPARATORS: dict[AnswerCategory, SameCategoryCompareFn] = {
         AnswerCategory.NUMBER: compare_number,
         AnswerCategory.EQUATION: compare_plain_text,
         AnswerCategory.PHYSICAL_QUANTITY: compare_physical_quantity,
@@ -63,7 +66,7 @@ class CategoryComparator(BaseComparator):
         AnswerCategory.OPTION: compare_option,
     }
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize with default category comparators."""
         self._comparators = dict(self.DEFAULT_COMPARATORS)
         self.logger = PRKitLogger.get_logger(__name__)

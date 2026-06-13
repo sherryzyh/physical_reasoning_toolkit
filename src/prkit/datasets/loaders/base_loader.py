@@ -11,7 +11,7 @@ import os
 import re
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from prkit.core import PRKitLogger
 from prkit.core.domain import PhysicalDataset, PhysicsProblem
@@ -19,20 +19,14 @@ from prkit.core.domain.answer import Answer
 from prkit.core.domain.answer_category import AnswerCategory
 
 # Try to import PIL/Pillow for image loading
+PILImageModule: Any | None
 try:
-    from PIL import Image
+    from PIL import Image as PILImageModule
 
     PIL_AVAILABLE = True
 except ImportError:
     PIL_AVAILABLE = False
-    Image = None
-
-# Type checking for Image
-if TYPE_CHECKING:
-    if PIL_AVAILABLE:
-        from PIL import Image as PILImage
-    else:
-        PILImage = Any  # type: ignore
+    PILImageModule = None
 
 # Get logger for this module
 logger = PRKitLogger.get_logger(__name__)
@@ -217,6 +211,12 @@ class BaseDatasetLoader(ABC):
     """
 
     @property
+    def name(self) -> str:
+        """Return the dataset name used in validation messages."""
+        name = self.get_info().get("name", self.__class__.__name__)
+        return name if isinstance(name, str) else self.__class__.__name__
+
+    @property
     def modalities(self) -> list[str]:
         """
         Get the list of modalities supported by this dataset.
@@ -239,7 +239,7 @@ class BaseDatasetLoader(ABC):
         pass
 
     @abstractmethod
-    def load(self, data_dir: str | Path, **kwargs) -> PhysicalDataset:
+    def load(self, data_dir: str | Path, **kwargs: Any) -> PhysicalDataset:
         """
         Load dataset from the specified directory.
 
@@ -273,7 +273,12 @@ class BaseDatasetLoader(ABC):
             Default variant string or None
         """
         info = self.get_info()
-        variants = info.get("variants", [])
+        variants_raw = info.get("variants", [])
+        variants = (
+            [str(variant) for variant in variants_raw]
+            if isinstance(variants_raw, list)
+            else []
+        )
         if not variants:
             return None
 
@@ -295,7 +300,10 @@ class BaseDatasetLoader(ABC):
             Default split string or None
         """
         info = self.get_info()
-        splits = info.get("splits", [])
+        splits_raw = info.get("splits", [])
+        splits = (
+            [str(split) for split in splits_raw] if isinstance(splits_raw, list) else []
+        )
         if not splits:
             return None
 
@@ -314,7 +322,10 @@ class BaseDatasetLoader(ABC):
             List of variant strings
         """
         info = self.get_info()
-        return info.get("variants", [])
+        variants = info.get("variants", [])
+        return (
+            [str(variant) for variant in variants] if isinstance(variants, list) else []
+        )
 
     def get_available_splits(self) -> list[str]:
         """
@@ -324,7 +335,8 @@ class BaseDatasetLoader(ABC):
             List of split strings
         """
         info = self.get_info()
-        return info.get("splits", [])
+        splits = info.get("splits", [])
+        return [str(split) for split in splits] if isinstance(splits, list) else []
 
     def validate_variant(self, variant: str) -> None:
         """
@@ -370,7 +382,7 @@ class BaseDatasetLoader(ABC):
         Returns:
             Dictionary with standardized field names
         """
-        metadata = {}
+        metadata: dict[str, Any] = {}
 
         for field, value in data.items():
             if field in self.field_mapping.keys():
@@ -527,21 +539,24 @@ class BaseDatasetLoader(ABC):
         metadata: dict[str, Any],
     ) -> Answer | None:
         answer = metadata.get("answer")
-        answer_category = metadata.get("answer_category", "")
-        problem_type = metadata.get("problem_type", "")
+        answer_category = str(metadata.get("answer_category", ""))
+        problem_type = str(metadata.get("problem_type", ""))
 
         if answer is None:
             return None
 
         if "MC" in problem_type:
-            return Answer(value=answer, answer_category=AnswerCategory.OPTION)
+            return Answer(
+                value=raw_answer_to_text(answer),
+                answer_category=AnswerCategory.OPTION,
+            )
 
         if answer_category in ("number", "physical_quantity"):
             if isinstance(answer, dict):
-                value = answer.get("value")
+                value = raw_answer_to_text(answer.get("value"))
                 unit = answer.get("unit", "") or ""
             else:
-                value = answer
+                value = raw_answer_to_text(answer)
                 unit = ""
 
             # remove \\boxed{} that wraps the value if present
@@ -556,15 +571,25 @@ class BaseDatasetLoader(ABC):
             )
             return Answer(value=value, answer_category=category, unit=unit or None)
         elif answer_category in ("formula", "equation"):
-            return Answer(value=answer, answer_category=AnswerCategory.FORMULA)
+            return Answer(
+                value=raw_answer_to_text(answer),
+                answer_category=AnswerCategory.FORMULA,
+            )
         elif answer_category == "text":
-            return Answer(value=answer, answer_category=AnswerCategory.TEXT)
+            return Answer(
+                value=raw_answer_to_text(answer),
+                answer_category=AnswerCategory.TEXT,
+            )
         elif answer_category == "option":
-            return Answer(value=answer, answer_category=AnswerCategory.OPTION)
+            return Answer(
+                value=raw_answer_to_text(answer),
+                answer_category=AnswerCategory.OPTION,
+            )
         else:
             # fallback to auto-detect when answer_category not specified
-            detected = detect_answer_category(answer)
-            return Answer(value=answer, answer_category=detected)
+            answer_text = raw_answer_to_text(answer)
+            detected = detect_answer_category(answer_text)
+            return Answer(value=answer_text, answer_category=detected)
 
     def create_physics_problem(
         self,
@@ -582,54 +607,59 @@ class BaseDatasetLoader(ABC):
             PhysicsProblem instance
         """
         # Extract core fields from metadata
-        problem_id = metadata.get("problem_id")
-        question = metadata.get("question")
-        solution = metadata.get("solution")
-        problem_type = metadata.get("problem_type", "OE")
+        problem_id = str(metadata.get("problem_id") or "")
+        question = str(metadata.get("question") or "")
+        solution_raw = metadata.get("solution")
+        solution = None if solution_raw is None else str(solution_raw)
+        problem_type = str(metadata.get("problem_type") or "OE")
         domain = metadata.get("domain")
-        language = metadata.get("language")
-        options = metadata.get("options")
-        correct_option = metadata.get("correct_option")
+        language = self._normalize_language(metadata.get("language") or "en")
+        options_raw = metadata.get("options")
+        options = (
+            [str(option) for option in options_raw]
+            if isinstance(options_raw, list)
+            else None
+        )
+        correct_option_raw = metadata.get("correct_option")
+        correct_option = (
+            int(correct_option_raw) if isinstance(correct_option_raw, int) else None
+        )
         # Support both image_paths (preferred) and image_path (legacy) for backward compatibility
-        image_paths = metadata.get("image_paths") or metadata.get("image_path")
+        image_paths_raw = metadata.get("image_paths") or metadata.get("image_path")
+        image_paths: list[str] = []
 
         # Normalize image_paths to a list of strings and resolve relative paths
-        if image_paths is not None:
-            if isinstance(image_paths, str):
+        if image_paths_raw is not None:
+            if isinstance(image_paths_raw, str):
                 # Try to parse as string representation of list (e.g., "['path1', 'path2']")
-                image_paths_str = image_paths.strip()
+                image_paths_str = image_paths_raw.strip()
                 if image_paths_str.startswith("[") and image_paths_str.endswith("]"):
                     try:
                         # Use ast.literal_eval to safely parse the string representation
                         parsed = ast.literal_eval(image_paths_str)
                         if isinstance(parsed, list):
-                            image_paths = parsed
+                            image_paths = [str(path) for path in parsed if path]
                         else:
                             # Single value in brackets, convert to list
-                            image_paths = [parsed] if parsed else None
+                            image_paths = [str(parsed)] if parsed else []
                     except (ValueError, SyntaxError):
                         # If parsing fails, treat as single path string
-                        image_paths = [image_paths_str] if image_paths_str else None
+                        image_paths = [image_paths_str] if image_paths_str else []
                 else:
                     # Single string: convert to list if not empty
-                    image_paths = [image_paths_str] if image_paths_str else None
-            elif isinstance(image_paths, list):
+                    image_paths = [image_paths_str] if image_paths_str else []
+            elif isinstance(image_paths_raw, list):
                 # Already a list: filter out empty strings and None values
                 image_paths = [
                     path
-                    for path in image_paths
+                    for path in image_paths_raw
                     if path and (isinstance(path, str) and path.strip())
                 ]
-                # Return None if list becomes empty
-                image_paths = image_paths if image_paths else None
-            else:
-                # Invalid type: set to None
-                image_paths = None
 
             # Resolve relative paths by joining with data_dir if provided
             if image_paths and data_dir is not None:
                 data_dir_path = Path(data_dir)
-                resolved_paths = []
+                resolved_paths: list[str] = []
                 for path in image_paths:
                     path_obj = Path(path)
                     # Only resolve if path is relative (not absolute)
@@ -639,7 +669,7 @@ class BaseDatasetLoader(ABC):
                     else:
                         # Keep absolute paths as-is
                         resolved_paths.append(path)
-                image_paths = resolved_paths if resolved_paths else None
+                image_paths = resolved_paths
 
         if "source_answer_text" not in metadata:
             source_answer_text = raw_answer_to_text(metadata.get("answer"))
@@ -692,7 +722,7 @@ class BaseDatasetLoader(ABC):
 
     @staticmethod
     def resolve_data_dir(
-        data_dir: str | Path | None = None, default_subdir: str = None
+        data_dir: str | Path | None = None, default_subdir: str | None = None
     ) -> Path:
         """
         Resolve data directory with support for DATASET_CACHE_DIR environment variable.
@@ -799,7 +829,7 @@ class BaseDatasetLoader(ABC):
         if not paths_list:
             return []
 
-        loaded_images = []
+        loaded_images: list[Any] = []
         for path in paths_list:
             path_obj = Path(path)
 
@@ -818,7 +848,12 @@ class BaseDatasetLoader(ABC):
 
             # Load the image
             try:
-                image = Image.open(path_obj)
+                if PILImageModule is None:
+                    raise ImportError(
+                        "PIL/Pillow is required to load images. "
+                        "Install it with: pip install Pillow"
+                    )
+                image = PILImageModule.open(path_obj)
                 # Convert to RGB if necessary (handles RGBA, P, etc.)
                 if image.mode not in ("RGB", "L"):
                     image = image.convert("RGB")

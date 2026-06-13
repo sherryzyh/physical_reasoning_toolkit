@@ -6,7 +6,12 @@ import base64
 
 import pytest
 
-from prkit.core.model_clients.utils import encode_image_to_base64
+from prkit.core.model_clients.utils import (
+    detect_image_mime_type,
+    encode_image_to_base64,
+    parse_data_url,
+    prepare_image_url_from_path,
+)
 
 
 class TestEncodeImageToBase64:
@@ -127,3 +132,65 @@ class TestEncodeImageToBase64:
         # Base64 should only contain A-Z, a-z, 0-9, +, /, and = for padding
         base64_pattern = re.compile(r"^[A-Za-z0-9+/]*={0,2}$")
         assert base64_pattern.match(result) is not None
+
+
+class TestImageHelpers:
+    """Test shared image helper functions."""
+
+    @pytest.mark.parametrize(
+        ("filename", "expected"),
+        [
+            ("image.jpg", "image/jpeg"),
+            ("image.jpeg", "image/jpeg"),
+            ("image.png", "image/png"),
+            ("image.gif", "image/gif"),
+            ("image.webp", "image/webp"),
+            ("image.unknown", "image/jpeg"),
+            ("IMAGE.PNG", "image/png"),
+        ],
+    )
+    def test_detect_image_mime_type(self, filename, expected):
+        assert detect_image_mime_type(filename) == expected
+
+    def test_parse_data_url(self):
+        assert parse_data_url("data:image/png;base64,ZmFrZQ==") == {
+            "media_type": "image/png",
+            "data": "ZmFrZQ==",
+        }
+
+    def test_parse_data_url_defaults_empty_media_type_to_jpeg(self):
+        assert parse_data_url("data:;base64,ZmFrZQ==") == {
+            "media_type": "image/jpeg",
+            "data": "ZmFrZQ==",
+        }
+
+    @pytest.mark.parametrize(
+        "data_url",
+        ["image/png;base64,ZmFrZQ==", "data:image/png,ZmFrZQ=="],
+    )
+    def test_parse_data_url_rejects_malformed_urls(self, data_url):
+        with pytest.raises(ValueError):
+            parse_data_url(data_url)
+
+    def test_prepare_image_url_from_path_keeps_http_urls(self):
+        assert (
+            prepare_image_url_from_path("https://example.com/image.png")
+            == "https://example.com/image.png"
+        )
+
+    def test_prepare_image_url_from_path_keeps_data_urls(self):
+        data_url = "data:image/jpeg;base64,/9j/4AAQSkZJRg=="
+        assert prepare_image_url_from_path(data_url) == data_url
+
+    def test_prepare_image_url_from_path_encodes_local_file(self, tmp_path):
+        image_file = tmp_path / "test.png"
+        image_file.write_bytes(b"fake png data")
+
+        image_url = prepare_image_url_from_path(str(image_file))
+
+        assert image_url.startswith("data:image/png;base64,")
+        assert base64.b64decode(image_url.split(",", 1)[1]) == b"fake png data"
+
+    def test_prepare_image_url_from_path_missing_file_raises(self):
+        with pytest.raises(FileNotFoundError):
+            prepare_image_url_from_path("/nonexistent/image.jpg")

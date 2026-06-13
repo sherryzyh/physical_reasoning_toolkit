@@ -98,7 +98,9 @@ def _parse_numeric_base(text: str) -> float | None:
     sci_10_match = _SCI_10_RE.fullmatch(cleaned)
     if sci_10_match:
         try:
-            return float(sci_10_match.group(1)) * (10 ** int(sci_10_match.group(2)))
+            coefficient: float = float(sci_10_match.group(1))
+            exponent: int = int(sci_10_match.group(2))
+            return coefficient * (10.0**exponent)
         except ValueError:
             return None
 

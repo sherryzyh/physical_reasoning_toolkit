@@ -60,7 +60,7 @@ class SeePhysDownloader(BaseDownloader):
         data_dir: str | Path | None = None,
         force: bool = False,
         split: str | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> Path:
         """
         Download the SeePhys dataset from HuggingFace.
@@ -94,7 +94,7 @@ class SeePhysDownloader(BaseDownloader):
         self,
         download_dir: Path,
         split: str = "train",
-        **kwargs,
+        **kwargs: Any,
     ) -> Path:
         """
         Perform the actual SeePhys dataset download.
