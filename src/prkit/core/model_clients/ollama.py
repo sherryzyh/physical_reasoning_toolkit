@@ -12,6 +12,7 @@ Prerequisites:
 import logging
 import os
 from typing import Any
+from urllib.parse import urlparse
 
 import ollama
 
@@ -22,6 +23,14 @@ from .structured_output import (
     StructuredOutputSpec,
     normalize_response_format,
 )
+
+
+def _is_remote_host(url: str | None) -> bool:
+    """Return True when *url* points to a non-local host."""
+    if not url:
+        return False
+    hostname = (urlparse(url).hostname or "").lower()
+    return hostname not in ("localhost", "127.0.0.1", "0.0.0.0")
 
 
 def normalize_ollama_model_name(model: str) -> str:
@@ -68,6 +77,9 @@ class OllamaModel(BaseModelClient):
         model: str,
         logger: logging.Logger | None = None,
         base_url: str | None = None,
+        *,
+        api_key: str | None = None,
+        api_key_env: str | None = None,
     ) -> None:
         """
         Initialize Ollama model client.
@@ -77,38 +89,72 @@ class OllamaModel(BaseModelClient):
                 - Raw model name: 'qwen3-vl', 'qwen2.5', 'llava'
                 - Prefixed form: 'ollama/qwen3-vl:8b'
             logger: Optional logger instance
-            base_url: Optional base URL for Ollama API (defaults to http://localhost:11434)
+            base_url: Optional base URL for Ollama API (defaults to http://localhost:11434,
+                      or ``OLLAMA_HOST`` env var). Use ``https://ollama.com`` for cloud.
+            api_key: Explicit API key forwarded as an ``Authorization: Bearer`` header.
+                     Takes precedence over ``api_key_env``. When omitted the library falls
+                     back to the ``OLLAMA_API_KEY`` environment variable automatically.
+            api_key_env: Name of an environment variable to read the API key from.
+                         Used when ``api_key`` is not supplied.
 
         Raises:
-            ConnectionError: If Ollama service is not running or unreachable
+            ConnectionError: If Ollama service is not running or unreachable (local hosts only;
+                             remote hosts emit a warning and continue).
         """
         super().__init__(normalize_ollama_model_name(model), logger)
         self.provider = "ollama"
         self.base_url = base_url
-        # The ollama-python library uses a default client pointing to localhost:11434
-        # but you can also use ollama.Client(host='...') if needed.
+
+        # Resolve explicit auth — lib auto-injects OLLAMA_API_KEY when not set here.
+        if api_key is not None:
+            self._auth_header: str | None = f"Bearer {api_key}"
+        elif api_key_env is not None:
+            env_val = os.environ.get(api_key_env)
+            self._auth_header = f"Bearer {env_val}" if env_val else None
+        else:
+            self._auth_header = None
 
         # Check if Ollama is running during initialization
         self._check_ollama_running()
+
+    def _client_options(self) -> dict[str, Any]:
+        """Build keyword args for ``ollama.Client`` from resolved instance state."""
+        opts: dict[str, Any] = {}
+        if self.base_url:
+            opts["host"] = self.base_url
+        if self._auth_header is not None:
+            # Use lowercase key so the lib's env-injection guard (which checks
+            # headers.get('authorization')) suppresses duplicate auth injection.
+            opts["headers"] = {"authorization": self._auth_header}
+        return opts
 
     def _check_ollama_running(self) -> None:
         """
         Check if Ollama service is running and accessible.
 
+        For remote hosts a failed preflight emits a warning instead of raising,
+        since network conditions differ and chat() will surface precise errors
+        at call time.
+
         Raises:
-            ConnectionError: If Ollama service is not running or unreachable
+            ConnectionError: If Ollama service is not running on a local host.
         """
+        effective_host = self.base_url or os.environ.get("OLLAMA_HOST")
         try:
-            # Try to list models as a simple connectivity check
-            if self.base_url:
-                client = ollama.Client(host=self.base_url)
-            else:
-                client = ollama.Client()
+            client = ollama.Client(**self._client_options())
             client.list()
         except Exception as e:
+            if _is_remote_host(effective_host):
+                self.logger.warning(
+                    "Remote Ollama host %s preflight failed (%s). "
+                    "Continuing — errors will surface at inference time.",
+                    effective_host,
+                    e,
+                )
+                return
             error_msg = (
                 f"Ollama service is not running or unreachable at "
-                f"{self.base_url or 'http://localhost:11434'}. "
+                f"{effective_host or 'http://localhost:11434'}. "
                 f"Please ensure Ollama is installed and running.\n"
                 f"To start Ollama:\n"
                 f"  1. Install Ollama from https://ollama.com/download\n"
@@ -195,10 +241,10 @@ class OllamaModel(BaseModelClient):
             if request_format is not None:
                 request_kwargs["format"] = request_format
 
-            # Use Client if base_url is specified, otherwise use default
-            if self.base_url:
-                client = ollama.Client(host=self.base_url)
-                response = client.chat(**request_kwargs)
+            # Use Client when explicit options are set; fall back to module-level otherwise.
+            opts = self._client_options()
+            if opts:
+                response = ollama.Client(**opts).chat(**request_kwargs)
             else:
                 response = ollama.chat(**request_kwargs)
 

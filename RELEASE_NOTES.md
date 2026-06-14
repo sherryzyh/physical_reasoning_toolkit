@@ -1,3 +1,30 @@
+## Physical Reasoning Toolkit — Next Release
+
+### Highlights
+
+**Custom endpoint flexibility for model clients.** `OpenAIModel` now accepts `base_url`,
+`api_key`, and `api_key_env` keyword arguments, making it straightforward to route traffic
+to a proxy or gateway that fronts the OpenAI Responses API without subclassing. `OllamaModel`
+gains the same `api_key` / `api_key_env` params for cloud endpoints (e.g. `ollama.com`),
+and its startup connectivity check now treats remote hosts gracefully — a failed preflight
+warns instead of raising, so cloud usage no longer requires suppressing the connection check.
+
+**`DatasetHub` registration-ordering bug fixed.** Calling `DatasetHub.register(name, Loader)`
+before any built-in was touched previously caused all built-in loaders and downloaders to be
+silently omitted. Built-ins are now seeded idempotently at the start of every public method.
+External registrations can now happen in any order and are safe alongside built-in datasets.
+
+**Extending prkit — documented stable API.** `DATASETS.md` and `CORE.md` now document the
+supported extension points: registering a `DatasetHub` loader or downloader from outside the
+package, local-directory loading without a paired downloader, custom-endpoint construction for
+`OpenAIModel` and `OllamaModel`, and adding new providers via `register_model_client`.
+
+**JSON-extraction consolidation (internal).** Three near-duplicate "extract JSON from model
+text" implementations have been removed. All call sites delegate to the single tested
+canonical helper in `prkit.core.model_clients.structured_output`. No public API change.
+
+---
+
 ## Physical Reasoning Toolkit v0.1.0
 
 First release of **PRKit**—a unified toolkit for AI physical reasoning research. PRKit provides shared abstractions for physics problems, model inference, evaluation, and structured annotation workflows.

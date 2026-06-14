@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
+requires = ["setuptools>=77.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -7,7 +7,7 @@ name = "physical-reasoning-toolkit"
 version = "0.1.0.post22"
 description = "A toolkit for physical-reasoning datasets, multi-provider LLM inference, answer evaluation, and annotation."
 readme = {file = "README.md", content-type = "text/markdown"}
-license = {text = "MIT"}
+license = "MIT"
 authors = [
     {name = "Yinghuan Zhang", email = "yinghuan.flash@gmail.com"}
 ]
@@ -25,7 +25,6 @@ classifiers = [
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
     "Intended Audience :: Education",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",

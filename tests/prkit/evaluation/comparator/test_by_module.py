@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from unittest.mock import patch
+
 import pytest
 
 from prkit.evaluation.comparator.by_module import (
@@ -31,7 +33,8 @@ def test_build_exact_match() -> None:
     assert isinstance(c, ExactMatchComparator)
 
 
-def test_build_typed_llm_uses_model() -> None:
+@patch("prkit.evaluation.llm_judge.runner.OpenAI")
+def test_build_typed_llm_uses_model(mock_openai) -> None:
     c = build_comparator("typed_llm", model="gpt-4.1-mini")
     assert isinstance(c, TypedLLMComparator)
     assert c.model_name == "gpt-4.1-mini"

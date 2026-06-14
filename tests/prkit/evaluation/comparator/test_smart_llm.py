@@ -1,5 +1,7 @@
 """Tests for SmartLLMComparator: deterministic SmartMatch path + LLM fallback metadata."""
 
+from unittest.mock import patch
+
 import pytest
 
 from prkit.evaluation.comparator.smart_llm import SmartLLMComparator
@@ -10,6 +12,11 @@ from prkit.evaluation.llm_judge import (
 
 
 class TestSmartLLMComparator:
+    @pytest.fixture(autouse=True)
+    def _mock_openai(self):
+        with patch("prkit.evaluation.llm_judge.runner.OpenAI"):
+            yield
+
     def test_match_records_smart_match_source(self):
         comp = SmartLLMComparator()
         assert comp.compare("42", "42") is True

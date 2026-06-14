@@ -195,6 +195,81 @@ text = client.chat(
 print(text)
 ```
 
+#### Custom OpenAI Responses-API endpoints
+
+`OpenAIModel` accepts `base_url` and `api_key` / `api_key_env` keyword arguments for
+routing to a proxy or gateway that implements the OpenAI **Responses API**
+(`POST /v1/responses`). These are **not** available through `create_model_client` (which
+is routing-only); construct `OpenAIModel` directly:
+
+```python
+from prkit.core.model_clients.openai import OpenAIModel
+
+# Explicit key + custom endpoint
+client = OpenAIModel("gpt-4.1-mini", base_url="https://gw.example/v1", api_key="sk-…")
+
+# Key from a named env var
+client = OpenAIModel("gpt-4.1-mini", base_url="https://gw.example/v1", api_key_env="GW_KEY")
+
+# No args → uses OPENAI_API_KEY and the default OpenAI endpoint (backward-compatible)
+client = OpenAIModel("gpt-4.1-mini")
+```
+
+Key-resolution precedence: explicit `api_key` → `api_key_env` env lookup → `OPENAI_API_KEY`.
+Omitting `base_url` lets the OpenAI SDK default apply (honouring `OPENAI_BASE_URL` if set).
+
+> **Note:** `OpenAIModel` only calls `client.responses.create` (the Responses API). It is not
+> suitable for Chat-Completions-only gateways.
+
+#### Ollama local and cloud usage
+
+`OllamaModel` supports both local Ollama runtimes and cloud endpoints. The `base_url` and
+`api_key` / `api_key_env` keyword arguments give explicit control over the connection:
+
+```python
+from prkit.core.model_clients.ollama import OllamaModel
+
+# Local (default: http://localhost:11434 or OLLAMA_HOST env)
+client = OllamaModel("qwen3-vl:8b")
+
+# Local with explicit host
+client = OllamaModel("qwen3-vl:8b", base_url="http://192.168.1.10:11434")
+
+# Cloud endpoint with explicit key
+client = OllamaModel("llama3:70b-cloud", base_url="https://ollama.com", api_key="ol-…")
+
+# Cloud endpoint with key from env var
+client = OllamaModel("llama3:70b-cloud", base_url="https://ollama.com", api_key_env="OLLAMA_CLOUD_KEY")
+
+# Env-var auth only (lib auto-reads OLLAMA_API_KEY when api_key/api_key_env not supplied)
+client = OllamaModel("llama3:70b-cloud", base_url="https://ollama.com")
+```
+
+Key-resolution precedence: explicit `api_key` → `api_key_env` env lookup → library
+auto-reads `OLLAMA_API_KEY`. For remote hosts (`base_url` pointing to a non-localhost
+address) a failed startup preflight emits a warning instead of raising `ConnectionError`;
+precise errors surface at `chat()` call time.
+
+#### Registering additional providers
+
+Use `register_model_client` to add new providers or override routing without modifying
+built-in code:
+
+```python
+from prkit.core.model_clients import register_model_client
+from prkit.core.model_clients.factory import ProviderRule
+
+def _load_my_provider(model: str, logger):
+    from my_package import MyClient
+    return MyClient(model, logger)
+
+register_model_client(ProviderRule(
+    name="my_provider",
+    match=lambda model: model.startswith("my-"),
+    load=_load_my_provider,
+))
+```
+
 ### PRKitLogger
 
 Centralized logger for consistent logging across PRKit packages. Provides colored console output, optional file logging, and environment-based configuration via `PRKIT_LOG_LEVEL`, `PRKIT_LOG_FILE`, `PRKIT_LOG_CONSOLE`, `PRKIT_LOG_COLORS`. Default log file: `{cwd}/prkit_logs/prkit.log`.

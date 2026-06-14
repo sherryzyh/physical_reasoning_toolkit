@@ -545,3 +545,75 @@ To add a new dataset:
 5. Add dataset information to this documentation
 
 See existing loaders in `src/prkit/datasets/loaders/` for examples.
+
+## Extending DatasetHub from External Code
+
+`DatasetHub` supports external loaders and downloaders registered at runtime — no fork or
+subclass needed.
+
+### Registering an external loader
+
+```python
+from prkit.datasets import DatasetHub
+from prkit.datasets.loaders.base_loader import BaseDatasetLoader
+from prkit.core.domain import PhysicalDataset, PhysicsProblem
+
+class MyLoader(BaseDatasetLoader):
+    @property
+    def field_mapping(self):
+        return {}
+
+    def get_info(self):
+        return {
+            "name": "my_dataset",
+            "variants": ["full"],
+            "splits": ["full"],
+        }
+
+    def load(self, data_dir=None, **kwargs):
+        # Read from data_dir and return a PhysicalDataset
+        ...
+
+DatasetHub.register("my_dataset", MyLoader)
+```
+
+After registration all hub methods (`load`, `get_info`, `list_available`) recognise
+`"my_dataset"`. Built-in loaders are always present regardless of registration order.
+
+### Loading from a local directory (no downloader)
+
+A loader does **not** require a paired downloader. Pass `data_dir` to read from a local
+path directly, bypassing any download step:
+
+```python
+dataset = DatasetHub.load("my_dataset", data_dir="/path/to/data")
+```
+
+This works even when no `BaseDownloader` is registered for the name.
+
+### Registering an external downloader
+
+```python
+from prkit.datasets.downloaders.base_downloader import BaseDownloader
+
+class MyDownloader(BaseDownloader):
+    @property
+    def dataset_name(self):
+        return "my_dataset"
+
+    @property
+    def download_info(self):
+        return {"variants": ["full"], "splits": ["full"]}
+
+    def _do_download(self, download_dir, **kwargs):
+        # Download logic — return download_dir when done
+        return download_dir
+
+    def verify(self, data_dir):
+        return True
+
+DatasetHub.register_downloader("my_dataset", MyDownloader)
+```
+
+With a downloader registered, `DatasetHub.load("my_dataset", auto_download=True)` will
+trigger `MyDownloader` when the data directory is missing.

@@ -9,6 +9,10 @@ Production releases follow semantic versioning. TestPyPI validation builds use P
 
 ### Added
 
+- **`OpenAIModel` custom endpoint support** — new keyword-only constructor params `base_url`, `api_key`, and `api_key_env` allow routing to any proxy or gateway that implements the OpenAI Responses API (`POST /v1/responses`) with an explicit key or key from a named environment variable. Backward-compatible: omitting all three preserves existing `OPENAI_API_KEY` + default endpoint behaviour.
+- **`OllamaModel` explicit auth params** — new keyword-only constructor params `api_key` and `api_key_env` forward a `Bearer` token as the `Authorization` header to `ollama.Client`, providing API-key parity with other providers. Works for cloud endpoints (e.g. `base_url="https://ollama.com"`).
+- **Remote-safe Ollama preflight** — when `base_url` or `OLLAMA_HOST` points to a non-local host, a failed startup connectivity check now emits a warning instead of raising `ConnectionError`; precise errors surface at `chat()` call time.
+- **"Extending prkit" contract documented** — `DATASETS.md` and `CORE.md` now document the stable external extension points: registering a custom `DatasetHub` loader/downloader from outside the package, local-directory loading without a downloader, `OpenAIModel` / `OllamaModel` custom-endpoint construction, and `register_model_client` for additional providers.
 - **`prkit` command-line interface** (`prkit list`, `prkit info <dataset>`, `prkit download <dataset>`, `prkit --version`) for dataset workflows, installed via the `prkit` console script.
 - PEP 561 typing support: ships a `py.typed` marker and the `Typing :: Typed` classifier.
 - `ruff` linting + import sorting, a `.pre-commit-config.yaml`, a `Makefile`, and GitHub Actions CI (lint, format check, type check, tests on Python 3.10–3.12) plus a release workflow.
@@ -30,8 +34,13 @@ Production releases follow semantic versioning. TestPyPI validation builds use P
 - Coverage enforcement for `prkit` now uses a 60% minimum and keeps unit tests in pytest format.
 - Provider-model test targets were updated for OpenAI, Gemini, Anthropic, Ollama, DeepSeek, xAI, and DashScope clients.
 
+### Changed
+
+- **(internal)** Model-output JSON extraction consolidated: the duplicate `extract_json_object` in `prkit.evaluation.llm_judge.parse` and the unreachable helpers `_iter_braced_json_candidates`, `_try_parse_json_object`, `_JSON_FENCE_RE`, and the thin `_extract_json_object` wrapper in `prkit.semantics.inference.calls` are removed. All call sites now delegate to the single canonical `extract_json_object` / `extract_json_payload` in `prkit.core.model_clients.structured_output`. Public API and parsing semantics are unchanged.
+
 ### Fixed
 
+- **`DatasetHub` registration-ordering bug** — calling `DatasetHub.register(name, Loader)` before any built-in dataset was touched caused all built-in loaders and downloaders to be permanently suppressed. Built-ins are now seeded idempotently (via `setdefault`) at the start of every public mutating method, so external registrations can safely happen in any order.
 - JEEBench loader handling for numeric answer categories and retained metadata.
 - Workflow module behavior in domain assessment, theorem review, and workflow composition paths.
 

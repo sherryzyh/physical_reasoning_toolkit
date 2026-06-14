@@ -2,6 +2,7 @@
 Tests for OpenAI model client.
 """
 
+import os
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
@@ -66,15 +67,19 @@ class TestOpenAIModelValidation:
 class TestOpenAIModel:
     """Test cases for OpenAIModel class."""
 
-    def test_init_supported_model(self):
+    @patch("prkit.core.model_clients.openai.OpenAI")
+    def test_init_supported_model(self, mock_openai_class):
         """Test initializing with supported model."""
+        mock_openai_class.return_value = MagicMock()
         client = OpenAIModel(OPENAI_TEST_MODEL)
         assert client.model == OPENAI_TEST_MODEL
         assert client.provider == "openai"
         assert client.is_o_family is False
 
-    def test_init_o_family_model(self):
+    @patch("prkit.core.model_clients.openai.OpenAI")
+    def test_init_o_family_model(self, mock_openai_class):
         """Test initializing with o-family model."""
+        mock_openai_class.return_value = MagicMock()
         client = OpenAIModel("o3")
         assert client.model == "o3"
         assert client.is_o_family is True
@@ -421,3 +426,37 @@ class TestPrepareImageURL:
         assert _is_o_family_model("openai") is False  # 'o' but not followed by digit
         assert _is_o_family_model("o") is False  # Too short
         assert _is_o_family_model("oa") is False  # 'o' followed by letter
+
+
+class TestOpenAIModelCustomEndpoint:
+    """Test custom endpoint / API key params on OpenAIModel."""
+
+    @patch("prkit.core.model_clients.openai.OpenAI")
+    def test_explicit_base_url_and_api_key_forwarded(self, mock_openai_class):
+        """Explicit base_url and api_key are passed directly to the OpenAI SDK client."""
+        mock_openai_class.return_value = MagicMock()
+        OpenAIModel(
+            OPENAI_TEST_MODEL,
+            base_url="https://gw.example/v1",
+            api_key="explicit-key",
+        )
+        _, kwargs = mock_openai_class.call_args
+        assert kwargs["base_url"] == "https://gw.example/v1"
+        assert kwargs["api_key"] == "explicit-key"
+
+    @patch("prkit.core.model_clients.openai.OpenAI")
+    def test_api_key_env_resolves_named_var(self, mock_openai_class):
+        """api_key_env reads the key from the named environment variable."""
+        mock_openai_class.return_value = MagicMock()
+        with patch.dict(os.environ, {"MY_CUSTOM_KEY": "env-key-value"}):
+            OpenAIModel(OPENAI_TEST_MODEL, api_key_env="MY_CUSTOM_KEY")
+        _, kwargs = mock_openai_class.call_args
+        assert kwargs["api_key"] == "env-key-value"
+
+    @patch("prkit.core.model_clients.openai.OpenAI")
+    def test_omitting_base_url_does_not_forward_it(self, mock_openai_class):
+        """Omitting base_url must not pass base_url= to the SDK (backward-compat guard)."""
+        mock_openai_class.return_value = MagicMock()
+        OpenAIModel(OPENAI_TEST_MODEL)
+        _, kwargs = mock_openai_class.call_args
+        assert "base_url" not in kwargs

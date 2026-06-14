@@ -16,6 +16,7 @@ import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from ..exceptions import UnknownModelError
 from .base import BaseModelClient
 
 ModelMatcher = Callable[[str], bool]
@@ -76,7 +77,7 @@ def _load_gpt(model: str, logger: logging.Logger | None) -> BaseModelClient:
     from .openai import OpenAIModel, _is_supported_openai_model
 
     if not _is_supported_openai_model(model):
-        raise ValueError(
+        raise UnknownModelError(
             f"Unsupported OpenAI model: {model}. "
             "Supported OpenAI models: gpt-4.1, gpt-5xxxx (gpt-5.1, gpt-5.2, etc.), "
             "and o-family (o3, o4, o4-mini, etc.)"
@@ -145,7 +146,7 @@ def create_model_client(
     for rule in _PROVIDER_RULES:
         if rule.matches(model_lower):
             return rule.load(model, logger)
-    raise ValueError(
+    raise UnknownModelError(
         f"Unknown model: {model}. "
         "Supported models: OpenAI (gpt-4.1, gpt-5xxxx, o-family), "
         "Anthropic (claude-*), Google (gemini-*), DeepSeek (deepseek-*), "

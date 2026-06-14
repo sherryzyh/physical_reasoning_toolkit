@@ -2,6 +2,7 @@
 Tests for Ollama model client.
 """
 
+import os
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
@@ -352,3 +353,83 @@ class TestOllamaModel:
 
         client = OllamaModel(OLLAMA_QWEN_TEST_MODEL, logger=logger)
         assert client.logger == logger
+
+
+class TestOllamaModelCloudAuth:
+    """Tests for explicit api_key / api_key_env params and remote-safe preflight."""
+
+    @patch("prkit.core.model_clients.ollama.ollama")
+    def test_explicit_api_key_forwarded_as_auth_header(self, mock_ollama_module):
+        """Explicit api_key is sent as a lowercase authorization header to ollama.Client."""
+        mock_client = MagicMock()
+        mock_client.list.return_value = []
+        mock_ollama_module.Client.return_value = mock_client
+
+        OllamaModel(
+            OLLAMA_QWEN_TEST_MODEL,
+            base_url="https://ollama.com",
+            api_key="test-cloud-key",
+        )
+
+        _, kwargs = mock_ollama_module.Client.call_args
+        assert kwargs["host"] == "https://ollama.com"
+        assert kwargs["headers"] == {"authorization": "Bearer test-cloud-key"}
+
+    @patch("prkit.core.model_clients.ollama.ollama")
+    def test_api_key_env_resolves_named_var(self, mock_ollama_module):
+        """api_key_env reads the key from the named environment variable."""
+        mock_client = MagicMock()
+        mock_client.list.return_value = []
+        mock_ollama_module.Client.return_value = mock_client
+
+        with patch.dict(os.environ, {"MY_OLLAMA_KEY": "env-ollama-key"}):
+            OllamaModel(
+                OLLAMA_QWEN_TEST_MODEL,
+                base_url="https://ollama.com",
+                api_key_env="MY_OLLAMA_KEY",
+            )
+
+        _, kwargs = mock_ollama_module.Client.call_args
+        assert kwargs["headers"] == {"authorization": "Bearer env-ollama-key"}
+
+    @patch("prkit.core.model_clients.ollama.ollama")
+    def test_no_api_key_falls_back_to_module_level_chat(self, mock_ollama_module):
+        """Without base_url or api_key, chat falls back to module-level ollama.chat."""
+        mock_client = MagicMock()
+        mock_client.list.return_value = []
+        mock_ollama_module.Client.return_value = mock_client
+
+        mock_response = Mock()
+        mock_response.message = Mock()
+        mock_response.message.content = "Response"
+        mock_ollama_module.chat.return_value = mock_response
+
+        client = OllamaModel(OLLAMA_QWEN_TEST_MODEL)
+        client.chat("Hello")
+
+        mock_ollama_module.chat.assert_called_once()
+
+    @patch("prkit.core.model_clients.ollama.ollama")
+    def test_remote_host_preflight_failure_warns_not_raises(self, mock_ollama_module):
+        """A failed preflight against a remote host emits a warning but does not raise."""
+        mock_client = MagicMock()
+        mock_client.list.side_effect = Exception("Network unreachable")
+        mock_ollama_module.Client.return_value = mock_client
+
+        # Should not raise — remote host gets a warning instead
+        client = OllamaModel(
+            OLLAMA_QWEN_TEST_MODEL,
+            base_url="https://ollama.com",
+            api_key="k",
+        )
+        assert client.base_url == "https://ollama.com"
+
+    @patch("prkit.core.model_clients.ollama.ollama")
+    def test_local_host_preflight_failure_still_raises(self, mock_ollama_module):
+        """A failed preflight against a local host still raises ConnectionError."""
+        mock_client = MagicMock()
+        mock_client.list.side_effect = Exception("Connection refused")
+        mock_ollama_module.Client.return_value = mock_client
+
+        with pytest.raises(ConnectionError, match="Ollama service is not running"):
+            OllamaModel(OLLAMA_QWEN_TEST_MODEL)
