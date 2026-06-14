@@ -4,17 +4,21 @@ from __future__ import annotations
 
 import pytest
 
+from prkit.core import (
+    ModelClientError as CoreModelClientError,
+)
+from prkit.core import (
+    PRKitError as CorePRKitError,
+)
+from prkit.core import (
+    UnknownModelError as CoreUnknownModelError,
+)
 from prkit.core.exceptions import (
     ConfigError,
     DatasetError,
     ModelClientError,
     PRKitError,
     UnknownModelError,
-)
-from prkit.core import (
-    PRKitError as CorePRKitError,
-    UnknownModelError as CoreUnknownModelError,
-    ModelClientError as CoreModelClientError,
 )
 
 
