@@ -66,7 +66,7 @@ from prkit.core.model_clients import create_model_client
 dataset = DatasetHub.load("physreason", variant="full", split="test")
 client = create_model_client("gpt-4.1-mini")
 for problem in dataset[:3]:
-    print(client.chat(problem.question)[:200])
+    print(client.solve_physics_problem(problem)[:200])
 ```
 
 ### Requirements

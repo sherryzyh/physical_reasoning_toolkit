@@ -172,8 +172,8 @@ def run_inference(
             if client.provider == "google":
                 extra_kwargs["max_output_tokens"] = 65535
 
-            response_text = client.chat(
-                user_prompt=full_prompt,
+            response_text = client.response(
+                input=full_prompt,
                 image_paths=image_paths,
                 response_format=ReasonAndAnswer,
                 **extra_kwargs,

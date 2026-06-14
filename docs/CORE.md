@@ -166,7 +166,11 @@ Utility components provide supporting infrastructure used across the toolkit. Th
 
 ### Model Client (BaseModelClient, create_model_client)
 
-Unified interface for running inference across multiple providers (LLMs and VLMs). Subclasses implement `chat(user_prompt: str, image_paths: Optional[List[str]] = None)`. Use `create_model_client(model: str)` to get the right implementation based on the model name. Vision-capable providers consume `image_paths`; others ignore images with a warning.
+Unified interface for running inference across multiple providers (LLMs and VLMs). Subclasses implement `response(input: str, image_paths: Optional[List[str]] = None, *, instructions: Optional[str] = None)`, mirroring OpenAI's `client.responses.create` (`input` is the user prompt, `instructions` is the system prompt). Use `create_model_client(model: str)` to get the right implementation based on the model name. Vision-capable providers consume `image_paths`; others ignore images with a warning.
+
+When `instructions` is omitted, every provider **except OpenAI** falls back to a short default system prompt, `DEFAULT_INSTRUCTIONS` (`"You are a physics expert. …"`); OpenAI sends `input` alone. Pass `instructions=""` to suppress the system prompt entirely. The legacy `chat(user_prompt=...)` method still works as a deprecated alias for `response(input=...)` but emits a `DeprecationWarning`.
+
+For physics problems specifically, `solve_physics_problem()` builds the prompt and attaches images for you (see below).
 
 **Supported providers** (selected by model name pattern):
 
@@ -185,14 +189,44 @@ Unified interface for running inference across multiple providers (LLMs and VLMs
 from prkit.core.model_clients import create_model_client
 
 client = create_model_client("gpt-4.1-mini")
-print(client.chat("State Newton's second law in one sentence."))
+print(client.response("State Newton's second law in one sentence."))
 
 # Vision (optional)
-text = client.chat(
+text = client.response(
     "Solve the problem shown in the image and return only the final answer.",
     image_paths=["/absolute/path/to/problem.png"],
 )
 print(text)
+
+# Custom system prompt (sent as the provider's system/instructions field)
+print(client.response("List three SI base units.", instructions="Answer tersely."))
+```
+
+#### Asking a physics problem (`solve_physics_problem`)
+
+`solve_physics_problem()` is a convenience that builds the prompt and attaches any
+images, then calls `response()`. The input is dispatched on type: a plain `str`
+question, a `PhysicsProblem` (parsed into prompt text plus its `image_path`
+images), or — in a future release — a `PhysicsQuestionSemantics`. The
+`output_mode` selects the answer form; only `PhysicsOutputMode.ANSWER_TEXT` is
+implemented today.
+
+```python
+from prkit.core.domain import PhysicsProblem
+from prkit.core.model_clients import create_model_client
+
+client = create_model_client("gpt-4.1-mini")
+
+# From a plain question string
+print(client.solve_physics_problem("State Newton's second law in one sentence."))
+
+# From a PhysicsProblem (question + options + images are formatted for you)
+problem = PhysicsProblem(
+    problem_id="p1",
+    question="A 2 kg block accelerates at 3 m/s^2. What net force acts on it?",
+    problem_type="OE",
+)
+print(client.solve_physics_problem(problem))
 ```
 
 #### Custom OpenAI Responses-API endpoints
@@ -248,7 +282,7 @@ client = OllamaModel("llama3:70b-cloud", base_url="https://ollama.com")
 Key-resolution precedence: explicit `api_key` → `api_key_env` env lookup → library
 auto-reads `OLLAMA_API_KEY`. For remote hosts (`base_url` pointing to a non-localhost
 address) a failed startup preflight emits a warning instead of raising `ConnectionError`;
-precise errors surface at `chat()` call time.
+precise errors surface at `response()` call time.
 
 #### Registering additional providers
 

@@ -141,7 +141,7 @@ def run_inference(model_name: str, prompt: str, image_path: str = None):
         logger.info(f"   Images: {len(image_paths)} image(s)")
 
     try:
-        response = client.chat(user_prompt=prompt, image_paths=image_paths)
+        response = client.response(input=prompt, image_paths=image_paths)
 
         logger.info("\n" + "=" * 60)
         logger.info("Response:")
