@@ -81,9 +81,7 @@ class PHYBenchLoader(BaseDatasetLoader):
 
         metadata["answer_category"] = "formula"
 
-        domain = metadata.get("domain")
-        if domain:
-            metadata["domain"] = self.DOMAIN_MAPPING.get(domain, PhysicsDomain.OTHER)
+        self._map_domain(metadata)
 
         return metadata
 

@@ -10,6 +10,7 @@ Supported OpenAI models:
 """
 
 import logging
+import os
 from typing import Any
 
 from openai import OpenAI
@@ -174,7 +175,15 @@ class OpenAIModel(BaseModelClient):
 
     supports_response_format_json_schema = True
 
-    def __init__(self, model: str, logger: logging.Logger | None = None) -> None:
+    def __init__(
+        self,
+        model: str,
+        logger: logging.Logger | None = None,
+        *,
+        base_url: str | None = None,
+        api_key: str | None = None,
+        api_key_env: str | None = None,
+    ) -> None:
         """
         Initialize OpenAI model client.
 
@@ -184,6 +193,13 @@ class OpenAIModel(BaseModelClient):
                   - gpt-5xxxx (gpt-5, gpt-5.1, gpt-5.2, gpt-5.1-mini, etc.)
                   - o-family (o3, o4, o4-mini, etc. - models starting with 'o' followed by number)
             logger: Optional logger instance
+            base_url: Optional custom Responses-API endpoint (e.g. a proxy at
+                      ``https://gw.example/v1``). When omitted the OpenAI SDK default
+                      is used (honouring its own ``OPENAI_BASE_URL`` env if set).
+            api_key: Explicit API key. Takes precedence over ``api_key_env`` and the
+                     default ``OPENAI_API_KEY`` environment variable.
+            api_key_env: Name of an environment variable to read the API key from.
+                         Used when ``api_key`` is not supplied.
 
         Raises:
             ValueError: If the model is not supported
@@ -195,8 +211,21 @@ class OpenAIModel(BaseModelClient):
                 "and o-family (o3, o4, o4-mini, etc.)"
             )
         super().__init__(model, logger)
-        self.client = OpenAI(api_key=ensure_openai_api_key(__file__, required=False))
+
+        resolved_api_key: str | None
+        if api_key is not None:
+            resolved_api_key = api_key
+        elif api_key_env is not None:
+            resolved_api_key = os.environ.get(api_key_env)
+        else:
+            resolved_api_key = ensure_openai_api_key(__file__, required=False)
+
+        client_kwargs: dict[str, Any] = {"api_key": resolved_api_key}
+        if base_url is not None:
+            client_kwargs["base_url"] = base_url
+        self.client = OpenAI(**client_kwargs)
         self.provider = "openai"
+        self.base_url = base_url
         self.is_o_family = _is_o_family_model(model)
 
     def chat(

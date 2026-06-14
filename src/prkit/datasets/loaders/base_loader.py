@@ -515,6 +515,33 @@ class BaseDatasetLoader(ABC):
         # Default fallback
         return "en"
 
+    @property
+    def DOMAIN_MAPPING(self) -> dict[str, Any]:
+        """Subclasses override to map raw domain strings to PhysicsDomain values."""
+        return {}
+
+    def _map_domain(
+        self, metadata: dict[str, Any], key: str = "domain"
+    ) -> dict[str, Any]:
+        """Normalize metadata[key] via DOMAIN_MAPPING, defaulting to PhysicsDomain.OTHER.
+
+        Args:
+            metadata: Problem metadata dict (mutated in-place).
+            key: The metadata key holding the raw domain string.
+
+        Returns:
+            The same metadata dict with metadata[key] replaced by a PhysicsDomain value,
+            or PhysicsDomain.OTHER when the key is absent or unmapped.
+        """
+        from prkit.core.domain import PhysicsDomain
+
+        raw = metadata.get(key)
+        if raw is not None:
+            metadata[key] = self.DOMAIN_MAPPING.get(raw, PhysicsDomain.OTHER)
+        else:
+            metadata[key] = PhysicsDomain.OTHER
+        return metadata
+
     def validate_required_fields(self, data: dict[str, Any]) -> list[str]:
         """
         Validate that problem data has required fields.

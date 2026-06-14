@@ -6,7 +6,7 @@ This report uses the name `predicate` throughout.
 
 In the codebase, the predicate comparator corresponds to:
 
-- module: `src/prkit/prkit_evaluation/comparator/smart_llm.py`
+- module: `src/prkit/evaluation/comparator/smart_llm.py`
 - class: `SmartLLMComparator`
 - builder name: `build_comparator("smart_llm")`
 
@@ -30,7 +30,7 @@ This is stricter and more physics-aware than plain string matching, but cheaper 
 
 ## Package Map
 
-The predicate path sits inside the broader `prkit_evaluation` package:
+The predicate path sits inside the broader `prkit.evaluation` package:
 
 - `comparator/`
   - comparator abstractions and concrete answer comparators
@@ -45,20 +45,20 @@ The predicate path sits inside the broader `prkit_evaluation` package:
 
 Important files for the predicate path:
 
-- `src/prkit/prkit_evaluation/comparator/base.py`
-- `src/prkit/prkit_evaluation/comparator/by_module.py`
-- `src/prkit/prkit_evaluation/comparator/smart_llm.py`
-- `src/prkit/prkit_evaluation/comparator/smart_match.py`
-- `src/prkit/prkit_evaluation/comparator/smart_pipeline.py`
-- `src/prkit/prkit_evaluation/comparator/typed_llm.py`
-- `src/prkit/prkit_evaluation/utils/normalization.py`
-- `src/prkit/prkit_evaluation/utils/compare_same_type.py`
-- `src/prkit/prkit_evaluation/utils/compare_cross_type.py`
-- `src/prkit/prkit_evaluation/utils/category_dispatch.py`
-- `src/prkit/prkit_evaluation/utils/answer_utils.py`
-- `src/prkit/prkit_evaluation/llm_judge/*`
-- `src/prkit/prkit_evaluation/evaluator/base.py`
-- `src/prkit/prkit_evaluation/evaluator/accuracy.py`
+- `src/prkit/evaluation/comparator/base.py`
+- `src/prkit/evaluation/comparator/by_module.py`
+- `src/prkit/evaluation/comparator/smart_llm.py`
+- `src/prkit/evaluation/comparator/smart_match.py`
+- `src/prkit/evaluation/comparator/smart_pipeline.py`
+- `src/prkit/evaluation/comparator/typed_llm.py`
+- `src/prkit/evaluation/utils/normalization.py`
+- `src/prkit/evaluation/utils/compare_same_type.py`
+- `src/prkit/evaluation/utils/compare_cross_type.py`
+- `src/prkit/evaluation/utils/category_dispatch.py`
+- `src/prkit/evaluation/utils/answer_utils.py`
+- `src/prkit/evaluation/llm_judge/*`
+- `src/prkit/evaluation/evaluator/base.py`
+- `src/prkit/evaluation/evaluator/accuracy.py`
 
 ## Core Interface
 
@@ -84,7 +84,7 @@ This orientation matters in cross-type rules, especially around unit handling an
 The standard factory is:
 
 ```python
-from prkit.prkit_evaluation.comparator import build_comparator
+from prkit.evaluation.comparator import build_comparator
 
 predicate = build_comparator("smart_llm")
 ```
@@ -96,14 +96,14 @@ Relevant facts:
 - `smart_llm` maps to `SmartLLMComparator`
 - `typed_llm` maps to `TypedLLMComparator`
 - both accept an OpenAI model name
-- default judge model comes from `prkit.prkit_evaluation.llm_judge.DEFAULT_MODEL`
+- default judge model comes from `prkit.evaluation.llm_judge.DEFAULT_MODEL`
 
 ## Input Representation
 
 The comparator accepts either:
 
 - raw strings
-- `Answer` objects from `prkit.prkit_core.domain.answer`
+- `Answer` objects from `prkit.core.domain.answer`
 
 If an `Answer` object is provided, its existing category and value are reused.
 If a raw string is provided, the comparator normalizes and categorizes it at runtime.
@@ -485,7 +485,7 @@ The broader package includes several comparator families:
 - predicate comparator
   - SmartMatch pipeline plus LLM fallback only on true deterministic inconclusiveness
 
-This explains the role of the other `prkit_evaluation` modules relative to predicate comparison.
+This explains the role of the other `prkit.evaluation` modules relative to predicate comparison.
 
 ## Evaluator Integration
 
@@ -501,8 +501,8 @@ The predicate comparator is consumed through `evaluator/accuracy.py`.
 For predicate comparison, typical use is:
 
 ```python
-from prkit.prkit_evaluation.comparator import build_comparator
-from prkit.prkit_evaluation.evaluator import AccuracyEvaluator
+from prkit.evaluation.comparator import build_comparator
+from prkit.evaluation.evaluator import AccuracyEvaluator
 
 predicate = build_comparator("smart_llm")
 evaluator = AccuracyEvaluator(predicate)
@@ -514,7 +514,7 @@ result = evaluator.evaluate(predicted_answer, ground_truth_answer, question=ques
 ### Deterministic Predicate-Only Path
 
 ```python
-from prkit.prkit_evaluation.comparator import build_comparator
+from prkit.evaluation.comparator import build_comparator
 
 predicate = build_comparator("smart_llm")
 score = predicate.accuracy_score(
@@ -534,7 +534,7 @@ Behavior:
 ### Full Predicate Path With Judge Fallback
 
 ```python
-from prkit.prkit_evaluation.comparator import build_comparator
+from prkit.evaluation.comparator import build_comparator
 
 predicate = build_comparator("smart_llm", model="gpt-5.4-mini")
 matched = predicate.compare(

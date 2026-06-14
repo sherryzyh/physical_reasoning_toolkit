@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-import json
-import re
 from typing import Any
 
+from prkit.core.model_clients.structured_output import (
+    extract_json_object as _canonical_extract_json_object,
+)
 from prkit.evaluation.llm_judge.schema import EXPECTED_ANSWER_TYPES
 from prkit.evaluation.llm_judge.types import RESULT_SOURCE_LLM_JUDGE, LLMJudgeResult
 
@@ -14,24 +15,7 @@ _EXPECTED_SET = frozenset(EXPECTED_ANSWER_TYPES)
 
 def extract_json_object(text: str) -> dict[str, Any] | None:
     """Return the first JSON object found in *text*, or ``None``."""
-    raw = text.strip()
-    try:
-        parsed = json.loads(raw)
-        if isinstance(parsed, dict):
-            return parsed
-    except json.JSONDecodeError:
-        pass
-
-    match = re.search(r"\{.*\}", raw, flags=re.DOTALL)
-    if not match:
-        return None
-    try:
-        parsed = json.loads(match.group(0))
-        if isinstance(parsed, dict):
-            return parsed
-    except json.JSONDecodeError:
-        return None
-    return None
+    return _canonical_extract_json_object(text)
 
 
 def reasoning_indicates_incorrect(reasoning: str) -> bool:

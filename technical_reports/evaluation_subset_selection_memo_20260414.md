@@ -62,11 +62,11 @@ Avoid claiming any of the following unless a provenance script or note is recove
 ## Repo anchors
 
 - Official split metadata lives in:
-  - `src/prkit/prkit_datasets/loaders/seephys_loader.py`
-  - `src/prkit/prkit_datasets/loaders/phyx_loader.py`
-  - `src/prkit/prkit_datasets/loaders/physreason_loader.py`
-  - `src/prkit/prkit_datasets/loaders/physbench_loader.py`
-  - `src/prkit/prkit_datasets/loaders/physics_loader.py`
-  - `src/prkit/prkit_datasets/loaders/ugphysics_loader.py`
+  - `src/prkit/datasets/loaders/seephys_loader.py`
+  - `src/prkit/datasets/loaders/phyx_loader.py`
+  - `src/prkit/datasets/loaders/physreason_loader.py`
+  - `src/prkit/datasets/loaders/physbench_loader.py`
+  - `src/prkit/datasets/loaders/physics_loader.py`
+  - `src/prkit/datasets/loaders/ugphysics_loader.py`
 - Fixed evaluation ID lists live in:
   - `uncertainty_quantification_physical_reasoning/perturbations/<dataset>/problem_ids_for_perturbation.json`
