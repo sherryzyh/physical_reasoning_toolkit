@@ -134,6 +134,7 @@ def problem_ids_from_dir(path: Path) -> set[str]:
 
 def sort_problem_ids(problem_ids: set[str] | list[str]) -> list[str]:
     """Sort problem IDs numerically when all-digit, lexicographically otherwise."""
+
     def key(value: str) -> tuple[int, Any]:
         return (0, int(value)) if value.isdigit() else (1, value)
 
