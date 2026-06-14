@@ -67,15 +67,19 @@ class TestOpenAIModelValidation:
 class TestOpenAIModel:
     """Test cases for OpenAIModel class."""
 
-    def test_init_supported_model(self):
+    @patch("prkit.core.model_clients.openai.OpenAI")
+    def test_init_supported_model(self, mock_openai_class):
         """Test initializing with supported model."""
+        mock_openai_class.return_value = MagicMock()
         client = OpenAIModel(OPENAI_TEST_MODEL)
         assert client.model == OPENAI_TEST_MODEL
         assert client.provider == "openai"
         assert client.is_o_family is False
 
-    def test_init_o_family_model(self):
+    @patch("prkit.core.model_clients.openai.OpenAI")
+    def test_init_o_family_model(self, mock_openai_class):
         """Test initializing with o-family model."""
+        mock_openai_class.return_value = MagicMock()
         client = OpenAIModel("o3")
         assert client.model == "o3"
         assert client.is_o_family is True

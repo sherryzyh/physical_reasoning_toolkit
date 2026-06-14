@@ -35,6 +35,16 @@ DASHSCOPE_TEST_MODEL = "qwen3.6-plus"
 class TestCreateModelClient:
     """Test cases for create_model_client factory function."""
 
+    @pytest.fixture(autouse=True)
+    def _mock_provider_sdks(self):
+        """Prevent real SDK credential checks during factory routing tests."""
+        with (
+            patch("prkit.core.model_clients.openai.OpenAI"),
+            patch("prkit.core.model_clients.gemini.genai"),
+            patch("prkit.core.model_clients.openai_compatible_chat.OpenAI"),
+        ):
+            yield
+
     def test_create_openai_gpt_4_1(self):
         """Test creating OpenAI gpt-4.1 model."""
         client = create_model_client("gpt-4.1")
