@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 from pydantic import BaseModel
 
+from prkit.core.model_clients.base import DEFAULT_INSTRUCTIONS
 from prkit.core.model_clients.dashscope import (
     DEFAULT_DASHSCOPE_TIMEOUT_SECONDS,
     DashscopeModel,
@@ -17,6 +18,7 @@ from prkit.core.model_clients.dashscope import (
 )
 
 DASHSCOPE_TEST_MODEL = "qwen3.6-plus"
+SYSTEM_MESSAGE = {"role": "system", "content": DEFAULT_INSTRUCTIONS}
 
 
 class TestDashscopeModel:
@@ -89,12 +91,12 @@ class TestDashscopeModel:
         mock_client.chat.completions.create.return_value = mock_response
 
         client = DashscopeModel(DASHSCOPE_TEST_MODEL)
-        response = client.chat("Hello, world!")
+        response = client.response("Hello, world!")
 
         assert response == "Test response"
         mock_client.chat.completions.create.assert_called_once_with(
             model=DASHSCOPE_TEST_MODEL,
-            messages=[{"role": "user", "content": "Hello, world!"}],
+            messages=[SYSTEM_MESSAGE, {"role": "user", "content": "Hello, world!"}],
             extra_body={"enable_thinking": False},
         )
 
@@ -119,7 +121,7 @@ class TestDashscopeModel:
         mock_client.chat.completions.create.return_value = mock_response
 
         client = DashscopeModel(DASHSCOPE_TEST_MODEL)
-        response = client.chat(
+        response = client.response(
             "Return JSON only.",
             response_format=ExampleResponse,
             max_output_tokens=256,
@@ -129,7 +131,8 @@ class TestDashscopeModel:
         call_kwargs = mock_client.chat.completions.create.call_args.kwargs
         assert call_kwargs["model"] == DASHSCOPE_TEST_MODEL
         assert call_kwargs["messages"] == [
-            {"role": "user", "content": "Return JSON only."}
+            SYSTEM_MESSAGE,
+            {"role": "user", "content": "Return JSON only."},
         ]
         assert call_kwargs["extra_body"] == {"enable_thinking": False}
         assert "max_tokens" not in call_kwargs
@@ -155,7 +158,7 @@ class TestDashscopeModel:
         mock_client.chat.completions.create.return_value = mock_response
 
         client = DashscopeModel(DASHSCOPE_TEST_MODEL)
-        response = client.chat(
+        response = client.response(
             "Hello, world!",
             extra_body={"enable_thinking": True, "thinking_budget": 2048},
         )
@@ -163,7 +166,7 @@ class TestDashscopeModel:
         assert response == "Test response"
         mock_client.chat.completions.create.assert_called_once_with(
             model=DASHSCOPE_TEST_MODEL,
-            messages=[{"role": "user", "content": "Hello, world!"}],
+            messages=[SYSTEM_MESSAGE, {"role": "user", "content": "Hello, world!"}],
             extra_body={"enable_thinking": True, "thinking_budget": 2048},
         )
 
@@ -179,7 +182,7 @@ class TestDashscopeModel:
         client = DashscopeModel(DASHSCOPE_TEST_MODEL)
 
         with pytest.raises(ValueError, match="not supported in thinking mode"):
-            client.chat(
+            client.response(
                 "Return JSON only.",
                 response_format=ExampleResponse,
                 extra_body={"enable_thinking": True},
@@ -194,7 +197,7 @@ class TestDashscopeModel:
         client = DashscopeModel("custom-model")
 
         with pytest.raises(TypeError, match="must be a dict"):
-            client.chat("Hello", extra_body="bad")
+            client.response("Hello", extra_body="bad")
 
     @patch("prkit.core.model_clients.openai_compatible_chat.OpenAI")
     @patch("prkit.core.model_clients.base.load_project_dotenv")
@@ -215,11 +218,11 @@ class TestDashscopeModel:
             clear=True,
         ):
             client = DashscopeModel("custom-model")
-            response = client.chat("Hello")
+            response = client.response("Hello")
 
         assert response == "ok"
         mock_client.chat.completions.create.assert_called_once_with(
             model="custom-model",
-            messages=[{"role": "user", "content": "Hello"}],
+            messages=[SYSTEM_MESSAGE, {"role": "user", "content": "Hello"}],
             extra_body={"enable_thinking": True},
         )

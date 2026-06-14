@@ -13,6 +13,7 @@ from prkit.core.model_clients.anthropic import (
     _extract_tool_use_json,
     _parse_data_url,
 )
+from prkit.core.model_clients.base import DEFAULT_INSTRUCTIONS
 
 ANTHROPIC_TEST_MODEL = "claude-sonnet-4-6"
 
@@ -48,19 +49,42 @@ class TestAnthropicModel:
         mock_client.messages.create.return_value = mock_response
 
         client = AnthropicModel(ANTHROPIC_TEST_MODEL)
-        response = client.chat("Hello, world!")
+        response = client.response("Hello, world!")
 
         assert response == "Test response"
         mock_client.messages.create.assert_called_once()
         call_kwargs = mock_client.messages.create.call_args[1]
         assert call_kwargs["model"] == ANTHROPIC_TEST_MODEL
         assert call_kwargs["max_tokens"] == 1024
+        # Default system prompt is sent as Anthropic's top-level `system` param.
+        assert call_kwargs["system"] == DEFAULT_INSTRUCTIONS
         assert call_kwargs["messages"] == [
             {
                 "role": "user",
                 "content": [{"type": "text", "text": "Hello, world!"}],
             }
         ]
+
+    @patch("prkit.core.model_clients.anthropic.Anthropic")
+    def test_response_system_prompt_explicit_and_suppressed(self, mock_anthropic_class):
+        """Explicit instructions override the default; an empty string suppresses it."""
+        mock_client = MagicMock()
+        mock_anthropic_class.return_value = mock_client
+
+        text_block = Mock()
+        text_block.type = "text"
+        text_block.text = "ok"
+        mock_response = Mock()
+        mock_response.content = [text_block]
+        mock_client.messages.create.return_value = mock_response
+
+        client = AnthropicModel(ANTHROPIC_TEST_MODEL)
+
+        client.response("Hi", instructions="Custom system.")
+        assert mock_client.messages.create.call_args[1]["system"] == "Custom system."
+
+        client.response("Hi", instructions="")
+        assert "system" not in mock_client.messages.create.call_args[1]
 
     @patch("prkit.core.model_clients.anthropic.Anthropic")
     def test_chat_with_data_url_image(self, mock_anthropic_class):
@@ -77,7 +101,7 @@ class TestAnthropicModel:
 
         client = AnthropicModel(ANTHROPIC_TEST_MODEL)
         data_url = "data:image/png;base64,ZmFrZS1kYXRh"
-        response = client.chat("Describe image", image_paths=[data_url])
+        response = client.response("Describe image", image_paths=[data_url])
 
         assert response == "Image response"
         call_kwargs = mock_client.messages.create.call_args[1]
@@ -104,7 +128,7 @@ class TestAnthropicModel:
 
         client = AnthropicModel(ANTHROPIC_TEST_MODEL)
         with patch.object(client.logger, "warning") as mock_warning:
-            response = client.chat(
+            response = client.response(
                 "Hello",
                 image_paths=["https://example.com/image.jpg"],
             )
@@ -133,7 +157,7 @@ class TestAnthropicModel:
         mock_client.messages.create.return_value = mock_response
 
         client = AnthropicModel(ANTHROPIC_TEST_MODEL)
-        response = client.chat(
+        response = client.response(
             "Hello",
             response_format=ExampleResponse,
         )
@@ -157,7 +181,7 @@ class TestAnthropicModel:
 
         client = AnthropicModel(ANTHROPIC_TEST_MODEL)
         with pytest.raises(ValueError, match="base64"):
-            client.chat("Hello", image_paths=["data:image/png,not-base64"])
+            client.response("Hello", image_paths=["data:image/png,not-base64"])
 
     @patch("prkit.core.model_clients.anthropic.encode_image_to_base64")
     @patch("prkit.core.model_clients.anthropic.os.path.exists")
@@ -180,7 +204,7 @@ class TestAnthropicModel:
         )
 
         client = AnthropicModel(ANTHROPIC_TEST_MODEL)
-        response = client.chat(
+        response = client.response(
             "Describe",
             image_paths=["/tmp/example.png"],
             temperature=0.2,

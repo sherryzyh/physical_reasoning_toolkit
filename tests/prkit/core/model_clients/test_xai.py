@@ -6,10 +6,12 @@ from unittest.mock import MagicMock, Mock, patch
 
 from pydantic import BaseModel, Field
 
+from prkit.core.model_clients.base import DEFAULT_INSTRUCTIONS
 from prkit.core.model_clients.structured_output import coerce_structured_output_spec
 from prkit.core.model_clients.xai import XAIModel
 
 XAI_TEST_MODEL = "grok-4-1-fast-reasoning"
+SYSTEM_MESSAGE = {"role": "system", "content": DEFAULT_INSTRUCTIONS}
 
 
 class TestXAIModel:
@@ -47,12 +49,12 @@ class TestXAIModel:
         mock_client.chat.completions.create.return_value = mock_response
 
         client = XAIModel(XAI_TEST_MODEL)
-        response = client.chat("Hello, world!")
+        response = client.response("Hello, world!")
 
         assert response == "Test response"
         mock_client.chat.completions.create.assert_called_once_with(
             model=XAI_TEST_MODEL,
-            messages=[{"role": "user", "content": "Hello, world!"}],
+            messages=[SYSTEM_MESSAGE, {"role": "user", "content": "Hello, world!"}],
         )
 
     @patch("prkit.core.model_clients.openai_compatible_chat.OpenAI")

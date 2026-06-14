@@ -43,26 +43,30 @@ class GeminiModel(BaseModelClient):
             self.genai_client = genai.Client()
         self.provider = "google"
 
-    def chat(
+    def response(
         self,
-        user_prompt: str,
+        input: str,
         image_paths: list[str] | None = None,
         response_format: dict[str, Any] | type | None = None,
         max_output_tokens: int = 65535,
         *args: Any,
+        instructions: str | None = None,
         **kwargs: Any,
     ) -> str:
         """
         Generate a response from Gemini API.
 
         Args:
-            user_prompt: The user's prompt text (string)
+            input: The user's prompt text (string)
             image_paths: Optional list of image paths/URLs (strings).
                        Note: Gemini models support vision, but this implementation
                        currently only handles text. Images are ignored with a warning.
             response_format: Optional structured output format (OpenAI-style dict or
                            Pydantic model). Converted to Gemini's response_json_schema.
             *args: Additional positional arguments (ignored, kept for compatibility)
+            instructions: Optional system prompt, sent as the Gemini
+                        ``system_instruction`` config field. Defaults to
+                        ``DEFAULT_INSTRUCTIONS`` when omitted.
             **kwargs: Additional keyword arguments for generate_content config
                      (e.g., temperature, max_tokens, etc.)
 
@@ -71,7 +75,7 @@ class GeminiModel(BaseModelClient):
         """
         # Prepare content parts
         # Start with the text prompt
-        contents_parts: list[Any] = [user_prompt]
+        contents_parts: list[Any] = [input]
 
         # Process images if provided
         if image_paths:
@@ -90,6 +94,9 @@ class GeminiModel(BaseModelClient):
 
         # Build config with any additional kwargs
         config_dict: dict[str, Any] = {"max_output_tokens": max_output_tokens}
+        instr = self._resolve_instructions(instructions)
+        if instr:
+            config_dict["system_instruction"] = instr
         if kwargs:
             config_dict.update(kwargs)
 

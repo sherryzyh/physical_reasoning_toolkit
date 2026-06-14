@@ -156,20 +156,21 @@ class OllamaModel(BaseModelClient):
             self.logger.error(error_msg)
             raise ConnectionError(error_msg) from e
 
-    def chat(
+    def response(
         self,
-        user_prompt: str,
+        input: str,
         image_paths: list[str] | None = None,
         response_format: dict[str, Any] | type | None = None,
         max_output_tokens: int = 65535,
         *args: Any,
+        instructions: str | None = None,
         **kwargs: Any,
     ) -> str:
         """
         Generate a response using the local Ollama service.
 
         Args:
-            user_prompt: The user's prompt text.
+            input: The user's prompt text.
             image_paths: Optional list of file paths to images.
                          Ollama accepts local file paths.
             response_format: Optional structured output format. Supports either:
@@ -177,6 +178,8 @@ class OllamaModel(BaseModelClient):
                 - A Pydantic BaseModel class
                 - {"type": "json_object"} for generic JSON mode
             *args: Additional positional arguments (ignored, kept for compatibility)
+            instructions: Optional system prompt, prepended as a ``system`` message.
+                        Defaults to ``DEFAULT_INSTRUCTIONS`` when omitted.
             **kwargs: Additional keyword arguments for request parameters
                      (e.g., max_tokens, etc.)
 
@@ -190,7 +193,7 @@ class OllamaModel(BaseModelClient):
         """
         message: dict[str, Any] = {
             "role": "user",
-            "content": user_prompt,
+            "content": input,
         }
 
         request_format: str | dict[str, Any] | None = None
@@ -215,6 +218,13 @@ class OllamaModel(BaseModelClient):
                 valid_images.append(path)
 
             message["images"] = valid_images
+
+        messages: list[dict[str, Any]] = []
+        instr = self._resolve_instructions(instructions)
+        if instr:
+            messages.append({"role": "system", "content": instr})
+        messages.append(message)
+
         options: dict[str, Any] = {
             "temperature": 0,
             "num_predict": max_output_tokens,
@@ -226,7 +236,7 @@ class OllamaModel(BaseModelClient):
         try:
             request_kwargs: dict[str, Any] = {
                 "model": self.model,
-                "messages": [message],
+                "messages": messages,
                 "options": options,
             }
             if request_format is not None:

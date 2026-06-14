@@ -100,7 +100,7 @@ class TestOpenAIModel:
         mock_client.responses.create.return_value = mock_response
 
         client = OpenAIModel(OPENAI_TEST_MODEL)
-        response = client.chat("Hello, world!")
+        response = client.response("Hello, world!")
 
         assert response == "Test response"
         mock_client.responses.create.assert_called_once()
@@ -111,6 +111,28 @@ class TestOpenAIModel:
         assert len(call_kwargs["input"][0]["content"]) == 1
         assert call_kwargs["input"][0]["content"][0]["type"] == "input_text"
         assert call_kwargs["input"][0]["content"][0]["text"] == "Hello, world!"
+        # OpenAI works with input alone — no default system prompt.
+        assert "instructions" not in call_kwargs
+
+    @patch("prkit.core.model_clients.openai.OpenAI")
+    def test_response_instructions_only_when_provided(self, mock_openai_class):
+        """OpenAI sends `instructions` only when the caller supplies it."""
+        mock_client = MagicMock()
+        mock_openai_class.return_value = mock_client
+        mock_response = Mock()
+        mock_response.output_text = "ok"
+        mock_client.responses.create.return_value = mock_response
+
+        client = OpenAIModel(OPENAI_TEST_MODEL)
+
+        client.response("Hi")
+        assert "instructions" not in mock_client.responses.create.call_args[1]
+
+        client.response("Hi", instructions="Answer tersely.")
+        assert (
+            mock_client.responses.create.call_args[1]["instructions"]
+            == "Answer tersely."
+        )
 
     @patch("prkit.core.model_clients.openai.OpenAI")
     def test_chat_with_images(self, mock_openai_class, tmp_path):
@@ -127,7 +149,7 @@ class TestOpenAIModel:
         mock_client.responses.create.return_value = mock_response
 
         client = OpenAIModel(OPENAI_TEST_MODEL)
-        response = client.chat("Describe this image", image_paths=[str(image_file)])
+        response = client.response("Describe this image", image_paths=[str(image_file)])
 
         assert response == "Image description"
         call_kwargs = mock_client.responses.create.call_args[1]
@@ -151,7 +173,7 @@ class TestOpenAIModel:
         mock_client.responses.create.return_value = mock_response
 
         client = OpenAIModel(OPENAI_TEST_MODEL)
-        response = client.chat(
+        response = client.response(
             "Describe this image", image_paths=["https://example.com/image.jpg"]
         )
 
@@ -174,7 +196,7 @@ class TestOpenAIModel:
 
         client = OpenAIModel(OPENAI_TEST_MODEL)
         data_url = "data:image/jpeg;base64,/9j/4AAQSkZJRg=="
-        response = client.chat("Describe this image", image_paths=[data_url])
+        response = client.response("Describe this image", image_paths=[data_url])
 
         assert response == "Base64 image description"
         call_kwargs = mock_client.responses.create.call_args[1]
@@ -191,7 +213,7 @@ class TestOpenAIModel:
         mock_client.responses.create.return_value = mock_response
 
         client = OpenAIModel("o3")
-        client.chat("Solve this problem")
+        client.response("Solve this problem")
 
         call_kwargs = mock_client.responses.create.call_args[1]
         assert "reasoning" in call_kwargs
@@ -207,7 +229,7 @@ class TestOpenAIModel:
         mock_client.responses.create.return_value = mock_response
 
         client = OpenAIModel(OPENAI_TEST_MODEL)
-        client.chat("Hello")
+        client.response("Hello")
 
         call_kwargs = mock_client.responses.create.call_args[1]
         assert "reasoning" not in call_kwargs
@@ -222,7 +244,7 @@ class TestOpenAIModel:
         mock_client.responses.create.return_value = mock_response
 
         client = OpenAIModel(OPENAI_TEST_MODEL)
-        client.chat("Hello", max_output_tokens=321)
+        client.response("Hello", max_output_tokens=321)
 
         call_kwargs = mock_client.responses.create.call_args[1]
         assert call_kwargs["max_output_tokens"] == 321
@@ -242,7 +264,7 @@ class TestOpenAIModel:
         mock_client.responses.create.return_value = mock_response
 
         client = OpenAIModel(OPENAI_TEST_MODEL)
-        client.chat("Hello", response_format=ExampleResponse)
+        client.response("Hello", response_format=ExampleResponse)
 
         schema = mock_client.responses.create.call_args[1]["text"]["format"]["schema"]
         assert set(schema["required"]) == set(schema["properties"].keys())
@@ -370,7 +392,7 @@ class TestPrepareImageURL:
         mock_client.responses.create.return_value = mock_response
 
         client = OpenAIModel(OPENAI_TEST_MODEL)
-        response = client.chat("Describe these images", image_paths=images)
+        response = client.response("Describe these images", image_paths=images)
 
         assert response == "Multi-image response"
         call_kwargs = mock_client.responses.create.call_args[1]
@@ -388,7 +410,7 @@ class TestPrepareImageURL:
         mock_client.responses.create.return_value = mock_response
 
         client = OpenAIModel(OPENAI_TEST_MODEL)
-        response = client.chat("")
+        response = client.response("")
 
         assert response == "Response"
         call_kwargs = mock_client.responses.create.call_args[1]
@@ -404,7 +426,7 @@ class TestPrepareImageURL:
         mock_client.responses.create.return_value = mock_response
 
         client = OpenAIModel(OPENAI_TEST_MODEL)
-        response = client.chat("Hello", image_paths=None)
+        response = client.response("Hello", image_paths=None)
 
         assert response == "Response"
         call_kwargs = mock_client.responses.create.call_args[1]

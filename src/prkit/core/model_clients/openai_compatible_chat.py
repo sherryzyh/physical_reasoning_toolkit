@@ -140,25 +140,32 @@ class OpenAICompatibleChatModel(BaseModelClient):
             return "\n".join(chunk for chunk in text_chunks if chunk).strip()
         return str(content)
 
-    def chat(
+    def response(
         self,
-        user_prompt: str,
+        input: str,
         image_paths: list[str] | None = None,
         response_format: dict[str, Any] | type | None = None,
+        *,
+        instructions: str | None = None,
         **kwargs: Any,
     ) -> str:
         """Send a chat-completions request and return the model's text response."""
+        messages: list[dict[str, Any]] = []
+        instr = self._resolve_instructions(instructions)
+        if instr:
+            messages.append({"role": "system", "content": instr})
+        messages.append(
+            {
+                "role": "user",
+                "content": self._build_message_content(
+                    self._structured_prompt_for_chat(input, response_format),
+                    image_paths,
+                ),
+            }
+        )
         request_params: dict[str, Any] = {
             "model": self.model,
-            "messages": [
-                {
-                    "role": "user",
-                    "content": self._build_message_content(
-                        self._structured_prompt_for_chat(user_prompt, response_format),
-                        image_paths,
-                    ),
-                }
-            ],
+            "messages": messages,
         }
 
         request_response_format = self._build_chat_response_format(response_format)

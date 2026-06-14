@@ -183,20 +183,21 @@ class AnthropicModel(BaseModelClient):
         self.client: Any = Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
         self.provider = "anthropic"
 
-    def chat(
+    def response(
         self,
-        user_prompt: str,
+        input: str,
         image_paths: list[str] | None = None,
         response_format: dict[str, Any] | type | None = None,
         max_output_tokens: int = 1024,
         *args: Any,
+        instructions: str | None = None,
         **kwargs: Any,
     ) -> str:
         """
         Generate a response from Anthropic Messages API.
 
         Args:
-            user_prompt: The user's prompt text (string)
+            input: The user's prompt text (string)
             image_paths: Optional list of image paths/URLs (strings). Supports:
                        - File paths: encoded to base64
                        - Base64 data URLs: passed as-is after parsing
@@ -205,6 +206,9 @@ class AnthropicModel(BaseModelClient):
                            request is translated into a forced Anthropic tool call.
             max_output_tokens: Maximum output tokens for Anthropic API.
             *args: Additional positional arguments (ignored, kept for compatibility)
+            instructions: Optional system prompt. Sent as the top-level Anthropic
+                        ``system`` parameter. Defaults to ``DEFAULT_INSTRUCTIONS``
+                        when omitted (see ``_resolve_instructions``).
             **kwargs: Additional keyword arguments for request parameters
                      (e.g., temperature, top_p, etc.)
 
@@ -219,7 +223,7 @@ class AnthropicModel(BaseModelClient):
         if response_format is not None:
             normalized_response_format = normalize_response_format(response_format)
 
-        content: list[dict[str, Any]] = [{"type": "text", "text": user_prompt}]
+        content: list[dict[str, Any]] = [{"type": "text", "text": input}]
         if image_paths:
             for image_path in image_paths:
                 if image_path.startswith("data:"):
@@ -261,6 +265,9 @@ class AnthropicModel(BaseModelClient):
             "messages": [{"role": "user", "content": content}],
             "max_tokens": max_output_tokens,
         }
+        instr = self._resolve_instructions(instructions)
+        if instr:
+            request_params["system"] = instr
         if normalized_response_format is not None:
             request_params["output_config"] = {
                 "format": {

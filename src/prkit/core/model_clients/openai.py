@@ -232,19 +232,28 @@ class OpenAIModel(BaseModelClient):
         self.base_url = base_url
         self.is_o_family = _is_o_family_model(model)
 
-    def chat(
+    def _resolve_instructions(self, instructions: str | None) -> str | None:
+        """OpenAI works with ``input`` alone — no default system prompt.
+
+        Only the caller's explicit *instructions* (if any) are sent; ``None`` stays
+        ``None`` so the Responses API receives no ``instructions`` parameter.
+        """
+        return instructions
+
+    def response(
         self,
-        user_prompt: str,
+        input: str,
         image_paths: list[str] | None = None,
         response_format: dict[str, Any] | type | None = None,
         *args: Any,
+        instructions: str | None = None,
         **kwargs: Any,
     ) -> str:
         """
         Generate a response from OpenAI Responses API.
 
         Args:
-            user_prompt: The user's prompt text (string)
+            input: The user's prompt text (string)
             image_paths: Optional list of image paths/URLs (strings). Can be:
                        - File paths: ["/path/to/image.jpg", ...] - will be encoded to base64
                        - HTTP/HTTPS URLs: ["https://example.com/image.jpg", ...] - used as-is
@@ -252,6 +261,9 @@ class OpenAIModel(BaseModelClient):
             response_format: Optional structured output format (OpenAI-style dict or Pydantic
                            model). Ensures response adheres to JSON Schema.
             *args: Additional positional arguments (ignored, kept for compatibility)
+            instructions: Optional system prompt, sent as the Responses API
+                        ``instructions`` parameter. OpenAI does not apply a default,
+                        so it is omitted entirely when not provided.
             **kwargs: Additional keyword arguments for request parameters
                      (e.g., max_tokens, etc.)
 
@@ -280,7 +292,7 @@ class OpenAIModel(BaseModelClient):
                 text_format["description"] = normalized["description"]
 
         # Use role/content format for all models
-        content: list[dict[str, Any]] = [{"type": "input_text", "text": user_prompt}]
+        content: list[dict[str, Any]] = [{"type": "input_text", "text": input}]
 
         if image_paths:
             for image_path in image_paths:
@@ -288,6 +300,10 @@ class OpenAIModel(BaseModelClient):
                 content.append({"type": "input_image", "image_url": image_url})
 
         request_params["input"] = [{"role": "user", "content": content}]
+
+        instr = self._resolve_instructions(instructions)
+        if instr:
+            request_params["instructions"] = instr
 
         # Add reasoning parameter for o-family models
         if self.is_o_family:

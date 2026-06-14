@@ -42,7 +42,7 @@ class TestTheoremDetector:
         # _call_llm_structured now parses JSON and returns Pydantic model
         import json
 
-        mock_client.chat.return_value = json.dumps(mock_response.model_dump())
+        mock_client.response.return_value = json.dumps(mock_response.model_dump())
         mock_create.return_value = mock_client
 
         detector = TheoremDetector(model="gpt-5.1")
@@ -58,7 +58,7 @@ class TestTheoremDetector:
         """Test theorem detection falls back to regular LLM call."""
         mock_client = Mock()
         # Structured call fails (now just chat with combined prompt)
-        mock_client.chat.side_effect = [
+        mock_client.response.side_effect = [
             Exception("Structured failed"),  # First call fails
             json.dumps(  # Fallback call succeeds
                 {
@@ -85,7 +85,7 @@ class TestTheoremDetector:
     def test_theorem_detector_work_both_fail(self, mock_create):
         """Test theorem detection when both methods fail."""
         mock_client = Mock()
-        mock_client.chat.side_effect = Exception("All calls failed")
+        mock_client.response.side_effect = Exception("All calls failed")
         mock_create.return_value = mock_client
 
         detector = TheoremDetector(model="gpt-5.1")
@@ -99,7 +99,7 @@ class TestTheoremDetector:
     def test_theorem_detector_work_invalid_json(self, mock_create):
         """Test theorem detection with invalid JSON in fallback."""
         mock_client = Mock()
-        mock_client.chat.side_effect = [
+        mock_client.response.side_effect = [
             None,  # First call returns None (treated as failure)
             "Invalid JSON {",  # Fallback call returns invalid JSON
         ]

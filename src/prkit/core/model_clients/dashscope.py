@@ -113,11 +113,13 @@ class DashscopeModel(OpenAICompatibleChatModel):
 
         return None
 
-    def chat(
+    def response(
         self,
-        user_prompt: str,
+        input: str,
         image_paths: list[str] | None = None,
         response_format: dict[str, Any] | type | None = None,
+        *,
+        instructions: str | None = None,
         **kwargs: Any,
     ) -> str:
         """Send a request to DashScope, automatically managing the thinking-mode flag."""
@@ -147,10 +149,11 @@ class DashscopeModel(OpenAICompatibleChatModel):
         if extra_body:
             kwargs["extra_body"] = extra_body
 
-        return super().chat(
-            user_prompt=user_prompt,
+        return super().response(
+            input=input,
             image_paths=image_paths,
             response_format=response_format,
+            instructions=instructions,
             **kwargs,
         )
 

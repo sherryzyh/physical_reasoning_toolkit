@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from prkit.core.domain import Answer, PhysicsProblem
+from prkit.core.model_clients.prompts import format_problem_context
 
 from ..normalization import (
     infer_prediction_question_semantics,
@@ -142,39 +143,25 @@ def _format_problem(
     *,
     include_reference_context: bool = True,
 ) -> str:
-    """Render the problem context block that is embedded in prompts."""
+    """Render the problem context block that is embedded in prompts.
 
-    lines = [
-        f"Problem ID: {problem.problem_id}",
-        f"Problem type: {problem.problem_type or 'unspecified'}",
-        f"Domain: {problem.get_domain_name()}",
-        f"Language: {problem.language}",
-    ]
+    The shared header (id/type/domain/language/images/options/question) is
+    produced by the core-layer ``format_problem_context``; the reference-context
+    (answer/solution) block is appended here only when requested.
+    """
 
-    if problem.image_path:
-        lines.append(
-            f"Attached images: {len(problem.image_path)} image(s) are provided separately with this request."
-        )
-
-    if problem.options:
-        option_lines = []
-        for index, option in enumerate(problem.options):
-            label = chr(ord("A") + index)
-            option_lines.append(f"{label}. {option}")
-        lines.append("Options:\n" + "\n".join(option_lines))
-
-    lines.append("Question:\n" + (problem.question or "").strip())
+    sections = [format_problem_context(problem)]
 
     if include_reference_context:
         answer_text = answer_like_to_text(problem.answer)
         if answer_text:
-            lines.append("Answer:\n" + answer_text)
+            sections.append("Answer:\n" + answer_text)
 
         solution_text = _problem_solution_text(problem)
         if solution_text:
-            lines.append("Solution:\n" + solution_text)
+            sections.append("Solution:\n" + solution_text)
 
-    return "\n".join(lines)
+    return "\n".join(sections)
 
 
 def _problem_solution_text(problem: PhysicsProblem) -> str:
