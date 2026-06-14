@@ -224,6 +224,9 @@ venv_*/
 venv/
 test_install_env/
 
+# Technical reports (internal analysis, memos, investigation outputs)
+technical_reports/
+
 # Developer documentation (internal notes, credentials, deployment info)
 DEVELOPER.md
 DEV_NOTES.md

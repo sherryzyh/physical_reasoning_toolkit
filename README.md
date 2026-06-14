@@ -33,9 +33,9 @@ The same pattern works across different datasets and model providers—swap the 
 ### 📖 Documentation
 
 **Quick Links:**
-- 🔧 **[CORE.md](CORE.md)** - Core components: domain model, model client, logger, and definitions
-- 📚 **[DATASETS.md](DATASETS.md)** - Complete guide to supported datasets and benchmarks
-- 📊 **[EVALUATION.md](EVALUATION.md)** - Evaluation metrics and comparison strategies
+- 🔧 **[CORE.md](docs/CORE.md)** - Core components: domain model, model client, logger, and definitions
+- 📚 **[DATASETS.md](docs/DATASETS.md)** - Complete guide to supported datasets and benchmarks
+- 📊 **[EVALUATION.md](docs/EVALUATION.md)** - Evaluation metrics and comparison strategies
 - 📝 **[CHANGELOG.md](CHANGELOG.md)** - Version history and release notes
 
 ## 🚀 Quick Start
@@ -96,7 +96,7 @@ export PRKIT_LOG_LEVEL=INFO
 export PRKIT_LOG_FILE=/var/log/prkit.log  # Optional: defaults to {cwd}/prkit_logs/prkit.log if not set
 ```
 **Option 2**: Create a `.env` file at your project root
-📖 **See [CORE.md](CORE.md) (Model Client section) for supported providers and usage.**
+📖 **See [CORE.md](docs/CORE.md) (Model Client section) for supported providers and usage.**
 
 ### Validate Setup
 ```bash
@@ -135,6 +135,7 @@ physical_reasoning_toolkit/
 │   ├── annotation/                  # Annotation workflows and tools
 │   ├── evaluation/                  # Evaluation metrics and benchmarks
 │   └── semantics/                   # Physics-aware answer normalization and comparison
+├── docs/                            # User guides and reference documentation
 ├── tests/                           # Unit tests
 ├── pyproject.toml                   # Package configuration
 ├── LICENSE                          # MIT License
@@ -179,23 +180,23 @@ The essential building blocks of the physical-reasoning-toolkit. All datasets, i
 * **BaseModelClient** — Abstract base for model clients. Subclasses implement `chat(user_prompt, image_paths=None)`.
 * **PRKitLogger** — Centralized logging with colored output, file logging, and env config (`PRKIT_LOG_LEVEL`, `PRKIT_LOG_FILE`, etc.).
 
-📖 See [CORE.md](CORE.md) for the full domain model, entity relationships, subpackage dependency diagram, and import reference.
+📖 See [CORE.md](docs/CORE.md) for the full domain model, entity relationships, subpackage dependency diagram, and import reference.
 
 
 ### prkit.evaluation 📈
 Answer comparators (symbolic, numerical, textual, option-based), accuracy evaluator, and physics-focused assessment protocols.
 
-📖 [EVALUATION.md](EVALUATION.md)
+📖 [EVALUATION.md](docs/EVALUATION.md)
 
 ### prkit.datasets 📊
 Dataset hub with a Datasets-like interface: `DatasetHub.load()` for PHYBench, PhysReason, UGPhysics, SeePhys, PhyX (plus JEEBench, TPBench loaders). Auto-download, variant selection, and reproducible sampling.
 
-📖 [DATASETS.md](DATASETS.md)
+📖 [DATASETS.md](docs/DATASETS.md)
 
 ### prkit.annotation 🏷️
 Modular workflows (domain classification, theorem extraction) via `WorkflowComposer` and presets. Model-assisted and human-in-the-loop.
 
-📖 [ANNOTATION.md](ANNOTATION.md)
+📖 [ANNOTATION.md](docs/ANNOTATION.md)
 
 ## 🆘 Troubleshooting
 
@@ -300,7 +301,7 @@ PRKit integrates and builds upon several excellent physics reasoning benchmarks 
 - **PhysReason**, **PHYBench**, **UGPhysics**, **SeePhys**, **PhyX**, and other benchmark datasets
 - The open-source community for their valuable contributions and feedback
 
-**Note:** For detailed citations and references to the original dataset papers, please see the [Citations section](DATASETS.md#citations) in `DATASETS.md`.
+**Note:** For detailed citations and references to the original dataset papers, please see the [Citations section](docs/DATASETS.md#citations) in `DATASETS.md`.
 
 ## 📝 License
 
