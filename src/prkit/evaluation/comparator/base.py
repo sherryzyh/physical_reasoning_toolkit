@@ -1,9 +1,4 @@
-"""
-Base comparator class for answer comparison strategies.
-
-This module provides the foundation for all answer comparators
-in the physical reasoning toolkit.
-"""
+"""Abstract base class for all answer comparators in PRKit."""
 
 from abc import ABC, abstractmethod
 from typing import Any

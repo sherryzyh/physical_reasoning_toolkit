@@ -51,6 +51,7 @@ def uses_openai_model(module_name: str) -> bool:
 
 
 def uses_rouge_threshold(module_name: str) -> bool:
+    """Whether ``build_comparator(..., rouge_threshold=...)`` passes the threshold to the class."""
     return resolve_comparator_module(module_name) in _MODULES_WITH_ROUGE_THRESHOLD
 
 

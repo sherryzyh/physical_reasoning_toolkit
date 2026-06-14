@@ -38,42 +38,49 @@ def _is_o_family(model_lower: str) -> bool:
 
 
 def _load_xai(model: str, logger: logging.Logger | None) -> BaseModelClient:
+    """Lazily import and return an ``XAIModel`` instance."""
     from .xai import XAIModel
 
     return XAIModel(model, logger)
 
 
 def _load_dashscope(model: str, logger: logging.Logger | None) -> BaseModelClient:
+    """Lazily import and return a ``DashscopeModel`` instance."""
     from .dashscope import DashscopeModel
 
     return DashscopeModel(model, logger)
 
 
 def _load_deepseek(model: str, logger: logging.Logger | None) -> BaseModelClient:
+    """Lazily import and return a ``DeepseekModel`` instance."""
     from .deepseek import DeepseekModel
 
     return DeepseekModel(model, logger)
 
 
 def _load_anthropic(model: str, logger: logging.Logger | None) -> BaseModelClient:
+    """Lazily import and return an ``AnthropicModel`` instance."""
     from .anthropic import AnthropicModel
 
     return AnthropicModel(model, logger)
 
 
 def _load_ollama(model: str, logger: logging.Logger | None) -> BaseModelClient:
+    """Lazily import and return an ``OllamaModel`` instance."""
     from .ollama import OllamaModel
 
     return OllamaModel(model, logger)
 
 
 def _load_openai(model: str, logger: logging.Logger | None) -> BaseModelClient:
+    """Lazily import and return an ``OpenAIModel`` instance (o-family path)."""
     from .openai import OpenAIModel
 
     return OpenAIModel(model, logger)
 
 
 def _load_gpt(model: str, logger: logging.Logger | None) -> BaseModelClient:
+    """Lazily import and return an ``OpenAIModel`` after validating the GPT model name."""
     from .openai import OpenAIModel, _is_supported_openai_model
 
     if not _is_supported_openai_model(model):
@@ -86,6 +93,7 @@ def _load_gpt(model: str, logger: logging.Logger | None) -> BaseModelClient:
 
 
 def _load_gemini(model: str, logger: logging.Logger | None) -> BaseModelClient:
+    """Lazily import and return a ``GeminiModel`` instance."""
     from .gemini import GeminiModel
 
     return GeminiModel(model, logger)

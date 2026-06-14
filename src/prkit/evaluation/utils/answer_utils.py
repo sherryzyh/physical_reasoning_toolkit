@@ -1,9 +1,4 @@
-"""
-Answer utilities for comparison.
-
-This module provides functions for converting Answer objects or raw strings
-to strings, and helpers for comparison logic.
-"""
+"""Helpers for converting ``Answer`` objects to strings and categorising comparison pairs."""
 
 from prkit.core.domain.answer import Answer
 from prkit.core.domain.answer_category import AnswerCategory

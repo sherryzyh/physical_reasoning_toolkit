@@ -1,6 +1,4 @@
-"""
-Utility functions for working with physical reasoning datasets.
-"""
+"""Utility functions for working with physical reasoning datasets."""
 
 import json
 import random

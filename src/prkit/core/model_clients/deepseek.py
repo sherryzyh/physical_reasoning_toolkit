@@ -31,6 +31,7 @@ class DeepseekModel(OpenAICompatibleChatModel):
         user_prompt: str,
         image_paths: list[str] | None = None,
     ) -> str | list[dict[str, Any]]:
+        """Return the prompt text, warning and discarding any image inputs (not supported by DeepSeek)."""
         if image_paths:
             self.logger.warning(
                 "DeepSeek model %s does not support image inputs. "
@@ -45,6 +46,7 @@ class DeepseekModel(OpenAICompatibleChatModel):
         user_prompt: str,
         response_format: dict[str, Any] | type | None,
     ) -> str:
+        """Append a JSON-schema instruction to *user_prompt* when *response_format* is provided."""
         if response_format is None:
             return user_prompt
         if (
@@ -108,6 +110,7 @@ class DeepseekModel(OpenAICompatibleChatModel):
         response_format: dict[str, Any] | type | None = None,
         **kwargs: Any,
     ) -> str:
+        """Send a chat request to DeepSeek and return the model's text response."""
         return super().chat(
             user_prompt=user_prompt,
             image_paths=image_paths,

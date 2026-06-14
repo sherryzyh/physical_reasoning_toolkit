@@ -13,6 +13,7 @@ _UQ_ENV_VAR = "PRKIT_UQ_ROOT"
 
 
 def _anchor_dir(anchor: str | PathLike[str] | Path | None = None) -> Path:
+    """Return the resolved directory for *anchor*, defaulting to this file's directory."""
     target = Path(anchor).resolve() if anchor is not None else Path(__file__).resolve()
     return target if target.is_dir() else target.parent
 
@@ -20,12 +21,14 @@ def _anchor_dir(anchor: str | PathLike[str] | Path | None = None) -> Path:
 def _iter_search_dirs(
     anchor: str | PathLike[str] | Path | None = None,
 ) -> Iterator[Path]:
+    """Yield the anchor directory and all of its ancestors, bottom-up."""
     start = _anchor_dir(anchor)
     yield start
     yield from start.parents
 
 
 def _resolve_env_root(env_var: str, *, marker_relpath: tuple[str, ...]) -> Path | None:
+    """Return the path in *env_var* if it exists and contains the marker file, else ``None``."""
     raw = os.environ.get(env_var)
     if not raw:
         return None
@@ -41,6 +44,7 @@ def _find_named_sibling(
     *,
     marker_relpath: tuple[str, ...],
 ) -> Path | None:
+    """Walk up from *anchor* looking for a sibling directory named *sibling_name* that contains the marker path."""
     for candidate in _iter_search_dirs(anchor):
         sibling = candidate / sibling_name
         if (sibling / Path(*marker_relpath)).exists():
@@ -103,7 +107,11 @@ def find_repo_root(
     repo_name: str,
     anchor: str | PathLike[str] | Path | None = None,
 ) -> Path | None:
-    """Return one of the known sibling repos by logical name."""
+    """Return one of the three known sibling repo roots by logical name.
+
+    Raises:
+        ValueError: If *repo_name* is not one of the three supported repos.
+    """
     if repo_name == "physical_reasoning_toolkit":
         return find_toolkit_root(anchor)
     if repo_name == "canonical_answer_protocol":

@@ -73,6 +73,7 @@ UGPHYSICS_SPLIT_TOTALS = {
 
 
 def _warn(logger: Any | None, message: str) -> None:
+    """Emit a warning through *logger* when one is provided; silently no-op otherwise."""
     if logger is not None and hasattr(logger, "warning"):
         logger.warning(message)
 
@@ -200,7 +201,7 @@ def get_variant_from_domain_dir(domain_dir: str) -> str:
 
 
 def candidate_data_dirs(root: Path) -> list[Path]:
-    """Return supported UGPhysics cache directory candidates under a root."""
+    """Return both the canonical and legacy UGPhysics subdirectory paths under *root*."""
     return [
         root / UGPHYSICS_DEFAULT_SUBDIR,
         root / UGPHYSICS_LEGACY_SUBDIR,

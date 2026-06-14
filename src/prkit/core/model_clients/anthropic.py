@@ -98,6 +98,7 @@ def _extract_tool_use_json(content_blocks: list[Any]) -> str:
 
 
 def _extract_text_json(content_blocks: list[Any]) -> str:
+    """Return plain text from content blocks, falling back to tool-use JSON extraction."""
     text_chunks = [
         str(text)
         for block in content_blocks

@@ -1,9 +1,4 @@
-"""
-Reusable helpers for cross-typed answer matching.
-
-These utilities support cross-category comparisons (for example formula/text
-or equation/formula) and are shared by comparators such as SmartMatch.
-"""
+"""Helpers for cross-category answer matching (e.g. formula vs text, equation vs number)."""
 
 from __future__ import annotations
 
@@ -40,7 +35,7 @@ def split_respecting_parens(s: str, delimiter: str = ",") -> list[str]:
 
 
 def expand_gt_set(gt_norm: float | str) -> list[str]:
-    """Expand SymPy-style set literal ``{a, b}`` into candidates."""
+    """Split a SymPy-style set literal ``{a, b, …}`` into individual candidate strings."""
     s = str(gt_norm).strip()
     if s.startswith("{") and s.endswith("}"):
         inner = s[1:-1]
@@ -61,7 +56,7 @@ def strip_unbalanced_parens(s: str) -> str:
 
 
 def extract_formula_candidates(text: str) -> list[str]:
-    """Extract formula-like text fragments and RHS candidates."""
+    """Split *text* on commas/semicolons and collect RHS substrings for formula matching."""
     candidates: list[str] = []
     separators = re.compile(r"[,;，；]")
     parts = separators.split(text)

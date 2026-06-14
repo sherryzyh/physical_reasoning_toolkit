@@ -1,12 +1,4 @@
-"""
-Dispatch normalized prediction vs ground truth to the right same-type compare function.
-
-This is a small helper used by :class:`~prkit.evaluation.comparator.smart_match.SmartMatchComparator`,
-:class:`~prkit.evaluation.comparator.category_match.CategoryComparator`, and
-:class:`~prkit.evaluation.comparator.typed_llm.TypedLLMComparator` where the SmartMatch-style
-path applies: pick a per-:class:`~prkit.core.domain.answer_category.AnswerCategory` compare
-callable from a mapping, with optional logging and plain-text fallback on unexpected failures.
-"""
+"""Dispatch normalized prediction/ground-truth to the per-category compare function."""
 
 from __future__ import annotations
 

@@ -1,13 +1,4 @@
-"""
-Ollama API client implementation.
-
-This module provides a client implementation for models hosted locally via Ollama.
-It supports both text and vision models (like qwen3-vl, qwen2-vl, or llava).
-
-Prerequisites:
-- Ollama must be installed and running locally (default: http://localhost:11434)
-- The model must be pulled first: `ollama pull qwen3-vl`
-"""
+"""Ollama API client for locally-hosted models, including vision models such as qwen3-vl and llava."""
 
 import logging
 import os

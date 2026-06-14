@@ -33,6 +33,7 @@ _RECORD_TYPE_TO_CATEGORY = {
 
 
 def _is_record_like(answer: object) -> bool:
+    """Return ``True`` when *answer* looks like a typed final-answer record (has status/answer_type/final_answer)."""
     if isinstance(answer, Mapping):
         return any(key in answer for key in ("status", "answer_type", "final_answer"))
     return any(
@@ -41,12 +42,14 @@ def _is_record_like(answer: object) -> bool:
 
 
 def _record_field(record: RecordLike, field_name: str) -> Any:
+    """Return the value of *field_name* from a record, supporting both Mapping and attribute access."""
     if isinstance(record, Mapping):
         return record.get(field_name)
     return getattr(record, field_name, None)
 
 
 def _record_string(record: RecordLike, field_name: str) -> str | None:
+    """Return the string value of *field_name* from a record, or ``None`` when absent."""
     value = _record_field(record, field_name)
     if value is None:
         return None
@@ -54,12 +57,14 @@ def _record_string(record: RecordLike, field_name: str) -> str | None:
 
 
 def _is_usable_record(record: RecordLike) -> bool:
+    """Return ``True`` when the record has ``status == "ok"`` and ``answer_type != "invalid"``."""
     status = (_record_string(record, "status") or "").lower()
     answer_type = (_record_string(record, "answer_type") or "").lower()
     return status == "ok" and answer_type != "invalid"
 
 
 def _record_to_answer(record: RecordLike) -> Answer:
+    """Convert a typed final-answer record to an ``Answer`` domain object."""
     answer_type = (_record_string(record, "answer_type") or "short_text").lower()
     category = _RECORD_TYPE_TO_CATEGORY.get(answer_type, AnswerCategory.TEXT)
 
@@ -115,6 +120,7 @@ class RecordMatchComparator(BaseComparator):
         self._delegate = SmartMatchComparator()
 
     def _coerce_answer(self, answer: str | Answer | RecordLike) -> str | Answer:
+        """Return *answer* as a ``str`` or ``Answer``, converting record-like objects via ``_record_to_answer``."""
         if isinstance(answer, (str, Answer)):
             return answer
         if _is_record_like(answer):

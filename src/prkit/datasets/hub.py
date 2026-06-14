@@ -98,7 +98,7 @@ class DatasetHub:
 
     @classmethod
     def register(cls, name: str, loader_class: type[BaseDatasetLoader]) -> None:
-        """Register a new dataset loader."""
+        """Register a new dataset loader under *name*, overriding any existing entry."""
         cls._ensure_defaults_registered()
         cls._loaders[name] = loader_class
 
@@ -106,13 +106,13 @@ class DatasetHub:
     def register_downloader(
         cls, name: str, downloader_class: type[BaseDownloader]
     ) -> None:
-        """Register a new dataset downloader."""
+        """Register a new dataset downloader under *name*, overriding any existing entry."""
         cls._ensure_defaults_registered()
         cls._downloaders[name] = downloader_class
 
     @classmethod
     def _get_downloader(cls, name: str) -> BaseDownloader | None:
-        """Get a dataset downloader by name."""
+        """Return an instantiated downloader for *name*, or ``None`` when none is registered."""
         cls._ensure_defaults_registered()
 
         if name not in cls._downloaders:
@@ -159,7 +159,7 @@ class DatasetHub:
 
     @classmethod
     def _get_loader(cls, name: str) -> BaseDatasetLoader:
-        """Get a dataset loader by name."""
+        """Return an instantiated loader for *name*, raising ``ValueError`` for unknown datasets."""
         cls._ensure_defaults_registered()
 
         if name not in cls._loaders:
@@ -380,19 +380,19 @@ class DatasetHub:
 
     @classmethod
     def list_available(cls) -> list[str]:
-        """List all available dataset names."""
+        """Return the names of all registered datasets."""
         cls._ensure_defaults_registered()
         return list(cls._loaders.keys())
 
     @classmethod
     def get_info(cls, dataset_name: str) -> dict[str, Any]:
-        """Get information about a specific dataset."""
+        """Return metadata about *dataset_name* as reported by its loader."""
         loader = cls._get_loader(dataset_name)
         return loader.get_info()
 
     @classmethod
     def get_loader_info(cls, dataset_name: str) -> dict[str, Any]:
-        """Get detailed information about a dataset loader including supported parameters."""
+        """Return metadata plus loader class details for *dataset_name*."""
         loader = cls._get_loader(dataset_name)
         info = loader.get_info()
 

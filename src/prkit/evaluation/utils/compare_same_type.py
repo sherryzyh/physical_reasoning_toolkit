@@ -1,9 +1,4 @@
-"""
-Same-answer-type comparison functions for physical reasoning evaluation.
-
-This module contains only same-type comparison methods (number/number,
-formula/formula, physical_quantity/physical_quantity, text/text, ...).
-"""
+"""Same-type answer comparison functions: number, formula, physical quantity, text, and option."""
 
 import logging
 import random
@@ -41,10 +36,12 @@ CategoryCompareFn = Callable[[AnswerValue, AnswerValue], bool]
 
 
 def _raw_answer_value(value: ComparableAnswerValue) -> AnswerValue:
+    """Unwrap an ``Answer`` object to its raw value, or return non-Answer values unchanged."""
     return value.value if isinstance(value, Answer) else value
 
 
 def _answer_text(value: ComparableAnswerValue) -> str:
+    """Return the string representation of the underlying answer value."""
     return str(_raw_answer_value(value))
 
 
@@ -94,7 +91,7 @@ def compare_option(
 
 
 def _parse_physical_quantity(s: str) -> tuple[float | None, str]:
-    """Backward-compatible alias used by existing tests."""
+    """Backward-compatible two-tuple alias for :func:`parse_physical_quantity`."""
     num, unit, _ = parse_physical_quantity(s)
     return num, unit
 
@@ -133,10 +130,12 @@ def compare_physical_quantity(
 
 
 def _formula_to_sympify(s: str) -> str:
+    """Convert a formula string to a form SymPy can parse (``^`` → ``**``)."""
     return str(s).strip().replace("^", "**")
 
 
 def _normalize_formula_text(s: str) -> str:
+    """Strip LaTeX display commands and normalize whitespace for a text-level formula comparison."""
     import re
 
     s = str(s).strip()

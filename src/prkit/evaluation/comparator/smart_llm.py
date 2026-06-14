@@ -48,6 +48,7 @@ class SmartLLMComparator(SmartMatchComparator):
         self._last_result: LLMJudgeResult | None = None
 
     def _result_smart(self, *, correct: bool) -> LLMJudgeResult:
+        """Build an ``LLMJudgeResult`` representing a deterministic SmartMatch verdict."""
         return LLMJudgeResult(
             verdict="correct" if correct else "incorrect",
             confidence=1.0,

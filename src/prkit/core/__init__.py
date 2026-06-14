@@ -1,8 +1,4 @@
-"""
-PRKit Core Package
-
-This package provides core functionality for PRKit (physical-reasoning-toolkit).
-"""
+"""Core domain models, exceptions, logging, and model clients for PRKit."""
 
 from .exceptions import (
     ConfigError,

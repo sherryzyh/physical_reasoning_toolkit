@@ -1,9 +1,4 @@
-"""
-Number utilities for numeric precision handling.
-
-This module provides functions for decimal places, significant digits, and rounding,
-used in number comparison.
-"""
+"""Numeric precision helpers: decimal-place inference, significant digits, and epsilon-aware rounding."""
 
 import math
 

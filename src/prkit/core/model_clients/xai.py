@@ -33,12 +33,14 @@ _XAI_UNSUPPORTED_SCHEMA_KEYWORDS = frozenset(
 
 
 def _xai_native_schema_incompatibility(spec: StructuredOutputSpec) -> str | None:
+    """Return a reason string when *spec* is incompatible with xAI native structured output, or ``None``."""
     if schema_contains_keyword(spec.schema, "allOf"):
         return "allOf is not supported by xAI structured outputs"
     return None
 
 
 def _xai_transformed_response_format(spec: StructuredOutputSpec) -> dict[str, Any]:
+    """Build the response format dict after stripping xAI-unsupported schema keywords."""
     transformed_schema = strip_schema_keywords(
         spec.schema,
         keywords=_XAI_UNSUPPORTED_SCHEMA_KEYWORDS,

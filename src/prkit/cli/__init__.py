@@ -14,6 +14,7 @@ from prkit.datasets import DatasetHub
 
 
 def _build_parser() -> argparse.ArgumentParser:
+    """Build and return the top-level argument parser with all subcommands registered."""
     parser = argparse.ArgumentParser(
         prog="prkit",
         description="Dataset utilities for the Physical Reasoning Toolkit.",
@@ -50,6 +51,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def _print_dataset_info(info: dict[str, Any]) -> None:
+    """Pretty-print *info* as formatted JSON to stdout."""
     print(json.dumps(info, indent=2, sort_keys=True, default=str))
 
 

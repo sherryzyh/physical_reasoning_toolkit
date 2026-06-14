@@ -1,6 +1,4 @@
-"""
-Base model client interface for multiple AI model providers.
-"""
+"""Abstract base class and shared structured-output logic for all model clients."""
 
 from __future__ import annotations
 
@@ -45,10 +43,12 @@ class BaseModelClient(ABC):
         raise AttributeError(name)
 
     def _provider_name(self) -> str:
+        """Return the provider identifier string, or ``'unknown'`` when unset."""
         return self.provider or "unknown"
 
     @property
     def supports_native_structured_output(self) -> bool:
+        """True when this provider supports at least one form of native structured output."""
         return bool(
             self.supports_response_format_json_schema
             or self.supports_response_format_json_object
@@ -70,6 +70,12 @@ class BaseModelClient(ABC):
         *,
         structured_policy: StructuredOutputPolicy = "best_effort",
     ) -> StructuredOutputPlan:
+        """Build the structured-output plan for *response_model* under *structured_policy*.
+
+        Raises:
+            ValueError: If *structured_policy* is ``'native_required'`` and the provider
+                cannot enforce schema-validated output.
+        """
         spec = coerce_structured_output_spec(response_model)
         plan = self._resolve_structured_output_plan(
             spec,
@@ -94,6 +100,7 @@ class BaseModelClient(ABC):
         structured_policy: StructuredOutputPolicy = "best_effort",
         **kwargs: Any,
     ) -> StructuredCallResult[T]:
+        """Send a chat request and parse the response into a Pydantic model instance."""
         plan = self.resolve_structured_output_plan(
             response_model,
             structured_policy=structured_policy,
@@ -126,6 +133,7 @@ class BaseModelClient(ABC):
         structured_policy: StructuredOutputPolicy = "native_required",
         **kwargs: Any,
     ) -> dict[str, Any]:
+        """Build a provider-specific batch request dict for structured output."""
         plan = self.resolve_structured_output_plan(
             response_model,
             structured_policy=structured_policy,
@@ -148,6 +156,7 @@ class BaseModelClient(ABC):
         structured_policy: StructuredOutputPolicy = "native_required",
         structured_output_strategy: str | None = None,
     ) -> StructuredCallResult[T]:
+        """Parse a raw batch response text into a typed ``StructuredCallResult``."""
         plan = self.resolve_structured_output_plan(
             response_model,
             structured_policy=structured_policy,
@@ -174,6 +183,7 @@ class BaseModelClient(ABC):
         *,
         structured_policy: StructuredOutputPolicy,
     ) -> StructuredOutputPlan:
+        """Map a ``StructuredOutputSpec`` to the best plan supported by this provider."""
         if self.supports_response_format_json_schema:
             return StructuredOutputPlan(
                 mode="json_schema",
@@ -219,6 +229,7 @@ class BaseModelClient(ABC):
         raw_text: str | None,
         plan: StructuredOutputPlan,
     ) -> StructuredCallResult[T]:
+        """Parse *raw_text* into a ``StructuredCallResult``, capturing validation errors."""
         parsed: T | None = None
         raw_payload: dict[str, Any] | list[Any] | None = None
         validation_error: str | None = None

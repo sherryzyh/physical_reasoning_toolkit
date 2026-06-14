@@ -1,8 +1,4 @@
-"""
-PRKit Annotation Package
-
-Annotation workflows and tools for physics problems in PRKit (physical-reasoning-toolkit).
-"""
+"""Annotation workers and workflow composers for physics problem datasets."""
 
 from .workers import DomainLabeler, TheoremDetector
 from .workflows import WorkflowComposer

@@ -1,9 +1,4 @@
-"""
-Workflow composer for chaining and composing workflow modules.
-
-This module provides functionality to chain multiple workflow modules together
-to create complex annotation pipelines with data flow between modules.
-"""
+"""Workflow composer for chaining annotation modules into complex pipelines."""
 
 import json
 import logging

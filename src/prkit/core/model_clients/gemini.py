@@ -1,6 +1,4 @@
-"""
-Google Gemini API client implementation.
-"""
+"""Google Gemini API model client using the ``google-genai`` SDK."""
 
 import logging
 import os
@@ -215,8 +213,10 @@ def _extract_gemini_error_details(response: object) -> str | None:
 
 
 def _guess_mime_type(path: str) -> str:
+    """Return the MIME type for the image at *path* based on its extension."""
     return detect_image_mime_type(path)
 
 
 def _encode_image_file_base64(path: str) -> str:
+    """Return the base64-encoded contents of the image file at *path*."""
     return encode_image_to_base64(path)

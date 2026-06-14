@@ -28,14 +28,17 @@ class OpenAICompatibleChatModel(BaseModelClient):
 
     @classmethod
     def normalize_model_name(cls, model: str) -> str:
+        """Strip the provider prefix from *model* (e.g. ``'deepseek/foo'`` → ``'foo'``)."""
         if cls.provider_prefix and model.lower().startswith(f"{cls.provider_prefix}/"):
             return model.split("/", 1)[1]
         return model
 
     def resolve_base_url(self) -> str:
+        """Return the API base URL, consulting the env var before falling back to the default."""
         return os.environ.get(self.base_url_env_var, self.default_base_url)
 
     def get_client_kwargs(self) -> dict[str, Any]:
+        """Return extra keyword arguments forwarded to the OpenAI client constructor."""
         return {}
 
     def __init__(self, model: str, logger: logging.Logger | None = None) -> None:
@@ -55,6 +58,7 @@ class OpenAICompatibleChatModel(BaseModelClient):
         user_prompt: str,
         image_paths: list[str] | None = None,
     ) -> str | list[dict[str, Any]]:
+        """Build the ``content`` field for an OpenAI-compatible chat message, attaching images when present."""
         if not image_paths:
             return user_prompt
 
@@ -74,6 +78,7 @@ class OpenAICompatibleChatModel(BaseModelClient):
         self,
         response_format: dict[str, Any] | type | None,
     ) -> dict[str, Any] | None:
+        """Translate *response_format* to the ``response_format`` parameter for chat completions."""
         if response_format is None:
             return None
 
@@ -113,10 +118,12 @@ class OpenAICompatibleChatModel(BaseModelClient):
         user_prompt: str,
         response_format: dict[str, Any] | type | None,
     ) -> str:
+        """Optionally augment *user_prompt* with schema instructions; base implementation returns it unchanged."""
         del response_format
         return user_prompt
 
     def _extract_text_from_chat_completion(self, response: Any) -> str:
+        """Extract the plain text content from a chat-completions response object."""
         message = response.choices[0].message
         content = message.content or ""
         if isinstance(content, str):
@@ -140,6 +147,7 @@ class OpenAICompatibleChatModel(BaseModelClient):
         response_format: dict[str, Any] | type | None = None,
         **kwargs: Any,
     ) -> str:
+        """Send a chat-completions request and return the model's text response."""
         request_params: dict[str, Any] = {
             "model": self.model,
             "messages": [

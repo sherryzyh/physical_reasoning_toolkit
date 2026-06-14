@@ -1,19 +1,4 @@
-"""
-Centralized dataset citations for PRKit datasets.
-
-This module provides citations for all supported datasets in a centralized location.
-Citations are provided in BibTeX format and can be imported by loaders, downloaders,
-and other components that need to reference the original papers.
-
-Usage:
-    from prkit.datasets.citations import get_citation, CITATIONS
-
-    # Get citation for a specific dataset
-    citation = get_citation("physreason")
-
-    # Access all citations
-    all_citations = CITATIONS
-"""
+"""BibTeX citations for all datasets supported by PRKit, centralised in one place."""
 
 # PhysReason citation
 PHYSREASON_CITATION = """@inproceedings{zhang-etal-2025-physreason,

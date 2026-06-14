@@ -26,6 +26,8 @@ T = TypeVar("T", bound=BaseModel)
 
 @dataclass(frozen=True)
 class SchemaFeatures:
+    """Structural features of a JSON Schema that affect provider compatibility."""
+
     has_root_anyof: bool = False
     has_allof: bool = False
     has_prefix_items: bool = False
@@ -39,6 +41,17 @@ class SchemaFeatures:
 
 @dataclass(frozen=True)
 class StructuredOutputSpec:
+    """Provider-neutral representation of a structured output schema.
+
+    Attributes:
+        name: Sanitized schema name used in provider requests.
+        schema: The JSON Schema dict.
+        description: Optional human-readable description passed to providers that accept it.
+        strict: Whether to request strict schema enforcement.
+        source_model: Original Pydantic model class, when the spec was derived from one.
+        schema_features: Pre-computed structural features for provider compatibility checks.
+    """
+
     name: str
     schema: dict[str, Any]
     description: str | None = None
@@ -47,6 +60,7 @@ class StructuredOutputSpec:
     schema_features: SchemaFeatures | None = None
 
     def with_schema(self, schema: dict[str, Any]) -> StructuredOutputSpec:
+        """Return a copy of this spec with *schema* substituted and features recomputed."""
         return StructuredOutputSpec(
             name=self.name,
             schema=schema,
@@ -59,6 +73,18 @@ class StructuredOutputSpec:
 
 @dataclass(frozen=True)
 class StructuredOutputPlan:
+    """Resolved per-request structured-output configuration for a specific provider.
+
+    Attributes:
+        mode: How the schema will be communicated to the model.
+        strategy: Unique string identifier for this provider/mode combination.
+        native_schema_enforced: Whether the provider guarantees schema compliance.
+        accepted_artifact_modes: Modes considered valid when loading saved artifacts.
+        accepted_artifact_strategies: Strategy strings considered valid for saved artifacts.
+        response_format: The provider-ready response format object, if any.
+        prompt_suffix: Extra text appended to the user prompt for prompt-only mode.
+    """
+
     mode: StructuredOutputMode
     strategy: str
     native_schema_enforced: bool
@@ -70,6 +96,20 @@ class StructuredOutputPlan:
 
 @dataclass(frozen=True)
 class StructuredCallResult(Generic[T]):
+    """Outcome of a structured inference call, including both parsed and raw data.
+
+    Attributes:
+        parsed: Successfully validated Pydantic model instance, or ``None`` on failure.
+        raw_text: Raw string returned by the model.
+        raw_payload: The JSON dict/list extracted from *raw_text*, when parseable.
+        validation_error: Human-readable Pydantic validation error, or ``None`` on success.
+        structured_output_mode: Mode used for this call.
+        structured_output_strategy: Provider/mode strategy identifier.
+        native_schema_enforced: Whether the provider enforced the schema server-side.
+        provider: Provider identifier string.
+        model_name: Model identifier string as submitted to the provider.
+    """
+
     parsed: T | None
     raw_text: str | None
     raw_payload: dict[str, Any] | list[Any] | None
@@ -81,6 +121,7 @@ class StructuredCallResult(Generic[T]):
     model_name: str
 
     def require_parsed(self) -> T:
+        """Return the parsed result, or raise ``ValueError`` with the validation error."""
         if self.parsed is not None:
             return self.parsed
         detail = self.validation_error or "Structured output could not be validated."
@@ -88,6 +129,7 @@ class StructuredCallResult(Generic[T]):
 
 
 def sanitize_schema_name(name: str) -> str:
+    """Reduce *name* to a URL-safe alphanumeric identifier capped at 64 characters."""
     cleaned = "".join(c if c.isalnum() or c in "_-" else "_" for c in str(name))
     cleaned = cleaned[:64]
     return cleaned or "response"
@@ -96,6 +138,7 @@ def sanitize_schema_name(name: str) -> str:
 def structured_output_spec_to_response_format(
     spec: StructuredOutputSpec,
 ) -> StructuredOutputFormat:
+    """Serialize a ``StructuredOutputSpec`` to a ``json_schema`` response-format dict."""
     return {
         "type": "json_schema",
         "name": spec.name,
@@ -169,6 +212,7 @@ def normalize_response_format(
 def extract_schema_for_gemini(
     normalized_format: StructuredOutputFormat,
 ) -> dict[str, Any]:
+    """Extract the raw JSON Schema dict from a normalized response-format for Gemini's ``response_json_schema``."""
     schema = normalized_format["schema"]
     if not isinstance(schema, dict):
         raise ValueError("normalized_format['schema'] must be a dict")
@@ -176,6 +220,7 @@ def extract_schema_for_gemini(
 
 
 def build_json_schema_prompt_suffix(schema: dict[str, Any]) -> str:
+    """Build a prompt suffix instructing the model to respond with JSON matching *schema*."""
     return (
         "\n\nReturn ONLY valid JSON that matches this JSON Schema exactly.\n"
         "Do not include markdown fences, commentary, or any extra keys.\n"
@@ -184,6 +229,7 @@ def build_json_schema_prompt_suffix(schema: dict[str, Any]) -> str:
 
 
 def extract_json_object(text: str) -> dict[str, Any] | None:
+    """Extract the first JSON object from *text*, returning ``None`` if none found."""
     payload = extract_json_payload(text)
     return payload if isinstance(payload, dict) else None
 
@@ -216,6 +262,7 @@ def extract_json_payload(text: str) -> dict[str, Any] | list[Any] | None:
 
 
 def inspect_schema_features(schema: dict[str, Any]) -> SchemaFeatures:
+    """Walk *schema* and return a ``SchemaFeatures`` summary used for provider compatibility checks."""
     optional_field_count = 0
     union_field_count = 0
     has_allof = False
@@ -309,12 +356,14 @@ def inspect_schema_features(schema: dict[str, Any]) -> SchemaFeatures:
 
 
 def schema_has_open_objects(schema: Any) -> bool:
+    """Return ``True`` when *schema* contains objects without ``additionalProperties: false``."""
     return inspect_schema_features(
         schema if isinstance(schema, dict) else {}
     ).has_open_objects
 
 
 def schema_contains_keyword(schema: Any, keyword: str) -> bool:
+    """Return ``True`` when *keyword* appears as a key anywhere in the schema tree."""
     if isinstance(schema, dict):
         if keyword in schema:
             return True
@@ -325,6 +374,7 @@ def schema_contains_keyword(schema: Any, keyword: str) -> bool:
 
 
 def strip_schema_keywords(schema: Any, *, keywords: set[str] | frozenset[str]) -> Any:
+    """Return a deep copy of *schema* with every key in *keywords* removed."""
     if isinstance(schema, dict):
         return {
             key: strip_schema_keywords(value, keywords=keywords)
@@ -337,6 +387,7 @@ def strip_schema_keywords(schema: Any, *, keywords: set[str] | frozenset[str]) -
 
 
 def _try_parse_json_payload(candidate: str) -> dict[str, Any] | list[Any] | None:
+    """Attempt to parse *candidate* as JSON; return ``None`` on failure or non-container types."""
     try:
         parsed = json.loads(candidate)
     except json.JSONDecodeError:
@@ -347,6 +398,7 @@ def _try_parse_json_payload(candidate: str) -> dict[str, Any] | list[Any] | None
 
 
 def _iter_balanced_json_candidates(text: str) -> Iterator[str]:
+    """Yield balanced JSON substrings starting at each ``{`` or ``[`` in *text``."""
     for start, start_char in (
         (index, char) for index, char in enumerate(text) if char in "{["
     ):

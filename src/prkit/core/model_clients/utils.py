@@ -1,9 +1,4 @@
-"""
-Utility functions for model clients.
-
-This module provides common utility functions that can be used across different
-model client implementations.
-"""
+"""Shared utility helpers for model client implementations (image encoding, MIME detection)."""
 
 import base64
 import os

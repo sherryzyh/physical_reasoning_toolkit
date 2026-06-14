@@ -69,6 +69,7 @@ from prkit.semantics.normalization.physical_quantity_normalization import (
 
 
 def _legacy_expression_kind(kind: NormalizedAtomicKind) -> str:
+    """Convert a semantics ``NormalizedAtomicKind`` to the legacy string label used by the evaluation API."""
     mapping = {
         NormalizedAtomicKind.NUMBER: "number",
         NormalizedAtomicKind.PHYSICAL_QUANTITY: "physical_quantity",
@@ -79,6 +80,7 @@ def _legacy_expression_kind(kind: NormalizedAtomicKind) -> str:
 
 
 def _legacy_answer_category(kind: NormalizedAtomicKind) -> AnswerCategory:
+    """Convert a semantics ``NormalizedAtomicKind`` to the evaluation-layer ``AnswerCategory``."""
     mapping = {
         NormalizedAtomicKind.NUMBER: AnswerCategory.NUMBER,
         NormalizedAtomicKind.PHYSICAL_QUANTITY: AnswerCategory.PHYSICAL_QUANTITY,

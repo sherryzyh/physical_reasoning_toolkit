@@ -1,9 +1,4 @@
-"""
-Exact Match Comparator for answer comparison.
-
-This comparator performs exact string matching between two answers.
-Accepts either Answer objects or raw strings.
-"""
+"""Exact-string match comparator for answer comparison."""
 
 from typing import Any
 

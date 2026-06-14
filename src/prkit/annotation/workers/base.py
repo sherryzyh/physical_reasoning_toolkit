@@ -1,6 +1,4 @@
-"""
-Base annotator class for physical problem annotation.
-"""
+"""Abstract base annotator for LLM-driven physics problem annotation workers."""
 
 from abc import ABC, abstractmethod
 from typing import Any

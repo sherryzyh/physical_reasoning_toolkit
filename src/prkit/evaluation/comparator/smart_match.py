@@ -58,7 +58,7 @@ def _extract_latex_equations(text: str) -> list[str]:
 def _typed_category_and_value(
     answer: str | Answer,
 ) -> tuple[AnswerCategory | None, float | str]:
-    """Get typed category and normalized value for an answer."""
+    """Return ``(category, normalized_value)`` for *answer*, or ``(None, raw_text)`` when normalization fails."""
     if isinstance(answer, Answer):
         return answer.answer_category, str(answer.value)
     try:

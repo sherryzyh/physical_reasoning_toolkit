@@ -16,6 +16,7 @@ from .typed_llm import TypedLLMComparator, _typed_category_and_value
 
 
 def _text_for_rouge(answer: str | Answer) -> str:
+    """Return the plain text representation of *answer* used as ROUGE-L input."""
     if isinstance(answer, Answer):
         return str(answer.value).strip()
     return str(answer).strip()

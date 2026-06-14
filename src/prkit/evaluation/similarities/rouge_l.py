@@ -11,6 +11,7 @@ import re
 
 
 def _tokenize(text: str) -> list[str]:
+    """Lowercase and whitespace-split *text* into word tokens."""
     s = text.strip().lower()
     s = re.sub(r"\s+", " ", s)
     if not s:

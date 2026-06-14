@@ -37,6 +37,7 @@ from .base import BaseComparator
 def _typed_category_and_value(
     answer: str | Answer,
 ) -> tuple[AnswerCategory | None, float | str]:
+    """Return ``(category, normalized_value)`` for *answer*, or ``(None, raw_text)`` when normalization fails."""
     if isinstance(answer, Answer):
         return answer.answer_category, str(answer.value)
     try:

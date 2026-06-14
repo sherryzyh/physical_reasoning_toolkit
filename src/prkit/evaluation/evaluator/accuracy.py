@@ -1,9 +1,4 @@
-"""
-Accuracy evaluator implementation.
-
-This evaluator uses a comparator to evaluate answers and can evaluate
-entire datasets, returning dataset-level statistics.
-"""
+"""Accuracy evaluator that scores predicted answers against ground truth using a configurable comparator."""
 
 from collections.abc import Callable
 from typing import Any

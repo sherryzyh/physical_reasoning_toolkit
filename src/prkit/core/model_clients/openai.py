@@ -29,6 +29,7 @@ from .utils import prepare_image_url_from_path
 
 
 def _ensure_additional_properties_false(schema: dict[str, Any]) -> dict[str, Any]:
+    """Recursively set ``additionalProperties: false`` on all object nodes."""
     if not isinstance(schema, dict):
         return schema
 
@@ -52,6 +53,7 @@ def _ensure_additional_properties_false(schema: dict[str, Any]) -> dict[str, Any
 
 
 def _strip_ref_siblings(schema: dict[str, Any]) -> dict[str, Any]:
+    """Drop sibling keys alongside ``$ref`` nodes, which OpenAI strict mode disallows."""
     if not isinstance(schema, dict):
         return schema
     if "$ref" not in schema:
@@ -60,6 +62,7 @@ def _strip_ref_siblings(schema: dict[str, Any]) -> dict[str, Any]:
 
 
 def ensure_openai_strict_json_schema(schema: dict[str, Any]) -> dict[str, Any]:
+    """Transform *schema* into a form that satisfies OpenAI strict structured-output requirements."""
     if not isinstance(schema, dict):
         return schema
 
@@ -93,6 +96,7 @@ def ensure_openai_strict_json_schema(schema: dict[str, Any]) -> dict[str, Any]:
 
 
 def _openai_native_schema_incompatibility(spec: StructuredOutputSpec) -> str | None:
+    """Return a human-readable reason string when *spec* cannot use OpenAI native structured output, or ``None`` when compatible."""
     features = spec.schema_features
     if features is None:
         return None

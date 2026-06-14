@@ -1,13 +1,4 @@
-"""
-Normalized Match Comparator for answer comparison.
-
-This comparator performs preprocessing and normalization before comparison:
-- number: normalized to float format, compared for equality
-- physical_quantity: number + units (placeholder comparison; user will add later)
-- equation, formula, text: normalized and compared as identical strings
-
-Accepts either Answer objects or raw strings.
-"""
+"""Normalized-string match comparator: normalizes answers by category before comparing."""
 
 from typing import Any
 

@@ -1,9 +1,4 @@
-"""
-Comparator module for answer comparison strategies.
-
-This module provides various comparators for comparing answers in physical
-reasoning evaluation tasks.
-"""
+"""Answer comparators for physical reasoning evaluation: exact, normalized, category, smart, LLM, and similarity."""
 
 from .base import BaseComparator
 from .by_module import (

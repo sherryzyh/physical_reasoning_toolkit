@@ -1,9 +1,4 @@
-"""
-Base Dataset Downloader
-
-This module provides a base class for all dataset downloaders in PRKit,
-ensuring consistent download handling and standardization across different datasets.
-"""
+"""Abstract base dataset downloader providing consistent download and caching behavior."""
 
 import os
 import shutil

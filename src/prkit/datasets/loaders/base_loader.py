@@ -1,10 +1,4 @@
-"""
-Base Dataset Loader with Simple Field Mapping
-
-This module provides a base class for all dataset loaders in PRKit (physical-reasoning-toolkit),
-ensuring consistent field handling and standardization across different datasets
-using simple field mapping dictionaries.
-"""
+"""Abstract base dataset loader with field-mapping standardization for PRKit datasets."""
 
 import ast
 import os

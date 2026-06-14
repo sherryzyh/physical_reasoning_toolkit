@@ -1,10 +1,4 @@
-"""
-Physical Reasoning Evaluation Package.
-
-This package provides tools for evaluating answers in physical reasoning tasks,
-including comparators for comparing answers and evaluators for performing
-evaluations.
-"""
+"""Answer comparators and evaluators for physical reasoning tasks."""
 
 from prkit.evaluation.comparator import BaseComparator, ExactMatchComparator
 from prkit.evaluation.evaluator import AccuracyEvaluator, BaseEvaluator

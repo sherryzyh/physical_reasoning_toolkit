@@ -13,7 +13,7 @@ from types import FrameType
 
 
 class ColoredFormatter(logging.Formatter):
-    """Custom formatter that adds colors to console output with fallbacks."""
+    """Log formatter that emits ANSI color codes on color-capable terminals and falls back to bracketed level prefixes elsewhere."""
 
     def __init__(self, fmt: str | None = None, datefmt: str | None = None) -> None:
         super().__init__(fmt, datefmt)
@@ -93,7 +93,13 @@ class ColoredFormatter(logging.Formatter):
 
 
 class PRKitLogger:
-    """Centralized logger for PRKit (physical-reasoning-toolkit) packages with consistent configuration."""
+    """Centralized logger factory and global configuration manager for all PRKit packages.
+
+    All loggers created via :meth:`get_logger` share the same level, format, and
+    handlers, so output is consistent across the toolkit.  Environment variables
+    ``PRKIT_LOG_LEVEL``, ``PRKIT_LOG_FILE``, ``PRKIT_LOG_CONSOLE``, and
+    ``PRKIT_LOG_COLORS`` are applied automatically at import time.
+    """
 
     _loggers: dict[str, logging.Logger] = {}
     _default_level = logging.INFO
@@ -102,7 +108,7 @@ class PRKitLogger:
     _colors_enabled = True  # Control whether colors are enabled
 
     class ConsoleFilter(logging.Filter):
-        """Filter to mark console records for colored output."""
+        """Marks log records with ``console_output=True`` so downstream handlers can distinguish console from file output."""
 
         def filter(self, record: logging.LogRecord) -> bool:
             record.console_output = True
@@ -408,7 +414,7 @@ class PRKitLogger:
 
     @classmethod
     def force_colors(cls) -> None:
-        """Force enable colors even if terminal detection fails."""
+        """Enable colors unconditionally, bypassing terminal detection."""
         cls._colors_enabled = True
         # Force color detection to retry
         cls._update_colors_for_all_handlers()
@@ -499,7 +505,7 @@ class PRKitLogger:
 
     @classmethod
     def add_file_handler(cls, log_file: Path, level: int | None = None) -> None:
-        """Add a file handler to all existing loggers."""
+        """Attach a file handler to every registered logger and to the root ``prkit`` logger."""
         if level is None:
             level = cls._default_level
 

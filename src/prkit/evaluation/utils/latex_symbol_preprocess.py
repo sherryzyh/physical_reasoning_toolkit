@@ -1,3 +1,5 @@
+"""LaTeX preprocessing to protect physics symbols that break ``latex2sympy2_extended``."""
+
 import re
 
 # ONLY include commands that are NOT natively handled as atomic symbols
@@ -15,10 +17,7 @@ PROTECTED_PHYSICS_SYMBOLS = {
 
 
 def _preprocess_latex(latex_str: str) -> str:
-    """
-    Minimally preprocesses LaTeX by protecting only the symbols
-    known to break latex2sympy2_extended.
-    """
+    """Protect physics symbols known to break ``latex2sympy2_extended`` before parsing."""
     if not latex_str:
         return ""
 

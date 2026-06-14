@@ -47,6 +47,7 @@ _OPTION_ONLY_COMPARATORS = {AnswerCategory.OPTION: compare_option}
 def _typed_category_and_value(
     answer: str | Answer,
 ) -> tuple[AnswerCategory | None, float | str]:
+    """Return ``(category, normalized_value)`` for *answer*, or ``(None, raw_text)`` when normalization fails."""
     if isinstance(answer, Answer):
         return answer.answer_category, str(answer.value)
     try:
@@ -57,6 +58,7 @@ def _typed_category_and_value(
 
 
 def _contains_latex_text_macro(s: str) -> bool:
+    """Return ``True`` when *s* contains a ``\\text{…}`` macro, indicating a prose formula."""
     return bool(re.search(r"\\text\s*\{", s))
 
 
@@ -184,6 +186,7 @@ def infer_symbolic_answer_is_expression(question: str | None) -> bool | None:
 
 
 def _normalized_equation_rhs_string(normalized_value: str) -> str | None:
+    """Parse *normalized_value* as a SymPy equation and return its RHS as a string, or ``None``."""
     try:
         e = sympify(str(normalized_value))
     except (SympifyError, TypeError, ValueError, AttributeError):
@@ -202,6 +205,10 @@ def _symbolic_operand_for_expression_compare(
     category: AnswerCategory,
     normalized_value: float | str,
 ) -> str | None:
+    """Extract the symbolic operand used in expression-level comparison from a normalized value.
+
+    Returns the value as-is for FORMULA, the equation RHS for EQUATION, or ``None`` for other categories.
+    """
     if category == AnswerCategory.FORMULA:
         return str(normalized_value)
     if category == AnswerCategory.EQUATION:
@@ -217,6 +224,7 @@ def _compare_formula_or_equation_as_expressions(
     pred_raw: str,
     gt_raw: str,
 ) -> bool | None:
+    """Compare a FORMULA/EQUATION prediction and ground truth as symbolic expressions via ``compare_formula``."""
     if pred_cat not in (AnswerCategory.FORMULA, AnswerCategory.EQUATION):
         return None
     if gt_cat not in (AnswerCategory.FORMULA, AnswerCategory.EQUATION):

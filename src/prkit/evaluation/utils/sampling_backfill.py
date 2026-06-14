@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+"""CLI tool to backfill sampling-format problem JSONs from inference outputs for a given problem subset."""
+
 from __future__ import annotations
 
 import argparse
@@ -110,6 +112,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def load_problem_ids(path: Path) -> list[str]:
+    """Load a JSON array of problem ID strings from *path*."""
     with open(path, encoding="utf-8") as f:
         raw = json.load(f)
     if not isinstance(raw, list):
@@ -118,6 +121,7 @@ def load_problem_ids(path: Path) -> list[str]:
 
 
 def problem_ids_from_dir(path: Path) -> set[str]:
+    """Return the set of problem IDs found as ``problem_<id>.json`` files in *path*."""
     if not path.is_dir():
         return set()
     ids: set[str] = set()
@@ -129,6 +133,7 @@ def problem_ids_from_dir(path: Path) -> set[str]:
 
 
 def sort_problem_ids(problem_ids: set[str] | list[str]) -> list[str]:
+    """Sort problem IDs numerically when all-digit, lexicographically otherwise."""
     def key(value: str) -> tuple[int, Any]:
         return (0, int(value)) if value.isdigit() else (1, value)
 
@@ -136,6 +141,7 @@ def sort_problem_ids(problem_ids: set[str] | list[str]) -> list[str]:
 
 
 def load_inference_doc(path: Path) -> tuple[str, str | None]:
+    """Load an inference output JSON and return ``(raw_model_response, extracted_model_answer)``."""
     with open(path, encoding="utf-8") as f:
         data = json.load(f)
     if not isinstance(data, dict):
@@ -169,6 +175,7 @@ def build_sampling_doc(
     raw_model_response: str,
     extracted_model_answer: str | None,
 ) -> dict[str, Any]:
+    """Build a single-response sampling document dict from inference output fields."""
     return {
         "problem_id": problem_id,
         "database_name": dataset,
@@ -186,6 +193,7 @@ def build_sampling_doc(
 
 
 def write_json(path: Path, payload: Any) -> None:
+    """Write *payload* as pretty-printed JSON to *path*, creating parent directories as needed."""
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
         json.dump(payload, f, indent=2, ensure_ascii=False)
@@ -193,6 +201,7 @@ def write_json(path: Path, payload: Any) -> None:
 
 
 def write_sampling_doc(path: Path, payload: dict[str, Any], overwrite: bool) -> bool:
+    """Write a sampling document to *path*; return ``False`` (skip) when it already exists and *overwrite* is false."""
     if path.exists() and not overwrite:
         return False
     write_json(path, payload)
@@ -206,6 +215,7 @@ def command_for_model(
     model: str,
     report_path: Path | None,
 ) -> str:
+    """Build the shell command string to re-run this script for a single model."""
     parts = [
         "python",
         str(script_path),
@@ -236,6 +246,7 @@ def model_report(
     overwrite: bool,
     report_path: Path | None,
 ) -> dict[str, Any]:
+    """Compute the backfill status for one model and optionally write missing sampling documents."""
     run_name = f"{dataset}_{model}"
     inference_dir = inference_root / run_name
     sampling_dir = sampling_root / run_name
@@ -340,6 +351,7 @@ def model_report(
 
 
 def main() -> int:
+    """Entry point: parse arguments, run backfill for each model, and output the report."""
     args = parse_args()
 
     repo_root = args.repo_root.resolve()

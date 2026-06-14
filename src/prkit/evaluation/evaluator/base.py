@@ -1,9 +1,4 @@
-"""
-Base evaluator class for physical reasoning evaluation.
-
-This module provides the foundation for all evaluators that use
-different comparators to evaluate answers.
-"""
+"""Abstract base evaluator for physical reasoning evaluation, delegating comparisons to a :class:`BaseComparator`."""
 
 from abc import ABC, abstractmethod
 from typing import Any

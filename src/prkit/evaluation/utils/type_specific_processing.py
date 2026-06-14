@@ -1,4 +1,4 @@
-"""Type-focused processing helpers shared across comparators."""
+"""Physical quantity parsing and equation RHS extraction shared across comparators."""
 
 from __future__ import annotations
 

@@ -89,15 +89,18 @@ class DashscopeModel(OpenAICompatibleChatModel):
     default_base_url = "https://dashscope-us.aliyuncs.com/compatible-mode/v1"
 
     def resolve_base_url(self) -> str:
+        """Return the DashScope endpoint URL from env configuration."""
         return resolve_dashscope_base_url()
 
     def get_client_kwargs(self) -> dict[str, Any]:
+        """Return timeout and retry settings for the DashScope OpenAI client."""
         return {
             "timeout": resolve_dashscope_timeout_seconds(),
             "max_retries": resolve_dashscope_max_retries(),
         }
 
     def _default_enable_thinking(self) -> bool | None:
+        """Return the default thinking-mode flag, honouring the env override and model-specific defaults."""
         env_override = _parse_bool_env("DASHSCOPE_ENABLE_THINKING")
         if env_override is not None:
             return env_override
@@ -117,6 +120,7 @@ class DashscopeModel(OpenAICompatibleChatModel):
         response_format: dict[str, Any] | type | None = None,
         **kwargs: Any,
     ) -> str:
+        """Send a request to DashScope, automatically managing the thinking-mode flag."""
         extra_body = kwargs.get("extra_body")
         if extra_body is None:
             extra_body = {}
