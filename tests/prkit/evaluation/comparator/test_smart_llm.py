@@ -16,6 +16,7 @@ class TestSmartLLMComparator:
     def _mock_openai(self):
         with patch("prkit.evaluation.llm_judge.runner.OpenAI"):
             yield
+
     def test_match_records_smart_match_source(self):
         comp = SmartLLMComparator()
         assert comp.compare("42", "42") is True
