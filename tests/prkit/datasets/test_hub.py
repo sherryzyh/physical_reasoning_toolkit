@@ -736,6 +736,96 @@ class TestDatasetHub:
         assert downloader is None
 
 
+class TestDatasetHubExtensionContract:
+    """Tests for the external-loader extension contract (Task 3b)."""
+
+    def _make_dummy_loader(self, tmp_path):
+        """Return a minimal BaseDatasetLoader that reads from *tmp_path*."""
+
+        class DummyExternalLoader(BaseDatasetLoader):
+            @property
+            def field_mapping(self):
+                return {}
+
+            def get_info(self):
+                return {
+                    "name": "dummy_ext",
+                    "variants": ["full"],
+                    "splits": ["full"],
+                }
+
+            def load(self, data_dir=None, **kwargs):
+                import json
+                from pathlib import Path
+
+                items = json.loads((Path(data_dir) / "problems.json").read_text())
+                return PhysicalDataset(
+                    problems=[
+                        PhysicsProblem(problem_id=item["id"], question=item["q"])
+                        for item in items
+                    ]
+                )
+
+        return DummyExternalLoader
+
+    def test_external_loader_loads_from_local_dir(self, tmp_path):
+        """External loader registered via DatasetHub.register can load from a local directory."""
+        import json
+
+        (tmp_path / "problems.json").write_text(
+            json.dumps(
+                [{"id": "p1", "q": "What is gravity?"}, {"id": "p2", "q": "F=ma?"}]
+            )
+        )
+
+        DummyExternalLoader = self._make_dummy_loader(tmp_path)
+        DatasetHub.register("dummy_ext", DummyExternalLoader)
+
+        try:
+            dataset = DatasetHub.load("dummy_ext", data_dir=tmp_path)
+            assert len(dataset) == 2
+            assert dataset[0].problem_id == "p1"
+            assert dataset[1].question == "F=ma?"
+        finally:
+            DatasetHub._loaders.pop("dummy_ext", None)
+
+    def test_external_registration_preserves_builtins(self):
+        """Registering an external loader before any built-in is touched still exposes built-ins."""
+        saved_loaders = dict(DatasetHub._loaders)
+        saved_downloaders = dict(DatasetHub._downloaders)
+
+        DatasetHub._loaders.clear()
+        DatasetHub._downloaders.clear()
+
+        class DummyExternalLoader(BaseDatasetLoader):
+            @property
+            def field_mapping(self):
+                return {}
+
+            def get_info(self):
+                return {"name": "dummy_guard", "variants": ["full"], "splits": ["full"]}
+
+            def load(self, data_dir=None, **kwargs):
+                return PhysicalDataset(problems=[])
+
+        try:
+            # External loader registered first, with _loaders empty
+            DatasetHub.register("dummy_guard", DummyExternalLoader)
+
+            available = DatasetHub.list_available()
+            assert (
+                "ugphysics" in available
+            ), "Built-in loaders must be present after external registration"
+            assert (
+                "dummy_guard" in available
+            ), "External loader must survive built-in registration"
+        finally:
+            DatasetHub._loaders.clear()
+            DatasetHub._loaders.update(saved_loaders)
+            DatasetHub._downloaders.clear()
+            DatasetHub._downloaders.update(saved_downloaders)
+
+
 class TestDatasetLoadersIntegration:
     """Integration tests for dataset loaders."""
 

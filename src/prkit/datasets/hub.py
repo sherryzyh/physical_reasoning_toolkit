@@ -68,32 +68,38 @@ class DatasetHub:
 
     @classmethod
     def _register_default_loaders(cls) -> None:
-        """Register the default dataset loaders."""
-        cls.register("physbench", PhysBenchLoader)
-        cls.register("phybench", PHYBenchLoader)
-        cls.register("physics", PhysicsLoader)
-        cls.register("phyx", PhyXLoader)
-        cls.register("seephys", SeePhysLoader)
-        cls.register("ugphysics", UGPhysicsLoader)
-        cls.register("jeebench", JEEBenchLoader)
-        cls.register("tpbench", TPBenchLoader)
-        cls.register("physreason", PhysReasonLoader)
+        """Register built-in loaders using setdefault so caller entries are never clobbered."""
+        cls._loaders.setdefault("physbench", PhysBenchLoader)
+        cls._loaders.setdefault("phybench", PHYBenchLoader)
+        cls._loaders.setdefault("physics", PhysicsLoader)
+        cls._loaders.setdefault("phyx", PhyXLoader)
+        cls._loaders.setdefault("seephys", SeePhysLoader)
+        cls._loaders.setdefault("ugphysics", UGPhysicsLoader)
+        cls._loaders.setdefault("jeebench", JEEBenchLoader)
+        cls._loaders.setdefault("tpbench", TPBenchLoader)
+        cls._loaders.setdefault("physreason", PhysReasonLoader)
 
     @classmethod
     def _register_default_downloaders(cls) -> None:
-        """Register the default dataset downloaders."""
-        cls.register_downloader("physbench", PhysBenchDownloader)
-        cls.register_downloader("phybench", PHYBenchDownloader)
-        cls.register_downloader("physics", PhysicsDownloader)
-        cls.register_downloader("phyx", PhyXDownloader)
-        cls.register_downloader("physreason", PhysReasonDownloader)
-        cls.register_downloader("seephys", SeePhysDownloader)
-        cls.register_downloader("ugphysics", UGPhysicsDownloader)
-        # Add more downloaders as they are implemented
+        """Register built-in downloaders using setdefault so caller entries are never clobbered."""
+        cls._downloaders.setdefault("physbench", PhysBenchDownloader)
+        cls._downloaders.setdefault("phybench", PHYBenchDownloader)
+        cls._downloaders.setdefault("physics", PhysicsDownloader)
+        cls._downloaders.setdefault("phyx", PhyXDownloader)
+        cls._downloaders.setdefault("physreason", PhysReasonDownloader)
+        cls._downloaders.setdefault("seephys", SeePhysDownloader)
+        cls._downloaders.setdefault("ugphysics", UGPhysicsDownloader)
+
+    @classmethod
+    def _ensure_defaults_registered(cls) -> None:
+        """Idempotently seed built-in loaders and downloaders."""
+        cls._register_default_loaders()
+        cls._register_default_downloaders()
 
     @classmethod
     def register(cls, name: str, loader_class: type[BaseDatasetLoader]) -> None:
         """Register a new dataset loader."""
+        cls._ensure_defaults_registered()
         cls._loaders[name] = loader_class
 
     @classmethod
@@ -101,13 +107,13 @@ class DatasetHub:
         cls, name: str, downloader_class: type[BaseDownloader]
     ) -> None:
         """Register a new dataset downloader."""
+        cls._ensure_defaults_registered()
         cls._downloaders[name] = downloader_class
 
     @classmethod
     def _get_downloader(cls, name: str) -> BaseDownloader | None:
         """Get a dataset downloader by name."""
-        if not cls._downloaders:
-            cls._register_default_downloaders()
+        cls._ensure_defaults_registered()
 
         if name not in cls._downloaders:
             return None
@@ -154,8 +160,7 @@ class DatasetHub:
     @classmethod
     def _get_loader(cls, name: str) -> BaseDatasetLoader:
         """Get a dataset loader by name."""
-        if not cls._loaders:
-            cls._register_default_loaders()
+        cls._ensure_defaults_registered()
 
         if name not in cls._loaders:
             available = ", ".join(cls._loaders.keys())
@@ -376,8 +381,7 @@ class DatasetHub:
     @classmethod
     def list_available(cls) -> list[str]:
         """List all available dataset names."""
-        if not cls._loaders:
-            cls._register_default_loaders()
+        cls._ensure_defaults_registered()
         return list(cls._loaders.keys())
 
     @classmethod

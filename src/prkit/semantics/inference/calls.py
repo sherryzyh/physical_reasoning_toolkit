@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-import json
 import logging
-import re
-from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, TypeVar
@@ -72,7 +69,6 @@ from .strict_models import (
     StrictReferenceSemanticsResponse,
 )
 
-_JSON_FENCE_RE = re.compile(r"```(?:json)?\s*(.*?)\s*```", re.DOTALL)
 logger = logging.getLogger(__name__)
 _STRICT_PREDICTION_RESPONSE_FIELDS = frozenset(
     StrictPredictionSemanticsResponse.model_fields
@@ -585,7 +581,7 @@ def _parse_response_model(
     try:
         return response_model.model_validate_json(text)
     except ValidationError:
-        payload = _extract_json_object(text)
+        payload = extract_structured_json_object(text)
         if payload is None:
             raise ValueError(
                 f"Could not parse {response_model.__name__} response as JSON.\n"
@@ -698,58 +694,6 @@ def _normalize_response_payload(
             )
 
     return normalized
-
-
-def _extract_json_object(text: str) -> dict[str, Any] | None:
-    """Extract the first JSON object from a model response, if any."""
-    return extract_structured_json_object(text)
-
-
-def _iter_braced_json_candidates(text: str) -> Iterator[str]:
-    """Yield balanced brace substrings that could be JSON objects."""
-
-    start_indices = [index for index, char in enumerate(text) if char == "{"]
-    for start in start_indices:
-        depth = 0
-        in_string = False
-        escape = False
-        for index in range(start, len(text)):
-            char = text[index]
-            if in_string:
-                if escape:
-                    escape = False
-                elif char == "\\":
-                    escape = True
-                elif char == '"':
-                    in_string = False
-                continue
-            if char == '"':
-                in_string = True
-                continue
-            if char == "{":
-                depth += 1
-            elif char == "}":
-                depth -= 1
-                if depth == 0:
-                    yield text[start : index + 1]
-                    break
-
-
-def _try_parse_json_object(candidate: str) -> dict[str, Any] | None:
-    """Parse one JSON-object candidate and ignore nested-shape false positives."""
-
-    try:
-        parsed = json.loads(candidate)
-    except json.JSONDecodeError:
-        return None
-    if not isinstance(parsed, dict):
-        return None
-    if _looks_like_prediction_answer_semantics_payload(parsed):
-        return {
-            "prediction_answer_semantics": parsed,
-            "question_semantics": {},
-        }
-    return parsed
 
 
 def _looks_like_prediction_answer_semantics_payload(payload: dict[str, Any]) -> bool:

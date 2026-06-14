@@ -111,12 +111,7 @@ class PhyXLoader(BaseDatasetLoader):
         metadata["question"] = question
 
         # Map domain
-        domain = metadata.get("domain")
-        if domain:
-            normalized_domain = self.DOMAIN_MAPPING.get(domain, PhysicsDomain.OTHER)
-            metadata["domain"] = normalized_domain
-        else:
-            metadata["domain"] = PhysicsDomain.OTHER
+        self._map_domain(metadata)
 
         # Determine problem type
         options = metadata.get("options", [])
