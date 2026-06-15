@@ -570,8 +570,14 @@ def _parse_openai_result_line(line: str, *, force_error: bool = False) -> BatchR
     error = obj.get("error")
     response = obj.get("response") if isinstance(obj.get("response"), dict) else None
     status_code = response.get("status_code") if response else None
-    if force_error or error is not None or (status_code is not None and status_code != 200):
-        message = json.dumps(error) if error is not None else f"status_code={status_code}"
+    if (
+        force_error
+        or error is not None
+        or (status_code is not None and status_code != 200)
+    ):
+        message = (
+            json.dumps(error) if error is not None else f"status_code={status_code}"
+        )
         return BatchResult(custom_id, BatchItemStatus.ERRORED, error=message)
     body = response.get("body") if response else None
     return BatchResult(

@@ -359,7 +359,9 @@ class AnthropicModel(BaseModelClient):
             input=input,
             instructions=instructions,
             image_paths=image_paths,
-            max_output_tokens=max_output_tokens if max_output_tokens is not None else 1024,
+            max_output_tokens=(
+                max_output_tokens if max_output_tokens is not None else 1024
+            ),
             response_format=None,
             extra=extra,
         )
@@ -457,7 +459,9 @@ class AnthropicModel(BaseModelClient):
             input=user_prompt,
             instructions=None,
             image_paths=image_paths,
-            max_output_tokens=max_output_tokens if max_output_tokens is not None else 4096,
+            max_output_tokens=(
+                max_output_tokens if max_output_tokens is not None else 4096
+            ),
             response_format=plan.response_format or {},
         )
         return {"custom_id": request_id, "params": params}

@@ -1,6 +1,9 @@
 import importlib.util
 
-_uq_available = importlib.util.find_spec("uncertainty_quantification_physical_reasoning") is not None
+_uq_available = (
+    importlib.util.find_spec("uncertainty_quantification_physical_reasoning")
+    is not None
+)
 
 collect_ignore: list[str] = []
 if not _uq_available:
