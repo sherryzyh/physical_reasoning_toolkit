@@ -54,13 +54,23 @@ class TestBatchTypes:
 
     def test_status_is_terminal(self):
         assert BatchStatus("b", BatchState.COMPLETED, "openai", "completed").is_terminal
-        assert not BatchStatus("b", BatchState.PENDING, "openai", "validating").is_terminal
+        assert not BatchStatus(
+            "b", BatchState.PENDING, "openai", "validating"
+        ).is_terminal
 
 
 class TestBaseDefaults:
     def test_batch_methods_raise_not_implemented(self):
         class Dummy(BaseModelClient):
-            def response(self, input, image_paths=None, response_format=None, *, instructions=None, **kwargs):
+            def response(
+                self,
+                input,
+                image_paths=None,
+                response_format=None,
+                *,
+                instructions=None,
+                **kwargs,
+            ):
                 return ""
 
         d = Dummy("dummy-model")
@@ -78,7 +88,11 @@ class TestFreeTextBuilders:
     def test_openai_shape(self):
         client = _openai_client()
         req = client.build_batch_request(
-            request_id="req_1", input="hello", instructions="", max_output_tokens=100, temperature=0.0
+            request_id="req_1",
+            input="hello",
+            instructions="",
+            max_output_tokens=100,
+            temperature=0.0,
         )
         assert req["custom_id"] == "req_1"
         assert req["method"] == "POST"
@@ -94,7 +108,11 @@ class TestFreeTextBuilders:
     def test_openai_o_family_drops_temperature_sets_reasoning(self):
         client = _openai_client("o3")
         body = client.build_batch_request(
-            request_id="r", input="x", instructions="", max_output_tokens=50, temperature=0.7
+            request_id="r",
+            input="x",
+            instructions="",
+            max_output_tokens=50,
+            temperature=0.7,
         )["body"]
         assert "temperature" not in body
         assert body["reasoning"] == {"effort": "medium"}
@@ -102,7 +120,11 @@ class TestFreeTextBuilders:
     def test_anthropic_shape(self):
         client = _anthropic_client()
         params = client.build_batch_request(
-            request_id="req_2", input="hi", instructions="", max_output_tokens=64, temperature=0.2
+            request_id="req_2",
+            input="hi",
+            instructions="",
+            max_output_tokens=64,
+            temperature=0.2,
         )["params"]
         assert params["model"] == "claude-opus-4-8"
         assert params["max_tokens"] == 64
@@ -113,13 +135,19 @@ class TestFreeTextBuilders:
 
     def test_anthropic_defaults_max_tokens_when_none(self):
         client = _anthropic_client()
-        params = client.build_batch_request(request_id="r", input="x", instructions="")["params"]
+        params = client.build_batch_request(request_id="r", input="x", instructions="")[
+            "params"
+        ]
         assert params["max_tokens"] == 1024
 
     def test_gemini_shape(self):
         client = _gemini_client()
         req = client.build_batch_request(
-            request_id="req_3", input="q", instructions="", max_output_tokens=32, temperature=0.5
+            request_id="req_3",
+            input="q",
+            instructions="",
+            max_output_tokens=32,
+            temperature=0.5,
         )
         assert req["key"] == "req_3"
         request = req["request"]
@@ -203,7 +231,11 @@ class TestOpenAILifecycle:
     def test_retrieve_flags_http_error(self):
         client = _openai_client()
         line = json.dumps(
-            {"custom_id": "r2", "response": {"status_code": 500, "body": {}}, "error": None}
+            {
+                "custom_id": "r2",
+                "response": {"status_code": 500, "body": {}},
+                "error": None,
+            }
         )
         client.client.batches.retrieve.return_value = MagicMock(
             output_file_id="out_1", error_file_id=None
@@ -259,14 +291,32 @@ class TestAnthropicLifecycle:
 
 
 class TestGeminiLifecycle:
-    def test_submit(self):
+    def test_submit_uploads_keyed_jsonl_file(self):
         client = _gemini_client()
+        uploaded = MagicMock()
+        uploaded.name = "files/in"
+        client.genai_client.files.upload.return_value = uploaded
         job = MagicMock()
         job.name = "batches/xyz"
         client.genai_client.batches.create.return_value = job
-        assert client.submit_batch([{"key": "r1", "request": {}}]) == "batches/xyz"
-        _, kwargs = client.genai_client.batches.create.call_args
-        assert kwargs["model"] == "gemini-3.5-flash"
+
+        result = client.submit_batch(
+            [
+                {"key": "r1", "request": {"contents": []}},
+                {"key": "r2", "request": {"contents": []}},
+            ]
+        )
+
+        assert result == "batches/xyz"
+        # The batch must be created from the uploaded file, not an inline list.
+        _, create_kwargs = client.genai_client.batches.create.call_args
+        assert create_kwargs["model"] == "gemini-3.5-flash"
+        assert create_kwargs["src"] == "files/in"
+        # The uploaded payload must be keyed JSONL so results correlate by key.
+        _, upload_kwargs = client.genai_client.files.upload.call_args
+        payload = upload_kwargs["file"].getvalue().decode("utf-8")
+        lines = [json.loads(line) for line in payload.splitlines()]
+        assert [line["key"] for line in lines] == ["r1", "r2"]
 
     def test_poll(self):
         client = _gemini_client()
@@ -279,37 +329,34 @@ class TestGeminiLifecycle:
         assert status.state == BatchState.COMPLETED
         assert status.output_ref == "files/out"
 
-    def test_retrieve_inline(self):
-        client = _gemini_client()
-        item = MagicMock()
-        item.key = "r1"
-        item.error = None
-        item.response = MagicMock(text="GENTEXT")
-        job = MagicMock()
-        job.dest = MagicMock()
-        job.dest.inlined_responses = [item]
-        client.genai_client.batches.get.return_value = job
-        results = list(client.retrieve_batch_results("batches/xyz"))
-        assert results[0].custom_id == "r1"
-        assert results[0].text == "GENTEXT"
-
     def test_retrieve_file(self):
         client = _gemini_client()
         job = MagicMock()
         job.dest = MagicMock()
-        job.dest.inlined_responses = None
         job.dest.file_name = "files/out"
         client.genai_client.batches.get.return_value = job
         line = json.dumps(
             {
                 "key": "r2",
-                "response": {"candidates": [{"content": {"parts": [{"text": "FILETEXT"}]}}]},
+                "response": {
+                    "candidates": [{"content": {"parts": [{"text": "FILETEXT"}]}}]
+                },
             }
         )
         client.genai_client.files.download.return_value = line.encode("utf-8")
         results = list(client.retrieve_batch_results("batches/xyz"))
         assert results[0].custom_id == "r2"
         assert results[0].text == "FILETEXT"
+
+    def test_retrieve_without_output_file_yields_nothing(self):
+        # No destination file => no results, rather than silently miscorrelated ones.
+        client = _gemini_client()
+        job = MagicMock()
+        job.dest = MagicMock()
+        job.dest.file_name = None
+        client.genai_client.batches.get.return_value = job
+        assert list(client.retrieve_batch_results("batches/xyz")) == []
+        client.genai_client.files.download.assert_not_called()
 
 
 class TestSyncBatchParity:
@@ -327,7 +374,11 @@ class TestSyncBatchParity:
             extra={"temperature": 0.0},
         )
         batch_body = client.build_batch_request(
-            request_id="r", input="P", instructions="", max_output_tokens=123, temperature=0.0
+            request_id="r",
+            input="P",
+            instructions="",
+            max_output_tokens=123,
+            temperature=0.0,
         )["body"]
         assert batch_body == sync_body
 
@@ -343,6 +394,10 @@ class TestSyncBatchParity:
             extra={"temperature": 0.2},
         )
         batch_params = client.build_batch_request(
-            request_id="r", input="P", instructions="", max_output_tokens=64, temperature=0.2
+            request_id="r",
+            input="P",
+            instructions="",
+            max_output_tokens=64,
+            temperature=0.2,
         )["params"]
         assert batch_params == sync_params

@@ -1,5 +1,6 @@
 """Google Gemini API model client using the ``google-genai`` SDK."""
 
+import io
 import json
 import logging
 import os
@@ -258,13 +259,25 @@ class GeminiModel(BaseModelClient):
         *,
         metadata: dict[str, str] | None = None,
     ) -> str:
-        """Create a per-model inline batch job; return its job ``name``."""
-        create_kwargs: dict[str, Any] = {"model": self.model, "src": list(requests)}
-        if metadata:
-            create_kwargs["config"] = {
-                "display_name": metadata.get("display_name", "prkit-batch")
-            }
-        job = self.genai_client.batches.create(**create_kwargs)
+        """Upload the requests as keyed JSONL and create a file-based batch job.
+
+        Each request is a ``{"key": ..., "request": {...}}`` line — the documented
+        Gemini batch file format. Submitting via an uploaded file (rather than
+        ``src=[inline requests]``) is what makes results come back as keyed JSONL
+        (``{"key": ..., "response": {...}}``); inline responses carry no key and
+        cannot be correlated back to their request.
+        """
+        payload = "\n".join(json.dumps(request) for request in requests)
+        display_name = (metadata or {}).get("display_name", "prkit-batch")
+        uploaded = self.genai_client.files.upload(
+            file=io.BytesIO(payload.encode("utf-8")),
+            config=types.UploadFileConfig(mime_type="jsonl", display_name=display_name),
+        )
+        job = self.genai_client.batches.create(
+            model=self.model,
+            src=uploaded.name,
+            config={"display_name": display_name},
+        )
         return str(job.name)
 
     def poll_batch(self, batch_id: str) -> BatchStatus:
@@ -282,56 +295,41 @@ class GeminiModel(BaseModelClient):
         )
 
     def retrieve_batch_results(self, batch_id: str) -> Iterator[BatchResult]:
+        """Yield per-request results from the batch's output JSONL file.
+
+        Submission always uses the file-based path (see ``submit_batch``), so a
+        terminal job exposes its results as ``dest.file_name`` — a keyed JSONL
+        file whose lines correlate back to each request by ``key``.
+        """
         job = self.genai_client.batches.get(name=batch_id)
         dest = getattr(job, "dest", None)
-        inlined = getattr(dest, "inlined_responses", None) if dest is not None else None
-        if inlined:
-            for item in inlined:
-                yield _parse_gemini_inline_response(item)
-            return
         file_name = getattr(dest, "file_name", None) if dest is not None else None
-        if file_name:
-            content = self.genai_client.files.download(file=file_name)
-            text = (
-                content.decode("utf-8")
-                if isinstance(content, (bytes, bytearray))
-                else str(content)
-            )
-            for line in text.splitlines():
-                stripped = line.strip()
-                if stripped:
-                    yield _parse_gemini_result_line(stripped)
-
-
-def _extract_gemini_text(response: Any) -> str:
-    """Extract the assistant text from a Gemini response (dict from file, or SDK object)."""
-    if isinstance(response, dict):
-        for candidate in response.get("candidates") or []:
-            content = (candidate or {}).get("content") or {}
-            chunks = [
-                str(part.get("text"))
-                for part in content.get("parts") or []
-                if isinstance(part, dict) and part.get("text")
-            ]
-            if chunks:
-                return "".join(chunks)
-        return ""
-    text = getattr(response, "text", None)
-    return str(text) if text else ""
-
-
-def _parse_gemini_inline_response(item: Any) -> BatchResult:
-    """Parse one ``dest.inlined_responses`` entry into a ``BatchResult``."""
-    key = str(getattr(item, "key", "") or "")
-    error = getattr(item, "error", None)
-    response = getattr(item, "response", None)
-    if error is not None or response is None:
-        return BatchResult(
-            key,
-            BatchItemStatus.ERRORED,
-            error=str(error) if error is not None else "no response",
+        if not file_name:
+            return
+        content = self.genai_client.files.download(file=file_name)
+        text = (
+            content.decode("utf-8")
+            if isinstance(content, (bytes, bytearray))
+            else str(content)
         )
-    return BatchResult(key, BatchItemStatus.SUCCEEDED, text=_extract_gemini_text(response))
+        for line in text.splitlines():
+            stripped = line.strip()
+            if stripped:
+                yield _parse_gemini_result_line(stripped)
+
+
+def _extract_gemini_text(response: dict[str, Any]) -> str:
+    """Extract the assistant text from a batch ``response`` dict (parsed from JSONL)."""
+    for candidate in response.get("candidates") or []:
+        content = (candidate or {}).get("content") or {}
+        chunks = [
+            str(part.get("text"))
+            for part in content.get("parts") or []
+            if isinstance(part, dict) and part.get("text")
+        ]
+        if chunks:
+            return "".join(chunks)
+    return ""
 
 
 def _parse_gemini_result_line(line: str) -> BatchResult:
@@ -343,7 +341,9 @@ def _parse_gemini_result_line(line: str) -> BatchResult:
     if error is not None or response is None:
         message = json.dumps(error) if error is not None else "no response"
         return BatchResult(key, BatchItemStatus.ERRORED, error=message)
-    return BatchResult(key, BatchItemStatus.SUCCEEDED, text=_extract_gemini_text(response))
+    return BatchResult(
+        key, BatchItemStatus.SUCCEEDED, text=_extract_gemini_text(response)
+    )
 
 
 def _extract_gemini_error_details(response: object) -> str | None:
