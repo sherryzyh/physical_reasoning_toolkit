@@ -36,7 +36,7 @@ class TestDomainLabeler:
         import json
 
         # Return JSON string that will be parsed by _call_llm_structured
-        mock_client.chat.return_value = json.dumps(mock_response.model_dump())
+        mock_client.response.return_value = json.dumps(mock_response.model_dump())
         mock_create.return_value = mock_client
 
         labeler = DomainLabeler(model="gpt-5.1")
@@ -59,7 +59,7 @@ class TestDomainLabeler:
         import json
 
         # Return JSON string that will be parsed by _call_llm_structured
-        mock_client.chat.return_value = json.dumps(mock_response.model_dump())
+        mock_client.response.return_value = json.dumps(mock_response.model_dump())
         mock_create.return_value = mock_client
 
         labeler = DomainLabeler(model="gpt-5.1")
@@ -73,7 +73,7 @@ class TestDomainLabeler:
     def test_domain_labeler_work_llm_error(self, mock_create):
         """Test domain labeling when LLM call fails."""
         mock_client = Mock()
-        mock_client.chat.return_value = None  # Simulate failure
+        mock_client.response.return_value = None  # Simulate failure
         mock_create.return_value = mock_client
 
         labeler = DomainLabeler(model="gpt-5.1")
@@ -98,7 +98,7 @@ class TestDomainLabeler:
         import json
 
         # Return JSON string that will be parsed by _call_llm_structured
-        mock_client.chat.return_value = json.dumps(mock_response.model_dump())
+        mock_client.response.return_value = json.dumps(mock_response.model_dump())
         mock_create.return_value = mock_client
 
         labeler = DomainLabeler(model="gpt-5.1")

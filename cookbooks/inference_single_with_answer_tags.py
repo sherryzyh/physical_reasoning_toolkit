@@ -175,7 +175,7 @@ def run_single_inference(
             for p in image_paths:
                 if not Path(p).exists():
                     raise FileNotFoundError(f"Image file not found: {p}")
-        response = client.chat(user_prompt=full_prompt, image_paths=image_paths)
+        response = client.response(input=full_prompt, image_paths=image_paths)
         result["model_response"] = response
         result["model_answer"] = parse_answer_from_response(response)
     except FileNotFoundError as e:

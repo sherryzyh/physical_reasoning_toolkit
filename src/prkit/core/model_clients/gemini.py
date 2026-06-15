@@ -1,7 +1,10 @@
 """Google Gemini API model client using the ``google-genai`` SDK."""
 
+import io
+import json
 import logging
 import os
+from collections.abc import Iterator, Sequence
 from typing import Any
 
 import PIL.Image
@@ -10,6 +13,7 @@ from google.genai import types
 from pydantic import BaseModel
 
 from .base import BaseModelClient
+from .batch_types import BatchItemStatus, BatchResult, BatchState, BatchStatus
 from .structured_output import (
     StructuredOutputPlan,
     StructuredOutputPolicy,
@@ -18,6 +22,17 @@ from .structured_output import (
     normalize_response_format,
 )
 from .utils import detect_image_mime_type, encode_image_to_base64
+
+# Map the Gemini batch job ``state.name`` onto a provider-agnostic ``BatchState``.
+_GEMINI_BATCH_STATE_MAP = {
+    "JOB_STATE_PENDING": BatchState.PENDING,
+    "JOB_STATE_QUEUED": BatchState.PENDING,
+    "JOB_STATE_RUNNING": BatchState.IN_PROGRESS,
+    "JOB_STATE_SUCCEEDED": BatchState.COMPLETED,
+    "JOB_STATE_FAILED": BatchState.FAILED,
+    "JOB_STATE_CANCELLED": BatchState.CANCELLED,
+    "JOB_STATE_EXPIRED": BatchState.EXPIRED,
+}
 
 
 class GeminiModel(BaseModelClient):
@@ -43,26 +58,30 @@ class GeminiModel(BaseModelClient):
             self.genai_client = genai.Client()
         self.provider = "google"
 
-    def chat(
+    def response(
         self,
-        user_prompt: str,
+        input: str,
         image_paths: list[str] | None = None,
         response_format: dict[str, Any] | type | None = None,
         max_output_tokens: int = 65535,
         *args: Any,
+        instructions: str | None = None,
         **kwargs: Any,
     ) -> str:
         """
         Generate a response from Gemini API.
 
         Args:
-            user_prompt: The user's prompt text (string)
+            input: The user's prompt text (string)
             image_paths: Optional list of image paths/URLs (strings).
                        Note: Gemini models support vision, but this implementation
                        currently only handles text. Images are ignored with a warning.
             response_format: Optional structured output format (OpenAI-style dict or
                            Pydantic model). Converted to Gemini's response_json_schema.
             *args: Additional positional arguments (ignored, kept for compatibility)
+            instructions: Optional system prompt, sent as the Gemini
+                        ``system_instruction`` config field. Defaults to
+                        ``DEFAULT_INSTRUCTIONS`` when omitted.
             **kwargs: Additional keyword arguments for generate_content config
                      (e.g., temperature, max_tokens, etc.)
 
@@ -71,7 +90,7 @@ class GeminiModel(BaseModelClient):
         """
         # Prepare content parts
         # Start with the text prompt
-        contents_parts: list[Any] = [user_prompt]
+        contents_parts: list[Any] = [input]
 
         # Process images if provided
         if image_paths:
@@ -90,6 +109,9 @@ class GeminiModel(BaseModelClient):
 
         # Build config with any additional kwargs
         config_dict: dict[str, Any] = {"max_output_tokens": max_output_tokens}
+        instr = self._resolve_instructions(instructions)
+        if instr:
+            config_dict["system_instruction"] = instr
         if kwargs:
             config_dict.update(kwargs)
 
@@ -187,6 +209,146 @@ class GeminiModel(BaseModelClient):
                 "generation_config": generation_config,
             },
         }
+
+    def _build_batch_request(
+        self,
+        *,
+        request_id: str,
+        input: str,
+        instructions: str | None,
+        image_paths: tuple[str, ...],
+        max_output_tokens: int | None,
+        temperature: float | None,
+        **kwargs: Any,
+    ) -> dict[str, Any]:
+        """Build a free-text Gemini batch request line ({key, request}).
+
+        Mirrors a synchronous ``response(input=..., instructions=...)`` call: the
+        folded prompt becomes the user text, *instructions* (when truthy) becomes
+        the request-level ``system_instruction``, and no ``response_json_schema``
+        is set (free-text output).
+        """
+        parts: list[dict[str, Any]] = [{"text": input}]
+        for image_path in image_paths:
+            parts.append(
+                {
+                    "inline_data": {
+                        "mime_type": _guess_mime_type(image_path),
+                        "data": _encode_image_file_base64(image_path),
+                    }
+                }
+            )
+
+        generation_config: dict[str, Any] = {}
+        if max_output_tokens is not None:
+            generation_config["max_output_tokens"] = max_output_tokens
+        if temperature is not None:
+            generation_config["temperature"] = temperature
+        generation_config.update(kwargs)
+
+        request: dict[str, Any] = {"contents": [{"parts": parts, "role": "user"}]}
+        if generation_config:
+            request["generation_config"] = generation_config
+        if instructions:
+            request["system_instruction"] = {"parts": [{"text": instructions}]}
+        return {"key": request_id, "request": request}
+
+    def submit_batch(
+        self,
+        requests: Sequence[dict[str, Any]],
+        *,
+        metadata: dict[str, str] | None = None,
+    ) -> str:
+        """Upload the requests as keyed JSONL and create a file-based batch job.
+
+        Each request is a ``{"key": ..., "request": {...}}`` line — the documented
+        Gemini batch file format. Submitting via an uploaded file (rather than
+        ``src=[inline requests]``) is what makes results come back as keyed JSONL
+        (``{"key": ..., "response": {...}}``); inline responses carry no key and
+        cannot be correlated back to their request.
+        """
+        payload = "\n".join(json.dumps(request) for request in requests)
+        display_name = (metadata or {}).get("display_name", "prkit-batch")
+        uploaded = self.genai_client.files.upload(
+            file=io.BytesIO(payload.encode("utf-8")),
+            config=types.UploadFileConfig(mime_type="jsonl", display_name=display_name),
+        )
+        uploaded_name = uploaded.name
+        if uploaded_name is None:
+            raise RuntimeError(
+                "Gemini File API upload returned no file name; cannot submit batch"
+            )
+        job = self.genai_client.batches.create(
+            model=self.model,
+            src=uploaded_name,
+            config={"display_name": display_name},
+        )
+        return str(job.name)
+
+    def poll_batch(self, batch_id: str) -> BatchStatus:
+        job = self.genai_client.batches.get(name=batch_id)
+        state = getattr(job, "state", None)
+        raw_status = getattr(state, "name", None) or str(state or "")
+        dest = getattr(job, "dest", None)
+        output_ref = getattr(dest, "file_name", None) if dest is not None else None
+        return BatchStatus(
+            batch_id=batch_id,
+            state=_GEMINI_BATCH_STATE_MAP.get(raw_status, BatchState.UNKNOWN),
+            provider=self._provider_name(),
+            raw_status=raw_status,
+            output_ref=output_ref,
+        )
+
+    def retrieve_batch_results(self, batch_id: str) -> Iterator[BatchResult]:
+        """Yield per-request results from the batch's output JSONL file.
+
+        Submission always uses the file-based path (see ``submit_batch``), so a
+        terminal job exposes its results as ``dest.file_name`` — a keyed JSONL
+        file whose lines correlate back to each request by ``key``.
+        """
+        job = self.genai_client.batches.get(name=batch_id)
+        dest = getattr(job, "dest", None)
+        file_name = getattr(dest, "file_name", None) if dest is not None else None
+        if not file_name:
+            return
+        content = self.genai_client.files.download(file=file_name)
+        text = (
+            content.decode("utf-8")
+            if isinstance(content, (bytes, bytearray))
+            else str(content)
+        )
+        for line in text.splitlines():
+            stripped = line.strip()
+            if stripped:
+                yield _parse_gemini_result_line(stripped)
+
+
+def _extract_gemini_text(response: dict[str, Any]) -> str:
+    """Extract the assistant text from a batch ``response`` dict (parsed from JSONL)."""
+    for candidate in response.get("candidates") or []:
+        content = (candidate or {}).get("content") or {}
+        chunks = [
+            str(part.get("text"))
+            for part in content.get("parts") or []
+            if isinstance(part, dict) and part.get("text")
+        ]
+        if chunks:
+            return "".join(chunks)
+    return ""
+
+
+def _parse_gemini_result_line(line: str) -> BatchResult:
+    """Parse one JSONL line ({key, response|error}) from a batch output file."""
+    obj = json.loads(line)
+    key = str(obj.get("key", "") or "")
+    error = obj.get("error")
+    response = obj.get("response")
+    if error is not None or response is None:
+        message = json.dumps(error) if error is not None else "no response"
+        return BatchResult(key, BatchItemStatus.ERRORED, error=message)
+    return BatchResult(
+        key, BatchItemStatus.SUCCEEDED, text=_extract_gemini_text(response)
+    )
 
 
 def _extract_gemini_error_details(response: object) -> str | None:

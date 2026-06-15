@@ -135,8 +135,8 @@ def run_inference(model_name: str, prompt: str, image_path: str = None):
 
     try:
         # Note: image_paths parameter is accepted but images will be ignored
-        response = client.chat(
-            user_prompt=prompt, image_paths=[image_path] if image_path else None
+        response = client.response(
+            input=prompt, image_paths=[image_path] if image_path else None
         )
 
         logger.info("\n" + "=" * 60)

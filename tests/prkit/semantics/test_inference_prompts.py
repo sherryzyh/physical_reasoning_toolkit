@@ -39,15 +39,15 @@ class _StubModelClient(BaseModelClient):
         self.last_prompt: str | None = None
         self.last_response_format: dict[str, Any] | type | None = None
 
-    def chat(
+    def response(
         self,
-        user_prompt: str,
+        input: str,
         image_paths: list[str] | None = None,
         response_format: dict[str, Any] | type | None = None,
         **kwargs: Any,
     ) -> str:
         del image_paths, kwargs
-        self.last_prompt = user_prompt
+        self.last_prompt = input
         self.last_response_format = response_format
         return json.dumps(
             {
@@ -162,15 +162,15 @@ class _PredictionStubModelClient(BaseModelClient):
         self.last_prompt: str | None = None
         self.last_response_format: dict[str, Any] | type | None = None
 
-    def chat(
+    def response(
         self,
-        user_prompt: str,
+        input: str,
         image_paths: list[str] | None = None,
         response_format: dict[str, Any] | type | None = None,
         **kwargs: Any,
     ) -> str:
         del image_paths, kwargs
-        self.last_prompt = user_prompt
+        self.last_prompt = input
         self.last_response_format = response_format
         return json.dumps(
             {
@@ -267,15 +267,15 @@ class _RetryingPredictionStubModelClient(BaseModelClient):
         self.response_formats: list[dict[str, Any] | type | None] = []
         self.max_output_tokens: list[int | None] = []
 
-    def chat(
+    def response(
         self,
-        user_prompt: str,
+        input: str,
         image_paths: list[str] | None = None,
         response_format: dict[str, Any] | type | None = None,
         **kwargs: Any,
     ) -> str:
         del image_paths
-        self.prompts.append(user_prompt)
+        self.prompts.append(input)
         self.response_formats.append(response_format)
         self.max_output_tokens.append(kwargs.get("max_output_tokens"))
         if len(self.prompts) == 1:
@@ -726,14 +726,14 @@ class _NoStructuredOutputModelClient(BaseModelClient):
         super().__init__(model="stub-model")
         self.provider = "stub"
 
-    def chat(
+    def response(
         self,
-        user_prompt: str,
+        input: str,
         image_paths: list[str] | None = None,
         response_format: dict[str, Any] | type | None = None,
         **kwargs: Any,
     ) -> str:
-        del user_prompt, image_paths, response_format, kwargs
+        del input, image_paths, response_format, kwargs
         raise AssertionError(
             "chat should not be called when native json_schema is unsupported"
         )

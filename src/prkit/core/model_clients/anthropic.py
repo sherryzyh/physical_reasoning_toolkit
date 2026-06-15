@@ -4,12 +4,13 @@ import json
 import logging
 import os
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Iterator, Sequence
 from typing import Any
 
 from pydantic import BaseModel
 
 from .base import BaseModelClient
+from .batch_types import BatchItemStatus, BatchResult, BatchState, BatchStatus
 from .structured_output import (
     StructuredOutputPlan,
     StructuredOutputPolicy,
@@ -37,6 +38,21 @@ TOOL_NAME = "emit_structured_output"
 _TOOL_NAME_RE = re.compile(r"[^A-Za-z0-9_-]+")
 ANTHROPIC_OPTIONAL_PARAMETER_LIMIT = 24
 ANTHROPIC_UNION_PARAMETER_LIMIT = 16
+
+# Map the Anthropic batch ``processing_status`` onto a provider-agnostic ``BatchState``.
+_ANTHROPIC_BATCH_STATE_MAP = {
+    "in_progress": BatchState.IN_PROGRESS,
+    "canceling": BatchState.IN_PROGRESS,
+    "ended": BatchState.COMPLETED,
+}
+
+# Map a per-request batch ``result.type`` onto a provider-agnostic ``BatchItemStatus``.
+_ANTHROPIC_ITEM_STATUS_MAP = {
+    "succeeded": BatchItemStatus.SUCCEEDED,
+    "errored": BatchItemStatus.ERRORED,
+    "canceled": BatchItemStatus.CANCELED,
+    "expired": BatchItemStatus.EXPIRED,
+}
 
 
 def _detect_image_media_type(image_path: str) -> str:
@@ -183,20 +199,21 @@ class AnthropicModel(BaseModelClient):
         self.client: Any = Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
         self.provider = "anthropic"
 
-    def chat(
+    def response(
         self,
-        user_prompt: str,
+        input: str,
         image_paths: list[str] | None = None,
         response_format: dict[str, Any] | type | None = None,
         max_output_tokens: int = 1024,
         *args: Any,
+        instructions: str | None = None,
         **kwargs: Any,
     ) -> str:
         """
         Generate a response from Anthropic Messages API.
 
         Args:
-            user_prompt: The user's prompt text (string)
+            input: The user's prompt text (string)
             image_paths: Optional list of image paths/URLs (strings). Supports:
                        - File paths: encoded to base64
                        - Base64 data URLs: passed as-is after parsing
@@ -205,6 +222,9 @@ class AnthropicModel(BaseModelClient):
                            request is translated into a forced Anthropic tool call.
             max_output_tokens: Maximum output tokens for Anthropic API.
             *args: Additional positional arguments (ignored, kept for compatibility)
+            instructions: Optional system prompt. Sent as the top-level Anthropic
+                        ``system`` parameter. Defaults to ``DEFAULT_INSTRUCTIONS``
+                        when omitted (see ``_resolve_instructions``).
             **kwargs: Additional keyword arguments for request parameters
                      (e.g., temperature, top_p, etc.)
 
@@ -215,66 +235,18 @@ class AnthropicModel(BaseModelClient):
             FileNotFoundError: If any image_path is a file path that doesn't exist
             ValueError: If a data URL is malformed
         """
-        normalized_response_format = None
+        params = self._build_messages_params(
+            input=input,
+            instructions=self._resolve_instructions(instructions),
+            image_paths=image_paths,
+            max_output_tokens=max_output_tokens,
+            response_format=response_format,
+            extra=kwargs,
+        )
+
+        response = self.client.messages.create(**params)
+
         if response_format is not None:
-            normalized_response_format = normalize_response_format(response_format)
-
-        content: list[dict[str, Any]] = [{"type": "text", "text": user_prompt}]
-        if image_paths:
-            for image_path in image_paths:
-                if image_path.startswith("data:"):
-                    parsed = _parse_data_url(image_path)
-                    content.append(
-                        {
-                            "type": "image",
-                            "source": {
-                                "type": "base64",
-                                "media_type": parsed["media_type"],
-                                "data": parsed["data"],
-                            },
-                        }
-                    )
-                elif image_path.startswith("http://") or image_path.startswith(
-                    "https://"
-                ):
-                    self.logger.warning(
-                        "Anthropic image URL inputs are not enabled in this client yet. "
-                        f"Ignoring URL image input: {image_path}"
-                    )
-                else:
-                    if not os.path.exists(image_path):
-                        raise FileNotFoundError(f"Image file not found: {image_path}")
-
-                    content.append(
-                        {
-                            "type": "image",
-                            "source": {
-                                "type": "base64",
-                                "media_type": _detect_image_media_type(image_path),
-                                "data": encode_image_to_base64(image_path),
-                            },
-                        }
-                    )
-
-        request_params: dict[str, Any] = {
-            "model": self.model,
-            "messages": [{"role": "user", "content": content}],
-            "max_tokens": max_output_tokens,
-        }
-        if normalized_response_format is not None:
-            request_params["output_config"] = {
-                "format": {
-                    "type": "json_schema",
-                    "name": normalized_response_format["name"],
-                    "schema": normalized_response_format["schema"],
-                }
-            }
-        if kwargs:
-            request_params.update(kwargs)
-
-        response = self.client.messages.create(**request_params)
-
-        if normalized_response_format is not None:
             text = _extract_text_json(response.content)
             self.logger.info(f"Response: {text}")
             return text
@@ -287,6 +259,144 @@ class AnthropicModel(BaseModelClient):
         text = "\n".join(text_chunks).strip()
         self.logger.info(f"Response: {text}")
         return text
+
+    def _build_content_blocks(
+        self, input: str, image_paths: Sequence[str] | None
+    ) -> list[dict[str, Any]]:
+        """Build Anthropic user-message content blocks (text + base64 images)."""
+        content: list[dict[str, Any]] = [{"type": "text", "text": input}]
+        if not image_paths:
+            return content
+        for image_path in image_paths:
+            if image_path.startswith("data:"):
+                parsed = _parse_data_url(image_path)
+                content.append(
+                    {
+                        "type": "image",
+                        "source": {
+                            "type": "base64",
+                            "media_type": parsed["media_type"],
+                            "data": parsed["data"],
+                        },
+                    }
+                )
+            elif image_path.startswith("http://") or image_path.startswith("https://"):
+                self.logger.warning(
+                    "Anthropic image URL inputs are not enabled in this client yet. "
+                    f"Ignoring URL image input: {image_path}"
+                )
+            else:
+                if not os.path.exists(image_path):
+                    raise FileNotFoundError(f"Image file not found: {image_path}")
+                content.append(
+                    {
+                        "type": "image",
+                        "source": {
+                            "type": "base64",
+                            "media_type": _detect_image_media_type(image_path),
+                            "data": encode_image_to_base64(image_path),
+                        },
+                    }
+                )
+        return content
+
+    def _build_messages_params(
+        self,
+        *,
+        input: str,
+        instructions: str | None,
+        image_paths: Sequence[str] | None,
+        max_output_tokens: int,
+        response_format: dict[str, Any] | type | None = None,
+        extra: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Build the Messages API params shared by ``response()`` and the batch builders.
+
+        *instructions* must already be resolved (an empty string omits ``system``).
+        *extra* carries any remaining params (e.g. ``temperature``) and is merged last.
+        """
+        params: dict[str, Any] = {
+            "model": self.model,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": self._build_content_blocks(input, image_paths),
+                }
+            ],
+            "max_tokens": max_output_tokens,
+        }
+        if instructions:
+            params["system"] = instructions
+        if response_format is not None:
+            normalized = normalize_response_format(response_format)
+            params["output_config"] = {
+                "format": {
+                    "type": "json_schema",
+                    "name": normalized["name"],
+                    "schema": normalized["schema"],
+                }
+            }
+        if extra:
+            params.update(extra)
+        return params
+
+    def _build_batch_request(
+        self,
+        *,
+        request_id: str,
+        input: str,
+        instructions: str | None,
+        image_paths: tuple[str, ...],
+        max_output_tokens: int | None,
+        temperature: float | None,
+        **kwargs: Any,
+    ) -> dict[str, Any]:
+        """Build a free-text Messages batch request ({custom_id, params})."""
+        extra: dict[str, Any] = dict(kwargs)
+        if temperature is not None:
+            extra["temperature"] = temperature
+        params = self._build_messages_params(
+            input=input,
+            instructions=instructions,
+            image_paths=image_paths,
+            max_output_tokens=(
+                max_output_tokens if max_output_tokens is not None else 1024
+            ),
+            response_format=None,
+            extra=extra,
+        )
+        return {"custom_id": request_id, "params": params}
+
+    def submit_batch(
+        self,
+        requests: Sequence[dict[str, Any]],
+        *,
+        metadata: dict[str, str] | None = None,
+    ) -> str:
+        del metadata  # Anthropic batch creation takes no metadata argument.
+        batch = self.client.messages.batches.create(requests=list(requests))
+        return str(batch.id)
+
+    def poll_batch(self, batch_id: str) -> BatchStatus:
+        batch = self.client.messages.batches.retrieve(batch_id)
+        raw_status = str(getattr(batch, "processing_status", "") or "")
+        counts: dict[str, int] = {}
+        request_counts = getattr(batch, "request_counts", None)
+        if request_counts is not None:
+            for key in ("processing", "succeeded", "errored", "canceled", "expired"):
+                counts[key] = int(getattr(request_counts, key, 0) or 0)
+        return BatchStatus(
+            batch_id=batch_id,
+            state=_ANTHROPIC_BATCH_STATE_MAP.get(raw_status, BatchState.UNKNOWN),
+            provider=self._provider_name(),
+            raw_status=raw_status,
+            counts=counts,
+            output_ref=getattr(batch, "results_url", None),
+        )
+
+    def retrieve_batch_results(self, batch_id: str) -> Iterator[BatchResult]:
+        for entry in self.client.messages.batches.results(batch_id):
+            yield _parse_anthropic_result_entry(entry)
 
     def _resolve_structured_output_plan(
         self,
@@ -345,47 +455,36 @@ class AnthropicModel(BaseModelClient):
                 "Anthropic batch structured requests require json_schema mode. "
                 f"Got {plan.mode!r}."
             )
+        params = self._build_messages_params(
+            input=user_prompt,
+            instructions=None,
+            image_paths=image_paths,
+            max_output_tokens=(
+                max_output_tokens if max_output_tokens is not None else 4096
+            ),
+            response_format=plan.response_format or {},
+        )
+        return {"custom_id": request_id, "params": params}
 
-        normalized = normalize_response_format(plan.response_format or {})
-        content: list[dict[str, Any]] = [{"type": "text", "text": user_prompt}]
-        for image_path in image_paths:
-            if image_path.startswith("data:"):
-                parsed = _parse_data_url(image_path)
-                content.append(
-                    {
-                        "type": "image",
-                        "source": {
-                            "type": "base64",
-                            "media_type": parsed["media_type"],
-                            "data": parsed["data"],
-                        },
-                    }
-                )
-            else:
-                content.append(
-                    {
-                        "type": "image",
-                        "source": {
-                            "type": "base64",
-                            "media_type": _detect_image_media_type(image_path),
-                            "data": encode_image_to_base64(image_path),
-                        },
-                    }
-                )
 
-        params: dict[str, Any] = {
-            "model": self.model,
-            "max_tokens": max_output_tokens or 4096,
-            "messages": [{"role": "user", "content": content}],
-            "output_config": {
-                "format": {
-                    "type": "json_schema",
-                    "schema": normalized["schema"],
-                }
-            },
-        }
-
-        return {
-            "custom_id": request_id,
-            "params": params,
-        }
+def _parse_anthropic_result_entry(entry: Any) -> BatchResult:
+    """Parse one streamed Message Batch result entry into a ``BatchResult``."""
+    custom_id = str(getattr(entry, "custom_id", "") or "")
+    result = getattr(entry, "result", None)
+    result_type = str(getattr(result, "type", "") or "")
+    if result_type == "succeeded":
+        message = getattr(result, "message", None)
+        blocks = getattr(message, "content", None) or []
+        text = "\n".join(
+            str(_block_attr(block, "text"))
+            for block in blocks
+            if _block_attr(block, "type") == "text" and _block_attr(block, "text")
+        ).strip()
+        return BatchResult(custom_id, BatchItemStatus.SUCCEEDED, text=text)
+    status = _ANTHROPIC_ITEM_STATUS_MAP.get(result_type, BatchItemStatus.ERRORED)
+    error = getattr(result, "error", None)
+    return BatchResult(
+        custom_id,
+        status,
+        error=str(error) if error is not None else result_type or "unknown",
+    )

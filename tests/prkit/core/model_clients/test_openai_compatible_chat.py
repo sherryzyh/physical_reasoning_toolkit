@@ -2,9 +2,12 @@ from unittest.mock import MagicMock, Mock, patch
 
 from pydantic import BaseModel
 
+from prkit.core.model_clients.base import DEFAULT_INSTRUCTIONS
 from prkit.core.model_clients.openai_compatible_chat import (
     OpenAICompatibleChatModel,
 )
+
+SYSTEM_MESSAGE = {"role": "system", "content": DEFAULT_INSTRUCTIONS}
 
 
 class DummyChatProvider(OpenAICompatibleChatModel):
@@ -91,7 +94,7 @@ class TestOpenAICompatibleChatModel:
         with patch.dict("os.environ", {"DUMMY_API_KEY": "test-key"}, clear=True):
             client = DummyChatProvider("model-a")
 
-        response = client.chat(
+        response = client.response(
             "Return JSON only.",
             response_format=ExampleResponse,
             max_output_tokens=123,
@@ -102,7 +105,8 @@ class TestOpenAICompatibleChatModel:
         call_kwargs = mock_client.chat.completions.create.call_args[1]
         assert call_kwargs["model"] == "model-a"
         assert call_kwargs["messages"] == [
-            {"role": "user", "content": "Return JSON only."}
+            SYSTEM_MESSAGE,
+            {"role": "user", "content": "Return JSON only."},
         ]
         assert call_kwargs["max_tokens"] == 123
         assert call_kwargs["temperature"] == 0.2

@@ -6,10 +6,12 @@ from unittest.mock import MagicMock, Mock, patch
 
 from pydantic import BaseModel
 
+from prkit.core.model_clients.base import DEFAULT_INSTRUCTIONS
 from prkit.core.model_clients.deepseek import DeepseekModel
 
 DEEPSEEK_CHAT_TEST_MODEL = "deepseek-chat"
 DEEPSEEK_REASONER_TEST_MODEL = "deepseek-reasoner"
+SYSTEM_MESSAGE = {"role": "system", "content": DEFAULT_INSTRUCTIONS}
 
 
 class TestDeepseekModel:
@@ -56,12 +58,12 @@ class TestDeepseekModel:
         mock_client.chat.completions.create.return_value = mock_response
 
         client = DeepseekModel(DEEPSEEK_REASONER_TEST_MODEL)
-        response = client.chat("Hello, world!")
+        response = client.response("Hello, world!")
 
         assert response == "Test response"
         mock_client.chat.completions.create.assert_called_once_with(
             model=DEEPSEEK_REASONER_TEST_MODEL,
-            messages=[{"role": "user", "content": "Hello, world!"}],
+            messages=[SYSTEM_MESSAGE, {"role": "user", "content": "Hello, world!"}],
         )
 
     @patch("prkit.core.model_clients.openai_compatible_chat.OpenAI")
@@ -79,7 +81,7 @@ class TestDeepseekModel:
 
         client = DeepseekModel(DEEPSEEK_CHAT_TEST_MODEL)
         with patch.object(client.logger, "warning") as mock_warning:
-            response = client.chat("Hello", image_paths=["image.jpg"])
+            response = client.response("Hello", image_paths=["image.jpg"])
 
         assert response == "Response"
         mock_warning.assert_called_once()
@@ -99,11 +101,12 @@ class TestDeepseekModel:
         mock_client.chat.completions.create.return_value = mock_response
 
         client = DeepseekModel(DEEPSEEK_REASONER_TEST_MODEL)
-        client.chat("Hello", image_paths=["image1.jpg", "image2.png"])
+        client.response("Hello", image_paths=["image1.jpg", "image2.png"])
 
         call_kwargs = mock_client.chat.completions.create.call_args[1]
-        assert len(call_kwargs["messages"]) == 1
-        assert call_kwargs["messages"][0]["content"] == "Hello"
+        assert len(call_kwargs["messages"]) == 2
+        assert call_kwargs["messages"][0] == SYSTEM_MESSAGE
+        assert call_kwargs["messages"][1]["content"] == "Hello"
 
     @patch("prkit.core.model_clients.openai_compatible_chat.OpenAI")
     def test_chat_response_format_uses_json_object(self, mock_openai_class):
@@ -123,7 +126,7 @@ class TestDeepseekModel:
         mock_client.chat.completions.create.return_value = mock_response
 
         client = DeepseekModel(DEEPSEEK_CHAT_TEST_MODEL)
-        response = client.chat(
+        response = client.response(
             "Return JSON only.",
             response_format=ExampleResponse,
             max_output_tokens=512,
@@ -134,5 +137,6 @@ class TestDeepseekModel:
         assert call_kwargs["model"] == DEEPSEEK_CHAT_TEST_MODEL
         assert call_kwargs["response_format"] == {"type": "json_object"}
         assert call_kwargs["max_tokens"] == 512
-        assert "Return JSON only." in call_kwargs["messages"][0]["content"]
-        assert "Return ONLY JSON" in call_kwargs["messages"][0]["content"]
+        assert call_kwargs["messages"][0] == SYSTEM_MESSAGE
+        assert "Return JSON only." in call_kwargs["messages"][1]["content"]
+        assert "Return ONLY JSON" in call_kwargs["messages"][1]["content"]

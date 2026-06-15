@@ -32,3 +32,18 @@ def test_model_clients_getattr_returns_lazy_classes():
 def test_model_clients_getattr_rejects_unknown_names():
     with pytest.raises(AttributeError):
         model_clients.__getattr__("UnknownModel")
+
+
+def test_new_public_symbols_are_exported():
+    """DEFAULT_INSTRUCTIONS, PhysicsOutputMode, and prompt helpers are public."""
+    for name in (
+        "DEFAULT_INSTRUCTIONS",
+        "PhysicsOutputMode",
+        "build_plain_question_prompt",
+        "format_problem_context",
+    ):
+        assert name in model_clients.__all__
+        assert getattr(model_clients, name) is not None
+
+    assert isinstance(model_clients.DEFAULT_INSTRUCTIONS, str)
+    assert model_clients.DEFAULT_INSTRUCTIONS.strip()

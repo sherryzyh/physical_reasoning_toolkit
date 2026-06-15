@@ -3,7 +3,7 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
-from prkit.core.model_clients import create_model_client
+from prkit.core.model_clients import DEFAULT_INSTRUCTIONS, create_model_client
 from prkit.core.model_clients.base import BaseModelClient
 
 
@@ -51,19 +51,17 @@ class BaseAnnotator(ABC):
             or None if call fails
         """
         try:
-            full_prompt = (
-                "You are a physics expert. Provide accurate, detailed analysis of physics problems. "
-                "Always respond with valid JSON in the exact format requested.\n\n"
-                f"{prompt}"
-            )
             if hasattr(response_format, "model_validate") and (
                 "chat_structured" in type(self.llm_client).__dict__
                 or isinstance(self.llm_client, BaseModelClient)
             ):
+                # The physics-expert role is sent as `instructions`; the JSON
+                # contract is added by chat_structured's structured-output suffix.
                 result = self.llm_client.chat_structured(
-                    full_prompt,
+                    prompt,
                     response_model=response_format,
                     structured_policy="best_effort",
+                    instructions=DEFAULT_INSTRUCTIONS,
                 )
                 if result.parsed is not None:
                     return result.parsed
@@ -74,7 +72,14 @@ class BaseAnnotator(ABC):
                     return response_format(**response_dict)
                 return None
 
-            response_text = self.llm_client.chat(full_prompt)
+            # Fallback for clients without structured output: ask for JSON inline.
+            json_prompt = (
+                f"{prompt}\n\n"
+                "Always respond with valid JSON in the exact format requested."
+            )
+            response_text = self.llm_client.response(
+                input=json_prompt, instructions=DEFAULT_INSTRUCTIONS
+            )
             if response_text:
                 import json
 
@@ -98,12 +103,13 @@ class BaseAnnotator(ABC):
             Response text from LLM, or empty JSON string if call fails
         """
         try:
-            full_prompt = (
-                "You are a physics expert. Provide accurate, detailed analysis of physics problems. "
-                "Always respond with valid JSON in the exact format requested.\n\n"
-                f"{prompt}"
+            json_prompt = (
+                f"{prompt}\n\n"
+                "Always respond with valid JSON in the exact format requested."
             )
-            return self.llm_client.chat(full_prompt).strip()
+            return self.llm_client.response(
+                input=json_prompt, instructions=DEFAULT_INSTRUCTIONS
+            ).strip()
         except Exception as e:
             print(f"Error calling LLM API: {e}")
             return "{}"

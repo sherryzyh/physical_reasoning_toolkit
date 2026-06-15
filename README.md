@@ -25,7 +25,7 @@ dataset = DatasetHub.load("physreason", variant="full", split="test")
 # Run inference with the unified model client (core component)
 client = create_model_client("gpt-4.1-mini")
 for problem in dataset[:3]:
-    print(client.chat(problem.question)[:200)
+    print(client.solve_physics_problem(problem)[:200])
 ```
 
 The same pattern works across different datasets and model providers—swap the dataset name or model identifier.

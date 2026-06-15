@@ -8,10 +8,12 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 from pydantic import BaseModel
 
+from prkit.core.model_clients.base import DEFAULT_INSTRUCTIONS
 from prkit.core.model_clients.ollama import OllamaModel, normalize_ollama_model_name
 
 OLLAMA_QWEN_TEST_MODEL = "ollama/qwen3.5:397b-cloud"
 OLLAMA_MISTRAL_TEST_MODEL = "ollama/mistral-large-3:675b-cloud"
+SYSTEM_MESSAGE = {"role": "system", "content": DEFAULT_INSTRUCTIONS}
 
 
 class TestOllamaModel:
@@ -117,15 +119,16 @@ class TestOllamaModel:
         mock_ollama_module.chat.return_value = mock_response
 
         client = OllamaModel(OLLAMA_QWEN_TEST_MODEL)
-        response = client.chat("Hello, world!")
+        response = client.response("Hello, world!")
 
         assert response == "Test response"
         mock_ollama_module.chat.assert_called_once()
         call_kwargs = mock_ollama_module.chat.call_args[1]
         assert call_kwargs["model"] == "qwen3.5:397b-cloud"
-        assert len(call_kwargs["messages"]) == 1
-        assert call_kwargs["messages"][0]["role"] == "user"
-        assert call_kwargs["messages"][0]["content"] == "Hello, world!"
+        assert len(call_kwargs["messages"]) == 2
+        assert call_kwargs["messages"][0] == SYSTEM_MESSAGE
+        assert call_kwargs["messages"][1]["role"] == "user"
+        assert call_kwargs["messages"][1]["content"] == "Hello, world!"
         assert "format" not in call_kwargs
 
     @patch("prkit.core.model_clients.ollama.ollama")
@@ -148,7 +151,7 @@ class TestOllamaModel:
         mock_ollama_module.chat.return_value = mock_response
 
         client = OllamaModel(OLLAMA_QWEN_TEST_MODEL)
-        response = client.chat(
+        response = client.response(
             "Return JSON only.",
             response_format=ExampleResponse,
             max_output_tokens=256,
@@ -177,7 +180,7 @@ class TestOllamaModel:
         mock_ollama_module.chat.return_value = mock_response
 
         client = OllamaModel(OLLAMA_QWEN_TEST_MODEL)
-        response = client.chat(
+        response = client.response(
             "Return JSON only.",
             response_format={"type": "json_object"},
         )
@@ -199,7 +202,7 @@ class TestOllamaModel:
         mock_ollama_module.chat.return_value = mock_response
 
         client = OllamaModel(OLLAMA_QWEN_TEST_MODEL)
-        response = client.chat("Hello")
+        response = client.response("Hello")
 
         assert response == "Response"
         call_kwargs = mock_ollama_module.chat.call_args[1]
@@ -224,14 +227,15 @@ class TestOllamaModel:
         mock_ollama_module.chat.return_value = mock_response
 
         client = OllamaModel(OLLAMA_QWEN_TEST_MODEL)
-        response = client.chat(
+        response = client.response(
             "Describe these images", image_paths=[str(image1), str(image2)]
         )
 
         assert response == "Image description"
         call_kwargs = mock_ollama_module.chat.call_args[1]
-        assert "images" in call_kwargs["messages"][0]
-        assert len(call_kwargs["messages"][0]["images"]) == 2
+        assert call_kwargs["messages"][0] == SYSTEM_MESSAGE
+        assert "images" in call_kwargs["messages"][1]
+        assert len(call_kwargs["messages"][1]["images"]) == 2
 
     @patch("prkit.core.model_clients.ollama.ollama")
     def test_chat_with_nonexistent_image(self, mock_ollama_module):
@@ -242,7 +246,7 @@ class TestOllamaModel:
 
         client = OllamaModel(OLLAMA_MISTRAL_TEST_MODEL)
         with pytest.raises(FileNotFoundError, match="Image file not found"):
-            client.chat("Describe this", image_paths=["/nonexistent/image.jpg"])
+            client.response("Describe this", image_paths=["/nonexistent/image.jpg"])
 
     @patch("prkit.core.model_clients.ollama.ollama")
     def test_chat_with_base_url(self, mock_ollama_module):
@@ -253,7 +257,7 @@ class TestOllamaModel:
         mock_ollama_module.Client.return_value = mock_client
 
         client = OllamaModel(OLLAMA_MISTRAL_TEST_MODEL, base_url="http://custom:11434")
-        response = client.chat("Hello")
+        response = client.response("Hello")
 
         assert response == "Response"
         mock_client.chat.assert_called_once()
@@ -271,7 +275,7 @@ class TestOllamaModel:
 
         client = OllamaModel("unknown-model")
         with pytest.raises(ValueError, match="Model 'unknown-model' not found"):
-            client.chat("Hello")
+            client.response("Hello")
 
     @patch("prkit.core.model_clients.ollama.ollama")
     def test_chat_connection_error(self, mock_ollama_module):
@@ -285,7 +289,7 @@ class TestOllamaModel:
 
         client = OllamaModel(OLLAMA_QWEN_TEST_MODEL)
         with pytest.raises(ConnectionError, match="Ollama service is not running"):
-            client.chat("Hello")
+            client.response("Hello")
 
     @patch("prkit.core.model_clients.ollama.ollama")
     def test_chat_response_dict_format(self, mock_ollama_module):
@@ -298,7 +302,7 @@ class TestOllamaModel:
         mock_ollama_module.chat.return_value = mock_response
 
         client = OllamaModel(OLLAMA_MISTRAL_TEST_MODEL)
-        response = client.chat("Hello")
+        response = client.response("Hello")
 
         assert response == "Dict response"
 
@@ -315,7 +319,7 @@ class TestOllamaModel:
         mock_ollama_module.chat.return_value = mock_response
 
         client = OllamaModel(OLLAMA_QWEN_TEST_MODEL)
-        response = client.chat("Hello", image_paths=[])
+        response = client.response("Hello", image_paths=[])
 
         assert response == "Response"
         call_kwargs = mock_ollama_module.chat.call_args[1]
@@ -334,7 +338,7 @@ class TestOllamaModel:
         mock_ollama_module.chat.return_value = mock_response
 
         client = OllamaModel(OLLAMA_QWEN_TEST_MODEL)
-        client.chat("Hello")
+        client.response("Hello")
 
         call_kwargs = mock_ollama_module.chat.call_args[1]
         assert "options" in call_kwargs
@@ -405,7 +409,7 @@ class TestOllamaModelCloudAuth:
         mock_ollama_module.chat.return_value = mock_response
 
         client = OllamaModel(OLLAMA_QWEN_TEST_MODEL)
-        client.chat("Hello")
+        client.response("Hello")
 
         mock_ollama_module.chat.assert_called_once()
 

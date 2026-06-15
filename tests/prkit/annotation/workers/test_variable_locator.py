@@ -52,7 +52,7 @@ class TestVariableLocator:
         mock_response = VariableResponse(
             variables=variables, problem_summary="Find time given velocity"
         )
-        mock_client.chat.return_value = json.dumps(mock_response.model_dump())
+        mock_client.response.return_value = json.dumps(mock_response.model_dump())
         mock_create.return_value = mock_client
 
         locator = VariableLocator(model="gpt-5.1")
@@ -69,7 +69,7 @@ class TestVariableLocator:
     def test_variable_locator_work_fallback(self, mock_create):
         """Test variable extraction falls back to regular LLM call."""
         mock_client = Mock()
-        mock_client.chat.side_effect = [
+        mock_client.response.side_effect = [
             Exception("Structured failed"),  # First call fails
             json.dumps(  # Fallback call succeeds
                 {
@@ -97,7 +97,7 @@ class TestVariableLocator:
     def test_variable_locator_work_both_fail(self, mock_create):
         """Test variable extraction when both methods fail."""
         mock_client = Mock()
-        mock_client.chat.side_effect = Exception("All calls failed")
+        mock_client.response.side_effect = Exception("All calls failed")
         mock_create.return_value = mock_client
 
         locator = VariableLocator(model="gpt-5.1")
@@ -121,7 +121,7 @@ class TestVariableLocator:
             ),
         ]
         mock_response = VariableResponse(variables=variables, problem_summary="Test")
-        mock_client.chat.return_value = json.dumps(mock_response.model_dump())
+        mock_client.response.return_value = json.dumps(mock_response.model_dump())
         mock_create.return_value = mock_client
 
         locator = VariableLocator(model="gpt-5.1")

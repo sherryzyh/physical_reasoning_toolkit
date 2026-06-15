@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 from pydantic import BaseModel
 
+from prkit.core.model_clients.base import DEFAULT_INSTRUCTIONS
 from prkit.core.model_clients.gemini import (
     GeminiModel,
     _extract_gemini_error_details,
@@ -69,7 +70,7 @@ class TestGeminiModel:
         mock_client.models.generate_content.return_value = mock_response
 
         client = GeminiModel(GEMINI_TEST_MODEL)
-        response = client.chat("Hello, world!")
+        response = client.response("Hello, world!")
 
         assert response == "Test response"
         mock_client.models.generate_content.assert_called_once()
@@ -81,6 +82,27 @@ class TestGeminiModel:
         config = call_kwargs["config"]
         assert config is not None
         assert config.max_output_tokens == 65535
+        # Default system prompt is sent via Gemini's system_instruction config.
+        assert config.system_instruction == DEFAULT_INSTRUCTIONS
+
+    @patch("prkit.core.model_clients.gemini.genai")
+    def test_response_system_instruction_explicit_and_suppressed(self, mock_genai):
+        """Explicit instructions override the default; empty string suppresses it."""
+        mock_client = MagicMock()
+        mock_genai.Client.return_value = mock_client
+        mock_response = Mock()
+        mock_response.text = "ok"
+        mock_client.models.generate_content.return_value = mock_response
+
+        client = GeminiModel(GEMINI_TEST_MODEL)
+
+        client.response("Hi", instructions="Custom system.")
+        config = mock_client.models.generate_content.call_args[1]["config"]
+        assert config.system_instruction == "Custom system."
+
+        client.response("Hi", instructions="")
+        config = mock_client.models.generate_content.call_args[1]["config"]
+        assert config.system_instruction is None
 
     @patch("prkit.core.model_clients.gemini.genai")
     def test_chat_with_kwargs(self, mock_genai):
@@ -92,7 +114,7 @@ class TestGeminiModel:
         mock_client.models.generate_content.return_value = mock_response
 
         client = GeminiModel(GEMINI_TEST_MODEL)
-        client.chat("Hello", temperature=0.7)
+        client.response("Hello", temperature=0.7)
 
         call_kwargs = mock_client.models.generate_content.call_args[1]
         assert "config" in call_kwargs
@@ -110,7 +132,7 @@ class TestGeminiModel:
         mock_client.models.generate_content.return_value = mock_response
 
         client = GeminiModel(GEMINI_TEST_MODEL)
-        client.chat("Hello")
+        client.response("Hello")
 
         call_kwargs = mock_client.models.generate_content.call_args[1]
         config = call_kwargs["config"]
@@ -128,7 +150,7 @@ class TestGeminiModel:
 
         client = GeminiModel(GEMINI_TEST_MODEL)
         with patch.object(client.logger, "error") as mock_error:
-            response = client.chat("Hello", image_paths=["image.jpg"])
+            response = client.response("Hello", image_paths=["image.jpg"])
 
         assert response == "Response"
         mock_error.assert_called_once()
@@ -165,7 +187,7 @@ class TestGeminiModel:
         mock_client.models.generate_content.return_value = mock_response
 
         client = GeminiModel(GEMINI_TEST_MODEL)
-        response = client.chat(
+        response = client.response(
             "Return JSON",
             image_paths=["/tmp/example.png"],
             response_format=ExampleResponse,
@@ -196,7 +218,7 @@ class TestGeminiModel:
 
         client = GeminiModel(GEMINI_TEST_MODEL)
         with patch.object(client.logger, "error") as mock_error:
-            response = client.chat("Hello", image_paths=["/tmp/bad.png"])
+            response = client.response("Hello", image_paths=["/tmp/bad.png"])
 
         assert response == "Response"
         mock_error.assert_called_once()
@@ -218,7 +240,7 @@ class TestGeminiModel:
             RuntimeError,
             match="prompt_block_reason=SAFETY; finish_reason=RECITATION",
         ):
-            client.chat("Hello")
+            client.response("Hello")
 
     def test_extract_gemini_error_details_handles_empty_and_prompt_blocks(self):
         empty = SimpleNamespace(prompt_feedback=None, candidates=None)

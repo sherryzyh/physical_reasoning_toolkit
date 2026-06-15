@@ -52,7 +52,7 @@ class TestBaseAnnotator:
             result: str
 
         mock_client = Mock()
-        mock_client.chat.return_value = '{"result": "structured"}'
+        mock_client.response.return_value = '{"result": "structured"}'
         mock_create.return_value = mock_client
 
         annotator = ConcreteAnnotator(model="gpt-5.1")
@@ -60,13 +60,13 @@ class TestBaseAnnotator:
 
         assert result is not None
         assert result.result == "structured"
-        mock_client.chat.assert_called_once()
+        mock_client.response.assert_called_once()
 
     @patch("prkit.annotation.workers.base.create_model_client")
     def test_base_annotator_call_llm_structured_error(self, mock_create):
         """Test _call_llm_structured with error handling."""
         mock_client = Mock()
-        mock_client.chat.side_effect = Exception("API error")
+        mock_client.response.side_effect = Exception("API error")
         mock_create.return_value = mock_client
 
         annotator = ConcreteAnnotator(model="gpt-4o")
@@ -78,20 +78,20 @@ class TestBaseAnnotator:
     def test_base_annotator_call_llm(self, mock_create):
         """Test _call_llm method."""
         mock_client = Mock()
-        mock_client.chat.return_value = "LLM response"
+        mock_client.response.return_value = "LLM response"
         mock_create.return_value = mock_client
 
         annotator = ConcreteAnnotator(model="gpt-4o")
         result = annotator._call_llm("test prompt")
 
         assert result == "LLM response"
-        mock_client.chat.assert_called_once()
+        mock_client.response.assert_called_once()
 
     @patch("prkit.annotation.workers.base.create_model_client")
     def test_base_annotator_call_llm_error(self, mock_create):
         """Test _call_llm with error handling."""
         mock_client = Mock()
-        mock_client.chat.side_effect = Exception("API error")
+        mock_client.response.side_effect = Exception("API error")
         mock_create.return_value = mock_client
 
         annotator = ConcreteAnnotator(model="gpt-4o")

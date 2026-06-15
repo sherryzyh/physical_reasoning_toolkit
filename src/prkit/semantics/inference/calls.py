@@ -1043,8 +1043,8 @@ def _retry_non_native_json_completion(
         getattr(model_client, "model", "unknown"),
         getattr(model_client, "provider", "unknown"),
     )
-    return model_client.chat(
-        user_prompt=retry_prompt,
+    return model_client.response(
+        input=retry_prompt,
         image_paths=list(image_paths) or None,
         response_format=None,
         **retry_kwargs,

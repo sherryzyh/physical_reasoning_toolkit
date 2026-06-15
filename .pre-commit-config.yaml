@@ -18,3 +18,23 @@ repos:
     hooks:
       - id: end-of-file-fixer
       - id: trailing-whitespace
+
+  # Local hooks mirror the CI checks (.github/workflows/ci.yml) so type and
+  # test failures surface at commit time instead of in CI. They invoke the
+  # project venv's interpreter (.venv/bin/python) directly because mypy and
+  # pytest need the installed dependencies, which an isolated pre-commit env
+  # would not have, and so they work whether or not the venv is activated.
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy (src/prkit)
+        entry: .venv/bin/python -m mypy src/prkit
+        language: system
+        files: ^src/prkit/
+        pass_filenames: false
+      - id: pytest
+        name: pytest (tests/prkit)
+        entry: .venv/bin/python -m pytest tests/prkit -q
+        language: system
+        files: ^(src/prkit|tests/prkit)/
+        pass_filenames: false
