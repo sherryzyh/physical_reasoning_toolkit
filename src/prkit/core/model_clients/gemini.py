@@ -1,7 +1,9 @@
 """Google Gemini API model client using the ``google-genai`` SDK."""
 
+import json
 import logging
 import os
+from collections.abc import Iterator, Sequence
 from typing import Any
 
 import PIL.Image
@@ -10,6 +12,7 @@ from google.genai import types
 from pydantic import BaseModel
 
 from .base import BaseModelClient
+from .batch_types import BatchItemStatus, BatchResult, BatchState, BatchStatus
 from .structured_output import (
     StructuredOutputPlan,
     StructuredOutputPolicy,
@@ -18,6 +21,17 @@ from .structured_output import (
     normalize_response_format,
 )
 from .utils import detect_image_mime_type, encode_image_to_base64
+
+# Map the Gemini batch job ``state.name`` onto a provider-agnostic ``BatchState``.
+_GEMINI_BATCH_STATE_MAP = {
+    "JOB_STATE_PENDING": BatchState.PENDING,
+    "JOB_STATE_QUEUED": BatchState.PENDING,
+    "JOB_STATE_RUNNING": BatchState.IN_PROGRESS,
+    "JOB_STATE_SUCCEEDED": BatchState.COMPLETED,
+    "JOB_STATE_FAILED": BatchState.FAILED,
+    "JOB_STATE_CANCELLED": BatchState.CANCELLED,
+    "JOB_STATE_EXPIRED": BatchState.EXPIRED,
+}
 
 
 class GeminiModel(BaseModelClient):
@@ -194,6 +208,142 @@ class GeminiModel(BaseModelClient):
                 "generation_config": generation_config,
             },
         }
+
+    def _build_batch_request(
+        self,
+        *,
+        request_id: str,
+        input: str,
+        instructions: str | None,
+        image_paths: tuple[str, ...],
+        max_output_tokens: int | None,
+        temperature: float | None,
+        **kwargs: Any,
+    ) -> dict[str, Any]:
+        """Build a free-text Gemini batch request line ({key, request}).
+
+        Mirrors a synchronous ``response(input=..., instructions=...)`` call: the
+        folded prompt becomes the user text, *instructions* (when truthy) becomes
+        the request-level ``system_instruction``, and no ``response_json_schema``
+        is set (free-text output).
+        """
+        parts: list[dict[str, Any]] = [{"text": input}]
+        for image_path in image_paths:
+            parts.append(
+                {
+                    "inline_data": {
+                        "mime_type": _guess_mime_type(image_path),
+                        "data": _encode_image_file_base64(image_path),
+                    }
+                }
+            )
+
+        generation_config: dict[str, Any] = {}
+        if max_output_tokens is not None:
+            generation_config["max_output_tokens"] = max_output_tokens
+        if temperature is not None:
+            generation_config["temperature"] = temperature
+        generation_config.update(kwargs)
+
+        request: dict[str, Any] = {"contents": [{"parts": parts, "role": "user"}]}
+        if generation_config:
+            request["generation_config"] = generation_config
+        if instructions:
+            request["system_instruction"] = {"parts": [{"text": instructions}]}
+        return {"key": request_id, "request": request}
+
+    def submit_batch(
+        self,
+        requests: Sequence[dict[str, Any]],
+        *,
+        metadata: dict[str, str] | None = None,
+    ) -> str:
+        """Create a per-model inline batch job; return its job ``name``."""
+        create_kwargs: dict[str, Any] = {"model": self.model, "src": list(requests)}
+        if metadata:
+            create_kwargs["config"] = {
+                "display_name": metadata.get("display_name", "prkit-batch")
+            }
+        job = self.genai_client.batches.create(**create_kwargs)
+        return str(job.name)
+
+    def poll_batch(self, batch_id: str) -> BatchStatus:
+        job = self.genai_client.batches.get(name=batch_id)
+        state = getattr(job, "state", None)
+        raw_status = getattr(state, "name", None) or str(state or "")
+        dest = getattr(job, "dest", None)
+        output_ref = getattr(dest, "file_name", None) if dest is not None else None
+        return BatchStatus(
+            batch_id=batch_id,
+            state=_GEMINI_BATCH_STATE_MAP.get(raw_status, BatchState.UNKNOWN),
+            provider=self._provider_name(),
+            raw_status=raw_status,
+            output_ref=output_ref,
+        )
+
+    def retrieve_batch_results(self, batch_id: str) -> Iterator[BatchResult]:
+        job = self.genai_client.batches.get(name=batch_id)
+        dest = getattr(job, "dest", None)
+        inlined = getattr(dest, "inlined_responses", None) if dest is not None else None
+        if inlined:
+            for item in inlined:
+                yield _parse_gemini_inline_response(item)
+            return
+        file_name = getattr(dest, "file_name", None) if dest is not None else None
+        if file_name:
+            content = self.genai_client.files.download(file=file_name)
+            text = (
+                content.decode("utf-8")
+                if isinstance(content, (bytes, bytearray))
+                else str(content)
+            )
+            for line in text.splitlines():
+                stripped = line.strip()
+                if stripped:
+                    yield _parse_gemini_result_line(stripped)
+
+
+def _extract_gemini_text(response: Any) -> str:
+    """Extract the assistant text from a Gemini response (dict from file, or SDK object)."""
+    if isinstance(response, dict):
+        for candidate in response.get("candidates") or []:
+            content = (candidate or {}).get("content") or {}
+            chunks = [
+                str(part.get("text"))
+                for part in content.get("parts") or []
+                if isinstance(part, dict) and part.get("text")
+            ]
+            if chunks:
+                return "".join(chunks)
+        return ""
+    text = getattr(response, "text", None)
+    return str(text) if text else ""
+
+
+def _parse_gemini_inline_response(item: Any) -> BatchResult:
+    """Parse one ``dest.inlined_responses`` entry into a ``BatchResult``."""
+    key = str(getattr(item, "key", "") or "")
+    error = getattr(item, "error", None)
+    response = getattr(item, "response", None)
+    if error is not None or response is None:
+        return BatchResult(
+            key,
+            BatchItemStatus.ERRORED,
+            error=str(error) if error is not None else "no response",
+        )
+    return BatchResult(key, BatchItemStatus.SUCCEEDED, text=_extract_gemini_text(response))
+
+
+def _parse_gemini_result_line(line: str) -> BatchResult:
+    """Parse one JSONL line ({key, response|error}) from a batch output file."""
+    obj = json.loads(line)
+    key = str(obj.get("key", "") or "")
+    error = obj.get("error")
+    response = obj.get("response")
+    if error is not None or response is None:
+        message = json.dumps(error) if error is not None else "no response"
+        return BatchResult(key, BatchItemStatus.ERRORED, error=message)
+    return BatchResult(key, BatchItemStatus.SUCCEEDED, text=_extract_gemini_text(response))
 
 
 def _extract_gemini_error_details(response: object) -> str | None:

@@ -9,8 +9,11 @@ Supported OpenAI models:
 - o-family (o3, o4, o4-mini, etc. - models starting with 'o' followed by number)
 """
 
+import io
+import json
 import logging
 import os
+from collections.abc import Iterator, Sequence
 from typing import Any
 
 from openai import OpenAI
@@ -18,6 +21,7 @@ from pydantic import BaseModel
 
 from ..project_env import ensure_openai_api_key
 from .base import BaseModelClient
+from .batch_types import BatchItemStatus, BatchResult, BatchState, BatchStatus
 from .structured_output import (
     StructuredOutputPlan,
     StructuredOutputPolicy,
@@ -26,6 +30,18 @@ from .structured_output import (
     normalize_response_format,
 )
 from .utils import prepare_image_url_from_path
+
+# Map the OpenAI batch ``status`` string onto a provider-agnostic ``BatchState``.
+_OPENAI_BATCH_STATE_MAP = {
+    "validating": BatchState.PENDING,
+    "in_progress": BatchState.IN_PROGRESS,
+    "finalizing": BatchState.IN_PROGRESS,
+    "completed": BatchState.COMPLETED,
+    "failed": BatchState.FAILED,
+    "expired": BatchState.EXPIRED,
+    "cancelling": BatchState.IN_PROGRESS,
+    "cancelled": BatchState.CANCELLED,
+}
 
 
 def _ensure_additional_properties_false(schema: dict[str, Any]) -> dict[str, Any]:
@@ -274,10 +290,44 @@ class OpenAIModel(BaseModelClient):
             FileNotFoundError: If any image_path is a file path that doesn't exist
             IOError: If there's an error reading any image file
         """
-        # Build request parameters
-        request_params: dict[str, Any] = {"model": self.model}
+        max_output_tokens = kwargs.pop("max_output_tokens", None)
+        request_params = self._build_responses_body(
+            input=input,
+            instructions=self._resolve_instructions(instructions),
+            image_paths=image_paths,
+            max_output_tokens=max_output_tokens,
+            response_format=response_format,
+            extra=kwargs,
+        )
 
-        # Add structured output if requested
+        response = self.client.responses.create(**request_params)
+        text = str(response.output_text)
+        self.logger.info(f"Response: {text}")
+        return text
+
+    def _omit_temperature(self) -> bool:
+        """o-family reasoning models reject an explicit ``temperature`` parameter."""
+        return self.is_o_family
+
+    def _build_responses_body(
+        self,
+        *,
+        input: str,
+        instructions: str | None,
+        image_paths: Sequence[str] | None,
+        max_output_tokens: int | None,
+        response_format: dict[str, Any] | type | None = None,
+        extra: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Build the Responses API body shared by ``response()`` and the batch builders.
+
+        *instructions* must already be resolved (see ``_resolve_instructions``); an
+        empty string is omitted. *extra* carries any remaining request params
+        (e.g. ``temperature``) and is merged last, mirroring ``response()``'s
+        historical ``request_params.update(kwargs)`` behavior.
+        """
+        body: dict[str, Any] = {"model": self.model}
+
         if response_format is not None:
             normalized = normalize_response_format(response_format)
             strict_schema = ensure_openai_strict_json_schema(normalized["schema"])
@@ -285,41 +335,111 @@ class OpenAIModel(BaseModelClient):
                 "type": "json_schema",
                 "name": normalized["name"],
                 "schema": strict_schema,
-                "strict": normalized["strict"],
+                "strict": normalized.get("strict", True),
             }
-            request_params["text"] = {"format": text_format}
             if normalized.get("description") is not None:
                 text_format["description"] = normalized["description"]
+            body["text"] = {"format": text_format}
 
-        # Use role/content format for all models
         content: list[dict[str, Any]] = [{"type": "input_text", "text": input}]
-
         if image_paths:
             for image_path in image_paths:
-                image_url = prepare_image_url_from_image_path(image_path)
-                content.append({"type": "input_image", "image_url": image_url})
+                content.append(
+                    {
+                        "type": "input_image",
+                        "image_url": prepare_image_url_from_image_path(image_path),
+                    }
+                )
+        body["input"] = [{"role": "user", "content": content}]
 
-        request_params["input"] = [{"role": "user", "content": content}]
-
-        instr = self._resolve_instructions(instructions)
-        if instr:
-            request_params["instructions"] = instr
-
-        # Add reasoning parameter for o-family models
+        if instructions:
+            body["instructions"] = instructions
         if self.is_o_family:
-            request_params["reasoning"] = {"effort": "medium"}
-
-        max_output_tokens = kwargs.pop("max_output_tokens", None)
+            body["reasoning"] = {"effort": "medium"}
         if max_output_tokens is not None:
-            request_params["max_output_tokens"] = max_output_tokens
+            body["max_output_tokens"] = max_output_tokens
+        if extra:
+            body.update(extra)
+        return body
 
-        if kwargs:
-            request_params.update(kwargs)
+    def _build_batch_request(
+        self,
+        *,
+        request_id: str,
+        input: str,
+        instructions: str | None,
+        image_paths: tuple[str, ...],
+        max_output_tokens: int | None,
+        temperature: float | None,
+        **kwargs: Any,
+    ) -> dict[str, Any]:
+        """Build a free-text Responses batch line (one ``input.jsonl`` row)."""
+        extra: dict[str, Any] = dict(kwargs)
+        if temperature is not None and not self._omit_temperature():
+            extra["temperature"] = temperature
+        body = self._build_responses_body(
+            input=input,
+            instructions=instructions,
+            image_paths=image_paths,
+            max_output_tokens=max_output_tokens,
+            response_format=None,
+            extra=extra,
+        )
+        return {
+            "custom_id": request_id,
+            "method": "POST",
+            "url": "/v1/responses",
+            "body": body,
+        }
 
-        response = self.client.responses.create(**request_params)
-        text = str(response.output_text)
-        self.logger.info(f"Response: {text}")
-        return text
+    def submit_batch(
+        self,
+        requests: Sequence[dict[str, Any]],
+        *,
+        metadata: dict[str, str] | None = None,
+    ) -> str:
+        """Upload the requests as a JSONL file and create a 24h batch job."""
+        payload = "\n".join(json.dumps(request) for request in requests)
+        upload = self.client.files.create(
+            file=("batch_requests.jsonl", io.BytesIO(payload.encode("utf-8"))),
+            purpose="batch",
+        )
+        batch = self.client.batches.create(
+            input_file_id=upload.id,
+            endpoint="/v1/responses",
+            completion_window="24h",
+            metadata=metadata or {},
+        )
+        return str(batch.id)
+
+    def poll_batch(self, batch_id: str) -> BatchStatus:
+        batch = self.client.batches.retrieve(batch_id)
+        raw_status = str(getattr(batch, "status", "") or "")
+        counts: dict[str, int] = {}
+        request_counts = getattr(batch, "request_counts", None)
+        if request_counts is not None:
+            for key in ("total", "completed", "failed"):
+                counts[key] = int(getattr(request_counts, key, 0) or 0)
+        return BatchStatus(
+            batch_id=batch_id,
+            state=_OPENAI_BATCH_STATE_MAP.get(raw_status, BatchState.UNKNOWN),
+            provider=self._provider_name(),
+            raw_status=raw_status,
+            counts=counts,
+            output_ref=getattr(batch, "output_file_id", None),
+            error_ref=getattr(batch, "error_file_id", None),
+        )
+
+    def retrieve_batch_results(self, batch_id: str) -> Iterator[BatchResult]:
+        batch = self.client.batches.retrieve(batch_id)
+        output_file_id = getattr(batch, "output_file_id", None)
+        if output_file_id:
+            for line in _iter_jsonl_lines(self.client.files.content(output_file_id)):
+                yield _parse_openai_result_line(line)
+        error_file_id = getattr(batch, "error_file_id", None)
+        if error_file_id:
+            for line in _iter_jsonl_lines(self.client.files.content(error_file_id)):
+                yield _parse_openai_result_line(line, force_error=True)
 
     def _resolve_structured_output_plan(
         self,
@@ -393,40 +513,69 @@ class OpenAIModel(BaseModelClient):
             raise ValueError(
                 f"OpenAI batch structured requests require json_schema mode. Got {plan.mode!r}."
             )
-
-        normalized = normalize_response_format(plan.response_format or {})
-        strict_schema = ensure_openai_strict_json_schema(normalized["schema"])
-        text_format: dict[str, Any] = {
-            "type": "json_schema",
-            "name": normalized["name"],
-            "schema": strict_schema,
-            "strict": normalized.get("strict", True),
-        }
-        if normalized.get("description") is not None:
-            text_format["description"] = normalized["description"]
-
-        content: list[dict[str, Any]] = [{"type": "input_text", "text": user_prompt}]
-        for image_path in image_paths:
-            content.append(
-                {
-                    "type": "input_image",
-                    "image_url": prepare_image_url_from_image_path(image_path),
-                }
-            )
-
-        body: dict[str, Any] = {
-            "model": self.model,
-            "input": [{"role": "user", "content": content}],
-            "text": {"format": text_format},
-        }
-        if self.is_o_family:
-            body["reasoning"] = {"effort": "medium"}
-        if max_output_tokens is not None:
-            body["max_output_tokens"] = max_output_tokens
-
+        body = self._build_responses_body(
+            input=user_prompt,
+            instructions=None,
+            image_paths=image_paths,
+            max_output_tokens=max_output_tokens,
+            response_format=plan.response_format or {},
+        )
         return {
             "custom_id": request_id,
             "method": "POST",
             "url": "/v1/responses",
             "body": body,
         }
+
+
+def _iter_jsonl_lines(content: Any) -> Iterator[str]:
+    """Yield non-empty lines from an OpenAI ``files.content`` payload.
+
+    ``files.content`` returns an ``HttpxBinaryResponseContent``; prefer its
+    ``.text``, falling back to ``.read()`` / raw bytes for stubbed clients.
+    """
+    text = getattr(content, "text", None)
+    if text is None:
+        raw = content.read() if hasattr(content, "read") else content
+        text = raw.decode("utf-8") if isinstance(raw, (bytes, bytearray)) else str(raw)
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped:
+            yield stripped
+
+
+def _extract_output_text_from_responses_body(body: Any) -> str:
+    """Pull the assistant text out of a Responses API object body (batch output line)."""
+    if not isinstance(body, dict):
+        return ""
+    flat = body.get("output_text")
+    if isinstance(flat, str) and flat:
+        return flat
+    chunks: list[str] = []
+    for item in body.get("output") or []:
+        if not isinstance(item, dict) or item.get("type") != "message":
+            continue
+        for part in item.get("content") or []:
+            if isinstance(part, dict) and part.get("type") == "output_text":
+                piece = part.get("text")
+                if piece:
+                    chunks.append(str(piece))
+    return "".join(chunks)
+
+
+def _parse_openai_result_line(line: str, *, force_error: bool = False) -> BatchResult:
+    """Parse one JSONL line from a batch output/error file into a ``BatchResult``."""
+    obj = json.loads(line)
+    custom_id = str(obj.get("custom_id", ""))
+    error = obj.get("error")
+    response = obj.get("response") if isinstance(obj.get("response"), dict) else None
+    status_code = response.get("status_code") if response else None
+    if force_error or error is not None or (status_code is not None and status_code != 200):
+        message = json.dumps(error) if error is not None else f"status_code={status_code}"
+        return BatchResult(custom_id, BatchItemStatus.ERRORED, error=message)
+    body = response.get("body") if response else None
+    return BatchResult(
+        custom_id,
+        BatchItemStatus.SUCCEEDED,
+        text=_extract_output_text_from_responses_body(body),
+    )

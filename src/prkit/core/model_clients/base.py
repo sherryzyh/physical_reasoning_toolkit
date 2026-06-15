@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import warnings
 from abc import ABC, abstractmethod
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 from typing import TYPE_CHECKING, Any, TypeVar
 
 from pydantic import BaseModel, ValidationError
@@ -13,6 +13,7 @@ from pydantic import BaseModel, ValidationError
 from ..domain import PhysicsProblem
 from ..logging_config import PRKitLogger
 from ..project_env import load_project_dotenv
+from .batch_types import BatchResult, BatchStatus
 from .modes import PhysicsOutputMode
 from .prompts import build_plain_question_prompt
 from .structured_output import (
@@ -306,6 +307,90 @@ class BaseModelClient(ABC):
             response_model=response_model,
             raw_text=raw_response_text,
             plan=plan,
+        )
+
+    # ------------------------------------------------------------------
+    # Free-text batch requests + the asynchronous job lifecycle
+    # ------------------------------------------------------------------
+    def build_batch_request(
+        self,
+        *,
+        request_id: str,
+        input: str,
+        instructions: str | None = None,
+        image_paths: Sequence[str] | None = None,
+        max_output_tokens: int | None = None,
+        temperature: float | None = None,
+        **kwargs: Any,
+    ) -> dict[str, Any]:
+        """Build a provider-specific FREE-TEXT batch request line (no structured output).
+
+        Mirrors :meth:`response`: the same *input* / *instructions* handling and
+        no ``response_format``. Passing ``instructions=""`` suppresses the system
+        prompt on every provider (see :meth:`_resolve_instructions`), so the
+        resulting request matches a synchronous
+        ``response(input=..., instructions="")`` call. Use
+        :meth:`build_batch_structured_request` instead for schema-enforced output.
+        """
+        return self._build_batch_request(
+            request_id=request_id,
+            input=input,
+            instructions=self._resolve_instructions(instructions),
+            image_paths=tuple(image_paths or ()),
+            max_output_tokens=max_output_tokens,
+            temperature=temperature,
+            **kwargs,
+        )
+
+    def _build_batch_request(
+        self,
+        *,
+        request_id: str,
+        input: str,
+        instructions: str | None,
+        image_paths: tuple[str, ...],
+        max_output_tokens: int | None,
+        temperature: float | None,
+        **kwargs: Any,
+    ) -> dict[str, Any]:
+        """Override per provider. Default raises ``NotImplementedError``."""
+        del (
+            request_id,
+            input,
+            instructions,
+            image_paths,
+            max_output_tokens,
+            temperature,
+            kwargs,
+        )
+        raise NotImplementedError(
+            f"Free-text batch requests are not implemented for provider={self._provider_name()!r}."
+        )
+
+    def submit_batch(
+        self,
+        requests: Sequence[dict[str, Any]],
+        *,
+        metadata: dict[str, str] | None = None,
+    ) -> str:
+        """Submit a list of batch request dicts; return the provider batch/job id."""
+        del requests, metadata
+        raise NotImplementedError(
+            f"Batch submission is not implemented for provider={self._provider_name()!r}."
+        )
+
+    def poll_batch(self, batch_id: str) -> BatchStatus:
+        """Return a single snapshot of the batch job's state (no sleeping/looping)."""
+        del batch_id
+        raise NotImplementedError(
+            f"Batch polling is not implemented for provider={self._provider_name()!r}."
+        )
+
+    def retrieve_batch_results(self, batch_id: str) -> Iterator[BatchResult]:
+        """Yield per-request results for a terminal batch, correlated by ``custom_id``."""
+        del batch_id
+        raise NotImplementedError(
+            f"Batch result retrieval is not implemented for provider={self._provider_name()!r}."
         )
 
     def _resolve_structured_output_plan(

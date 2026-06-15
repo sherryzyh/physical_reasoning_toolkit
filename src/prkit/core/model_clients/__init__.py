@@ -9,6 +9,13 @@ Gemini, Ollama, etc.) to be installed.
 from typing import Any
 
 from .base import DEFAULT_INSTRUCTIONS, BaseModelClient
+from .batch_types import (
+    TERMINAL_STATES,
+    BatchItemStatus,
+    BatchResult,
+    BatchState,
+    BatchStatus,
+)
 from .factory import ProviderRule, create_model_client, register_model_client
 from .modes import PhysicsOutputMode
 from .prompts import build_plain_question_prompt, format_problem_context
@@ -17,9 +24,14 @@ create_llm_client = create_model_client
 
 __all__ = [
     "BaseModelClient",
+    "BatchItemStatus",
+    "BatchResult",
+    "BatchState",
+    "BatchStatus",
     "DEFAULT_INSTRUCTIONS",
     "PhysicsOutputMode",
     "ProviderRule",
+    "TERMINAL_STATES",
     "build_plain_question_prompt",
     "create_model_client",
     "create_llm_client",
