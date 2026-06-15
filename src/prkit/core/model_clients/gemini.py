@@ -273,9 +273,14 @@ class GeminiModel(BaseModelClient):
             file=io.BytesIO(payload.encode("utf-8")),
             config=types.UploadFileConfig(mime_type="jsonl", display_name=display_name),
         )
+        uploaded_name = uploaded.name
+        if uploaded_name is None:
+            raise RuntimeError(
+                "Gemini File API upload returned no file name; cannot submit batch"
+            )
         job = self.genai_client.batches.create(
             model=self.model,
-            src=uploaded.name,
+            src=uploaded_name,
             config={"display_name": display_name},
         )
         return str(job.name)
