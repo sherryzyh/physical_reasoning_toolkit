@@ -484,9 +484,9 @@ def _run_structured_inference(
     if resolved_max_output_tokens is not None:
         request_kwargs["max_output_tokens"] = resolved_max_output_tokens
 
-    result = model_client.chat_structured(
-        user_prompt=prompt,
-        response_model=response_model,
+    result = model_client.parse(
+        input=prompt,
+        response_format=response_model,
         image_paths=list(image_paths) or None,
         structured_policy=structured_policy,
         **request_kwargs,

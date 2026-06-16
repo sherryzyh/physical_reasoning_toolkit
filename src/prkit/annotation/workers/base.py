@@ -52,14 +52,14 @@ class BaseAnnotator(ABC):
         """
         try:
             if hasattr(response_format, "model_validate") and (
-                "chat_structured" in type(self.llm_client).__dict__
+                "parse" in type(self.llm_client).__dict__
                 or isinstance(self.llm_client, BaseModelClient)
             ):
                 # The physics-expert role is sent as `instructions`; the JSON
-                # contract is added by chat_structured's structured-output suffix.
-                result = self.llm_client.chat_structured(
+                # contract is added by parse()'s structured-output suffix.
+                result = self.llm_client.parse(
                     prompt,
-                    response_model=response_format,
+                    response_format=response_format,
                     structured_policy="best_effort",
                     instructions=DEFAULT_INSTRUCTIONS,
                 )

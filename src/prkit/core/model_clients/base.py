@@ -146,6 +146,49 @@ class BaseModelClient(ABC):
             )
         return plan
 
+    def parse(
+        self,
+        input: str,
+        *,
+        response_format: type[T],
+        image_paths: Sequence[str] | None = None,
+        structured_policy: StructuredOutputPolicy = "best_effort",
+        instructions: str | None = None,
+        **kwargs: Any,
+    ) -> StructuredCallResult[T]:
+        """Send a request and parse the response into a Pydantic model instance.
+
+        Mirrors the SDK ``.parse()`` idiom (OpenAI ``client.responses.parse``,
+        Anthropic ``client.messages.parse``): unlike :meth:`response`, which
+        returns the raw text, ``parse`` returns a typed
+        :class:`~prkit.core.model_clients.structured_output.StructuredCallResult`
+        whose ``.parsed`` holds the validated *response_format* model (or ``None``
+        with a ``.validation_error`` on failure). Call ``.require_parsed()`` for
+        the model-or-raise path. ``max_output_tokens`` (when needed) flows through
+        ``**kwargs`` exactly as in :meth:`response`.
+
+        Raises:
+            ValueError: If *structured_policy* is ``'native_required'`` and the
+                provider cannot enforce schema-validated output.
+        """
+        plan = self.resolve_structured_output_plan(
+            response_format,
+            structured_policy=structured_policy,
+        )
+        prompt = input + (plan.prompt_suffix or "")
+        raw_text = self.response(
+            input=prompt,
+            image_paths=list(image_paths) if image_paths else None,
+            response_format=plan.response_format,
+            instructions=instructions,
+            **kwargs,
+        )
+        return self._build_structured_call_result(
+            response_model=response_format,
+            raw_text=raw_text,
+            plan=plan,
+        )
+
     def chat_structured(
         self,
         user_prompt: str,
@@ -157,27 +200,23 @@ class BaseModelClient(ABC):
         instructions: str | None = None,
         **kwargs: Any,
     ) -> StructuredCallResult[T]:
-        """Send a chat request and parse the response into a Pydantic model instance."""
-        plan = self.resolve_structured_output_plan(
-            response_model,
-            structured_policy=structured_policy,
+        """Deprecated alias for :meth:`parse`; use ``parse()`` instead."""
+        warnings.warn(
+            "BaseModelClient.chat_structured() is deprecated; use .parse() instead "
+            "(the first parameter is now `input` rather than `user_prompt`, and the "
+            "schema parameter is now `response_format` rather than `response_model`).",
+            DeprecationWarning,
+            stacklevel=2,
         )
-        prompt = user_prompt + (plan.prompt_suffix or "")
-        request_kwargs = dict(kwargs)
         if max_output_tokens is not None:
-            request_kwargs["max_output_tokens"] = max_output_tokens
-
-        raw_text = self.response(
-            input=prompt,
-            image_paths=list(image_paths) if image_paths else None,
-            response_format=plan.response_format,
+            kwargs["max_output_tokens"] = max_output_tokens
+        return self.parse(
+            input=user_prompt,
+            response_format=response_model,
+            image_paths=image_paths,
+            structured_policy=structured_policy,
             instructions=instructions,
-            **request_kwargs,
-        )
-        return self._build_structured_call_result(
-            response_model=response_model,
-            raw_text=raw_text,
-            plan=plan,
+            **kwargs,
         )
 
     def solve_physics_problem(

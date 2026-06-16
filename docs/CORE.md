@@ -202,6 +202,32 @@ print(text)
 print(client.response("List three SI base units.", instructions="Answer tersely."))
 ```
 
+#### Structured output (`parse`)
+
+Use `parse()` when you want a validated Pydantic model instead of raw text. It
+mirrors the OpenAI/Anthropic SDK `.parse()` idiom (`response()` stays text-only)
+and returns a `StructuredCallResult` carrying both the parsed model and the raw
+response:
+
+```python
+from pydantic import BaseModel
+
+class Answer(BaseModel):
+    value: float
+    unit: str
+
+result = client.parse(
+    "What is the acceleration due to gravity near Earth's surface?",
+    response_format=Answer,
+)
+answer = result.require_parsed()  # -> Answer(value=9.81, unit="m/s^2"); raises on failure
+# Or inspect result.parsed / result.raw_text / result.validation_error directly.
+```
+
+The legacy `chat_structured(user_prompt=..., response_model=...)` method still
+works as a deprecated alias for `parse(input=..., response_format=...)` but emits
+a `DeprecationWarning`.
+
 #### Asking a physics problem (`solve_physics_problem`)
 
 `solve_physics_problem()` is a convenience that builds the prompt and attaches any
@@ -346,15 +372,15 @@ logger.info("Message")
 **Box view:**
 
 ```
-  PhysicalDataset             PhysicsProblem              
+  PhysicalDataset             PhysicsProblem
   ┌──────────────┐         ┌──────────────────┐              Answer
-  │ _problems    │────────►│ problem_id       │       ┌──────────────────┐ 
+  │ _problems    │────────►│ problem_id       │       ┌──────────────────┐
   │ _info        │  1:N    │ question         │       │ value            │
-  │ _split       │         │ domain ──────────┼──┐    │ answer_category ─┼─► AnswerCategory                
+  │ _split       │         │ domain ──────────┼──┐    │ answer_category ─┼─► AnswerCategory
   └──────────────┘         │ answer ──────────┼──┼───►│ unit             │
              model call    │ solution         │  │    └──────────────────┘
          ┌─────────────────└──────────────────┘  │
-         ▼                          ▲            └── PhysicsDomain 
+         ▼                          ▲            └── PhysicsDomain
   PhysicsSolution                   │
   ┌──────────────┐                  │ problem
   │ problem ─────┼──────────────────┘

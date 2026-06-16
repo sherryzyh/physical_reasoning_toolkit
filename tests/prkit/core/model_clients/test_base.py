@@ -124,7 +124,7 @@ class TestBaseModelClient:
             # An explicit empty string is preserved (suppresses the system prompt).
             assert client._resolve_instructions("") == ""
 
-    def test_chat_structured_returns_parsed_model(self):
+    def test_parse_returns_parsed_model(self):
         class ResponseModel(BaseModel):
             answer: str
 
@@ -141,9 +141,9 @@ class TestBaseModelClient:
         with patch("prkit.core.model_clients.base.load_project_dotenv"):
             client = ConcreteModel("test-model")
             client.provider = "dummy"
-            result = client.chat_structured(
+            result = client.parse(
                 "Hello",
-                response_model=ResponseModel,
+                response_format=ResponseModel,
                 structured_policy="best_effort",
             )
 
@@ -151,8 +151,8 @@ class TestBaseModelClient:
         assert result.structured_output_mode == "json_schema"
         assert result.structured_output_strategy == "dummy_json_schema"
 
-    def test_chat_structured_propagates_instructions(self):
-        """chat_structured should forward `instructions` to response()."""
+    def test_parse_propagates_instructions(self):
+        """parse should forward `instructions` to response()."""
 
         class ResponseModel(BaseModel):
             answer: str
@@ -177,22 +177,22 @@ class TestBaseModelClient:
         with patch("prkit.core.model_clients.base.load_project_dotenv"):
             client = ConcreteModel("test-model")
             client.provider = "dummy"
-            client.chat_structured(
+            client.parse(
                 "Hello",
-                response_model=ResponseModel,
+                response_format=ResponseModel,
                 structured_policy="best_effort",
                 instructions="be terse",
             )
             assert seen["instructions"] == "be terse"
 
-            client.chat_structured(
+            client.parse(
                 "Hello",
-                response_model=ResponseModel,
+                response_format=ResponseModel,
                 structured_policy="best_effort",
             )
             assert seen["instructions"] is None
 
-    def test_chat_structured_native_required_rejects_non_native_provider(self):
+    def test_parse_native_required_rejects_non_native_provider(self):
         class ResponseModel(BaseModel):
             answer: str
 
@@ -211,11 +211,43 @@ class TestBaseModelClient:
             with pytest.raises(
                 ValueError, match="native provider-enforced schema support"
             ):
-                client.chat_structured(
+                client.parse(
                     "Hello",
-                    response_model=ResponseModel,
+                    response_format=ResponseModel,
                     structured_policy="native_required",
                 )
+
+    def test_deprecated_chat_structured_alias_warns_and_forwards(self):
+        """The legacy chat_structured() alias should warn and forward to parse()."""
+
+        class ResponseModel(BaseModel):
+            answer: str
+
+        seen: dict[str, Any] = {}
+
+        class ConcreteModel(BaseModelClient):
+            supports_response_format_json_schema = True
+
+            def response(
+                self, input, image_paths=None, response_format=None, **kwargs: Any
+            ):
+                seen["max_output_tokens"] = kwargs.get("max_output_tokens")
+                return '{"answer":"ok"}'
+
+        with patch("prkit.core.model_clients.base.load_project_dotenv"):
+            client = ConcreteModel("test-model")
+            client.provider = "dummy"
+            with pytest.warns(DeprecationWarning, match="use .parse"):
+                result = client.chat_structured(
+                    "Hello",
+                    response_model=ResponseModel,
+                    structured_policy="best_effort",
+                    max_output_tokens=128,
+                )
+
+        assert result.parsed == ResponseModel(answer="ok")
+        # `max_output_tokens` is translated through the shim into response()'s kwargs.
+        assert seen["max_output_tokens"] == 128
 
 
 class _RecordingModel(BaseModelClient):
