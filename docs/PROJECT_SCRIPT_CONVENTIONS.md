@@ -74,4 +74,4 @@ For multi-step workflows such as `prepare`, `submit`, and `fetch`:
 
 ## Reference Implementation
 
-- `canonical_answer_protocol/` is the current reference implementation of these conventions.
+- `uncertainty_quantification_via_physics_semantics/` is the current reference implementation of these conventions.

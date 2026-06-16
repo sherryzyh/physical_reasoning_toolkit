@@ -12,9 +12,9 @@ from pathlib import Path
 from typing import Any
 
 from prkit.core.project_env import (
-    find_canonical_root,
     find_toolkit_root,
     find_uq_root,
+    find_uqps_root,
 )
 
 DEFAULT_REPO_ROOT = find_toolkit_root(__file__) or Path(__file__).resolve().parents[4]
@@ -25,13 +25,13 @@ DEFAULT_SAMPLING_ROOT = DEFAULT_UQ_ROOT / "experiment_results" / "sampling"
 DEFAULT_INFERENCE_ROOT = (
     DEFAULT_UQ_ROOT / "experiment_results" / "inference" / "response_with_answer_tag"
 )
-_default_canonical_root = find_canonical_root(__file__)
+_default_uqps_root = find_uqps_root(__file__)
 DEFAULT_CANONICAL_SAMPLING_ROOT = (
-    (_default_canonical_root / "baselines" / "sampling")
-    if _default_canonical_root is not None
+    (_default_uqps_root / "baselines" / "sampling")
+    if _default_uqps_root is not None
     else (
         DEFAULT_REPO_ROOT.parent
-        / "canonical_answer_protocol"
+        / "uncertainty_quantification_via_physics_semantics"
         / "baselines"
         / "sampling"
     )
@@ -84,7 +84,7 @@ def parse_args() -> argparse.Namespace:
         "--canonical-sampling-root",
         type=Path,
         default=None,
-        help="Override canonical_answer_protocol/baselines/sampling root.",
+        help="Override uncertainty_quantification_via_physics_semantics/baselines/sampling root.",
     )
     parser.add_argument(
         "--missing-ids-dir",
