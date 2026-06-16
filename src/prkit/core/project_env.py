@@ -8,8 +8,6 @@ from os import PathLike
 from pathlib import Path
 
 _TOOLKIT_ENV_VAR = "PRKIT_TOOLKIT_ROOT"
-_CANONICAL_ENV_VAR = "PRKIT_CANONICAL_ROOT"
-_UQ_ENV_VAR = "PRKIT_UQ_ROOT"
 
 
 def _anchor_dir(anchor: str | PathLike[str] | Path | None = None) -> Path:
@@ -69,124 +67,20 @@ def find_toolkit_root(anchor: str | PathLike[str] | Path | None = None) -> Path 
     )
 
 
-def find_canonical_root(
-    anchor: str | PathLike[str] | Path | None = None,
-) -> Path | None:
-    """Return the canonical-answer-protocol repo root when present."""
-    env_root = _resolve_env_root(
-        _CANONICAL_ENV_VAR,
-        marker_relpath=("scripts", "__init__.py"),
-    )
-    if env_root is not None:
-        return env_root
-
-    toolkit_root = find_toolkit_root(anchor)
-    if toolkit_root is not None:
-        sibling_root = toolkit_root.parent / "canonical_answer_protocol"
-        if (sibling_root / "scripts").is_dir():
-            return sibling_root
-        nested_root = toolkit_root / "canonical_answer_protocol"
-        if (nested_root / "scripts").is_dir():
-            return nested_root
-
-    for candidate in _iter_search_dirs(anchor):
-        if (
-            candidate.name == "canonical_answer_protocol"
-            and (candidate / "scripts").is_dir()
-        ):
-            return candidate
-
-    return _find_named_sibling(
-        anchor,
-        "canonical_answer_protocol",
-        marker_relpath=("scripts", "__init__.py"),
-    )
-
-
-def find_repo_root(
-    repo_name: str,
-    anchor: str | PathLike[str] | Path | None = None,
-) -> Path | None:
-    """Return one of the three known sibling repo roots by logical name.
-
-    Raises:
-        ValueError: If *repo_name* is not one of the three supported repos.
-    """
-    if repo_name == "physical_reasoning_toolkit":
-        return find_toolkit_root(anchor)
-    if repo_name == "canonical_answer_protocol":
-        return find_canonical_root(anchor)
-    if repo_name == "uncertainty_quantification_physical_reasoning":
-        return find_uq_root(anchor)
-    raise ValueError(f"Unsupported repo name: {repo_name}")
-
-
-def find_uq_root(anchor: str | PathLike[str] | Path | None = None) -> Path | None:
-    """Return the uncertainty-quantification package root when present."""
-    env_root = _resolve_env_root(
-        _UQ_ENV_VAR,
-        marker_relpath=("scripts", "__init__.py"),
-    )
-    if env_root is not None:
-        return env_root
-
-    toolkit_root = find_toolkit_root(anchor)
-    if toolkit_root is not None:
-        uq_root = toolkit_root / "uncertainty_quantification_physical_reasoning"
-        if uq_root.is_dir():
-            return uq_root
-        sibling_root = (
-            toolkit_root.parent / "uncertainty_quantification_physical_reasoning"
-        )
-        if sibling_root.is_dir():
-            return sibling_root
-
-    for candidate in _iter_search_dirs(anchor):
-        if (
-            candidate.name == "uncertainty_quantification_physical_reasoning"
-            and (candidate / "scripts").is_dir()
-        ):
-            return candidate
-
-    return _find_named_sibling(
-        anchor,
-        "uncertainty_quantification_physical_reasoning",
-        marker_relpath=("scripts", "__init__.py"),
-    )
-
-
 def project_dotenv_paths(
     anchor: str | PathLike[str] | Path | None = None,
 ) -> tuple[Path, ...]:
-    """Project `.env` files in load order.
+    """Return the toolkit's own `.env` path, when present.
 
-    Precedence is:
-    1. toolkit root `.env`
-    2. `canonical_answer_protocol/.env`
-    3. `uncertainty_quantification_physical_reasoning/.env`
-
-    Later files win because they are loaded with `override=True`.
+    The toolkit loads only its own project `.env`. Consumer repositories are
+    responsible for locating and loading their own environment files.
     """
-    paths: list[Path] = []
     toolkit_root = find_toolkit_root(anchor)
     if toolkit_root is not None:
         repo_env = toolkit_root / ".env"
         if repo_env.is_file():
-            paths.append(repo_env)
-
-    canonical_root = find_canonical_root(anchor)
-    if canonical_root is not None:
-        canonical_env = canonical_root / ".env"
-        if canonical_env.is_file() and canonical_env not in paths:
-            paths.append(canonical_env)
-
-    uq_root = find_uq_root(anchor)
-    if uq_root is not None:
-        uq_env = uq_root / ".env"
-        if uq_env.is_file() and uq_env not in paths:
-            paths.append(uq_env)
-
-    return tuple(paths)
+            return (repo_env,)
+    return ()
 
 
 def load_project_dotenv(
@@ -233,10 +127,7 @@ def ensure_openai_api_key(
 
 __all__ = [
     "ensure_openai_api_key",
-    "find_canonical_root",
-    "find_repo_root",
     "find_toolkit_root",
-    "find_uq_root",
     "load_project_dotenv",
     "project_dotenv_paths",
 ]
