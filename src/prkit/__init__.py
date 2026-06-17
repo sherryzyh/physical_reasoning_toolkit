@@ -7,11 +7,21 @@ answer evaluation/semantics, and annotation workflows.
 PyPI package name: ``physical-reasoning-toolkit``
 Import name: ``prkit``
 
+Integration entry point:
+    :mod:`prkit.api` is the frozen, semver-governed public contract (the
+    ``DatasetProvider``/``ModelClient``/``Scorer``/``Runner`` protocols and the
+    ``Verdict`` result). Integrate against it rather than reaching into
+    subpackages. See ``prkit/CONTRACT.md`` for the stability and version policy.
+
 Subpackages:
+    - :mod:`prkit.api` — frozen public contract (protocols + ``Verdict``).
     - :mod:`prkit.core` — domain models, model clients, logging.
     - :mod:`prkit.datasets` — dataset hub, loaders, downloaders.
-    - :mod:`prkit.evaluation` — comparators, evaluators, LLM judge.
+    - :mod:`prkit.scoring` — reference scorers (``SemanticsScorer``).
+    - :mod:`prkit.testing` — conformance suite (``check_dataset``/``check_scorer``/…).
     - :mod:`prkit.semantics` — physics-aware answer normalization & comparison.
+    - :mod:`prkit.evaluation` — comparators, evaluators, LLM judge (deprecated;
+      superseded by :mod:`prkit.scoring`).
     - :mod:`prkit.annotation` — annotation workers and workflows.
 """
 

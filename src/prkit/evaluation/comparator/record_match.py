@@ -117,6 +117,7 @@ class RecordMatchComparator(BaseComparator):
     """
 
     def __init__(self) -> None:
+        super().__init__()
         self._delegate = SmartMatchComparator()
 
     def _coerce_answer(self, answer: str | Answer | RecordLike) -> str | Answer:

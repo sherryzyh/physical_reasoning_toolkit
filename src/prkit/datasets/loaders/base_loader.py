@@ -204,6 +204,20 @@ class BaseDatasetLoader(ABC):
     - Dataset validation
     """
 
+    #: Algorithm/data revision of this loader's field-mapping logic. Surfaced in
+    #: ``get_info()`` (when a subclass merges :meth:`base_info`) and backfilled by
+    #: ``DatasetHub.get_loader_info``. Subclasses override this when their mapping
+    #: logic changes so a stored result is attributable to the loader revision.
+    version: str = "1.0"
+
+    def base_info(self) -> dict[str, Any]:
+        """Return base metadata every loader should merge into ``get_info()``.
+
+        Currently just the version stamp. Subclasses surface it with
+        ``return {**self.base_info(), ...}`` from their ``get_info()``.
+        """
+        return {"version": self.version}
+
     @property
     def name(self) -> str:
         """Return the dataset name used in validation messages."""

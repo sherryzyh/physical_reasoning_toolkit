@@ -1,14 +1,25 @@
-"""Abstract base evaluator for physical reasoning evaluation, delegating comparisons to a :class:`BaseComparator`."""
+"""Abstract base evaluator for physical reasoning evaluation, delegating comparisons to a :class:`BaseComparator`.
 
+.. deprecated::
+    The evaluator stack is superseded by :class:`prkit.scoring.SemanticsScorer`
+    (the :class:`prkit.api.Scorer` / :class:`prkit.api.Verdict` contract).
+    Constructing an evaluator emits a ``DeprecationWarning``; this stack will be
+    removed in a future release. See ``prkit/CONTRACT.md``.
+"""
+
+import warnings
 from abc import ABC, abstractmethod
 from typing import Any
 
 from prkit.core.domain.answer import Answer
-from prkit.evaluation.comparator.base import BaseComparator
+from prkit.evaluation.comparator.base import DEPRECATION_HINT, BaseComparator
 
 
 class BaseEvaluator(ABC):
-    """Base class for evaluators that use comparators."""
+    """Base class for evaluators that use comparators.
+
+    .. deprecated:: superseded by :class:`prkit.scoring.SemanticsScorer`.
+    """
 
     def __init__(self, comparator: BaseComparator | None = None):
         """
@@ -18,6 +29,12 @@ class BaseEvaluator(ABC):
             comparator: Comparator instance to use for comparing answers.
                        If None, a default comparator will be used.
         """
+        warnings.warn(
+            f"{type(self).__name__} is deprecated and will be removed in a future "
+            f"release; {DEPRECATION_HINT}.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self.comparator = comparator
 
     @abstractmethod

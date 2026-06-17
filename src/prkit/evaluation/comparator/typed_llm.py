@@ -271,6 +271,7 @@ class TypedLLMComparator(BaseComparator):
         instructions: str | None = None,
         client: OpenAI | None = None,
     ) -> None:
+        super().__init__()
         self.logger = PRKitLogger.get_logger(__name__)
         self._runner = OpenAIJudgeRunner(
             model=model,

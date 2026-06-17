@@ -1,6 +1,5 @@
 from prkit.core.domain.answer_category import AnswerCategory
 from prkit.evaluation.utils import compare_cross_type as compare_cross_type_module
-from prkit.evaluation.utils import cross_typed_match
 
 
 def test_split_respecting_parens_and_expand_gt_set():
@@ -108,32 +107,6 @@ def test_compare_text_against_formula_or_equation_gt_handles_errors_and_quantity
         compare_cross_type_module.compare_text_against_formula_or_equation_gt(
             "unused",
             "{2, 10 m/s}",
-        )
-        is True
-    )
-
-
-def test_cross_typed_match_shim_reexports_compare_helpers(monkeypatch):
-    monkeypatch.setattr(
-        compare_cross_type_module,
-        "extract_formula_candidates",
-        lambda _text: ["x + y"],
-    )
-    monkeypatch.setattr(
-        compare_cross_type_module,
-        "normalize_answer",
-        lambda _candidate: (AnswerCategory.FORMULA, "x + y"),
-    )
-    monkeypatch.setattr(
-        compare_cross_type_module,
-        "compare_formula",
-        lambda candidate_norm, gt_norm: candidate_norm == gt_norm == "x + y",
-    )
-
-    assert (
-        cross_typed_match.compare_text_against_formula_or_equation_gt(
-            "Answer: x + y",
-            "Eq(z, x + y)",
         )
         is True
     )

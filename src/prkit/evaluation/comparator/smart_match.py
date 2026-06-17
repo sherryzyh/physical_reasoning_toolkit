@@ -87,6 +87,7 @@ class SmartMatchComparator(BaseComparator):
 
     def __init__(self) -> None:
         """Initialize with default category comparators."""
+        super().__init__()
         self._comparators = dict(self.DEFAULT_COMPARATORS)
         self.logger = PRKitLogger.get_logger(__name__)
 

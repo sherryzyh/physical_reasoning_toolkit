@@ -1,13 +1,39 @@
-"""Abstract base class for all answer comparators in PRKit."""
+"""Abstract base class for all answer comparators in PRKit.
 
+.. deprecated::
+    The comparator/evaluator stacks are superseded by the unified, version-stamped
+    :class:`prkit.scoring.SemanticsScorer` (the :class:`prkit.api.Scorer` /
+    :class:`prkit.api.Verdict` contract), which wraps the deterministic semantics
+    comparison engine. Constructing any comparator emits a ``DeprecationWarning``;
+    these classes will be removed in a future release. See ``prkit/CONTRACT.md``.
+"""
+
+import warnings
 from abc import ABC, abstractmethod
 from typing import Any
 
 from prkit.core.domain.answer import Answer
 
+#: Shared pointer to the replacement, reused by the evaluator stack.
+DEPRECATION_HINT = (
+    "use prkit.scoring.SemanticsScorer (the prkit.api.Scorer / Verdict contract) "
+    "instead; see prkit/CONTRACT.md"
+)
+
 
 class BaseComparator(ABC):
-    """Base class for answer comparison strategies."""
+    """Base class for answer comparison strategies.
+
+    .. deprecated:: superseded by :class:`prkit.scoring.SemanticsScorer`.
+    """
+
+    def __init__(self) -> None:
+        warnings.warn(
+            f"{type(self).__name__} is deprecated and will be removed in a future "
+            f"release; {DEPRECATION_HINT}.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
 
     @abstractmethod
     def compare(

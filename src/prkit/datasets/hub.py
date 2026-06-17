@@ -396,6 +396,10 @@ class DatasetHub:
         loader = cls._get_loader(dataset_name)
         info = loader.get_info()
 
+        # Backfill the version stamp so it is always present, even for loaders
+        # whose hand-rolled get_info() does not merge base_info().
+        info.setdefault("version", getattr(loader, "version", "0.0"))
+
         # Add loader class information
         info["loader_class"] = loader.__class__.__name__
         info["loader_module"] = loader.__class__.__module__

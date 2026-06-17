@@ -40,6 +40,7 @@ class SimilarityMatchComparator(BaseComparator):
         *,
         rouge_threshold: float = 0.5,
     ) -> None:
+        super().__init__()
         self.logger = PRKitLogger.get_logger(__name__)
         self._rouge_threshold = rouge_threshold
         self._last_rouge_score: float | None = None

@@ -155,3 +155,10 @@ markers = [
     "integration: marks tests as integration tests",
     "unit: marks tests as unit tests",
 ]
+filterwarnings = [
+    # The evaluation comparator/evaluator stacks are intentionally deprecated in
+    # favor of prkit.scoring.SemanticsScorer; silence their DeprecationWarnings so
+    # the existing eval tests stay green even under `-W error`. Matched by message
+    # (robust to stacklevel) since every such warning points at prkit.scoring.
+    "ignore:.*prkit.scoring.*:DeprecationWarning",
+]
