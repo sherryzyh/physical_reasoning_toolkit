@@ -2,7 +2,7 @@
 PRKit — Physical Reasoning Toolkit.
 
 A toolkit for physical-reasoning dataset loading, multi-provider LLM inference,
-answer evaluation/semantics, and annotation workflows.
+answer evaluation/semantics, and annotation tasks.
 
 PyPI package name: ``physical-reasoning-toolkit``
 Import name: ``prkit``
@@ -22,7 +22,7 @@ Subpackages:
     - :mod:`prkit.semantics` — physics-aware answer normalization & comparison.
     - :mod:`prkit.evaluation` — comparators, evaluators, LLM judge (deprecated;
       superseded by :mod:`prkit.scoring`).
-    - :mod:`prkit.annotation` — annotation workers and workflows.
+    - :mod:`prkit.annotation` — human annotation tasks (gold, correctness).
 """
 
 from importlib.metadata import PackageNotFoundError, version

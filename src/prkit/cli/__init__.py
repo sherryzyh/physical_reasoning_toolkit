@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from prkit import __version__
+from prkit.annotation.cli import add_annotate_subparser, handle_annotate
 from prkit.datasets import DatasetHub
 
 
@@ -46,6 +47,8 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Re-download even when data already exists.",
     )
+
+    add_annotate_subparser(subparsers)
 
     return parser
 
@@ -91,6 +94,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             print(f"Downloaded {args.dataset} to {download_path}")
             return 0
+
+        if args.command == "annotate":
+            return handle_annotate(args)
     except (FileExistsError, FileNotFoundError, RuntimeError, ValueError) as error:
         print(str(error), file=sys.stderr)
         return 1

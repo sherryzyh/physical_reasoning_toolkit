@@ -36,6 +36,7 @@ The same pattern works across different datasets and model providers—swap the 
 - 🔧 **[CORE.md](docs/CORE.md)** - Core components: domain model, model client, logger, and definitions
 - 📚 **[DATASETS.md](docs/DATASETS.md)** - Complete guide to supported datasets and benchmarks
 - 📊 **[EVALUATION.md](docs/EVALUATION.md)** - Evaluation metrics and comparison strategies
+- 🏷️ **[ANNOTATION.md](docs/ANNOTATION.md)** - Human annotation tasks (gold, correctness)
 - 📝 **[CHANGELOG.md](CHANGELOG.md)** - Version history and release notes
 
 ## 🚀 Quick Start
@@ -103,7 +104,7 @@ export PRKIT_LOG_FILE=/var/log/prkit.log  # Optional: defaults to {cwd}/prkit_lo
 python -c "
 import prkit
 from prkit.datasets import DatasetHub
-from prkit.annotation.workflows import WorkflowComposer
+from prkit.annotation import AnnotationOrchestrator
 print('✅ All packages imported successfully!')
 print(f'PRKit version: {prkit.__version__}')
 "
@@ -120,10 +121,15 @@ prkit info ugphysics                     # Show dataset metadata (JSON)
 prkit download ugphysics                 # Download a dataset into the cache dir
 prkit download seephys --split test      # Download a specific split
 prkit download phyx --data-dir ./data    # Download into a custom directory
+
+# Annotation tasks
+prkit annotate gold domain seephys                 # Expert labels gold domains (terminal)
+prkit annotate correctness PATH/TO/seephys_gpt-5   # Judge model answers vs gold (Streamlit UI)
 ```
 
-Every command is a thin wrapper over `DatasetHub`, so the cache directory,
-variants, and splits behave exactly as they do in the Python API.
+The dataset commands are thin wrappers over `DatasetHub`, so the cache directory,
+variants, and splits behave exactly as they do in the Python API. `prkit annotate`
+routes to a human annotation task via the `AnnotationOrchestrator`.
 
 ## 🏗️ Repository Structure
 
@@ -132,7 +138,7 @@ physical_reasoning_toolkit/
 ├── src/prkit/                       # Main package (modern src-layout)
 │   ├── core/                        # Core components (domain models, model clients, logging)
 │   ├── datasets/                    # Dataset loading and management
-│   ├── annotation/                  # Annotation workflows and tools
+│   ├── annotation/                  # Human annotation tasks (gold, correctness)
 │   ├── evaluation/                  # Evaluation metrics and benchmarks
 │   └── semantics/                   # Physics-aware answer normalization and comparison
 ├── docs/                            # User guides and reference documentation
@@ -194,7 +200,7 @@ Dataset hub with a Datasets-like interface: `DatasetHub.load()` for PHYBench, Ph
 📖 [DATASETS.md](docs/DATASETS.md)
 
 ### prkit.annotation 🏷️
-Modular workflows (domain classification, theorem extraction) via `WorkflowComposer` and presets. Model-assisted and human-in-the-loop.
+Human-in-the-loop annotation tasks dispatched by one `AnnotationOrchestrator`: `gold` (an expert authors the gold label for an attribute such as `domain`) and `correctness` (a human judges model answers against the gold reference via a Streamlit UI). Run with `prkit annotate <task> ...`.
 
 📖 [ANNOTATION.md](docs/ANNOTATION.md)
 

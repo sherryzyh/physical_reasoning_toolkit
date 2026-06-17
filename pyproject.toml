@@ -92,6 +92,10 @@ include = ["prkit*"]
 
 [tool.setuptools.package-data]
 prkit = ["py.typed"]
+"prkit.annotation.tasks.correctness.ui" = [
+    "vendor/katex/*",
+    "vendor/katex/fonts/*",
+]
 "*" = ["*.txt", "*.md", "*.rst"]
 
 [tool.black]
@@ -130,6 +134,8 @@ module = [
     "pyarrow.*",
     "requests",
     "requests.*",
+    "streamlit",
+    "streamlit.*",
     "sympy",
     "sympy.*",
     "tqdm",
