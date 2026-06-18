@@ -14,7 +14,7 @@ from pydantic import ValidationError
 from prkit.api import Verdict
 from prkit.core.model_clients.base import BaseModelClient
 from prkit.datasets.hub import DatasetHub
-from prkit.scoring import SemanticsScorer
+from prkit.scoring import PartialCreditScorer, SemanticsScorer
 from prkit.testing import check_dataset, check_model_client, check_scorer
 
 
@@ -40,6 +40,10 @@ def test_all_registered_loaders_conform_offline(name):
 
 def test_reference_scorer_conforms():
     check_scorer(SemanticsScorer())
+
+
+def test_partial_credit_scorer_conforms():
+    check_scorer(PartialCreditScorer())
 
 
 def test_stub_model_client_conforms_offline():

@@ -35,7 +35,7 @@ The contract pins four structural (`typing.Protocol`) nouns plus one result type
 |------|----------|--------------------------|
 | Dataset loader | `DatasetProvider` | `BaseDatasetLoader` subclasses |
 | Inference client | `ModelClient` | `BaseModelClient` subclasses |
-| Scorer | `Scorer` | `prkit.scoring.SemanticsScorer` |
+| Scorer | `Scorer` | `prkit.scoring.SemanticsScorer` (binary); `prkit.scoring.PartialCreditScorer` (graded EED/SEED) |
 | Runner | `Runner` | *(reserved; no implementation yet)* |
 | Result | `Verdict` | `prkit.core.verdict.Verdict` |
 
@@ -62,8 +62,8 @@ when not applicable (or not yet produced):
 | `symbolic_equiv` | enriched | equivalence decided symbolically; `None` for non-symbolic modes |
 | `numeric_within_tol` | enriched | numeric/quantity match within tolerance; `None` otherwise |
 | `extracted_answer` | enriched | parsed prediction surface, when available |
-| `partial_credit` | enriched | **reserved (X1)** — the deterministic engine is binary, so this is always `None` today |
-| `rationale` | enriched | **reserved** — no NL rationale from the deterministic engine (`None` today) |
+| `partial_credit` | enriched | continuous partial-credit signal; `None` from the binary `SemanticsScorer`, populated by the graded `PartialCreditScorer` (EED/SEED) — also via `verify(..., partial_credit=True)` |
+| `rationale` | enriched | human-readable explanation; `None` from the deterministic engine, populated by `PartialCreditScorer` |
 
 ## Three independent version axes
 

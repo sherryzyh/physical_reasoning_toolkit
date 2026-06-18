@@ -72,18 +72,13 @@ def verify(
         tolerance: numeric comparison tolerance (engine default when ``None``).
         unit_policy: enforcement strictness — one of ``"strict"`` / ``"audited"`` /
             ``"permissive"`` (maps to the engine's ``ComparisonPolicyMode``).
-        partial_credit: reserved. The deterministic engine is binary, so ``True``
-            raises ``NotImplementedError`` (the partial-credit scorer, X1, owns it).
+        partial_credit: when ``True``, score with the graded EED/SEED
+            :class:`~prkit.scoring.PartialCreditScorer` (which populates
+            ``Verdict.partial_credit``) instead of the binary deterministic engine.
 
     Raises:
         ValueError: if ``unit_policy`` is not a recognized value.
-        NotImplementedError: if ``partial_credit=True``.
     """
-    if partial_credit:
-        raise NotImplementedError(
-            "partial_credit is not produced by the deterministic verifier; "
-            "use the partial-credit scorer (X1) when it lands."
-        )
     if unit_policy not in _RECOGNIZED_UNIT_POLICIES:
         raise ValueError(
             f"unit_policy must be one of {list(_RECOGNIZED_UNIT_POLICIES)}, "
@@ -92,9 +87,15 @@ def verify(
 
     # Lazy: keeps anthropic/openai/google.genai/datasets/pandas/sympy off the
     # bare ``import prkit.verify`` path (provider SDKs are lazy in model_clients).
+    # math-verify is verify(gold, pred); the Scorer scores prediction vs reference,
+    # so prediction=pred and reference=gold — do not swap.
+    if partial_credit:
+        from prkit.scoring import PartialCreditScorer
+
+        pc_scorer = PartialCreditScorer(tolerance=tolerance, policy_mode=unit_policy)
+        return pc_scorer.score(pred, gold)
+
     from prkit.scoring import SemanticsScorer
 
     scorer = SemanticsScorer(tolerance=tolerance, policy_mode=unit_policy)
-    # math-verify is verify(gold, pred); the Scorer scores prediction vs reference,
-    # so prediction=pred and reference=gold — do not swap.
     return scorer.score(pred, gold)

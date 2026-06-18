@@ -49,9 +49,26 @@ class TestVerify:
         assert v.extracted_answer is not None
         assert "4" in v.extracted_answer
 
-    def test_partial_credit_true_raises(self):
-        with pytest.raises(NotImplementedError):
-            verify("a", "b", partial_credit=True)
+    def test_partial_credit_true_returns_graded_verdict(self):
+        # verify(gold, pred): a one-coefficient near-miss earns graded credit.
+        v = verify(
+            "2*m*g + 2*m*v0**2/l",
+            "2*m*g + 4*m*v0**2/l",
+            partial_credit=True,
+        )
+        assert isinstance(v, Verdict)
+        assert 0.0 < v.score < 1.0
+        assert v.partial_credit == v.score
+        assert v.correct is False
+
+    def test_partial_credit_exact_match_full_credit(self):
+        v = verify("3 m/s", "3 m/s", partial_credit=True)
+        assert v.partial_credit == 1.0
+        assert v.correct is True
+
+    def test_partial_credit_unknown_unit_policy_raises(self):
+        with pytest.raises(ValueError, match="unit_policy"):
+            verify("a", "b", partial_credit=True, unit_policy="bogus")
 
     def test_unknown_unit_policy_raises(self):
         with pytest.raises(ValueError, match="unit_policy"):
