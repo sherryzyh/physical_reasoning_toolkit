@@ -10,6 +10,11 @@ It pins the four integration "nouns" as runtime-checkable structural
 *without subclassing*, and re-exports the existing concrete anchors the
 protocols are grounded in.
 
+For the headline "just verify a physics answer" use case, integrators should
+reach for the light-import facade :mod:`prkit.verify` (``parse`` / ``verify``),
+which returns the same :class:`Verdict` without importing clients, the hub, or
+provider SDKs.
+
 .. note::
    ``@runtime_checkable`` only verifies that the named **methods/attributes
    exist** on an instance — it does **not** check signatures or return types.
@@ -38,6 +43,8 @@ from prkit.datasets.loaders.base_loader import BaseDatasetLoader
 
 # --- contract version (independent of prkit.__version__) ------------------
 # Bump per CONTRACT.md: additive change -> minor, breaking change -> major.
+# The 0.2.0 additions (the Verdict superset fields + the prkit.verify facade) are
+# fully backward compatible; the contract version is held at 1.0 by decision.
 API_VERSION = "1.0"
 
 

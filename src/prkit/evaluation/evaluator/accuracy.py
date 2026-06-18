@@ -1,31 +1,67 @@
-"""Accuracy evaluator that scores predicted answers against ground truth using a configurable comparator."""
+"""Accuracy evaluator backed by the canonical ``Scorer`` contract (or a legacy comparator).
+
+By default the evaluator scores answers through :class:`~prkit.scoring.SemanticsScorer`
+— the :class:`prkit.api.Scorer` / :class:`~prkit.core.verdict.Verdict` contract — and
+shapes its long-standing result dict from the returned ``Verdict``. A different
+``Scorer`` can be injected (e.g. a future semantics+LLM scorer); passing a legacy
+``comparator`` instead selects the deprecated comparator path unchanged.
+"""
+
+from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from prkit.core.domain.answer import Answer
 from prkit.core.domain.physics_dataset import PhysicalDataset
 from prkit.core.domain.physics_problem import PhysicsProblem
 from prkit.evaluation.comparator.base import BaseComparator
-from prkit.evaluation.comparator.exact_match import ExactMatchComparator
+from prkit.scoring import SemanticsScorer
 
 from .base import BaseEvaluator
 
+if TYPE_CHECKING:  # typing-only; avoids importing the api surface at runtime
+    from prkit.api import Scorer
+
 
 class AccuracyEvaluator(BaseEvaluator):
-    """Evaluator that uses a comparator to evaluate answers and datasets."""
+    """Evaluator that scores answers via an injectable ``Scorer`` (or legacy comparator).
 
-    def __init__(self, comparator: BaseComparator | None = None) -> None:
-        """
-        Initialize the accuracy evaluator.
+    The default (no ``comparator``, no ``scorer``) is backed by
+    :class:`~prkit.scoring.SemanticsScorer`, so results conform to the canonical
+    ``Verdict`` contract. Only the ``SemanticsScorer`` path is exercised today; the
+    seam is intentionally open for other ``Scorer`` implementations later.
+    """
+
+    def __init__(
+        self,
+        comparator: BaseComparator | None = None,
+        *,
+        scorer: Scorer | None = None,
+    ) -> None:
+        """Initialize the accuracy evaluator.
 
         Args:
-            comparator: Comparator instance to use. If None, defaults to
-                       ExactMatchComparator.
+            comparator: Legacy comparator (the deprecated path). Mutually exclusive
+                with ``scorer``.
+            scorer: ``Scorer`` to back evaluation. When neither ``comparator`` nor
+                ``scorer`` is given, defaults to :class:`~prkit.scoring.SemanticsScorer`.
         """
-        if comparator is None:
-            comparator = ExactMatchComparator()
+        if comparator is not None and scorer is not None:
+            raise ValueError("Pass either scorer= or comparator=, not both.")
+        if comparator is None and scorer is None:
+            scorer = SemanticsScorer()
+        # BaseEvaluator stores the (possibly None) comparator and emits the stack's
+        # DeprecationWarning; the dataset-level harness is slated for the N4 Runner.
         super().__init__(comparator)
+        self.scorer = scorer
+
+    @staticmethod
+    def _describe_answer(answer: str | Answer) -> tuple[str, str]:
+        """Return ``(value, type)`` surface strings for a result's ``details`` block."""
+        if isinstance(answer, Answer):
+            return str(answer.value), answer.answer_category.value
+        return str(answer), "string"
 
     def evaluate(
         self,
@@ -44,39 +80,39 @@ class AccuracyEvaluator(BaseEvaluator):
         Returns:
             Dictionary containing evaluation results:
             - accuracy_score: Accuracy score in [0, 1]
-            - comparison_result: Raw comparison result from comparator
+            - comparison_result: Raw pass/fail comparison result
             - details: Additional evaluation details
         """
+        pred_val, pred_type = self._describe_answer(predicted_answer)
+        gt_val, gt_type = self._describe_answer(ground_truth_answer)
+
+        if self.scorer is not None:
+            # Scorer contract: score(prediction, reference) -> Verdict, then shape
+            # the legacy dict from it (accuracy_score=score, comparison=equivalent).
+            verdict = self.scorer.score(predicted_answer, ground_truth_answer)
+            return {
+                "accuracy_score": verdict.score,
+                "comparison_result": verdict.equivalent,
+                "details": {
+                    "predicted_value": pred_val,
+                    "ground_truth_value": gt_val,
+                    "predicted_type": pred_type,
+                    "ground_truth_type": gt_type,
+                    "scorer_type": type(self.scorer).__name__,
+                    "scorer_version": verdict.scorer_version,
+                    "comparison_mode": verdict.comparison_mode,
+                },
+            }
+
+        # Legacy comparator path (deprecated) — unchanged behavior.
         if self.comparator is None:
             raise ValueError("Comparator must be set before evaluation")
 
-        # Perform comparison
         comparison_result = self.comparator.compare(
             predicted_answer, ground_truth_answer
         )
         accuracy_score = self.comparator.accuracy_score(
             predicted_answer, ground_truth_answer
-        )
-
-        pred_val = (
-            str(predicted_answer.value)
-            if isinstance(predicted_answer, Answer)
-            else str(predicted_answer)
-        )
-        gt_val = (
-            str(ground_truth_answer.value)
-            if isinstance(ground_truth_answer, Answer)
-            else str(ground_truth_answer)
-        )
-        pred_type = (
-            predicted_answer.answer_category.value
-            if isinstance(predicted_answer, Answer)
-            else "string"
-        )
-        gt_type = (
-            ground_truth_answer.answer_category.value
-            if isinstance(ground_truth_answer, Answer)
-            else "string"
         )
 
         return {
@@ -120,8 +156,8 @@ class AccuracyEvaluator(BaseEvaluator):
             - per_problem_results: List of individual evaluation results
             - statistics: Additional statistics (by domain, problem_type, etc.)
         """
-        if self.comparator is None:
-            raise ValueError("Comparator must be set before evaluation")
+        if self.scorer is None and self.comparator is None:
+            raise ValueError("A scorer or comparator must be set before evaluation")
 
         if predicted_answers is None and answer_extractor is None:
             raise ValueError(

@@ -1,3 +1,5 @@
+import pytest
+
 from prkit.core.domain import (
     Answer,
     AnswerCategory,
@@ -7,6 +9,7 @@ from prkit.core.domain import (
 )
 from prkit.evaluation.comparator.exact_match import ExactMatchComparator
 from prkit.evaluation.evaluator.accuracy import AccuracyEvaluator
+from prkit.scoring import SemanticsScorer
 
 
 def _make_problem(
@@ -25,13 +28,33 @@ def _make_problem(
     )
 
 
-def test_accuracy_evaluator_defaults_to_exact_match():
+def test_accuracy_evaluator_defaults_to_semantics_scorer():
     evaluator = AccuracyEvaluator()
-    assert isinstance(evaluator.comparator, ExactMatchComparator)
+    assert isinstance(evaluator.scorer, SemanticsScorer)
+    assert evaluator.comparator is None
 
 
-def test_accuracy_evaluator_evaluate_returns_details():
+def test_accuracy_evaluator_rejects_both_scorer_and_comparator():
+    with pytest.raises(ValueError, match="not both"):
+        AccuracyEvaluator(comparator=ExactMatchComparator(), scorer=SemanticsScorer())
+
+
+def test_accuracy_evaluator_scorer_path_returns_verdict_backed_details():
     evaluator = AccuracyEvaluator()
+    result = evaluator.evaluate("4", "4")
+
+    assert result["accuracy_score"] == 1.0
+    assert result["comparison_result"] is True
+    assert result["details"]["scorer_type"] == "SemanticsScorer"
+    assert result["details"]["scorer_version"] == SemanticsScorer.version
+    assert result["details"]["comparison_mode"] == "number"
+    assert result["details"]["predicted_type"] == "string"
+
+
+def test_accuracy_evaluator_legacy_comparator_path_unchanged():
+    evaluator = AccuracyEvaluator(comparator=ExactMatchComparator())
+    assert evaluator.scorer is None
+
     result = evaluator.evaluate("4", "4")
 
     assert result["accuracy_score"] == 1.0

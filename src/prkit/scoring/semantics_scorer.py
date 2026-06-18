@@ -20,6 +20,7 @@ from prkit.semantics import (
     PREDICTION_PROMPT_VERSION,
     REFERENCE_PROMPT_VERSION,
     ComparisonPolicyMode,
+    PhysicsAnswerSemantics,
     PhysicsEvaluationContract,
     PhysicsQuestionSemantics,
     QuestionUnitPolicy,
@@ -122,14 +123,20 @@ class SemanticsScorer:
 
     def score(
         self,
-        prediction: Answer | str,
-        reference: Answer | str,
+        prediction: Answer | str | PhysicsAnswerSemantics,
+        reference: Answer | str | PhysicsAnswerSemantics,
         *,
         context: PhysicsQuestionSemantics | dict[str, Any] | None = None,
         policy_mode: ComparisonPolicyMode | str | None = None,
         **kwargs: Any,
     ) -> Verdict:
         """Score ``prediction`` against ``reference`` and return a canonical Verdict.
+
+        ``prediction`` / ``reference`` may be raw strings, :class:`Answer` objects,
+        or already-normalized :class:`PhysicsAnswerSemantics` (e.g. from
+        :func:`prkit.verify.parse`); all three are accepted by the normalizer. The
+        wider input type stays compatible with the narrower :class:`prkit.api.Scorer`
+        protocol by parameter contravariance.
 
         Per-call ``context`` / ``policy_mode`` override the instance defaults so a
         runner can pass question-conditioned semantics per problem.
@@ -148,7 +155,12 @@ class SemanticsScorer:
             context=effective_context,
             policy_mode=effective_policy,
         )
-        return verdict_from_comparison(comparison, scorer_version=self.version)
+        return verdict_from_comparison(
+            comparison,
+            scorer_version=self.version,
+            pred_sem=pred_sem,
+            ref_sem=ref_sem,
+        )
 
     def get_info(self) -> dict[str, Any]:
         """Return scorer metadata; always includes ``version``."""

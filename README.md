@@ -30,6 +30,22 @@ for problem in dataset[:3]:
 
 The same pattern works across different datasets and model providers—swap the dataset name or model identifier.
 
+#### Just verify an answer (`prkit.verify`)
+
+For the standalone "is this physics answer right?" use case, use the light-import
+verifier—a `math-verify`-shaped API that, unlike `math-verify`, is unit- and
+symbolic-aware and imports no model clients, dataset hub, or provider SDKs:
+
+```python
+from prkit.verify import parse, verify
+
+v = verify("9.8 m/s^2", "9.8 m/s²")   # verify(gold, pred) -> Verdict
+v.correct          # True  — the unit suffix normalizes (math-verify strips units)
+v.units_ok         # True
+v.symbolic_equiv   # None  (numeric case); True for e.g. verify("v = a t", "v = t a")
+v.scorer_version   # stamped so a stored score is attributable to its scorer
+```
+
 ### 📖 Documentation
 
 **Quick Links:**
