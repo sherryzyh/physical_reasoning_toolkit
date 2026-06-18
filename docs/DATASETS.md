@@ -66,7 +66,7 @@ The following table shows which physics domains are available in each dataset:
 
 **Domain Coverage Summary:**
 - **UGPhysics**: 13 domains (most comprehensive coverage) - 5,520 problems
-- **SeePhys**: 1 domain (Other - visual physics focus) - 2,000 problems  
+- **SeePhys**: 1 domain (Other - visual physics focus) - 2,000 problems
 - **PHYBench**: 6 domains (focused on core physics areas) - 500 problems
 - **TPBench**: 5 domains (specialized in theoretical physics) - 10 problems
 - **PhysReason**: 7 domains (comprehensive reasoning focus) - 1,200 problems

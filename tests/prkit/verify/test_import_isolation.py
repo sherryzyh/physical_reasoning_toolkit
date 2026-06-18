@@ -27,8 +27,7 @@ _FORBIDDEN = [
 
 
 def test_verify_path_does_not_import_heavy_deps():
-    code = textwrap.dedent(
-        f"""
+    code = textwrap.dedent(f"""
         import sys
         import prkit.verify
         from prkit.verify import parse, verify
@@ -44,8 +43,7 @@ def test_verify_path_does_not_import_heavy_deps():
             print("LEAKED:" + ",".join(leaked))
             raise SystemExit(1)
         raise SystemExit(0)
-        """
-    )
+        """)
     result = subprocess.run(
         [sys.executable, "-c", code],
         capture_output=True,

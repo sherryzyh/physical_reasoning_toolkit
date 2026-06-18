@@ -64,4 +64,3 @@ The evaluation package is designed to grow beyond final-answer correctness, with
 - theorem / principle usage checks
 - intermediate-step validation
 - rubric-based or structured reasoning assessments
-
