@@ -15,6 +15,7 @@ from ..schema import (
     PhysicsAnswerSemantics,
     PhysicsEvaluationContract,
     PhysicsQuestionSemantics,
+    SymbolAssumption,
 )
 
 
@@ -90,6 +91,61 @@ class SemanticsGeneratorInfo(_InferenceModel):
     )
 
 
+class SymbolAssumptionProvenance(_InferenceModel):
+    """Provenance for one synthesized symbol assumption in a build report."""
+
+    symbol: str = Field(description="Canonical (post-alias) symbol token.")
+    assumption: SymbolAssumption = Field(
+        description="The real-domain assumption adopted for the symbol.",
+    )
+    source: str = Field(
+        description="Where the assumption came from: subject_to, llm_declared, or merged.",
+    )
+    justification: str | None = Field(
+        default=None,
+        description="LLM-stated justification for a declared assumption, when available.",
+    )
+
+
+class SemanticsBuildReport(_InferenceModel):
+    """Objective provenance + confidence record for one semantics build.
+
+    Attached additively to reference/problem artifacts so a build is auditable and
+    reproducible: which fields are deterministic vs LLM-advisory, why each symbol
+    assumption was adopted, what disagreements/cross-check reverts occurred, and whether a
+    human should review the result.
+    """
+
+    build_method: str = Field(
+        description="Identifier for the build pipeline, e.g. reference_3call or problem_3call.",
+    )
+    temperature: float = Field(
+        default=0.0,
+        description="LLM sampling temperature used for advisory calls (0 for reproducibility).",
+    )
+    field_provenance: dict[str, str] = Field(
+        default_factory=dict,
+        description="Per-field source: deterministic, subject_to, llm_declared, or default.",
+        json_schema_extra={"additionalProperties": False},
+    )
+    assumption_provenance: tuple[SymbolAssumptionProvenance, ...] = Field(
+        default_factory=tuple,
+        description="Provenance for each adopted symbol assumption.",
+    )
+    flags: tuple[str, ...] = Field(
+        default_factory=tuple,
+        description="Disagreement, strengthening, and cross-check-revert flags for review.",
+    )
+    cross_checks_passed: bool = Field(
+        default=True,
+        description="Whether round-trip, contract self-consistency, and pair-consistency held.",
+    )
+    review_required: bool = Field(
+        default=False,
+        description="Whether the build surfaced a low-confidence signal warranting review.",
+    )
+
+
 class ReferenceSemanticsResponse(_InferenceModel):
     """Structured model output for reference-semantics generation."""
 
@@ -136,13 +192,49 @@ class ReferenceSemanticsArtifact(_InferenceModel):
         description="Ground-truth answer surface supplied to the model.",
     )
     question_semantics: PhysicsQuestionSemantics = Field(
-        description="Question semantics returned by the model.",
+        description="Reference-conditioned question semantics (q_ref), built from problem + golden.",
     )
     reference_answer_semantics: PhysicsAnswerSemantics = Field(
-        description="Reference answer semantics returned by the model.",
+        description="Reference answer semantics (a_ref) for the ground-truth final answer.",
     )
     generator: SemanticsGeneratorInfo = Field(
         description="Generation metadata.",
+    )
+    build_report: SemanticsBuildReport | None = Field(
+        default=None,
+        description="Objective build provenance/confidence record when built by the staged pipeline.",
+    )
+
+
+class ProblemSemanticsArtifact(_InferenceModel):
+    """Saved JSON artifact for a problem-only question semantics (q_prob).
+
+    Built from the problem text alone (answer-blind), this is the contract for the
+    reference-free clustering judgement ``Eq(a_pred_i, a_pred_j; q_prob)``. It carries no
+    answer semantics: there is no golden answer to realize a structure/kind, so the contract
+    only declares admissible answer forms and policy.
+    """
+
+    artifact_type: str = Field(
+        default="problem_semantics",
+        description="Artifact discriminator.",
+    )
+    created_at: str = Field(
+        default_factory=_utc_now_iso,
+        description="UTC timestamp for artifact creation.",
+    )
+    problem: SemanticsProblemRecord = Field(
+        description="Problem snapshot used for the problem-only semantics call.",
+    )
+    question_semantics: PhysicsQuestionSemantics = Field(
+        description="Problem-only question semantics (q_prob), built answer-blind.",
+    )
+    generator: SemanticsGeneratorInfo = Field(
+        description="Generation metadata.",
+    )
+    build_report: SemanticsBuildReport | None = Field(
+        default=None,
+        description="Objective build provenance/confidence record when built by the staged pipeline.",
     )
 
 
@@ -174,6 +266,14 @@ class PredictionSemanticsArtifact(_InferenceModel):
     )
     generator: SemanticsGeneratorInfo = Field(
         description="Generation metadata.",
+    )
+    build_report: SemanticsBuildReport | None = Field(
+        default=None,
+        description=(
+            "Objective build provenance/confidence record. For isolated solves it carries "
+            "the a_pred_llm-vs-a_pred_ext structure disagreement audit; for the extracted "
+            "path it records deterministic provenance."
+        ),
     )
 
 
@@ -227,7 +327,9 @@ class SemanticsEvaluationRecord(_InferenceModel):
     )
 
 
-SemanticsArtifact = ReferenceSemanticsArtifact | PredictionSemanticsArtifact
+SemanticsArtifact = (
+    ReferenceSemanticsArtifact | PredictionSemanticsArtifact | ProblemSemanticsArtifact
+)
 
 
 def save_semantics_json(record: BaseModel, path: str | Path) -> Path:
@@ -255,8 +357,16 @@ def load_prediction_semantics_artifact(path: str | Path) -> PredictionSemanticsA
     )
 
 
+def load_problem_semantics_artifact(path: str | Path) -> ProblemSemanticsArtifact:
+    """Load a problem-only (q_prob) semantics artifact from JSON."""
+
+    return ProblemSemanticsArtifact.model_validate_json(
+        Path(path).read_text(encoding="utf-8")
+    )
+
+
 def load_semantics_artifact(path: str | Path) -> SemanticsArtifact:
-    """Load either a reference or prediction semantics artifact from JSON."""
+    """Load a reference, prediction, or problem semantics artifact from JSON."""
 
     raw_text = Path(path).read_text(encoding="utf-8")
     payload = json.loads(raw_text)
@@ -266,10 +376,12 @@ def load_semantics_artifact(path: str | Path) -> SemanticsArtifact:
         return ReferenceSemanticsArtifact.model_validate(payload)
     if artifact_type == "prediction_semantics":
         return PredictionSemanticsArtifact.model_validate(payload)
+    if artifact_type == "problem_semantics":
+        return ProblemSemanticsArtifact.model_validate(payload)
 
     raise ValueError(
         "Semantics artifact JSON must define artifact_type as "
-        "'reference_semantics' or 'prediction_semantics'."
+        "'reference_semantics', 'prediction_semantics', or 'problem_semantics'."
     )
 
 
@@ -284,14 +396,18 @@ def load_semantics_evaluation_record(path: str | Path) -> SemanticsEvaluationRec
 __all__ = [
     "PredictionSemanticsArtifact",
     "PredictionSemanticsResponse",
+    "ProblemSemanticsArtifact",
     "ReferenceSemanticsArtifact",
     "ReferenceSemanticsResponse",
     "SemanticsArtifact",
+    "SemanticsBuildReport",
     "SemanticsComparisonInputs",
     "SemanticsEvaluationRecord",
     "SemanticsGeneratorInfo",
     "SemanticsProblemRecord",
+    "SymbolAssumptionProvenance",
     "load_prediction_semantics_artifact",
+    "load_problem_semantics_artifact",
     "load_reference_semantics_artifact",
     "load_semantics_artifact",
     "load_semantics_evaluation_record",

@@ -158,6 +158,7 @@ _PREDICTION_REDACTED_ADDITIONAL_FIELDS = frozenset(
         "answer_parts",
         "source_answer_text",
         "symbol_aliases",
+        "symbol_assumptions",
     }
 )
 

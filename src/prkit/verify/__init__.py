@@ -16,13 +16,14 @@ enforced by ``tests/prkit/verify/test_import_isolation.py``, not just convention
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 
 from prkit.core.verdict import Verdict
 
 if TYPE_CHECKING:  # annotations only — never imported at runtime by this module
     from prkit.core.domain.answer import Answer
-    from prkit.semantics import PhysicsAnswerSemantics
+    from prkit.semantics import PhysicsAnswerSemantics, PhysicsQuestionSemantics
+    from prkit.semantics.inference import ReferenceSemanticsArtifact
 
 __all__ = ["parse", "verify", "Verdict"]
 
@@ -31,6 +32,37 @@ __all__ = ["parse", "verify", "Verdict"]
 # (required / forbidden / optional) live on the separate ``QuestionUnitPolicy`` axis
 # and are reachable via ``SemanticsScorer(context=...)``, not this facade.
 _RECOGNIZED_UNIT_POLICIES = ("strict", "audited", "permissive")
+
+
+def _resolve_question_context(
+    context: (
+        PhysicsQuestionSemantics | ReferenceSemanticsArtifact | dict[str, Any] | None
+    ),
+) -> PhysicsQuestionSemantics | dict[str, Any] | None:
+    """Coerce a caller-supplied judgement context into question semantics (``q_ref``).
+
+    The judgement contract ``q`` is read only from the ``context`` arg of the engine,
+    so this is how a caller threads a reference-built ``q_ref`` (e.g. with
+    ``symbol_assumptions`` that unlock a domain-gated symbolic accept) into a plain
+    ``verify(...)`` call. ``None`` preserves the historical default (empty context).
+
+    A :class:`~prkit.semantics.inference.ReferenceSemanticsArtifact` (or anything else
+    exposing ``.question_semantics``) is accepted and unwrapped to its
+    ``question_semantics`` — duck-typed so this light-import facade never has to import
+    the heavy inference layer that defines the artifact. A ``PhysicsQuestionSemantics``
+    or a plain dict is passed straight through to the scorer's own coercion.
+    """
+    if context is None:
+        return None
+    question_semantics: PhysicsQuestionSemantics | None = getattr(
+        context, "question_semantics", None
+    )
+    if question_semantics is not None:
+        return question_semantics
+    # Not an artifact wrapper: a PhysicsQuestionSemantics or a plain dict. mypy
+    # cannot statically rule out the (duck-typed) artifact branch, so cast to the
+    # scorer-accepted shape.
+    return cast("PhysicsQuestionSemantics | dict[str, Any]", context)
 
 
 def parse(text: str, *, category: object | None = None) -> PhysicsAnswerSemantics:
@@ -58,6 +90,9 @@ def verify(
     tolerance: float | None = None,
     unit_policy: str = "strict",
     partial_credit: bool = False,
+    context: (
+        PhysicsQuestionSemantics | ReferenceSemanticsArtifact | dict[str, Any] | None
+    ) = None,
 ) -> Verdict:
     """Verify a predicted physics answer against the gold answer.
 
@@ -75,6 +110,13 @@ def verify(
         partial_credit: when ``True``, score with the graded EED/SEED
             :class:`~prkit.scoring.PartialCreditScorer` (which populates
             ``Verdict.partial_credit``) instead of the binary deterministic engine.
+        context: optional question contract (``q_ref``) supplying the judgement with
+            the question's domain/policy fields — e.g. ``symbol_assumptions`` that
+            unlock a domain-gated symbolic accept. May be a
+            :class:`~prkit.semantics.PhysicsQuestionSemantics`, a dict, or a
+            :class:`~prkit.semantics.inference.ReferenceSemanticsArtifact` (its
+            ``question_semantics`` is used). Defaults to ``None`` (empty context),
+            preserving the historical behavior.
 
     Raises:
         ValueError: if ``unit_policy`` is not a recognized value.
@@ -85,6 +127,8 @@ def verify(
             f"got {unit_policy!r}"
         )
 
+    question_context = _resolve_question_context(context)
+
     # Lazy: keeps anthropic/openai/google.genai/datasets/pandas/sympy off the
     # bare ``import prkit.verify`` path (provider SDKs are lazy in model_clients).
     # math-verify is verify(gold, pred); the Scorer scores prediction vs reference,
@@ -93,9 +137,9 @@ def verify(
         from prkit.scoring import PartialCreditScorer
 
         pc_scorer = PartialCreditScorer(tolerance=tolerance, policy_mode=unit_policy)
-        return pc_scorer.score(pred, gold)
+        return pc_scorer.score(pred, gold, context=question_context)
 
     from prkit.scoring import SemanticsScorer
 
     scorer = SemanticsScorer(tolerance=tolerance, policy_mode=unit_policy)
-    return scorer.score(pred, gold)
+    return scorer.score(pred, gold, context=question_context)

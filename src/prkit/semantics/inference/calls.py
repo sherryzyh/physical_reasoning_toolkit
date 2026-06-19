@@ -26,7 +26,8 @@ from ..comparison import (
     build_evaluation_contract,
     compare_protocol_answers,
 )
-from ..comparison.contract import coerce_policy_mode
+from ..comparison.contract import coerce_policy_mode, validate_answer_against_contract
+from ..comparison.structure_canonicalization import canonicalize_structure
 from ..normalization import (
     enrich_answer_quantity_views,
     infer_prediction_question_semantics,
@@ -38,35 +39,59 @@ from ..schema import (
     AnswerObjectKind,
     AnswerStructure,
     ComparisonPolicyMode,
+    ContractValidationStatus,
     PhysicsAnswerSemantics,
     PhysicsQuestionSemantics,
+    SymbolAssumption,
 )
 from .artifacts import (
     PredictionSemanticsArtifact,
+    ProblemSemanticsArtifact,
     ReferenceSemanticsArtifact,
+    SemanticsBuildReport,
     SemanticsComparisonInputs,
     SemanticsEvaluationRecord,
     SemanticsGeneratorInfo,
     SemanticsProblemRecord,
+    SymbolAssumptionProvenance,
     load_prediction_semantics_artifact,
     load_reference_semantics_artifact,
 )
 from .prompts import (
     PREDICTION_PROMPT_NAME,
     PREDICTION_PROMPT_VERSION,
+    PROBLEM_PROMPT_NAME,
+    PROBLEM_PROMPT_VERSION,
     REFERENCE_PROMPT_NAME,
     REFERENCE_PROMPT_VERSION,
     answer_like_to_text,
+    build_answer_surface_cleanup_prompt,
     build_prediction_semantics_prompt,
-    build_reference_semantics_prompt,
+    build_question_policy_prompt,
+    build_symbol_assumptions_prompt,
+)
+from .semantics_build import (
+    alias_source_violations,
+    assumptions_from_subject_to,
+    assumptions_to_semantics,
+    build_alias_map,
+    extract_candidate_symbols,
+    infer_answer_tolerance,
+    meet_assumptions,
+    merge_symbol_assumptions,
+    reconcile_allowed_sets,
+    reference_pair_consistency,
+    resolve_to_canonical,
 )
 from .strict_models import (
     StrictPhysicsAnswerCaseSemantics,
     StrictPhysicsAnswerSemantics,
     StrictPhysicsQuestionSemantics,
     StrictPredictionFinalAnswerResponse,
+    StrictPredictionIsolatedResponse,
     StrictPredictionSemanticsResponse,
     StrictReferenceSemanticsResponse,
+    StrictSymbolAssumptionsResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -145,6 +170,102 @@ def resolve_prediction_response_model(
     return StrictPredictionSemanticsResponse
 
 
+def resolve_isolated_prediction_response_model(
+    model_client: BaseModelClient,
+) -> type[BaseModel]:
+    """Pick the provider-facing model for the ISOLATED problem-only solve (a_pred_llm).
+
+    Prefers :class:`StrictPredictionIsolatedResponse` (reasoning + final_answer +
+    prediction_answer_semantics, no question_semantics). Providers that cannot enforce it
+    fall back to the compact :class:`StrictPredictionFinalAnswerResponse`, in which case only
+    ``a_pred_ext`` is available (the deterministic reconstruction).
+    """
+
+    isolated_plan = model_client.resolve_structured_output_plan(
+        StrictPredictionIsolatedResponse,
+        structured_policy="best_effort",
+    )
+    if isolated_plan.native_schema_enforced:
+        return StrictPredictionIsolatedResponse
+
+    compact_plan = model_client.resolve_structured_output_plan(
+        StrictPredictionFinalAnswerResponse,
+        structured_policy="best_effort",
+    )
+    if compact_plan.native_schema_enforced:
+        logger.warning(
+            "Model %s (%s) cannot natively enforce the isolated prediction semantics schema; "
+            "using compact final-answer response schema (a_pred_ext only).",
+            getattr(model_client, "model", "unknown"),
+            getattr(model_client, "provider", "unknown"),
+        )
+        return StrictPredictionFinalAnswerResponse
+
+    return StrictPredictionIsolatedResponse
+
+
+# ----------------------------------------------------------------------------------------
+# DEPRECATED single-call reference build (kept commented for manual review/comparison
+# against the staged `build_reference_semantics` that replaced it). The old path made ONE
+# fused LLM call returning both question and answer semantics with no determinism control,
+# no structure/kind pinning, and no cross-checks. See `build_reference_semantics` below.
+# ----------------------------------------------------------------------------------------
+# def infer_reference_semantics(
+#     problem: PhysicsProblem,
+#     model_client: BaseModelClient,
+#     *,
+#     max_output_tokens: int | None = None,
+#     **chat_kwargs: Any,
+# ) -> ReferenceSemanticsArtifact:
+#     """Infer and package reference semantics for a problem's ground-truth answer."""
+#
+#     if problem.answer is None:
+#         raise ValueError(
+#             f"Problem {problem.problem_id} does not provide `problem.answer`."
+#         )
+#
+#     require_native_json_schema = _semantics_should_require_native_json_schema(
+#         model_client,
+#         StrictReferenceSemanticsResponse,
+#     )
+#     ground_truth_answer_text = answer_like_to_text(problem.answer)
+#     draft_question_semantics = infer_reference_question_semantics(problem)
+#     prompt = build_reference_semantics_prompt(
+#         problem,
+#         draft_question_semantics=draft_question_semantics,
+#     )
+#     response, structured_result = _run_structured_inference(
+#         model_client,
+#         prompt=prompt,
+#         response_model=StrictReferenceSemanticsResponse,
+#         image_paths=tuple(problem.image_path or ()),
+#         max_output_tokens=max_output_tokens,
+#         require_native_json_schema=require_native_json_schema,
+#         **chat_kwargs,
+#     )
+#
+#     merged_question_semantics = _merge_question_semantics_fallbacks(
+#         response.question_semantics.to_canonical(),
+#         draft_question_semantics,
+#     )
+#     return ReferenceSemanticsArtifact(
+#         problem=_problem_record_from_problem(problem),
+#         ground_truth_answer=ground_truth_answer_text,
+#         question_semantics=merged_question_semantics,
+#         reference_answer_semantics=enrich_answer_quantity_views(
+#             response.reference_answer_semantics.to_canonical(),
+#             context=merged_question_semantics,
+#         ),
+#         generator=_generator_info(
+#             model_client,
+#             prompt_name=REFERENCE_PROMPT_NAME,
+#             prompt_version=REFERENCE_PROMPT_VERSION,
+#             structured_output_mode=structured_result.structured_output_mode,
+#             structured_output_strategy=structured_result.structured_output_strategy,
+#         ),
+#     )
+
+
 def infer_reference_semantics(
     problem: PhysicsProblem,
     model_client: BaseModelClient,
@@ -152,52 +273,502 @@ def infer_reference_semantics(
     max_output_tokens: int | None = None,
     **chat_kwargs: Any,
 ) -> ReferenceSemanticsArtifact:
-    """Infer and package reference semantics for a problem's ground-truth answer."""
+    """Infer and package reference semantics (q_ref + a_ref) for a problem's golden answer.
 
-    if problem.answer is None:
-        raise ValueError(
-            f"Problem {problem.problem_id} does not provide `problem.answer`."
-        )
+    Back-compatible entry point: delegates to the staged :func:`build_reference_semantics`.
+    """
 
-    require_native_json_schema = _semantics_should_require_native_json_schema(
-        model_client,
-        StrictReferenceSemanticsResponse,
-    )
-    ground_truth_answer_text = answer_like_to_text(problem.answer)
-    draft_question_semantics = infer_reference_question_semantics(problem)
-    prompt = build_reference_semantics_prompt(
+    return build_reference_semantics(
         problem,
-        draft_question_semantics=draft_question_semantics,
-    )
-    response, structured_result = _run_structured_inference(
         model_client,
-        prompt=prompt,
-        response_model=StrictReferenceSemanticsResponse,
-        image_paths=tuple(problem.image_path or ()),
         max_output_tokens=max_output_tokens,
-        require_native_json_schema=require_native_json_schema,
         **chat_kwargs,
     )
 
-    merged_question_semantics = _merge_question_semantics_fallbacks(
-        response.question_semantics.to_canonical(),
-        draft_question_semantics,
+
+# ----------------------------------------------------------------------------------------
+# Staged objective semantics build (WS A). Deterministic backbone is authoritative for
+# structure/object_kind/tolerance/allowed_*; three advisory LLM calls (temperature 0) clean
+# the answer surface, fill question policy, and declare justified symbol assumptions. See
+# `semantics_build.py` for the deterministic methodology and the build's compatibility rules.
+# ----------------------------------------------------------------------------------------
+_ANSWER_SURFACE_FILL_FIELDS = (
+    "canonical_latex",
+    "unit",
+    "dimension",
+    "choice_label",
+    "boolean_value",
+    "sign_value",
+)
+
+
+def _advisory_inference(
+    model_client: BaseModelClient,
+    *,
+    prompt: str,
+    response_model: type[ResponseModelT],
+    image_paths: tuple[str, ...],
+    max_output_tokens: int | None,
+    **chat_kwargs: Any,
+) -> ResponseModelT | None:
+    """Run one advisory build call, returning ``None`` on any failure.
+
+    Advisory calls only refine fields the deterministic backbone has already decided, so a
+    failed call degrades to the deterministic value rather than crashing the build.
+
+    These calls run **best-effort** (``require_native_json_schema=False``): native structured
+    output is used when the provider supports it, otherwise the LLM still enriches via the
+    plain-text / ``json_object`` route and the result is parsed back. So lacking native
+    structured output does **not** reduce the reference build (Step 1) to deterministic-only —
+    native structured output is a Step-2 (answer-generation output-form) concern, not a Step-1
+    one. Only a genuine inference/parse failure degrades to the deterministic value.
+    """
+
+    try:
+        response, _ = _run_structured_inference(
+            model_client,
+            prompt=prompt,
+            response_model=response_model,
+            image_paths=image_paths,
+            max_output_tokens=max_output_tokens,
+            require_native_json_schema=False,
+            **chat_kwargs,
+        )
+        return response
+    except Exception as exc:  # noqa: BLE001 - advisory; the deterministic value stands
+        logger.warning(
+            "Advisory build call (%s) failed; using the deterministic value instead: %s",
+            response_model.__name__,
+            exc,
+        )
+        return None
+
+
+def _adopt_answer_cleanup(
+    deterministic: PhysicsAnswerSemantics,
+    cleaned: PhysicsAnswerSemantics,
+) -> tuple[PhysicsAnswerSemantics, list[str], dict[str, str]]:
+    """Fill empty surface fields from the cleanup call; structure/kind stay pinned.
+
+    Only presentational/gap fields are adopted (and only when the deterministic value is
+    empty); ``canonical_text``/``numeric_text``/``numeric_value`` stay deterministic so the
+    golden's printed precision is preserved (compat #1).
+    """
+
+    flags: list[str] = []
+    if (
+        cleaned.structure != deterministic.structure
+        or cleaned.object_kind != deterministic.object_kind
+    ):
+        flags.append(
+            "answer_cleanup_structure_disagreement:"
+            f"{cleaned.structure.value}/{cleaned.object_kind.value}"
+        )
+    updates: dict[str, Any] = {}
+    provenance: dict[str, str] = {}
+    for field in _ANSWER_SURFACE_FILL_FIELDS:
+        det_value = getattr(deterministic, field)
+        llm_value = getattr(cleaned, field)
+        if not det_value and llm_value:
+            updates[field] = llm_value
+            provenance[field] = "llm_declared"
+    adopted = deterministic.model_copy(update=updates) if updates else deterministic
+    return adopted, flags, provenance
+
+
+def _adopt_question_policy(
+    draft: PhysicsQuestionSemantics,
+    policy: PhysicsQuestionSemantics,
+) -> tuple[PhysicsQuestionSemantics, dict[str, str]]:
+    """Adopt LLM question-policy fields onto the draft.
+
+    ``allowed_*``, ``tolerance``, and ``symbol_assumptions`` from the policy call are ignored
+    here; the build sets them deterministically.
+    """
+
+    updates: dict[str, Any] = {}
+    provenance: dict[str, str] = {}
+
+    # Enum policy fields are decisions; adopt them as-is.
+    for field in ("question_symbolic_mode", "question_unit_policy", "ordering"):
+        updates[field] = getattr(policy, field)
+        provenance[field] = "llm_declared"
+
+    # Optional / collection fields: adopt only when the LLM provided a value.
+    if policy.target_variable:
+        updates["target_variable"] = policy.target_variable
+        provenance["target_variable"] = "llm_declared"
+    if policy.symbol_aliases:
+        updates["symbol_aliases"] = policy.symbol_aliases
+        provenance["symbol_aliases"] = "llm_declared"
+    if policy.question_unit:
+        updates["question_unit"] = policy.question_unit
+        provenance["question_unit"] = "llm_declared"
+    if policy.dimension:
+        updates["dimension"] = policy.dimension
+        provenance["dimension"] = "llm_declared"
+    if policy.required_parts:
+        updates["required_parts"] = policy.required_parts
+        provenance["required_parts"] = "llm_declared"
+    if policy.coordinate_frame:
+        updates["coordinate_frame"] = policy.coordinate_frame
+        provenance["coordinate_frame"] = "llm_declared"
+    if policy.sign_convention:
+        updates["sign_convention"] = policy.sign_convention
+        provenance["sign_convention"] = "llm_declared"
+    if policy.choice_space:
+        updates["choice_space"] = policy.choice_space
+        provenance["choice_space"] = "llm_declared"
+
+    return draft.merged(updates), provenance
+
+
+def _collect_declared_assumptions(
+    response: StrictSymbolAssumptionsResponse | None,
+    alias_map: dict[str, str],
+) -> tuple[dict[str, SymbolAssumption], dict[str, str]]:
+    """Resolve declared assumptions to canonical tokens, returning (map, justifications)."""
+
+    declared: dict[str, SymbolAssumption] = {}
+    justifications: dict[str, str] = {}
+    if response is None:
+        return declared, justifications
+    for entry in response.assumptions:
+        canonical = resolve_to_canonical(entry.symbol, alias_map)
+        if canonical in declared:
+            declared[canonical] = meet_assumptions(
+                declared[canonical], entry.assumption
+            )
+        else:
+            declared[canonical] = entry.assumption
+        if entry.justification:
+            justifications[canonical] = entry.justification
+    return declared, justifications
+
+
+def _assumption_provenance(
+    merged: dict[str, SymbolAssumption],
+    subject_to: dict[str, SymbolAssumption],
+    declared: dict[str, SymbolAssumption],
+    justifications: dict[str, str],
+) -> tuple[SymbolAssumptionProvenance, ...]:
+    """Tag each adopted assumption with its source for the build report."""
+
+    provenance: list[SymbolAssumptionProvenance] = []
+    for symbol in sorted(merged):
+        in_st = symbol in subject_to
+        in_llm = symbol in declared
+        source = (
+            "merged"
+            if (in_st and in_llm)
+            else ("subject_to" if in_st else "llm_declared")
+        )
+        provenance.append(
+            SymbolAssumptionProvenance(
+                symbol=symbol,
+                assumption=merged[symbol],
+                source=source,
+                justification=justifications.get(symbol),
+            )
+        )
+    return tuple(provenance)
+
+
+def build_reference_semantics(
+    problem: PhysicsProblem,
+    model_client: BaseModelClient,
+    *,
+    golden: str | None = None,
+    max_output_tokens: int | None = None,
+    temperature: float = 0.0,
+    **chat_kwargs: Any,
+) -> ReferenceSemanticsArtifact:
+    """Build reference semantics (q_ref + a_ref) from a problem and its golden answer.
+
+    Deterministic backbone (authoritative): ``normalize_physics_answer`` +
+    ``canonicalize_structure`` pin ``a_ref``'s structure/object_kind; ``subject_to``
+    constraints seed ``symbol_assumptions``; tolerance and ``allowed_*`` are deterministic.
+    Three advisory LLM calls (temperature 0) then clean the answer surface, fill question
+    policy, and declare justified symbol assumptions; their outputs are validated and never
+    override the deterministic decisions. A build report records provenance and cross-checks.
+    """
+
+    resolved_golden = (
+        golden
+        if golden is not None
+        else (
+            answer_like_to_text(problem.answer) if problem.answer is not None else None
+        )
     )
+    if not resolved_golden:
+        raise ValueError(
+            f"Problem {problem.problem_id} has no golden answer to build reference semantics."
+        )
+
+    call_kwargs = dict(chat_kwargs)
+    call_kwargs.setdefault("temperature", temperature)
+    image_paths = tuple(problem.image_path or ())
+    flags: list[str] = []
+    provenance: dict[str, str] = {
+        "structure": "deterministic",
+        "object_kind": "deterministic",
+        "tolerance": "deterministic",
+    }
+
+    # Stage 0 - deterministic backbone (authoritative for structure/kind).
+    q_draft = infer_reference_question_semantics(problem)
+    a_det = canonicalize_structure(
+        normalize_physics_answer(resolved_golden, context=q_draft),
+        context=q_draft,
+    )
+
+    # Stage 1a - answer-surface cleanup (advisory; structure/kind pinned).
+    a_ref = a_det
+    cleanup = _advisory_inference(
+        model_client,
+        prompt=build_answer_surface_cleanup_prompt(
+            problem, golden_text=resolved_golden, draft_answer=a_det
+        ),
+        response_model=StrictPhysicsAnswerSemantics,
+        image_paths=image_paths,
+        max_output_tokens=max_output_tokens,
+        **call_kwargs,
+    )
+    if cleanup is not None:
+        a_ref, cleanup_flags, cleanup_provenance = _adopt_answer_cleanup(
+            a_det, cleanup.to_canonical()
+        )
+        flags.extend(cleanup_flags)
+        provenance.update(cleanup_provenance)
+    else:
+        flags.append("answer_cleanup_call_unavailable")
+
+    # Stage 1b - question policy (advisory).
+    policy = _advisory_inference(
+        model_client,
+        prompt=build_question_policy_prompt(problem, answer_draft=a_ref),
+        response_model=StrictPhysicsQuestionSemantics,
+        image_paths=image_paths,
+        max_output_tokens=max_output_tokens,
+        **call_kwargs,
+    )
+    if policy is not None:
+        q_ref, policy_provenance = _adopt_question_policy(
+            q_draft, policy.to_canonical()
+        )
+        provenance.update(policy_provenance)
+    else:
+        q_ref = q_draft
+        flags.append("question_policy_call_unavailable")
+
+    alias_map = build_alias_map(q_ref)
+
+    # Stage 1c - justified symbol-assumption declaration (advisory).
+    assumptions_response = _advisory_inference(
+        model_client,
+        prompt=build_symbol_assumptions_prompt(
+            problem,
+            candidate_symbols=extract_candidate_symbols(
+                a_ref.canonical_text, alias_map=alias_map
+            ),
+            answer_draft=a_ref,
+        ),
+        response_model=StrictSymbolAssumptionsResponse,
+        image_paths=image_paths,
+        max_output_tokens=max_output_tokens,
+        **call_kwargs,
+    )
+    if assumptions_response is None:
+        flags.append("symbol_assumptions_call_unavailable")
+    declared, justifications = _collect_declared_assumptions(
+        assumptions_response, alias_map
+    )
+
+    # Stage 2 - deterministic synthesis & reconciliation.
+    subject_to_assumptions = assumptions_from_subject_to(
+        a_ref.subject_to, alias_map=alias_map
+    )
+    merged_assumptions, merge_flags = merge_symbol_assumptions(
+        subject_to_assumptions, declared
+    )
+    flags.extend(merge_flags)
+    for symbol in alias_source_violations(merged_assumptions, alias_map):
+        merged_assumptions.pop(symbol, None)
+        flags.append(f"dropped_alias_source_assumption:{symbol}")
+
+    q_ref = q_ref.merged(
+        {
+            "symbol_assumptions": assumptions_to_semantics(merged_assumptions),
+            "tolerance": infer_answer_tolerance(instruction_text=problem.question),
+        }
+    )
+    q_ref = reconcile_allowed_sets(q_ref, a_ref)
+    a_ref = enrich_answer_quantity_views(a_ref, context=q_ref)
+
+    # Stage 3 - cross-checks (validate authority; never rescue).
+    cross_ok = True
+    try:
+        round_trip = normalize_physics_answer(a_ref.canonical_text, context=q_ref)
+        if (
+            round_trip.structure != a_ref.structure
+            or round_trip.object_kind != a_ref.object_kind
+        ):
+            flags.append(
+                "roundtrip_drift:"
+                f"{round_trip.structure.value}/{round_trip.object_kind.value}"
+            )
+            cross_ok = False
+    except Exception as exc:  # noqa: BLE001 - cross-check is best-effort, never fatal
+        flags.append(f"roundtrip_error:{exc.__class__.__name__}")
+        cross_ok = False
+
+    contract = build_evaluation_contract(
+        question_semantics=q_ref, reference_answer_semantics=a_ref
+    )
+    if (
+        validate_answer_against_contract(a_ref, contract).status
+        == ContractValidationStatus.VIOLATING
+    ):
+        flags.append("reference_self_contract_violation")
+        cross_ok = False
+
+    pair_issues = reference_pair_consistency(q_ref, a_ref)
+    if pair_issues:
+        flags.extend(f"pair:{issue}" for issue in pair_issues)
+        cross_ok = False
+        if (
+            any(issue.startswith("target_variable_mismatch") for issue in pair_issues)
+            and a_ref.target_variable
+        ):
+            q_ref = q_ref.merged({"target_variable": a_ref.target_variable})
+            provenance["target_variable"] = "deterministic"
+            flags.append("reverted_target_variable_to_deterministic")
+
+    report = SemanticsBuildReport(
+        build_method="reference_3call",
+        temperature=temperature,
+        field_provenance=provenance,
+        assumption_provenance=_assumption_provenance(
+            merged_assumptions, subject_to_assumptions, declared, justifications
+        ),
+        flags=tuple(flags),
+        cross_checks_passed=cross_ok,
+        # Only a genuine cross-check failure warrants review. An advisory call being
+        # unavailable (e.g. no native structured output) is a normal route, not a defect —
+        # it is recorded as an informational flag but does not force review.
+        review_required=not cross_ok,
+    )
+
     return ReferenceSemanticsArtifact(
         problem=_problem_record_from_problem(problem),
-        ground_truth_answer=ground_truth_answer_text,
-        question_semantics=merged_question_semantics,
-        reference_answer_semantics=enrich_answer_quantity_views(
-            response.reference_answer_semantics.to_canonical(),
-            context=merged_question_semantics,
-        ),
+        ground_truth_answer=resolved_golden,
+        question_semantics=q_ref,
+        reference_answer_semantics=a_ref,
         generator=_generator_info(
             model_client,
             prompt_name=REFERENCE_PROMPT_NAME,
             prompt_version=REFERENCE_PROMPT_VERSION,
-            structured_output_mode=structured_result.structured_output_mode,
-            structured_output_strategy=structured_result.structured_output_strategy,
+            structured_output_mode="staged_3call",
         ),
+        build_report=report,
+    )
+
+
+def build_problem_semantics(
+    problem: PhysicsProblem,
+    model_client: BaseModelClient,
+    *,
+    max_output_tokens: int | None = None,
+    temperature: float = 0.0,
+    **chat_kwargs: Any,
+) -> ProblemSemanticsArtifact:
+    """Build problem-only question semantics (q_prob), answer-blind.
+
+    Used as the contract for reference-free clustering. There is no golden answer, so no
+    answer record and no structure/kind realization: ``allowed_*`` stay permissive and
+    symbol assumptions come only from LLM declarations (cross-checked for canonical tokens).
+    """
+
+    call_kwargs = dict(chat_kwargs)
+    call_kwargs.setdefault("temperature", temperature)
+    image_paths = tuple(problem.image_path or ())
+    flags: list[str] = []
+    provenance: dict[str, str] = {"tolerance": "deterministic"}
+
+    q_draft = infer_prediction_question_semantics(problem)
+
+    policy = _advisory_inference(
+        model_client,
+        prompt=build_question_policy_prompt(problem, answer_draft=None),
+        response_model=StrictPhysicsQuestionSemantics,
+        image_paths=image_paths,
+        max_output_tokens=max_output_tokens,
+        **call_kwargs,
+    )
+    if policy is not None:
+        q_prob, policy_provenance = _adopt_question_policy(
+            q_draft, policy.to_canonical()
+        )
+        provenance.update(policy_provenance)
+    else:
+        q_prob = q_draft
+        flags.append("question_policy_call_unavailable")
+
+    alias_map = build_alias_map(q_prob)
+
+    assumptions_response = _advisory_inference(
+        model_client,
+        prompt=build_symbol_assumptions_prompt(
+            problem,
+            candidate_symbols=extract_candidate_symbols(
+                problem.question, alias_map=alias_map
+            ),
+            answer_draft=None,
+        ),
+        response_model=StrictSymbolAssumptionsResponse,
+        image_paths=image_paths,
+        max_output_tokens=max_output_tokens,
+        **call_kwargs,
+    )
+    declared, justifications = _collect_declared_assumptions(
+        assumptions_response, alias_map
+    )
+    for symbol in alias_source_violations(declared, alias_map):
+        declared.pop(symbol, None)
+        flags.append(f"dropped_alias_source_assumption:{symbol}")
+    if any(value != SymbolAssumption.REAL for value in declared.values()):
+        # Stronger-than-real assumptions have no golden/subject_to to cross-check here.
+        flags.append("problem_only_assumptions_unverified")
+
+    q_prob = q_prob.merged(
+        {
+            "symbol_assumptions": assumptions_to_semantics(declared),
+            "tolerance": infer_answer_tolerance(instruction_text=problem.question),
+        }
+    )
+
+    report = SemanticsBuildReport(
+        build_method="problem_3call",
+        temperature=temperature,
+        field_provenance=provenance,
+        assumption_provenance=_assumption_provenance(
+            declared, {}, declared, justifications
+        ),
+        flags=tuple(flags),
+        cross_checks_passed=True,
+        review_required=bool(flags),
+    )
+
+    return ProblemSemanticsArtifact(
+        problem=_problem_record_from_problem(problem),
+        question_semantics=q_prob,
+        generator=_generator_info(
+            model_client,
+            prompt_name=PROBLEM_PROMPT_NAME,
+            prompt_version=PROBLEM_PROMPT_VERSION,
+            structured_output_mode="staged_3call",
+        ),
+        build_report=report,
     )
 
 
@@ -205,23 +776,38 @@ def infer_prediction_semantics(
     problem: PhysicsProblem,
     model_client: BaseModelClient,
     *,
+    isolated_solve: bool = True,
     max_output_tokens: int | None = None,
     allow_non_native_structured_output: bool = False,
     **chat_kwargs: Any,
 ) -> PredictionSemanticsArtifact:
-    """Let a model solve a problem and package the predicted answer semantics."""
+    """Let a model solve a problem and package the predicted answer semantics.
+
+    By default (``isolated_solve=True``) the model solves the problem **answer-blind and
+    contract-blind**: the solve prompt is problem + options + context only, with no embedded
+    question-semantics draft (the leakage guard). The artifact's ``prediction_answer_semantics``
+    is ``a_pred_llm`` (the LLM-structured record, canonicalized), and the build report carries
+    the ``a_pred_llm``-vs-``a_pred_ext`` structure-disagreement audit. Set
+    ``isolated_solve=False`` to keep the legacy fused path (the draft is injected and the
+    model authors a prediction-side ``question_semantics``).
+    """
+
+    if isolated_solve:
+        # The isolated solve is always graceful (`allow_non_native_structured_output` applies
+        # only to the legacy fused path): missing native structured output yields a_pred_ext,
+        # never a failure (the user's "plain output -> deterministic extraction" route).
+        return _infer_isolated_prediction_semantics(
+            problem,
+            model_client,
+            max_output_tokens=max_output_tokens,
+            **chat_kwargs,
+        )
 
     response_model = resolve_prediction_response_model(model_client)
-    require_native_json_schema = (
-        _semantics_should_require_native_json_schema(
-            model_client,
-            response_model,
-        )
-        if not allow_non_native_structured_output
-        else model_client.resolve_structured_output_plan(
-            response_model,
-            structured_policy="best_effort",
-        ).native_schema_enforced
+    require_native_json_schema = _resolve_prediction_native_requirement(
+        model_client,
+        response_model,
+        allow_non_native_structured_output=allow_non_native_structured_output,
     )
     spec = prepare_prediction_semantics_inference_spec(
         problem,
@@ -252,12 +838,131 @@ def infer_prediction_semantics(
     )
 
 
+def _resolve_prediction_native_requirement(
+    model_client: BaseModelClient,
+    response_model: type[BaseModel],
+    *,
+    allow_non_native_structured_output: bool,
+) -> bool:
+    """Decide whether native structured output is required for a prediction call."""
+
+    if allow_non_native_structured_output:
+        return model_client.resolve_structured_output_plan(
+            response_model,
+            structured_policy="best_effort",
+        ).native_schema_enforced
+    return _semantics_should_require_native_json_schema(model_client, response_model)
+
+
+def _infer_isolated_prediction_semantics(
+    problem: PhysicsProblem,
+    model_client: BaseModelClient,
+    *,
+    max_output_tokens: int | None,
+    **chat_kwargs: Any,
+) -> PredictionSemanticsArtifact:
+    """Problem-only isolated solve building a_pred_llm (+ the a_pred_ext disagreement audit).
+
+    Always graceful: native structured output is used when the provider supports it (so
+    ``a_pred_llm`` is produced), otherwise the solve falls back to plain text and only
+    ``a_pred_ext`` (deterministic extraction) is produced — lacking native structured output
+    never fails this step, it just yields one answer-semantics form instead of two.
+    """
+
+    response_model = resolve_isolated_prediction_response_model(model_client)
+    # Best-effort: prefer native when available, never require it.
+    require_native_json_schema = model_client.resolve_structured_output_plan(
+        response_model,
+        structured_policy="best_effort",
+    ).native_schema_enforced
+    spec = prepare_isolated_prediction_semantics_inference_spec(
+        problem,
+        response_model=response_model,
+    )
+    response, structured_result = _run_structured_inference(
+        model_client,
+        prompt=spec.prompt,
+        response_model=spec.response_model,
+        image_paths=spec.image_paths,
+        max_output_tokens=max_output_tokens,
+        require_native_json_schema=require_native_json_schema,
+        **chat_kwargs,
+    )
+    if not isinstance(
+        response,
+        (StrictPredictionIsolatedResponse, StrictPredictionFinalAnswerResponse),
+    ):
+        raise TypeError(
+            "Isolated prediction response must be either StrictPredictionIsolatedResponse "
+            f"or StrictPredictionFinalAnswerResponse. Got {type(response)!r}."
+        )
+
+    # a_pred_ext: deterministic extraction from the final-answer surface (same authority as
+    # a_ref). Always computable, so it is the A/B baseline and the disagreement reference.
+    a_pred_ext = extract_prediction_answer_semantics(response.final_answer)
+
+    flags: list[str] = []
+    if isinstance(response, StrictPredictionIsolatedResponse):
+        # a_pred_llm: the LLM-structured record, canonicalized for symmetric structure.
+        a_pred_llm = canonicalize_structure(
+            response.prediction_answer_semantics.to_canonical(),
+            context=PhysicsQuestionSemantics(),
+        )
+        adopted = a_pred_llm
+        build_method = "prediction_isolated_llm"
+        if (
+            a_pred_llm.structure != a_pred_ext.structure
+            or a_pred_llm.object_kind != a_pred_ext.object_kind
+        ):
+            # Disagreement audit (compat: do NOT reconcile; feeds the A/B comparison).
+            flags.append(
+                "a_pred_llm_vs_ext_disagreement:"
+                f"{a_pred_llm.structure.value}/{a_pred_llm.object_kind.value}"
+                f"!={a_pred_ext.structure.value}/{a_pred_ext.object_kind.value}"
+            )
+    else:
+        # Provider could not enforce the isolated schema; only a_pred_ext is available.
+        adopted = a_pred_ext
+        build_method = "prediction_isolated_extracted"
+        flags.append("a_pred_llm_unavailable")
+
+    report = SemanticsBuildReport(
+        build_method=build_method,
+        field_provenance={
+            "structure": "deterministic" if adopted is a_pred_ext else "llm_declared",
+            "object_kind": "deterministic" if adopted is a_pred_ext else "llm_declared",
+        },
+        flags=tuple(flags),
+        cross_checks_passed=True,
+        review_required=bool(flags),
+    )
+
+    return PredictionSemanticsArtifact(
+        problem=_problem_record_from_problem(problem),
+        reasoning=response.reasoning,
+        final_answer=response.final_answer,
+        question_semantics=PhysicsQuestionSemantics(),
+        prediction_answer_semantics=enrich_answer_quantity_views(
+            adopted, context=PhysicsQuestionSemantics()
+        ),
+        generator=_generator_info_from_metadata(
+            provider=getattr(model_client, "provider", None),
+            model_name=getattr(model_client, "model", None),
+            prompt_name=PREDICTION_PROMPT_NAME,
+            prompt_version=PREDICTION_PROMPT_VERSION,
+            structured_output_mode=structured_result.structured_output_mode,
+            structured_output_strategy=structured_result.structured_output_strategy,
+        ),
+        build_report=report,
+    )
+
+
 def prepare_prediction_semantics_inference_spec(
     problem: PhysicsProblem,
     *,
     response_model: type[BaseModel] = StrictPredictionSemanticsResponse,
 ) -> PredictionSemanticsInferenceSpec:
-    """Build the prompt/schema bundle used for prediction-semantics inference."""
+    """Build the prompt/schema bundle for the legacy fused prediction-semantics inference."""
 
     draft_question_semantics = infer_prediction_question_semantics(problem)
     return PredictionSemanticsInferenceSpec(
@@ -270,6 +975,33 @@ def prepare_prediction_semantics_inference_spec(
         ),
         image_paths=tuple(problem.image_path or ()),
         draft_question_semantics=draft_question_semantics,
+        response_model=response_model,
+        response_format=normalize_response_format(response_model),
+    )
+
+
+def prepare_isolated_prediction_semantics_inference_spec(
+    problem: PhysicsProblem,
+    *,
+    response_model: type[BaseModel] = StrictPredictionIsolatedResponse,
+) -> PredictionSemanticsInferenceSpec:
+    """Build the prompt/schema bundle for the ISOLATED problem-only solve.
+
+    The prompt suppresses the embedded question-semantics draft (the leakage guard): it is
+    problem + options + context only. ``draft_question_semantics`` is left at the empty default
+    because nothing reference/contract-side reaches the solver here.
+    """
+
+    return PredictionSemanticsInferenceSpec(
+        prompt=build_prediction_semantics_prompt(
+            problem,
+            include_prediction_answer_semantics=(
+                response_model is StrictPredictionIsolatedResponse
+            ),
+            suppress_question_semantics_draft=True,
+        ),
+        image_paths=tuple(problem.image_path or ()),
+        draft_question_semantics=PhysicsQuestionSemantics(),
         response_model=response_model,
         response_format=normalize_response_format(response_model),
     )
@@ -298,12 +1030,83 @@ def parse_reference_semantics_response_text(
     return _parse_response_model(StrictReferenceSemanticsResponse, raw_response)
 
 
+def extract_prediction_answer_semantics(
+    answer_text: str,
+    *,
+    context: PhysicsQuestionSemantics | None = None,
+) -> PhysicsAnswerSemantics:
+    """Build the deterministic ``a_pred_ext`` record from a plain-text answer surface.
+
+    ``a_pred_ext = canonicalize_structure(normalize_physics_answer(final_answer))`` — the
+    same deterministic authority used for ``a_ref``, so the two classify identically (the
+    structure-mismatch defense). No generation happens here, so this is also the entry point
+    for externally-supplied answers and the A/B baseline.
+    """
+
+    resolved_context = context or PhysicsQuestionSemantics()
+    return canonicalize_structure(
+        normalize_physics_answer(answer_text, context=resolved_context),
+        context=resolved_context,
+    )
+
+
+def build_extracted_prediction_semantics_artifact(
+    problem: PhysicsProblem,
+    answer_text: str,
+    *,
+    context: PhysicsQuestionSemantics | None = None,
+    provider: str | None = None,
+    model_name: str | None = None,
+    reasoning: str = "",
+) -> PredictionSemanticsArtifact:
+    """Package ``a_pred_ext`` for an externally-supplied plain-text answer (no generation).
+
+    This is the standalone, generation-free path: it deterministically extracts the
+    prediction answer semantics from ``answer_text`` and is also the A/B baseline against the
+    LLM-structured ``a_pred_llm``. The artifact carries no question semantics (the prediction
+    side never authors a contract); ``question_semantics`` stays the empty default.
+    """
+
+    a_pred_ext = enrich_answer_quantity_views(
+        extract_prediction_answer_semantics(answer_text, context=context),
+        context=context or PhysicsQuestionSemantics(),
+    )
+    return PredictionSemanticsArtifact(
+        problem=_problem_record_from_problem(problem),
+        reasoning=reasoning,
+        final_answer=answer_text,
+        question_semantics=PhysicsQuestionSemantics(),
+        prediction_answer_semantics=a_pred_ext,
+        generator=_generator_info_from_metadata(
+            provider=provider,
+            model_name=model_name,
+            prompt_name=PREDICTION_PROMPT_NAME,
+            prompt_version=PREDICTION_PROMPT_VERSION,
+            structured_output_mode="extracted",
+        ),
+        build_report=SemanticsBuildReport(
+            build_method="prediction_extracted",
+            field_provenance={
+                "structure": "deterministic",
+                "object_kind": "deterministic",
+            },
+            cross_checks_passed=True,
+            review_required=False,
+        ),
+    )
+
+
 def _coerce_prediction_response_to_strict(
     response: BaseModel,
     *,
     draft_question_semantics: PhysicsQuestionSemantics | None = None,
 ) -> StrictPredictionSemanticsResponse:
-    """Lift compact provider-facing responses into the full strict response model."""
+    """Lift compact provider-facing responses into the full strict response model.
+
+    The compact response carries only a ``final_answer`` surface, so the prediction answer
+    semantics are reconstructed deterministically as ``a_pred_ext`` — the same
+    ``canonicalize_structure(normalize_physics_answer(...))`` authority used for ``a_ref``.
+    """
 
     if isinstance(response, StrictPredictionSemanticsResponse):
         return response
@@ -315,7 +1118,7 @@ def _coerce_prediction_response_to_strict(
 
     resolved_question_semantics = draft_question_semantics or PhysicsQuestionSemantics()
     strict_answer_payload = _strict_answer_payload(
-        normalize_physics_answer(
+        extract_prediction_answer_semantics(
             response.final_answer,
             context=resolved_question_semantics,
         )
@@ -657,6 +1460,47 @@ def _normalize_response_payload(
         if dropped_top_level:
             logger.debug(
                 "Prompt-only prediction parsing dropped top-level fields: %s",
+                ", ".join(dropped_top_level),
+            )
+    elif response_model is StrictPredictionIsolatedResponse:
+        # Isolated solve: no question_semantics; keep only reasoning/final_answer/answer.
+        if _looks_like_prediction_answer_semantics_payload(normalized):
+            normalized = {"prediction_answer_semantics": normalized}
+        normalized.pop("question_semantics", None)
+        normalized.pop("reference_answer_semantics", None)
+        reasoning_summary = normalized.pop("reasoning_summary", None)
+        if "reasoning" not in normalized and isinstance(reasoning_summary, str):
+            normalized["reasoning"] = reasoning_summary
+        normalized.setdefault("reasoning", "")
+        answer_semantics = normalized.get("prediction_answer_semantics")
+        if isinstance(answer_semantics, dict):
+            normalized["prediction_answer_semantics"] = (
+                _normalize_answer_semantics_payload(
+                    answer_semantics,
+                    path="prediction_answer_semantics",
+                )
+            )
+            if "final_answer" not in normalized:
+                final_answer = _infer_final_answer_from_answer_semantics(
+                    normalized["prediction_answer_semantics"]
+                )
+                if final_answer is not None:
+                    normalized["final_answer"] = final_answer
+        elif isinstance(normalized.get("final_answer"), str):
+            normalized["prediction_answer_semantics"] = _strict_answer_payload(
+                normalize_physics_answer(
+                    normalized["final_answer"],
+                    context=PhysicsQuestionSemantics(),
+                )
+            )
+        dropped_top_level = sorted(
+            set(payload)
+            - set(normalized)
+            - {"question_semantics", "reference_answer_semantics", "reasoning_summary"}
+        )
+        if dropped_top_level:
+            logger.debug(
+                "Prompt-only isolated prediction parsing dropped top-level fields: %s",
                 ", ".join(dropped_top_level),
             )
     elif response_model is StrictPredictionFinalAnswerResponse:
@@ -1063,7 +1907,10 @@ def _build_non_native_json_retry_prompt(
         "Do not include any prose, analysis, markdown fences, or comments before or after the JSON.",
         "Keep every string field concise.",
     ]
-    if response_model is StrictPredictionSemanticsResponse:
+    if response_model in {
+        StrictPredictionSemanticsResponse,
+        StrictPredictionIsolatedResponse,
+    }:
         extra_lines.append(
             "Keep `reasoning` to a brief 1-3 sentence summary, not a full derivation."
         )
@@ -1124,15 +1971,22 @@ def _coerce_prediction_artifact(
 
 __all__ = [
     "PredictionSemanticsInferenceSpec",
+    "build_extracted_prediction_semantics_artifact",
     "build_prediction_semantics_artifact",
+    "build_problem_semantics",
+    "build_reference_semantics",
     "compare_saved_semantics",
     "ensure_semantics_native_structured_output_support",
     "ensure_semantics_native_json_schema_support",
     "evaluate_saved_semantics",
+    "extract_prediction_answer_semantics",
     "infer_prediction_semantics",
     "infer_reference_semantics",
     "parse_prediction_semantics_response_text",
     "parse_reference_semantics_response_text",
+    "prepare_isolated_prediction_semantics_inference_spec",
     "prepare_prediction_semantics_inference_spec",
     "prepare_semantics_comparison",
+    "resolve_isolated_prediction_response_model",
+    "resolve_prediction_response_model",
 ]

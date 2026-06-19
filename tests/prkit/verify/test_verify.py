@@ -95,6 +95,87 @@ class TestVerify:
         assert loose.correct is True
 
 
+def _positive_x_context():
+    """A ``q_ref`` declaring ``x`` positive, unlocking domain-gated symbolic identities.
+
+    Built lazily inside the test so the module-level import stays light (the schema
+    types live behind the heavier ``prkit.semantics`` import).
+    """
+    from prkit.semantics import PhysicsQuestionSemantics
+    from prkit.semantics.schema.enums import SymbolAssumption
+    from prkit.semantics.schema.models import PhysicsSymbolAssumptionSemantics
+
+    return PhysicsQuestionSemantics(
+        symbol_assumptions=(
+            PhysicsSymbolAssumptionSemantics(
+                symbol="x", assumption=SymbolAssumption.POSITIVE
+            ),
+        )
+    )
+
+
+class TestVerifyThreadsQuestionContext:
+    """WS C: ``verify(context=q_ref)`` reaches the judgement and can change a verdict.
+
+    ``log(x**2) == 2*log(x)`` holds only for ``x > 0``. Under the empty default
+    context (``context=None``) the engine cannot assume positivity and rejects the
+    pair; supplying a ``q_ref`` that declares ``x`` positive unlocks the
+    domain-gated symbolic accept. This is the wiring WS C closes — previously
+    ``verify`` passed ``context=None`` unconditionally so a rich ``q_ref`` was inert.
+    """
+
+    GOLD = "log(x**2)"
+    PRED = "2*log(x)"
+
+    def test_default_context_rejects_domain_gated_identity(self):
+        v = verify(self.GOLD, self.PRED)
+        assert v.correct is False
+
+    def test_supplying_q_ref_unlocks_domain_gated_accept(self):
+        v = verify(self.GOLD, self.PRED, context=_positive_x_context())
+        assert v.correct is True
+        assert v.symbolic_equiv is True
+
+    def test_verdict_changes_with_vs_without_context(self):
+        without = verify(self.GOLD, self.PRED)
+        with_q_ref = verify(self.GOLD, self.PRED, context=_positive_x_context())
+        assert without.correct != with_q_ref.correct
+
+    def test_dict_context_accepted(self):
+        v = verify(
+            self.GOLD,
+            self.PRED,
+            context={"symbol_assumptions": [{"symbol": "x", "assumption": "positive"}]},
+        )
+        assert v.correct is True
+
+    def test_reference_artifact_context_unwrapped_to_question_semantics(self):
+        # Anything exposing ``.question_semantics`` (e.g. a ReferenceSemanticsArtifact)
+        # is duck-typed and unwrapped to its q_ref — without importing the heavy
+        # inference artifact type into the light verify facade.
+        class _ArtifactLike:
+            question_semantics = _positive_x_context()
+
+        v = verify(self.GOLD, self.PRED, context=_ArtifactLike())
+        assert v.correct is True
+
+    def test_none_context_preserves_default_behavior(self):
+        explicit_none = verify("3 m/s", "3 m/s", context=None)
+        implicit = verify("3 m/s", "3 m/s")
+        assert explicit_none.correct == implicit.correct is True
+
+    def test_partial_credit_path_also_threads_context(self):
+        # The graded path must accept and thread q_ref too (it reaches the same
+        # context-coercion plumbing); supplying it must not error and yields a
+        # valid graded Verdict. The verdict-change assertion lives on the binary
+        # path above, where the domain gate is decisive.
+        v = verify(
+            self.GOLD, self.PRED, partial_credit=True, context=_positive_x_context()
+        )
+        assert isinstance(v, Verdict)
+        assert v.partial_credit == v.score
+
+
 class TestParse:
     def test_returns_physics_answer_semantics(self):
         parsed = parse("9.8 m/s^2")

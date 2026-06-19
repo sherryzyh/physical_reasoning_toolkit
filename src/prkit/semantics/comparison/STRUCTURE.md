@@ -73,6 +73,16 @@ rewrites that can reach atomic-vs-atomic but never equate distinct answers:
 It deliberately does **not** collapse `multi_part` (a one-part answer may carry a
 part-structure the contract enforces) and does **not** reconcile shapes.
 
+**Safe to apply at build time too.** `canonicalize_structure` is **idempotent**
+(re-applying it to its own output is a no-op — every rewrite reaches a fixed point) and
+**context-insensitive** (it reads only the record, never `q`). So the staged builder
+(METHODOLOGY.md §6) may apply it when pinning `a_ref` / `a_pred_ext` / `a_pred_llm` even
+though the engine applies it again inside `_repair_answer_for_comparison`: the second
+application changes nothing. This is what lets the build and the engine share one
+denotational classifier without a double-collapse hazard, and is why `a_ref` and
+`a_pred_ext` — normalized by the *same* helper — classify identically (the
+`structure_mismatch` defense).
+
 ## 4. Comparison gating — only proven-sound accepts pass
 
 The equivalence judgement runs for a non-atomic structure only through a comparator path
@@ -81,6 +91,19 @@ mirroring the atomic methodology). Other non-atomic cases raise `NotImplementedE
 rather than returning a silent verdict. See the per-comparator audit and gating in W1d of
 the implementation plan and the batteries in
 `tests/prkit/semantics/`.
+
+**`allowed_structures` from the build must admit the collapse closure.** When a built `q`
+(METHODOLOGY.md §6) populates `allowed_structures`, the set is a **hard violating-gate** in
+`validate_answer_against_contract` — there is no bridge or collapse rescue for a structure
+the contract excludes. So if the contract admits a structure that `canonicalize_structure`
+can reduce (anything in `_STRUCTURES_COLLAPSIBLE_TO_ATOMIC`), it must **also admit
+`ATOMIC`**: otherwise a legitimate prediction that the §3 canonicalizer collapses to a
+scalar (a 1-element tuple, a `[a,a]` point-interval, a trivial single-case piecewise) would
+hit `contract_violation` for being the very atom it was reduced to. The builder's
+`reconcile_allowed_sets` enforces this widen-only closure (it admits `a_ref`'s realized
+structure, and adds `ATOMIC` whenever a collapsible structure is admitted), so it never
+narrows recall away — see METHODOLOGY.md §6, "`allowed_*` — a justified, widen-only
+precision lever."
 
 ## 5. Deferred (named gaps — not silently dropped)
 

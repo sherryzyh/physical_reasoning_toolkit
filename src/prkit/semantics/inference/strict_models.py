@@ -18,8 +18,10 @@ from ..schema import (
     PhysicsAnswerSemantics,
     PhysicsQuestionSemantics,
     PhysicsSymbolAliasSemantics,
+    PhysicsSymbolAssumptionSemantics,
     QuestionSymbolicMode,
     QuestionUnitPolicy,
+    SymbolAssumption,
 )
 
 
@@ -39,6 +41,14 @@ class StrictPhysicsQuestionSemantics(_StrictInferenceModel):
     symbol_aliases: tuple[PhysicsSymbolAliasSemantics, ...] = Field(
         default_factory=tuple,
         description="Question-conditioned symbol alias groups.",
+    )
+    symbol_assumptions: tuple[PhysicsSymbolAssumptionSemantics, ...] = Field(
+        default_factory=tuple,
+        description=(
+            "Question-conditioned real-domain declarations for free symbols. Each `symbol` "
+            "must be the canonical (post-alias) token. Declare a stronger-than-real domain "
+            "(positive/nonnegative/nonzero) only when the problem justifies it; never guess."
+        ),
     )
     allowed_object_kinds: tuple[AnswerObjectKind, ...] = Field(
         default_factory=lambda: tuple(AnswerObjectKind),
@@ -234,6 +244,27 @@ class StrictPredictionSemanticsResponse(_StrictInferenceModel):
     )
 
 
+class StrictPredictionIsolatedResponse(_StrictInferenceModel):
+    """Provider-facing response for the ISOLATED problem-only solve (a_pred_llm path).
+
+    Unlike :class:`StrictPredictionSemanticsResponse`, this model deliberately OMITS
+    ``question_semantics``: the prediction side never authors a judgement contract (that is
+    ``q_ref`` / ``q_prob``, built separately), and a prediction-side ``q`` is both unused and
+    a leakage surface. The model returns only its reasoning, the final-answer surface, and the
+    predicted answer semantics, from which ``a_pred_llm`` is built.
+    """
+
+    reasoning: str = Field(
+        description="Concise reasoning summary used to produce the final answer.",
+    )
+    final_answer: str = Field(
+        description="Final answer surface form only.",
+    )
+    prediction_answer_semantics: StrictPhysicsAnswerSemantics = Field(
+        description="Canonical semantics for the predicted final answer.",
+    )
+
+
 class StrictPredictionFinalAnswerResponse(_StrictInferenceModel):
     """Compact provider-facing response for models with strict schema limits."""
 
@@ -245,18 +276,49 @@ class StrictPredictionFinalAnswerResponse(_StrictInferenceModel):
     )
 
 
+class StrictSymbolAssumptionDeclaration(_StrictInferenceModel):
+    """One justified symbol-domain declaration (Call C of the staged build)."""
+
+    symbol: str = Field(
+        description="Canonical (post-alias) symbol token the assumption applies to.",
+    )
+    assumption: SymbolAssumption = Field(
+        description="Real-domain the symbol ranges over: real/nonzero/nonnegative/positive/complex.",
+    )
+    justification: str = Field(
+        description=(
+            "Why the problem justifies this domain. Required for any stronger-than-real "
+            "assumption (positive/nonnegative/nonzero); never guess from surface form."
+        ),
+    )
+
+
+class StrictSymbolAssumptionsResponse(_StrictInferenceModel):
+    """Provider-facing response for the symbol-assumption declaration call."""
+
+    assumptions: tuple[StrictSymbolAssumptionDeclaration, ...] = Field(
+        default_factory=tuple,
+        description="Justified real-domain declarations for the answer's free symbols.",
+    )
+
+
 StrictPhysicsAnswerCaseSemantics.model_rebuild()
 StrictPhysicsAnswerSemantics.model_rebuild()
 StrictReferenceSemanticsResponse.model_rebuild()
 StrictPredictionSemanticsResponse.model_rebuild()
+StrictPredictionIsolatedResponse.model_rebuild()
 StrictPredictionFinalAnswerResponse.model_rebuild()
+StrictSymbolAssumptionsResponse.model_rebuild()
 
 
 __all__ = [
     "StrictPhysicsAnswerCaseSemantics",
     "StrictPhysicsAnswerSemantics",
     "StrictPredictionFinalAnswerResponse",
+    "StrictPredictionIsolatedResponse",
     "StrictPhysicsQuestionSemantics",
     "StrictPredictionSemanticsResponse",
     "StrictReferenceSemanticsResponse",
+    "StrictSymbolAssumptionDeclaration",
+    "StrictSymbolAssumptionsResponse",
 ]

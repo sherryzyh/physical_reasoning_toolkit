@@ -171,3 +171,187 @@ inequalities, by design.
    assertion in `tests/prkit/verify/test_verify.py` when it changes a verdict).
 5. **Confirm the hot path** isn't materially slowed and the full suite stays green.
 6. **Note the residual limit** so the next gap is discoverable.
+
+## 6. Build-time methodology: constructing `q` and `a` for the judgement
+
+Everything above is about *running* `Eq(a_pred, a_ref ; q)`. This section is the matching
+discipline for *building* the records the judgement consumes — the question semantics `q`
+and the answer-semantics records `a` — so that they are constructed with the **same
+precision authority** the engine enforces, not by ad-hoc heuristics. The build is offline
+and one-time per data point; its deterministic core lives in
+[`../inference/semantics_build.py`](../inference/semantics_build.py) and is wrapped by the
+staged calls in [`../inference/calls.py`](../inference/calls.py).
+
+### Vocabulary (build outputs)
+
+The build produces distinct, named records. These names are the shared vocabulary across
+the docs, the artifact types, and the builder signatures.
+
+| Name | Built from | Role |
+|---|---|---|
+| `q_ref` | problem **+ golden** | the contract for reference-based `Eq(a_pred, a_ref ; q_ref)` |
+| `q_prob` | **problem only** (answer-blind) | the contract for reference-free `Eq(a_pred_i, a_pred_j ; q_prob)` |
+| `a_ref` | golden answer under `q_ref` | the gold answer record the contract judges against |
+| `a_pred_llm` | LLM structured output during solve | a prediction record used directly |
+| `a_pred_ext` | plain text → deterministic extraction | a prediction record (same authority as `a_ref`); also the A/B baseline |
+
+`q_ref` and `a_ref` are **co-constructed in one pass and never built independently**: the
+build returns the *pair* and validates them for mutual consistency
+(`reference_pair_consistency`) — `q_ref`'s allowed sets must admit `a_ref`'s realized
+kind/structure, any shared `target_variable` must agree, and every assumption token must be
+canonical. That mutual check is what guarantees the contract actually describes the gold
+answer it will judge.
+
+### The three-step semantics ecosystem (and where native structured output matters)
+
+The build outputs feed a three-step pipeline:
+
+1. **Reference creation** — `(problem, golden) → (q_ref, a_ref)`.
+2. **Answer generation** — `problem → a_pred` (one or both of `a_pred_ext` / `a_pred_llm`).
+3. **Equivalence judgement** — `Eq(a_pred, a_ref ; q_ref)` (reference-based), or
+   `Eq(a_pred_i, a_pred_j ; q_prob)` (reference-free clustering).
+
+Native provider-enforced structured output is a **Step-2 output-form concern only**:
+
+- **Step 1 is unaffected.** Its advisory LLM calls run *best-effort* (native when the
+  provider supports it, otherwise plain text parsed back), so a provider lacking native
+  structured output still yields a full `(q_ref, a_ref)`. Lacking it is a normal route, not a
+  defect — it does not set `review_required` (only a genuine cross-check failure does).
+- **Step 2 yields one form instead of two.** With native structured output the solve returns
+  `a_pred_llm` (and the `a_pred_ext` disagreement audit); without it there is **one route** —
+  the output is plain text and `a_pred_ext = canonicalize_structure(normalize_physics_answer(...))`
+  is the deterministic extraction. Never a failure; just one record instead of two.
+- **Step 3 is provenance-agnostic.** The judgement consumes a `PhysicsAnswerSemantics`
+  regardless of whether it came from `a_pred_llm` or `a_pred_ext` — both are simply
+  "generated answer semantics." *Which* form a caller feeds in is out of this toolkit's scope.
+
+**The three steps are independent; the codebase must keep them so.** PRKit exposes each step
+as a standalone capability for users and downstream applications to invoke à la carte — judge
+with their own references and predictions, build only references, or only extract answer
+semantics. **No step may depend on another inside the toolkit.** Concretely: the judgement
+core (`prkit.semantics.comparison`, `prkit.verify`, `prkit.scoring`) imports **nothing** from
+the build/generation layer (`prkit.semantics.inference`) at runtime — `verify(...)` accepts a
+`q_ref` by *duck-typing* `.question_semantics` (a `TYPE_CHECKING`-only annotation), so it never
+pulls in the inference layer; generation never calls the reference build; and every step's
+entry point takes plain `problem` / `PhysicsAnswerSemantics` / `PhysicsQuestionSemantics`
+inputs rather than requiring another step's output. A new feature must not introduce a runtime
+import or a mandatory call from one step into another.
+
+### Deterministic authority vs. LLM advisory
+
+The build mirrors the engine's authority discipline (§3), lifted to construction time:
+
+> **The deterministic pipeline is authoritative for the contract and the gold record; the
+> LLM is advisory.** `normalize_physics_answer` + `canonicalize_structure` decide
+> `structure`/`object_kind` symmetrically (the *same* helpers, so `a_ref` and `a_pred_ext`
+> classify identically). The LLM may *clean a messy surface*, *declare* a domain/policy
+> field, and *flag* a disagreement — it never overrides the deterministic classification.
+
+There is **no "fallback to the LLM draft on error"** — the exact analogue of the engine's
+"no rescue branch" rule. An LLM edit that fails a cross-check is simply *not adopted*,
+because the deterministic value already stood; the inconsistency is recorded as a flag, not
+silently reconciled. `a_pred_llm` is the one deliberate exception (an LLM-structured
+prediction the user wants for direct use and head-to-head comparison); its risk is contained
+by the §B4 disagreement flag against `a_pred_ext`, never by reconciliation.
+
+Multiple focused LLM calls are expected (surface cleanup, then question policy, then symbol
+assumptions), each schema-strict with structure/kind **pinned** and each individually
+cross-checked. This is decomposition for accuracy — **not** N-sample majority voting, which
+would be a statistical patch rather than a methodological one.
+
+### Declared, not derived — at build time
+
+§4's rule stands unchanged at build time: domain positivity/nonnegativity is only ever a
+**justified declaration**, never a heuristic guess. Dimension-priors are **not a source**
+(they over-constrain signed quantities, and the `common.py` consumer is live). On a genuine
+conflict between sources, the build declares the **least-restrictive sound** assumption —
+asserting an unjustified one would manufacture false accepts, exactly the failure §4 guards
+against on the engine side.
+
+### `symbol_assumptions` — source precedence and the canonical-token requirement
+
+Assumptions are synthesized with a provenance-tagged precedence
+(`assumptions_from_subject_to` → `merge_symbol_assumptions`):
+
+| Precedence | Source | Rule |
+|---|---|---|
+| **A (authoritative)** | `subject_to` / problem-text constraints | a logical consequence of an explicit constraint — `x>0`→`positive`, `x>=0`→`nonnegative`, `x!=0`→`nonzero`, `x∈ℝ`→`real` (the `SymbolAssumption` lattice). `q_ref` may use the golden's `subject_to`; `q_prob` uses only problem-text constraints. |
+| **B (advisory)** | LLM declaration **with justification** | adopted only when consistent with (A) or strictly refining it; cross-checked against (A). On conflict, declare the least-restrictive sound assumption and flag. |
+| — | dimension-priors, symbol-name whitelists, surface heuristics | **never a source** (precision hazard — §4). |
+
+Where two sound constraints touch the same symbol, they are combined by intersecting the
+denoted real domains (`meet_assumptions`: `x!=0` and `x>=0` together ⇒ `x>0`), so combining
+sound sources stays sound.
+
+**Canonical-token requirement (compat fix #2).** The engine looks up assumptions by the
+**canonical (post-alias) token** — `context_symbol_assumption_map` keys by the token that
+survives alias rewriting, so an assumption keyed by a raw *alias* token is silently dropped
+at parse time. The build therefore resolves every assumption symbol through the question's
+alias map *before* emitting it (`resolve_to_canonical`), and a cross-check
+(`alias_source_violations`) asserts that no emitted `symbol_assumptions.symbol` is an alias
+*source*. This couples assumption synthesis to the alias map the same build pass produces.
+
+### `tolerance` — relative, never absolute (compat fix #1)
+
+The engine reads `q.tolerance` as a **relative** tolerance (`numbers_close` =
+`tol·max(|a|,|b|)`; absolute only at the zero boundary, i.e. when either side is exactly
+zero), and **N-significant-figures is a
+separate path** keyed off the reference's *printed* precision
+(`numbers_match_with_reference_precision`, EQUIVALENCE.md §10). So the build
+(`infer_answer_tolerance` / `parse_relative_tolerance_instruction`):
+
+- maps an explicit **relative** instruction ("within 1%", "±2%") to a relative
+  `q.tolerance` (`0.01`, `0.02`) and **never converts it to absolute**;
+- for "N sig figs" / displayed-precision phrasing, **preserves `a_ref`'s printed precision**
+  in its numeric surface rather than tightening `q.tolerance` — letting the engine's
+  reference-precision logic do the work. (`_significant_figures` is used only to *validate*
+  that the preserved precision matches the stated one.)
+- otherwise keeps the relative `DEFAULT_NUMERIC_TOLERANCE`.
+
+### `allowed_*` — a justified, widen-only precision lever (compat fix #3)
+
+`allowed_object_kinds` / `allowed_structures` express **question-level admissibility**, not
+"what the gold happens to be." Two facts shape how the build populates them:
+
+- they are **hard violating-gates** in `validate_answer_against_contract` (no bridge rescue,
+  unlike an `expected_*` mismatch which preserves bridges), so an over-narrow set turns a
+  cross-kind-equivalent or degenerate-collapsed prediction into a false `contract_violation`
+  — converting a recall win into a false reject;
+- so the build is **permissive by default** and `reconcile_allowed_sets` only ever *widens*:
+  it admits `a_ref`'s realized kind/structure **and the closure** under the contract's
+  enabled cross-kind bridges and the structure collapses (`_STRUCTURES_COLLAPSIBLE_TO_ATOMIC`
+  ⇒ also admit `ATOMIC`). See STRUCTURE.md §4.
+
+Narrowing is a precision choice exactly like an equivalence criterion: it is made only on
+explicit question evidence (e.g. MCQ ⇒ `choice`), never by default. Over-narrowing is the
+build-time analogue of an unjustified relaxation — it silently destroys recall.
+
+### Cross-checks are validation, not rescue
+
+The build's cross-checks **validate the authority** rather than rescuing a failed attempt
+(the §3 distinction, restated): a round-trip (re-normalize `canonical_text` ⇒ same
+structure/kind/numeric), contract self-consistency (`build_evaluation_contract` ⇒ no
+self-violation), and `q_ref`↔`a_ref` mutual consistency (`reference_pair_consistency`). On
+failure the build does **not** adopt the inconsistent LLM edit — the deterministic value
+stands — and flags for review. A cross-check is never the thing that *enables* an accept;
+it is the thing that can *veto* an advisory edit.
+
+### Build report and provenance
+
+Every build attaches an additive `SemanticsBuildReport` (`build_report` on
+`ReferenceSemanticsArtifact` / `ProblemSemanticsArtifact`) so the result is auditable and
+reproducible:
+
+- `build_method` (e.g. `reference_3call` / `problem_3call`), `temperature` (0 for
+  reproducibility);
+- `field_provenance` — per-field source: `deterministic` / `subject_to` / `llm_declared` /
+  `default`;
+- `assumption_provenance` — per-symbol `SymbolAssumptionProvenance`
+  (canonical `symbol`, adopted `assumption`, `source`, LLM `justification`);
+- `flags` (disagreements, advisory-strengthening, cross-check reverts),
+  `cross_checks_passed`, `review_required`.
+
+The advisory stages **degrade gracefully**: if a provider lacks native structured output,
+the deterministic backbone is authoritative and the advisory failure is recorded as
+`review_required` rather than raising. The cache key is
+`(problem_id, model, prompt_version, build_method)`.

@@ -47,11 +47,20 @@ _VERSION = (
 def _coerce_context(
     context: PhysicsQuestionSemantics | dict[str, Any] | None,
 ) -> PhysicsQuestionSemantics | None:
-    """Coerce an optional context into validated ``PhysicsQuestionSemantics``."""
+    """Coerce an optional context into validated ``PhysicsQuestionSemantics``.
+
+    A reference-built artifact (anything exposing ``.question_semantics``, e.g. a
+    ``ReferenceSemanticsArtifact``) is unwrapped to its ``q_ref`` — duck-typed so the
+    scorer does not depend on the heavy inference artifact type. A
+    ``PhysicsQuestionSemantics`` passes through; a mapping is validated.
+    """
     if context is None:
         return None
     if isinstance(context, PhysicsQuestionSemantics):
         return context
+    question_semantics = getattr(context, "question_semantics", None)
+    if isinstance(question_semantics, PhysicsQuestionSemantics):
+        return question_semantics
     return PhysicsQuestionSemantics.model_validate(context)
 
 

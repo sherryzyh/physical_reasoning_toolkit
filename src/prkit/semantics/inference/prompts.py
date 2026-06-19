@@ -13,9 +13,17 @@ from ..normalization import (
 from ..schema import PhysicsAnswerSemantics, PhysicsQuestionSemantics
 
 REFERENCE_PROMPT_NAME = "reference_semantics"
-REFERENCE_PROMPT_VERSION = "v4"
+# v5: staged 3-call build (answer-surface cleanup / question policy / symbol assumptions)
+# replaces the single fused reference call; structure/kind are deterministically pinned.
+REFERENCE_PROMPT_VERSION = "v5"
 PREDICTION_PROMPT_NAME = "prediction_semantics"
-PREDICTION_PROMPT_VERSION = "v3"
+# v4: isolated problem-only solve flag (suppresses the embedded question-semantics draft) +
+# STRUCTURE.md section-2 surface conventions added to the answer-format guidance.
+PREDICTION_PROMPT_VERSION = "v4"
+PROBLEM_PROMPT_NAME = "problem_semantics"
+# Problem-only (answer-blind) q_prob build, shares the staged question-policy / assumption
+# prompts with no answer context.
+PROBLEM_PROMPT_VERSION = "v1"
 
 # Shared instructions keep the two prompt families aligned on the protocol
 # schema and on the constraint that only the final answer object should be
@@ -47,6 +55,21 @@ Rules:
 - Use `choice_label` for multiple-choice answers.
 - Keep `canonical_text` stable and concise.
 - Keep `diagnostics` empty unless there is real uncertainty.
+"""
+
+# STRUCTURE.md section-2 surface conventions, restated for the answer-format guidance so a
+# plain `final_answer` surface is unambiguous to the deterministic parser (a_pred_ext). These
+# are the same boundary tie-break rules the parser/canonicalizer share; stating them in the
+# prompt keeps the model's surface and the parser's reading of it aligned.
+_ANSWER_SURFACE_CONVENTIONS = """Write the final-answer surface using these conventions so it parses unambiguously:
+- One indivisible value: write it bare (e.g. `5 m`, `x**2/2`). A single coordinate is one value, not a 1-tuple.
+- Ordered coordinate of one object `(x, y)`: parentheses with >=2 finite parts, e.g. `(3, 4)`. A bare finite `(a, b)` is a tuple, NOT an interval.
+- Unordered set of distinct solutions: braces, e.g. `{2, -2}`.
+- Connected range (interval): bracket form only, e.g. `[a, b]`, `(a, b]`, or a range containing `inf`/`-inf`. Never use bare parentheses for a range.
+- Several question-defined parts: label them, e.g. `(a) 5 m; (b) 2 s`.
+- Shaped array: a vector as `<...>` or `[a, b, c]` (depth 1); a matrix as nested brackets (depth 2); keep a `(n,)` vector distinct from an `(n, 1)` matrix.
+- Piecewise function: use `\\begin{cases}...\\end{cases}` or `Piecewise(...)`.
+- Equation/relation: write the full relation, e.g. `F = m*a`, `v >= 0`.
 """
 
 
@@ -95,12 +118,19 @@ def build_prediction_semantics_prompt(
     *,
     draft_question_semantics: PhysicsQuestionSemantics | None = None,
     include_prediction_answer_semantics: bool = True,
+    suppress_question_semantics_draft: bool = False,
 ) -> str:
-    """Build the prompt for prediction-semantics generation."""
+    """Build the prompt for prediction-semantics generation.
 
-    question_draft = draft_question_semantics or infer_prediction_question_semantics(
-        problem
-    )
+    By default the prompt injects a toolkit draft of the question semantics as a hint (the
+    fused path). For the isolated problem-only solve (``a_pred_llm`` / ``a_pred_ext``), pass
+    ``suppress_question_semantics_draft=True``: the solve prompt is then problem text +
+    options + context only, with no embedded question-semantics draft — closing a leakage
+    surface (the draft is reference-conditioned policy the solver should not see) and keeping
+    the contract side strictly separate from the solve side. The STRUCTURE.md section-2
+    surface conventions are added to the answer-format guidance so a plain ``final_answer``
+    surface is unambiguous to the deterministic parser regardless of the draft hint.
+    """
 
     sections = [
         _COMMON_ROLE,
@@ -114,10 +144,25 @@ def build_prediction_semantics_prompt(
             )
         ),
         _format_problem(problem, include_reference_context=False),
-        "Toolkit heuristic draft question semantics:",
-        question_draft.model_dump_json(indent=2),
-        "Your `final_answer` must be only the final answer text.",
     ]
+
+    if not suppress_question_semantics_draft:
+        question_draft = (
+            draft_question_semantics or infer_prediction_question_semantics(problem)
+        )
+        sections.extend(
+            [
+                "Toolkit heuristic draft question semantics:",
+                question_draft.model_dump_json(indent=2),
+            ]
+        )
+
+    sections.extend(
+        [
+            "Your `final_answer` must be only the final answer text.",
+            _ANSWER_SURFACE_CONVENTIONS,
+        ]
+    )
     if include_prediction_answer_semantics:
         sections.append(
             "Make `prediction_answer_semantics` match that final answer exactly."
@@ -126,6 +171,95 @@ def build_prediction_semantics_prompt(
         sections.append(
             "Do not restate the derivation in `reasoning`; keep it to 1-3 short sentences."
         )
+    return "\n\n".join(sections)
+
+
+# ----------------------------------------------------------------------------------------
+# Staged build prompts (3 focused calls). Each is advisory: the deterministic backbone pins
+# structure/object_kind, tolerance, and allowed_*; these calls only clean/declare fields.
+# ----------------------------------------------------------------------------------------
+_STAGED_BUILD_NOTE = (
+    "The toolkit decides `structure`, `object_kind`, `tolerance`, and `allowed_*` "
+    "deterministically; do not try to change them. Only provide the fields this task asks for."
+)
+
+
+def build_answer_surface_cleanup_prompt(
+    problem: PhysicsProblem,
+    *,
+    golden_text: str,
+    draft_answer: PhysicsAnswerSemantics,
+) -> str:
+    """Call A: clean the golden answer surface; structure/object_kind are pinned."""
+
+    return "\n\n".join(
+        [
+            _COMMON_ROLE,
+            "Task: clean the canonical surface of the ground-truth answer semantics below.",
+            _STAGED_BUILD_NOTE,
+            "Keep `structure` and `object_kind` EXACTLY as in the draft (pinned by the toolkit). "
+            "Only improve `canonical_text`, `canonical_latex`, `unit`, `numeric_text`, "
+            "`choice_label`, and similar surface fields; preserve the answer's printed numeric "
+            "precision (do not round or add digits).",
+            _format_problem(problem, include_reference_context=True),
+            "Ground-truth answer surface:\n" + golden_text,
+            "Toolkit deterministic draft answer semantics (authoritative for structure/kind):",
+            draft_answer.model_dump_json(indent=2),
+        ]
+    )
+
+
+def build_question_policy_prompt(
+    problem: PhysicsProblem,
+    *,
+    answer_draft: PhysicsAnswerSemantics | None = None,
+) -> str:
+    """Call B: question-side policy fields (q_ref when answer_draft given, else q_prob)."""
+
+    sections = [
+        _COMMON_ROLE,
+        "Task: return the question-side policy semantics that constrain acceptable answers.",
+        _STAGED_BUILD_NOTE,
+        "Provide `target_variable`, `symbol_aliases`, `question_unit_policy`, `question_unit`, "
+        "`dimension`, `ordering`, `required_parts`, `coordinate_frame`, `sign_convention`, and "
+        "`choice_space` when applicable. Leave `symbol_assumptions` empty here (declared separately).",
+        _format_problem(problem, include_reference_context=answer_draft is not None),
+    ]
+    if answer_draft is not None:
+        sections.append(
+            "Cleaned answer semantics for context (do not restate it; infer policy against it):"
+        )
+        sections.append(answer_draft.model_dump_json(indent=2))
+    return "\n\n".join(sections)
+
+
+def build_symbol_assumptions_prompt(
+    problem: PhysicsProblem,
+    *,
+    candidate_symbols: tuple[str, ...],
+    answer_draft: PhysicsAnswerSemantics | None = None,
+) -> str:
+    """Call C: justified real-domain declarations for the answer's free symbols."""
+
+    symbols_line = (
+        ", ".join(candidate_symbols)
+        if candidate_symbols
+        else "(infer the free symbols from the problem)"
+    )
+    sections = [
+        _COMMON_ROLE,
+        "Task: declare the real-domain assumption for each free symbol, with justification.",
+        "Use ONLY canonical (post-alias) symbol tokens. Allowed assumptions: "
+        "real, nonzero, nonnegative, positive, complex.",
+        "Declare a stronger-than-real domain (positive/nonnegative/nonzero) ONLY when the "
+        "problem text explicitly justifies it (e.g. a stated constraint, a physical bound). "
+        "Never infer positivity from surface form; when unsure, declare `real` or omit the symbol.",
+        f"Candidate canonical symbols: {symbols_line}",
+        _format_problem(problem, include_reference_context=answer_draft is not None),
+    ]
+    if answer_draft is not None:
+        sections.append("Answer semantics for context:")
+        sections.append(answer_draft.model_dump_json(indent=2))
     return "\n\n".join(sections)
 
 
@@ -194,9 +328,14 @@ def _problem_solution_text(problem: PhysicsProblem) -> str:
 __all__ = [
     "PREDICTION_PROMPT_NAME",
     "PREDICTION_PROMPT_VERSION",
+    "PROBLEM_PROMPT_NAME",
+    "PROBLEM_PROMPT_VERSION",
     "REFERENCE_PROMPT_NAME",
     "REFERENCE_PROMPT_VERSION",
     "answer_like_to_text",
+    "build_answer_surface_cleanup_prompt",
     "build_prediction_semantics_prompt",
+    "build_question_policy_prompt",
     "build_reference_semantics_prompt",
+    "build_symbol_assumptions_prompt",
 ]

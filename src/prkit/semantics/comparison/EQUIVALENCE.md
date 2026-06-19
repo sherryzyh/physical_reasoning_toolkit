@@ -30,6 +30,25 @@ ordering policy, and the numeric `tolerance`. The judgement is *under* `q` — e
 required unit lets a bare `5` be read as `5 m/s²`, and a `symbol_assumptions` declaration
 (`c`, `E`, `m` positive) lets `c = √(E/m)` be read as `E = m c²` (§7.3–7.4).
 
+### 1.1 Where `q` comes from, and the two judgement modes
+
+The same predicate `Eq(·, · ; q)` serves two modes, which differ only in **which `q`** is
+supplied as `context` (see METHODOLOGY.md §6 for how each is built):
+
+| Mode | Call | `q` | Built from |
+|---|---|---|---|
+| **reference-based** (correctness) | `compare_protocol_answers(a_pred, a_ref, context=q_ref)` | `q_ref` | problem **+ golden** |
+| **reference-free** (clustering) | `compare_predictions(a_pred_i, a_pred_j, context=q_prob)` | `q_prob` | **problem only** (answer-blind) |
+
+In the reference-based mode the second argument is the gold answer `a_ref`, and `q_ref` is
+co-constructed with it so the contract admits exactly that answer's kind/structure. In the
+reference-free mode **neither side is gold**, so a symmetric entry point
+(`compare_predictions`) is used instead of `compare_protocol_answers` — it derives an
+explicit `q_prob` contract rather than inferring the expected kind/structure from one of the
+two predictions (see the reference-free subsection after §10). `q_prob` agrees with `q_ref`
+on every problem-only-determinable field but declares only `allowed_*` and policy fields, not
+a realized answer.
+
 ---
 
 ## 2. Pipeline overview
@@ -340,6 +359,17 @@ The reference sets the bar, so the relation is asymmetric (see the `9.8`/`9.81` 
 `0.333`/`1/3` pairs in §7.1). For the exact half-quantum boundary, read
 `_difference_is_strictly_within_half_quantum`.
 
+**`q.tolerance` is relative, not absolute.** Step 1 reads it as a *relative* tolerance:
+`numbers_close` compares the difference against `tolerance·max(|pred|, |ref|)`, falling back
+to an absolute comparison **only at the zero boundary** (when either value is exactly `0.0`;
+the both-zero case is already an exact-equality short-circuit). The N-significant-figures
+agreement (steps 2–4) is a **separate** path keyed off `a_ref`'s *printed* precision — it is
+**not** driven by `q.tolerance`. So the build (METHODOLOGY.md §6) sets `q.tolerance`
+relative for an explicit relative instruction ("within 1%" ⇒ `0.01`) and **never converts it
+to absolute**; for "N sig figs" / displayed precision it **preserves `a_ref`'s printed
+precision** in the numeric surface and lets steps 2–4 do the work, rather than tightening
+`q.tolerance`. The default `DEFAULT_NUMERIC_TOLERANCE` is likewise relative.
+
 ### 10.1 Numeric identity testing (`_numeric_identity_equivalent`)
 
 `simplify` is incomplete (no canonical form exists for transcendental/nested-radical
@@ -371,6 +401,27 @@ declaration (`SymbolAssumption`: `real`/`nonzero`/`nonnegative`/`positive`/`comp
 *never* derived from surface form (it would flip truth values — see METHODOLOGY.md §4); it
 must be declared. Realness alone is precision-safe and unlocks real-only identities
 (`√(x²) = |x|`).
+
+**Tokens must be canonical (post-alias).** `build_symbol_assumption_map`
+(`context_symbol_assumption_map`) keys assumptions by the **canonical** token — the one that
+survives `q.symbol_aliases` rewriting (§3, `_canonicalize_symbol_alias_surfaces`). An
+assumption keyed by a raw *alias* token never matches a parsed symbol and is silently
+dropped. So a `q` author (and the staged build, METHODOLOGY.md §6) must emit every
+`symbol_assumptions.symbol` as a canonical token, resolved through the alias map, and must
+not key an assumption on an alias *source*.
+
+### 10.3 Reference-free numeric criterion (`compare_predictions`)
+
+In the reference-free mode (§1.1) neither side is gold, so the asymmetric
+reference-precision rule above (steps 2–4) is **not** applicable — there is no reference
+whose printed precision should "set the bar." `compare_predictions(a_i, a_j, context=q_prob)`
+therefore uses a **symmetric** numeric criterion: relative `q_prob.tolerance` only, with
+neither side's printed precision tightening the threshold. It also builds an explicit
+`q_prob`-derived contract (expected kind/structure from `q_prob.allowed_*`, permissive when
+unconstrained) and passes it via `contract=`, so the engine does not infer the expected
+kind/structure from one of the two predictions and cannot raise
+`reference_contract_violation` against a self-derived contract. Everything else — structure
+routing, the per-kind criteria, the bridges — is already symmetric and is reused unchanged.
 
 ---
 
