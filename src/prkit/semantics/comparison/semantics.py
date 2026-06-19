@@ -33,6 +33,7 @@ from sympy import (
     cosh,
     exp,
     false,
+    fraction,
     log,
     oo,
     pi,
@@ -42,6 +43,7 @@ from sympy import (
     sqrt,
     tan,
     tanh,
+    together,
     trigsimp,
     true,
 )
@@ -137,6 +139,11 @@ _RELATION_CONDITION_PREFIX_RE = re.compile(
 _RELATION_CONSTRAINT_TOKEN_RE = re.compile(
     r"(?:<=|>=|<|>|≤|≥|!=|≠|≈|∈|∉|\\(?:leq|geq|neq|approx|in|notin)\b)"
 )
+_BIG_OPERATOR_BOUND_RE = re.compile(
+    r"\\?(?P<op>sum|prod|coprod|int|oint|iint|iiint|bigcup|bigcap|bigoplus|bigotimes)"
+    r"\s*_\s*\{(?P<lower>[^{}]*=[^{}]*)\}"
+    r"(?:\s*\^\s*(?:\{(?P<upper_braced>[^{}]*)\}|(?P<upper_plain>[A-Za-z0-9]+)))?"
+)
 _BARE_FUNCTION_NAMES = (
     "sinh",
     "cosh",
@@ -164,7 +171,9 @@ _BARE_FUNCTION_ARG_RE = re.compile(
     r"\s+(?P<arg>\{[^{}]+\}|[A-Za-z0-9_]+)"
 )
 _FUNCTION_COMMANDS = frozenset(_BARE_FUNCTION_NAMES) | {"ln"}
-_SHORT_SYMBOL_RUN_RE = re.compile(r"(?<!\\)\b[A-Za-z]{2,}\b")
+_SHORT_SYMBOL_RUN_RE = re.compile(
+    r"(?<!\\)\b(?P<run>[A-Za-z]{2,})(?P<sub>_[A-Za-z0-9]+)?\b"
+)
 _TRIG_FUNCTION_RE = re.compile(r"\b(?:sin|cos|tan|asin|acos|atan|sinh|cosh|tanh)\b")
 _ALIAS_BOUNDARY_TOKEN_RE = re.compile(r"[A-Za-z0-9_]")
 _DEFINITION_LIKE_TOKEN_RE = re.compile(r"(?<![<>=!])\b[\w]+\s*=")
@@ -949,7 +958,13 @@ def parse_relation_clauses(
     *,
     alias_map: Mapping[str, str] | None = None,
 ) -> tuple[RelationClause, ...] | None:
-    """Parse relation text into a flat tuple of binary clauses."""
+    """Parse relation text into a flat tuple of canonical binary clauses.
+
+    Canonicalization folds a single-symbol functional-form left-hand side
+    (``r(t) = ...`` -> ``r = ...``) -- the standard "target as a function of its
+    variable" notation -- so a relation has one canonical clause form independent of
+    that surface choice.
+    """
 
     candidate = preprocess_symbolic_text(text, alias_map=alias_map)
     if not candidate:
@@ -959,7 +974,7 @@ def parse_relation_clauses(
     if relation_object is not None:
         relation_clauses = _clauses_from_relation_object(relation_object)
         if relation_clauses:
-            return relation_clauses
+            return _canonical_relation_clauses(relation_clauses)
 
     clauses: list[RelationClause] = []
     for segment in _split_top_level_conjunctions(candidate):
@@ -967,7 +982,7 @@ def parse_relation_clauses(
         if parsed is None:
             return None
         clauses.extend(parsed)
-    return tuple(clauses) if clauses else None
+    return _canonical_relation_clauses(tuple(clauses)) if clauses else None
 
 
 def relations_equivalent(
@@ -994,6 +1009,21 @@ def relations_equivalent(
     right_clauses = parse_relation_clauses(right_text, alias_map=alias_map)
     if left_clauses is None or right_clauses is None:
         return normalize_plain_text(left_text) == normalize_plain_text(right_text)
+
+    return _relation_clause_sets_equivalent(
+        left_clauses, right_clauses, tolerance, alias_map=alias_map
+    )
+
+
+def _relation_clause_sets_equivalent(
+    left_clauses: tuple[RelationClause, ...],
+    right_clauses: tuple[RelationClause, ...],
+    tolerance: float,
+    *,
+    alias_map: Mapping[str, str] | None = None,
+) -> bool:
+    """Match two clause sets as an order-insensitive collection of equivalent clauses."""
+
     if len(left_clauses) != len(right_clauses):
         return False
 
@@ -1013,6 +1043,39 @@ def relations_equivalent(
             return False
         unused.pop(matched_index)
     return True
+
+
+_FUNCTIONAL_FORM_LHS_RE = re.compile(
+    r"^(?P<name>[A-Za-z][A-Za-z0-9_]*)\s*\((?P<args>[^()]*)\)$"
+)
+
+
+def _canonical_relation_clauses(
+    clauses: tuple[RelationClause, ...],
+) -> tuple[RelationClause, ...]:
+    """Return the canonical clause form used for all relation comparison."""
+
+    return tuple(_collapse_functional_form_lhs(clause) for clause in clauses)
+
+
+def _collapse_functional_form_lhs(clause: RelationClause) -> RelationClause:
+    """Canonicalize a single-symbol functional-form LHS (``r(t)`` -> ``r``).
+
+    Physics answers write the requested quantity as a function of its variable on the
+    left of an equation (``r(t) = ...``, ``v(x) = ...``). That is the same assertion as
+    ``r = ...``, so the canonical relation form drops the argument list. The rewrite is
+    meaning-preserving and applied to every relation, so equal relations share one
+    clause form regardless of this surface choice. It fires only on the bare
+    ``name(args)`` LHS form with a variable argument, leaving genuine point evaluations
+    such as ``f(2) = 3`` untouched.
+    """
+
+    match = _FUNCTIONAL_FORM_LHS_RE.match(clause.lhs_text.strip())
+    if match is None:
+        return clause
+    if not re.search(r"[A-Za-z]", match.group("args")):
+        return clause
+    return RelationClause(match.group("name"), clause.operator, clause.rhs_text)
 
 
 def relation_compare_candidates(
@@ -1258,6 +1321,7 @@ def preprocess_symbolic_text(
     normalized = _LATEX_SPACING_RE.sub(" ", normalized)
     normalized = normalized.replace(" true", " True").replace(" false", " False")
     normalized = normalized.replace("true", "True").replace("false", "False")
+    normalized = _normalize_big_operator_bounds(normalized)
     normalized = _replace_simple_latex(normalized)
     normalized = _normalize_latex_accents(normalized)
     normalized = _replace_latex_symbol_commands(normalized)
@@ -1433,6 +1497,7 @@ def _normalize_alias_surface(text: str | None) -> str:
     normalized = _LATEX_SPACING_RE.sub(" ", normalized)
     normalized = normalized.replace(" true", " True").replace(" false", " False")
     normalized = normalized.replace("true", "True").replace("false", "False")
+    normalized = _normalize_big_operator_bounds(normalized)
     normalized = _replace_simple_latex(normalized)
     normalized = _normalize_latex_accents(normalized)
     normalized = _replace_latex_symbol_commands(normalized)
@@ -1532,14 +1597,20 @@ def _normalize_symbol_products(text: str) -> str:
 
 
 def _rewrite_symbol_run(match: re.Match[str]) -> str:
-    """Expand an ambiguous symbol run unless it is a protected function/constant name."""
+    """Expand an ambiguous symbol run unless it is a protected function/constant name.
 
-    token = match.group(0)
-    if token in _PROTECTED_SYMBOL_RUNS or token.lower() in _PROTECTED_SYMBOL_RUNS:
-        return token
-    if token[0].islower() and len(token) > 3:
-        return token
-    return "*".join(token)
+    A trailing subscript (``NmV_r``) is kept attached to the final factor so a compact
+    product with a subscript expands the same way as the bare run: ``NmV_r`` ->
+    ``N*m*V_r``, consistent with ``NmV`` -> ``N*m*V``.
+    """
+
+    run = match.group("run")
+    subscript = match.group("sub") or ""
+    if run in _PROTECTED_SYMBOL_RUNS or run.lower() in _PROTECTED_SYMBOL_RUNS:
+        return run + subscript
+    if run[0].islower() and len(run) > 3:
+        return run + subscript
+    return "*".join(run) + subscript
 
 
 def _normalize_bare_function_calls(text: str) -> str:
@@ -1608,6 +1679,30 @@ def _strip_text_wrappers(text: str | None) -> str:
             continue
         break
     return stripped
+
+
+def _normalize_big_operator_bounds(text: str) -> str:
+    """Fold a big operator carrying an ``=``-bearing limit into one opaque token.
+
+    ``\\sum_{n=1}^{N}`` (or the backslash-free ``sum_{n=1}^{N}`` surface) becomes
+    ``sum_n_1_N``. This removes the limit ``=``, which the relation parser would
+    otherwise mistake for a top-level equality separator and split on -- corrupting
+    ``V = sum_{n=1}^{N} ...`` into nonsense clauses. The bounds are folded into the
+    token so distinct summations are never conflated; full summation equivalence
+    (dummy-index renaming, reindexing) is intentionally out of scope here.
+    """
+
+    def _replace(match: re.Match[str]) -> str:
+        op = match.group("op")
+        lower = match.group("lower")
+        upper = match.group("upper_braced") or match.group("upper_plain") or ""
+        parts = [op, *re.split(r"=", lower), upper]
+        token = "_".join(
+            cleaned for part in parts if (cleaned := re.sub(r"[^A-Za-z0-9]+", "", part))
+        )
+        return f" {token} "
+
+    return _BIG_OPERATOR_BOUND_RE.sub(_replace, text)
 
 
 def _replace_simple_latex(text: str) -> str:
@@ -2012,7 +2107,12 @@ def _relation_clause_equivalent(
     *,
     alias_map: Mapping[str, str] | None = None,
 ) -> bool:
-    """Compare two relation clauses, including reversed and scaled formulations."""
+    """Whether two relation clauses denote the same constraint.
+
+    Two layered criteria: surface equality (clause sides equivalent directly or
+    reversed), then an algebraic criterion on the homogeneous forms ``H = L - R``
+    dispatched by operator class (``_equalities_equivalent`` / ``_inequalities_equivalent``).
+    """
 
     if (
         left.operator == right.operator
@@ -2063,17 +2163,67 @@ def _relation_clause_equivalent(
 
     left_residual = simplify(left_lhs - left_rhs)
     right_residual = simplify(right_lhs - right_rhs)
+
+    # Algebraic criterion on the homogeneous forms ``H = L - R``, by operator class.
+    if left.operator == "=" and right.operator == "=":
+        return _equalities_equivalent(left_residual, right_residual, tolerance)
+    return _inequalities_equivalent(
+        left_residual,
+        right_residual,
+        left.operator,
+        right.operator,
+        tolerance,
+    )
+
+
+def _equalities_equivalent(
+    left_residual: Any, right_residual: Any, tolerance: float
+) -> bool:
+    """Whether two equalities denote the same constraint.
+
+    The homogeneous form of ``L = R`` is ``H = L - R``. Two equalities are equivalent
+    iff their denominator-cleared numerators agree up to a nonzero *constant*: clearing
+    denominators admits cross-``=`` rearrangement (``F = m a`` vs ``a = F/m``), and the
+    constant -- rather than rational -- factor rejects spurious polynomial factors that
+    would enlarge the solution set (``x = 0`` vs ``x y = 0``). Tautologies (``0 = 0``)
+    are equivalent to one another and to nothing else.
+    """
+
+    left_zero = left_residual == 0 or left_residual.is_zero is True
+    right_zero = right_residual == 0 or right_residual.is_zero is True
+    if left_zero or right_zero:
+        return bool(left_zero and right_zero)
+
+    left_numerator = _relation_residual_numerator(left_residual)
+    right_numerator = _relation_residual_numerator(right_residual)
+    return (
+        left_numerator is not None
+        and right_numerator is not None
+        and _proportional_ratio(left_numerator, right_numerator, tolerance) is not None
+    )
+
+
+def _inequalities_equivalent(
+    left_residual: Any,
+    right_residual: Any,
+    left_operator: str,
+    right_operator: str,
+    tolerance: float,
+) -> bool:
+    """Whether two inequalities denote the same constraint.
+
+    The homogeneous forms must be a *signed constant* multiple of one another, and the
+    sign must be consistent with the operator directions: a positive factor preserves
+    the operator, a negative factor reverses it. Denominators are not cleared because an
+    unknown-sign denominator could silently flip the inequality.
+    """
+
     ratio = _proportional_ratio(left_residual, right_residual, tolerance)
     if ratio is None:
         return False
-
-    if left.operator == "=" and right.operator == "=":
+    if ratio > 0 and left_operator == right_operator:
         return True
-
-    if ratio > 0 and left.operator == right.operator:
-        return True
-
-    return ratio < 0 and left.operator == _RELATION_REVERSED.get(right.operator)
+    return ratio < 0 and left_operator == _RELATION_REVERSED.get(right_operator)
 
 
 def _proportional_ratio(
@@ -2108,6 +2258,28 @@ def _proportional_ratio(
     except Exception:
         return None
     return None
+
+
+def _relation_residual_numerator(residual: Any) -> Any | None:
+    """Clear denominators from a homogeneous relation form, returning its numerator.
+
+    Two equalities are equivalent when their homogeneous forms ``H = L - R`` agree up
+    to a nonzero rational-function multiple (e.g. ``F = m a`` vs ``a = F/m``). Comparing
+    the denominator-cleared numerators up to a nonzero *constant* admits that
+    rearrangement while rejecting spurious polynomial factors (``x = 0`` vs ``x y = 0``).
+    Returns ``None`` when the numerator is not a usable nonzero scalar expression.
+    """
+
+    try:
+        numerator, _denominator = fraction(together(residual))
+        numerator = simplify(numerator)
+    except Exception:
+        return None
+    if not _is_scalar_symbolic_object(numerator):
+        return None
+    if numerator == 0 or numerator.is_zero is True:
+        return None
+    return numerator
 
 
 def _strip_relation_condition_prefix(text: str) -> str:

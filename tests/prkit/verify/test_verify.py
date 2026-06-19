@@ -39,6 +39,13 @@ class TestVerify:
         assert v.correct is True
         assert v.symbolic_equiv is True
 
+    def test_symbolic_relation_rearrangement_equivalent(self):
+        # Equalities equivalent only after algebraic rearrangement across "=".
+        v = verify("F = m a", "a = F/m")
+        assert v.correct is True
+        assert v.symbolic_equiv is True
+        assert v.comparison_mode == "relation"
+
     def test_number_vs_fraction_equivalent(self):
         v = verify("0.5", "1/2")
         assert v.correct is True

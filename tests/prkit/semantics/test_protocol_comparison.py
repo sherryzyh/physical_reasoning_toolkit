@@ -2268,3 +2268,92 @@ def test_protocol_qualitative_zero_bridge_is_off_by_default_in_audited_mode() ->
 
     assert result.equivalent is False
     assert result.comparison_mode == "bridge_blocked"
+
+
+# ---------------------------------------------------------------------------
+# Atomic-answer equivalence: precision-preserving recall improvements.
+# Each block ships accept cases AND adversarial reject cases, per the
+# methodology in semantics/comparison/METHODOLOGY.md.
+# ---------------------------------------------------------------------------
+
+
+def _relation(canonical_text: str) -> dict[str, str]:
+    return {"object_kind": "relation", "canonical_text": canonical_text}
+
+
+def test_protocol_relation_equivalent_under_algebraic_rearrangement() -> None:
+    # Equalities that are the same law after solving for a different variable or
+    # clearing denominators are now recognized (homogeneous form, numerator up to
+    # a nonzero constant).
+    for pred, ref in [
+        ("F = m a", "a = F/m"),
+        ("E = m c^2", "m = E/c^2"),
+        ("1/f = 1/u + 1/v", "f = (u v)/(u + v)"),
+    ]:
+        result = compare_protocol_answers(_relation(pred), _relation(ref))
+        assert result.equivalent is True, (pred, ref)
+        assert result.comparison_mode == "relation"
+
+
+def test_protocol_relation_rearrangement_rejects_distinct_equations() -> None:
+    # The "up to a nonzero constant" condition rejects spurious polynomial factors:
+    # these equations have genuinely different solution sets.
+    for pred, ref in [
+        ("x = 0", "x*y = 0"),
+        ("x = 1", "x^2 = 1"),
+        ("F = m a", "F = m/a"),
+    ]:
+        result = compare_protocol_answers(_relation(pred), _relation(ref))
+        assert result.equivalent is False, (pred, ref)
+
+
+def test_protocol_relation_rearrangement_does_not_relax_inequalities() -> None:
+    # Clearing a symbol-signed denominator can flip an inequality, so the
+    # rearrangement fallback is gated to equalities only.
+    result = compare_protocol_answers(_relation("F < m a"), _relation("a < F/m"))
+    assert result.equivalent is False
+
+
+def test_protocol_relation_functional_form_lhs_is_normalized() -> None:
+    # "target as a function of its variable" notation on the LHS no longer blocks a
+    # match: r(t) = ... is compared as r = ...
+    for pred, ref in [
+        ("r(t) = r_0 e^{-2 alpha t/m}", "Eq(r, r_0*exp(-2*alpha*t/m))"),
+        ("v(x) = a x + b", "v = a x + b"),
+    ]:
+        result = compare_protocol_answers(_relation(pred), _relation(ref))
+        assert result.equivalent is True, (pred, ref)
+        assert result.comparison_mode == "relation"
+
+
+def test_protocol_relation_functional_form_lhs_rejects_distinct() -> None:
+    for pred, ref in [
+        ("x = a + b", "y = a + b"),  # different target
+        ("f(x) = x^2", "g(x) = x^2"),  # different function name
+        ("r(t) = a t", "r(t) = b t"),  # same target, different RHS
+        ("f(2) = 3", "f = 3"),  # numeric evaluation must not be collapsed
+    ]:
+        result = compare_protocol_answers(_relation(pred), _relation(ref))
+        assert result.equivalent is False, (pred, ref)
+
+
+def test_protocol_relation_summation_bound_does_not_corrupt_parsing() -> None:
+    # The "=" inside a summation limit must not be split as a top-level equality.
+    # Two surface forms of the same summation compare equal once parsing is intact.
+    pred = "V = sum_{n=1}^{N} (m V_r)/(M + n m)"
+    ref = r"V = \sum_{n=1}^{N} \frac{m V_r}{M + n m}"
+    assert compare_protocol_answers(_relation(pred), _relation(ref)).equivalent is True
+
+
+def test_protocol_relation_summation_different_bodies_stay_distinct() -> None:
+    # Folding the limit into an opaque token keeps distinct summations distinct.
+    pred = "V = sum_{n=1}^{N} (m V_r)/(M + n m)"
+    ref = "V = sum_{n=1}^{N} (m V_r)/(M - n m)"
+    assert compare_protocol_answers(_relation(pred), _relation(ref)).equivalent is False
+
+
+def test_protocol_relation_compact_product_with_subscript_is_expanded() -> None:
+    # NmV_r expands to N*m*V_r, the same as the spaced form.
+    pred = "V = NmV_r/(M + Nm)"
+    ref = "V = N m V_r/(M + N m)"
+    assert compare_protocol_answers(_relation(pred), _relation(ref)).equivalent is True
