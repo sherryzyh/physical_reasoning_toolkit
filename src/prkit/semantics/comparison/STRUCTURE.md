@@ -10,9 +10,30 @@ runs.
 
 ## 1. Per-structure signatures
 
-Each structure is defined by `⟨denotation, cardinality, ordering, surface evidence⟩`.
+Each structure is defined by `⟨denotation, cardinality, ordering, surface evidence⟩`. The
+four columns answer four different questions — *what it means*, *how many parts*, *does order
+matter*, and *how to recognize it*:
 
-| Structure | Denotation | Card. | Ordering | Surface evidence |
+- **Denotation** — what the structure *means* (the mathematical object it stands for),
+  independent of how it is written. This is the axis equivalence and canonicalization reason
+  about: two answers with the same denotation are the same answer regardless of surface — so
+  a degenerate wrapper may collapse to its content (a 1-element tuple *is* its scalar), while
+  a `set` and a `tuple` (unordered collection vs. ordered coordinate) must stay distinct.
+- **Cardinality** — how many parts the structure holds (children, endpoints, cases, or
+  shape). A comparison requires the counts to match, and a degeneracy collapses to `atomic`
+  exactly when its cardinality drops to 1.
+- **Ordering** — whether element order is semantically significant (positional, none, or
+  driven by `q.ordering`).
+- **Surface evidence** — the textual cues used to *recognize* the structure from the raw
+  answer (brackets, braces, `\begin{cases}`, an `∞` token, …). It is distinct from
+  denotation (meaning) and can be ambiguous — a bare `(a, b)` looks like both a tuple and an
+  open interval — which is exactly what the §2 tie-break rules resolve.
+
+The design hinges on keeping these separate: classification reads **surface evidence** to
+assign a structure, but equivalence judges the **denotation** — so the same denotation
+written two different ways should canonicalize to one structure.
+
+| Structure | Denotation | Cardinality | Ordering | Surface evidence |
 |---|---|---|---|---|
 | `atomic` | one indivisible value | 1 | — | the default; target of every collapse |
 | `multi_part` | answers to several question-defined sub-questions | ≥1 | from `q.ordering` | `required_parts`/enumerated `(1)(2)`, `;`, newlines |
