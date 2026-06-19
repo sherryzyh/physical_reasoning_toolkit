@@ -15,6 +15,7 @@ from .enums import (
     OrderingPolicy,
     QuestionSymbolicMode,
     QuestionUnitPolicy,
+    SymbolAssumption,
 )
 
 DEFAULT_NUMERIC_TOLERANCE = 1e-10
@@ -36,6 +37,10 @@ class PhysicsQuestionSemantics(_SemanticsModel):
     symbol_aliases: tuple[PhysicsSymbolAliasSemantics, ...] = Field(
         default_factory=tuple,
         description="Question-conditioned alias groups that map alternate symbol names onto a canonical symbol for comparison.",
+    )
+    symbol_assumptions: tuple[PhysicsSymbolAssumptionSemantics, ...] = Field(
+        default_factory=tuple,
+        description="Question-conditioned real-domain declarations for free symbols, used to decide symbolic equivalence over the intended physical domain.",
     )
     allowed_object_kinds: tuple[AnswerObjectKind, ...] = Field(
         default_factory=lambda: tuple(AnswerObjectKind),
@@ -237,6 +242,23 @@ class PhysicsSymbolAliasSemantics(_SemanticsModel):
     aliases: tuple[str, ...] = Field(
         default_factory=tuple,
         description="Alternative symbol names that should be treated as equivalent to the canonical symbol in this question.",
+    )
+
+
+class PhysicsSymbolAssumptionSemantics(_SemanticsModel):
+    """One question-conditioned real-domain assumption for a symbol.
+
+    The ``symbol`` is the canonical (post-alias) token; ``assumption`` constrains the
+    values it ranges over (real / nonzero / nonnegative / positive / complex) so symbolic
+    comparison is decided over the intended real-physical domain rather than the generic
+    complex default. See ``SymbolAssumption``.
+    """
+
+    symbol: str = Field(
+        description="Canonical (post-alias) symbol token the assumption applies to.",
+    )
+    assumption: SymbolAssumption = Field(
+        description="Real-domain assumption the symbol ranges over during symbolic comparison.",
     )
 
 

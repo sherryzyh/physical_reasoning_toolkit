@@ -18,8 +18,10 @@ from ..schema import (
     PhysicsEvaluationContract,
     PhysicsQuestionSemantics,
     PhysicsSymbolAliasSemantics,
+    PhysicsSymbolAssumptionSemantics,
     QuestionSymbolicMode,
     QuestionUnitPolicy,
+    SymbolAssumption,
 )
 
 _LEGACY_ANSWER_FIELDS = frozenset(
@@ -55,6 +57,10 @@ def coerce_question_semantics(
         target_variable=_optional_text(data.get("target_variable")),
         symbol_aliases=tuple(
             _coerce_symbol_alias(alias) for alias in data.get("symbol_aliases", ())
+        ),
+        symbol_assumptions=tuple(
+            _coerce_symbol_assumption(entry)
+            for entry in data.get("symbol_assumptions", ())
         ),
         allowed_object_kinds=_enum_tuple(
             AnswerObjectKind,
@@ -159,6 +165,28 @@ def _coerce_symbol_alias(
         )
     raise TypeError(
         "Symbol aliases must be PhysicsSymbolAliasSemantics, mappings, or sequences."
+    )
+
+
+def _coerce_symbol_assumption(
+    value: PhysicsSymbolAssumptionSemantics | Mapping[str, Any],
+) -> PhysicsSymbolAssumptionSemantics:
+    """Coerce one symbol-assumption declaration into the schema model."""
+
+    if isinstance(value, PhysicsSymbolAssumptionSemantics):
+        return value
+    if isinstance(value, Mapping):
+        symbol = _optional_text(value.get("symbol") or value.get("canonical_symbol"))
+        if symbol is None:
+            raise TypeError("Symbol assumption mappings must define symbol.")
+        # Accept both the canonical "assumption" key and the legacy "domain" alias.
+        raw = value.get("assumption", value.get("domain"))
+        return PhysicsSymbolAssumptionSemantics(
+            symbol=symbol,
+            assumption=_enum_value(SymbolAssumption, raw, SymbolAssumption.REAL),
+        )
+    raise TypeError(
+        "Symbol assumptions must be PhysicsSymbolAssumptionSemantics or mappings."
     )
 
 

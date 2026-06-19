@@ -71,8 +71,10 @@ from .schema import (
     PhysicsEvaluationContract,
     PhysicsQuestionSemantics,
     PhysicsSymbolAliasSemantics,
+    PhysicsSymbolAssumptionSemantics,
     QuestionSymbolicMode,
     QuestionUnitPolicy,
+    SymbolAssumption,
 )
 
 QuestionContext = PhysicsQuestionSemantics
@@ -100,6 +102,8 @@ __all__ = [
     "PhysicsEvaluationContract",
     "PhysicsQuestionSemantics",
     "PhysicsSymbolAliasSemantics",
+    "PhysicsSymbolAssumptionSemantics",
+    "SymbolAssumption",
     "build_evaluation_contract",
     "QuestionContext",
     "QuestionSymbolicMode",

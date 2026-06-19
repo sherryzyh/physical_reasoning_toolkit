@@ -48,8 +48,8 @@ kind via `compare_same_object_kind` (or a cross-kind bridge when kinds differ).
 |---|---|---|
 | `number` | parse value, compare within tolerance honoring reference printed precision (`numeric.py`, `numbers_match_with_reference_precision`) | mature |
 | `physical_quantity` | resolve units, convert, then numeric tolerance | mature |
-| `expression` | `simplify(a - b) == 0`, with trig/numeric fallbacks and a prediction-side RHS rescue (`expressions_equivalent`, `_prediction_rhs_matches_expression`) | strong, conservative |
-| `relation` | parse to clauses; match as an order-insensitive set; per clause try exact/reversed surfaces, then homogeneous scalar/rational-multiple equivalence (`relations_equivalent`, `_relation_clause_equivalent`, `_proportional_ratio`) | strong, conservative |
+| `expression` | decide "is `a - b` the zero function over the symbols' domain": `simplify(a - b) == 0` (with trig), then **numeric identity testing** over domain-honoring sample points (`expressions_equivalent`, `_numeric_identity_equivalent`); symbols carry **domain assumptions** from `q` so the test is exact over the real-physical domain | strong, conservative |
+| `relation` | parse to clauses; **de-radicalize** a solved even root when sign-safe (`c = sqrt(E/m)` → `c**2 = E/m`); match as an order-insensitive set; per clause try exact/reversed surfaces, then homogeneous scalar/rational-multiple equivalence (`relations_equivalent`, `_relation_clause_equivalent`, `_deradicalize_clause`, `_proportional_ratio`) | strong, conservative |
 | `choice` / `boolean` / `sign_direction` / `qualitative_label` | canonical-label equality (curated alias groups) | mature |
 
 The SymPy substrate (`parse_symbolic_expression`, `expressions_equivalent`,
@@ -71,19 +71,32 @@ precision. Instead:
 > *sharpening the criterion* — both of which stay precise because they are
 > meaning-preserving and mathematically justified, applied symmetrically to both answers.
 
-Two levers, both stable:
+Three levers, all stable:
 
 - **Canonical normalization.** A deterministic, meaning-preserving rewrite applied to
   *every* answer of a kind before comparison — so equal answers reach one shared form
   regardless of surface choice. It cannot fabricate equivalences (it is applied to both
   sides identically and changes no meaning). Examples here: functional-form LHS
-  (`r(t)=… → r=…`, `_collapse_functional_form_lhs` inside `parse_relation_clauses`),
-  summation-bound folding and compact-product expansion (both in
+  (`r(t)=… → r=…`, `_collapse_functional_form_lhs`), de-radicalization of a solved even
+  root (`c = sqrt(E/m) → c**2 = E/m`, `_deradicalize_clause`, gated on a nonnegative
+  side), summation-bound folding and compact-product expansion (in
   `preprocess_symbolic_text`).
+- **Domain enrichment.** A physics answer denotes a real, often nonnegative, quantity; the
+  generic-complex default makes SymPy *correctly* refuse real-only identities
+  (`sqrt(a*b) = √a·√b`, `sqrt(x²) = |x|`). Carrying each symbol's real domain into the
+  parse (`build_symbol_assumption_map` → `Symbol(token, **assumptions)`) decides
+  equivalence over the *intended* domain while staying exact — it is applied symmetrically
+  and changes no truth value. The domain is **authoritatively declared** in
+  `q.symbol_assumptions`; the in-engine derivation adds only the precision-safe realness
+  default (never positivity, which surface form cannot justify — see §4).
 - **Principled equivalence criterion.** One mathematically justified rule per object kind
   (and operator class), stated once — not a primary check plus fallbacks. For relations:
   `_relation_clause_equivalent` decides surface equality, then an algebraic criterion on
   the homogeneous form `H = L − R` (`_equalities_equivalent` / `_inequalities_equivalent`).
+  For expressions the criterion is "is `a − b` the zero function over the domain": SymPy
+  `simplify`, then **numeric identity testing** (`_numeric_identity_equivalent`) — two
+  sound implementations of one predicate, where numeric *disagreement at any domain point
+  is an exact disproof* (so it also guards an assumption-empowered symbolic accept).
 
 ### Five rules for any equivalence change
 
@@ -115,7 +128,23 @@ criterion (not a rescue); the last is deferred pending a justified, gated criter
 | **Algebraic rearrangement** | `F=ma` ↔ `a=F/m`, `E=mc²` ↔ `m=E/c²`, `1/f=1/u+1/v` ↔ `f=uv/(u+v)` | equality **criterion**: homogeneous numerators equal up to a nonzero constant — implemented |
 | **Functional-form LHS** | `r(t)=…` ↔ `r=…` | canonical **normalization** of the relation clause (numeric args like `f(2)` excluded) — implemented |
 | **Parser corruption** | `=` inside `\sum_{n=1}^{N}`; compact products `NmV_r` | canonical **normalization** in `preprocess_symbolic_text` (parsing correctness) — implemented |
+| **Real-only identities** | `sqrt(a·b)`↔`√a·√b`, `sqrt(x²)`↔`\|x\|`, `log(ab)`↔`log a+log b` | **domain enrichment**: carry the symbols' real domain into the parse (`build_symbol_assumption_map`); positivity from `q.symbol_assumptions`, realness derived — implemented |
+| **`simplify` incompleteness** | nested-radical / transcendental identities `simplify` cannot crack | **criterion**: domain-honoring numeric identity testing (`_numeric_identity_equivalent`), exact on rejection — implemented |
+| **Solved radical** | `E=mc²` ↔ `c=√(E/m)`, `v²=u²+2as` ↔ `v=√(u²+2as)` | canonical **normalization**: de-radicalize when the non-radical side is nonnegative (`_deradicalize_clause`), gated on `q.symbol_assumptions` — implemented |
 | **Sign convention** | global `−` sign on a directional quantity | needs a **gated criterion** — axis choice *or* real error; only directional quantities, only when frame/sign metadata absent, as an *audited* bridge — deferred |
+
+### Why positivity is declared, not derived from surface form
+
+The domain-enrichment lever derives only **realness** in-engine; positivity / nonnegativity
+must be declared in `q.symbol_assumptions`. The reason is precision. Writing `sqrt(a·b)` or
+`log(x²)` does *not* presuppose any individual symbol is nonnegative — only that a product
+or an even power is. So a surface heuristic ("symbol appears under a root → assume it
+nonnegative") would manufacture sign assumptions that flip truth values: it would wrongly
+accept `sqrt(a·b)` vs `√a·√b` (which differ at `a,b<0`) and `log(x²)` vs `2·log(x)`
+(which differ at `x<0`). Under generic reals those pairs are correctly **rejected** (numeric
+identity testing samples both signs); they become equivalent only when the domain is
+declared. Symbol-name whitelists are avoided for the same reason — physics reuses letters
+(`m` mass vs metre, `T` period vs temperature, signed coordinate `x`).
 
 ### Why "up to a nonzero constant" is the correct equality criterion
 

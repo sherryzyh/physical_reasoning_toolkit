@@ -25,9 +25,10 @@ Each side is an `PhysicsAnswerSemantics` record (raw strings are coerced into on
   `choice_label`, `boolean_value`, `sign_value`, `children`, `cases`, …).
 
 The **question semantics** `q` (`PhysicsQuestionSemantics`, passed as `context`) supply
-the conditioning: `target_variable`, `symbol_aliases`, unit/sign policy, ordering policy,
-and the numeric `tolerance`. The judgement is *under* `q` — e.g. a required unit lets a
-bare `5` be read as `5 m/s²`.
+the conditioning: `target_variable`, `symbol_aliases`, `symbol_assumptions`, unit/sign policy,
+ordering policy, and the numeric `tolerance`. The judgement is *under* `q` — e.g. a
+required unit lets a bare `5` be read as `5 m/s²`, and a `symbol_assumptions` declaration
+(`c`, `E`, `m` positive) lets `c = √(E/m)` be read as `E = m c²` (§7.3–7.4).
 
 ---
 
@@ -159,8 +160,8 @@ the relation is asymmetric in pred vs ref.
 ```
 0.5      ≡ 1/2     → number      (exact)
 0.5      ≢ 0.7     → number      (outside tolerance)
-9.8      ≡ 9.81    → number      (pred less precise; consistent with the reference)
-9.81     ≢ 9.8     → number      (pred MORE precise than a coarser reference)
+9.81     ≡ 9.8     → number      (pred MORE precise; rounds to the reference)
+9.8      ≢ 9.81    → number      (pred coarser than the reference; cannot supply the required digit)
 0.333    ≡ 1/3     → number      (ref is an exact non-terminating rational)
 1/3      ≢ 0.333   → number      (reference fixes 3 decimals; 1/3 is not that number)
 ```
@@ -181,14 +182,27 @@ incompatible units fail.
 
 ### 7.3 `expression`
 
-Parse both to SymPy; equivalent iff `simplify(a − b) == 0` (with `trigsimp` and a
-numeric-`N` fallback). A prediction written as `x = …` is reduced to its solved side
-before comparison (`_prediction_rhs_matches_expression`).
+The criterion is one predicate: **is `a − b` the zero function over the symbols' domain?**
+It is decided symbolically first (`simplify(a − b) == 0`, with `trigsimp`), then by
+**numeric identity testing** (`_numeric_identity_equivalent`) when that is inconclusive —
+multi-point high-precision evaluation that *rejects on the first clear disagreement* (an
+exact disproof) and accepts on agreement at many generic points (§10.1). A prediction
+written as `x = …` is reduced to its solved side first
+(`_prediction_rhs_matches_expression`).
+
+Symbols are parsed **with domain assumptions** (§10.2), so the judgement is decided over
+the intended *real* domain rather than the generic complex default. Identities that hold
+only over the reals/nonnegatives are accepted exactly when the domain supports them, and
+rejected otherwise:
 
 ```
 v t                       ≡ t v                       → expression
 sqrt(lambda P L/(L+P))    ≡ sqrt(lambda L P/(L+P))    → expression
+sqrt(x^2)                 ≡ |x|                        → expression   (real x; derived)
 x^2                       ≢ x^3                        → expression
+sqrt(a b)                 ≢ sqrt(a) sqrt(b)            → expression   (generic real: differ at a,b<0)
+sqrt(a b)                 ≡ sqrt(a) sqrt(b)            → expression   (q: a,b nonnegative)
+log(a b)                  ≡ log a + log b              → expression   (q: a,b positive)
 ```
 
 ### 7.4 `relation` — the algebraic core
@@ -223,6 +237,19 @@ r(t) = a x         ≡ r = a x            → relation   (functional-form LHS)
 x = 0              ≢ x*y = 0            → relation   (factor y enlarges the root set)
 x = 1              ≢ x^2 = 1            → relation   (extra root x = -1)
 F = m a            ≢ F = m/a            → relation
+```
+
+**De-radicalization** (`_deradicalize_clause`) — a solved even root is the same constraint
+as its squared form *when the non-radical side is provably nonnegative* (squaring is
+injective on the nonnegative reals, so it adds no spurious branch). This is a canonical
+normalization, gated on `q.symbol_assumptions`, applied before the equality criterion; it is
+withheld otherwise, since `c = √(E/m)` (the `c ≥ 0` branch) is genuinely *not* `E = m c²`
+(both branches) over generic reals:
+
+```
+E = m c^2          ≡ c = sqrt(E/m)            → relation   (q: c,E,m positive → c**2 = E/m)
+v^2 = u^2 + 2 a s  ≡ v = sqrt(u^2 + 2 a s)    → relation   (q: v,… nonnegative)
+E = m c^2          ≢ c = sqrt(E/m)            → relation   (generic real: gate off)
 ```
 
 **Inequality criterion** (`_inequalities_equivalent`) — the homogeneous forms must be a
@@ -313,6 +340,38 @@ The reference sets the bar, so the relation is asymmetric (see the `9.8`/`9.81` 
 `0.333`/`1/3` pairs in §7.1). For the exact half-quantum boundary, read
 `_difference_is_strictly_within_half_quantum`.
 
+### 10.1 Numeric identity testing (`_numeric_identity_equivalent`)
+
+`simplify` is incomplete (no canonical form exists for transcendental/nested-radical
+expressions), so symbolic comparison under-accepts genuine identities. The same predicate
+— *is `a − b` the zero function?* — is also decided numerically: sample the free symbols at
+many deterministic **generic** points (wide range, no special values), evaluate both sides
+at high working precision, and
+
+- **reject** on the first point whose relative difference clearly exceeds noise — a single
+  disagreement at a valid point is an *exact* disproof of a function identity;
+- **accept** on agreement at enough points (Schwartz–Zippel: distinct functions cannot
+  coincide at many generic points);
+- return *undecidable* if too few points evaluate (every sample singular), falling back to
+  the legacy constant-residual check.
+
+Each symbol is sampled **over its declared domain** (positive → positive samples, generic
+real → both signs, complex → complex), and signs vary independently across points so
+products like `√(a·b)` vs `√a·√b` are rejected (they agree unless several symbols are
+simultaneously negative). Because rejection is exact, the test also **guards** a symbolic
+acceptance reached under a strengthening assumption: a numeric disagreement vetoes it.
+
+### 10.2 Symbol-domain assumptions (`build_symbol_assumption_map`)
+
+Symbols are parsed as `Symbol(token, **assumptions)` so equivalence is decided over the
+intended real domain. The map merges two sources: the **authoritative** `q.symbol_assumptions`
+declaration (`SymbolAssumption`: `real`/`nonzero`/`nonnegative`/`positive`/`complex`) and a
+**conservative** in-engine derivation that adds only the realness default — every symbol is
+`real` unless an explicit imaginary marker (standalone `I`, `\imath`) appears. Positivity is
+*never* derived from surface form (it would flip truth values — see METHODOLOGY.md §4); it
+must be declared. Realness alone is precision-safe and unlocks real-only identities
+(`√(x²) = |x|`).
+
 ---
 
 ## 11. `comparison_mode` catalogue
@@ -363,6 +422,9 @@ it losslessly into the public `Verdict`:
   `physical_quantity`, `units_ok = True`.
 - number `0` vs qualitative `no change` under `audited` → kinds differ → `qualitative_zero`
   is Tier-3 → not in enabled tiers → **bridge_blocked**, not equivalent.
+- `verify` with `q.symbol_assumptions` declaring `c, E, m` positive: `E = m c²` vs `c = √(E/m)`
+  → both `relation` → `c = √(E/m)` de-radicalizes to `c² = E/m` (non-radical side `c ≥ 0`)
+  → homogeneous numerators `c² m − E` and `E − m c²` differ by `−1` → **equivalent**.
 
 ---
 
@@ -371,6 +433,9 @@ it losslessly into the public `Verdict`:
 - Dispatch & gates: [engine.py](engine.py); contract: [contract.py](contract.py).
 - Same-kind criteria: [same_object_kind.py](same_object_kind.py),
   [numeric.py](numeric.py), [semantics.py](semantics.py).
+- Domain assumptions, de-radicalization, numeric identity testing (§7.3–7.4, §10.1–10.2):
+  `build_symbol_assumption_map`, `_deradicalize_clause`, `_numeric_identity_equivalent` in
+  [semantics.py](semantics.py); `symbol_assumptions` in [`../schema/models.py`](../schema/models.py).
 - Bridges & tiers: [different_object_kind.py](different_object_kind.py),
   [bridge_registry.py](bridge_registry.py).
 - Verdict mapping: [`../../scoring/_adapt.py`](../../scoring/_adapt.py).

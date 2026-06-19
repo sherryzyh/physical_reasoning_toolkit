@@ -91,3 +91,20 @@ class BridgeTier(_StrEnum):
     TIER1 = "tier1"
     TIER2 = "tier2"
     TIER3 = "tier3"
+
+
+class SymbolAssumption(_StrEnum):
+    """Real-domain a free symbol ranges over during symbolic comparison.
+
+    Physics answers denote real, often nonnegative, quantities; declaring this lets the
+    SymPy substrate decide equivalence over the *intended* domain instead of the generic
+    complex default (e.g. ``sqrt(a*b) == sqrt(a)*sqrt(b)`` holds for ``a, b >= 0`` but not
+    over the complex plane). The judgement stays exact -- it is decided over the declared
+    domain, not relaxed.
+    """
+
+    COMPLEX = "complex"
+    REAL = "real"
+    NONZERO = "nonzero"
+    NONNEGATIVE = "nonnegative"
+    POSITIVE = "positive"
