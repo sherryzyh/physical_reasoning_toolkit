@@ -1101,9 +1101,11 @@ def test_protocol_subject_to_records_require_matching_constraints() -> None:
     assert "subject_to_count_mismatch" in result.diagnostics
 
 
-def test_protocol_multi_part_respects_per_part_order() -> None:
+def test_protocol_multi_part_respects_ordered_order() -> None:
+    # Order-sensitivity for multi-part answers is provided by the sound ORDERED path; the
+    # old per_part positional fallback (when labels did not align) is retired to TBD.
     context = {
-        "ordering": "per_part",
+        "ordering": "ordered",
         "question_unit_policy": "optional_if_question_fixed_unit",
         "question_unit": "T",
     }
@@ -1863,7 +1865,7 @@ def test_protocol_matrix_records_are_rehydrated_from_text() -> None:
         "object_kind": "expression",
         "structure": "matrix",
         "canonical_text": (
-            "In the x,y coordinate system shown, the tensor is " "[[2*a, 0], [0, 2*b]]."
+            "In the x,y coordinate system shown, the tensor is [[2*a, 0], [0, 2*b]]."
         ),
         "shape": [2, 2],
         "coordinate_frame": "x,y as shown; origin at center",
@@ -1879,7 +1881,10 @@ def test_protocol_matrix_records_are_rehydrated_from_text() -> None:
 
     result = compare_protocol_answers(pred, ref)
 
-    assert result.equivalent is True
+    # Matrix/tensor comparison is deferred (cells are non-atomic rows): gated to TBD this
+    # pass rather than returning an uncertified verdict. (Rehydration still runs.)
+    assert result.equivalent is False
+    assert result.comparison_mode == "not_implemented"
 
 
 def test_protocol_matrix_rehydration_prefers_canonical_text_over_raw_latex() -> None:
@@ -1899,7 +1904,9 @@ def test_protocol_matrix_rehydration_prefers_canonical_text_over_raw_latex() -> 
 
     result = compare_protocol_answers(pred, ref)
 
-    assert result.equivalent is True
+    # Matrix comparison is deferred (non-atomic cells) → TBD this pass.
+    assert result.equivalent is False
+    assert result.comparison_mode == "not_implemented"
 
 
 def test_protocol_near_zero_opposite_signed_quantities_do_not_match() -> None:
@@ -2357,3 +2364,196 @@ def test_protocol_relation_compact_product_with_subscript_is_expanded() -> None:
     pred = "V = NmV_r/(M + Nm)"
     ref = "V = N m V_r/(M + N m)"
     assert compare_protocol_answers(_relation(pred), _relation(ref)).equivalent is True
+
+
+# ---------------------------------------------------------------------------
+# Symbol-domain assumptions, de-radicalization, and numeric identity testing.
+#
+# These three composed levers raise recall by deciding equivalence over the
+# answers' intended *real* domain. The discipline (METHODOLOGY.md) is that they
+# must not erode precision, so the reject battery below is the contract: every
+# domain-sensitive identity must stay non-equivalent under generic reals and
+# become equivalent only when the domain is declared. The reject set runs first
+# (precision proof); the accept set documents the recall wins.
+# ---------------------------------------------------------------------------
+
+
+def _expression(canonical_text: str) -> dict[str, str]:
+    return {"object_kind": "expression", "canonical_text": canonical_text}
+
+
+def _assumption_context(assumption: str, *symbols: str) -> dict[str, object]:
+    return {
+        "symbol_assumptions": [{"symbol": s, "assumption": assumption} for s in symbols]
+    }
+
+
+# --- Reject battery: domain-sensitive identities, generic real, must NOT match. ---
+
+
+@pytest.mark.parametrize(
+    "pred, ref",
+    [
+        # sqrt(x**2) == x only for x >= 0; over generic reals it is |x|.
+        ("sqrt(x**2)", "x"),
+        # log(x**2) == 2*log(x) only for x > 0; over reals it is 2*log|x|.
+        ("log(x**2)", "2*log(x)"),
+        # sqrt(a*b) == sqrt(a)*sqrt(b) only for a, b >= 0 (differs at a, b < 0).
+        ("sqrt(a*b)", "sqrt(a)*sqrt(b)"),
+        # log(a*b) == log(a) + log(b) only for a, b > 0.
+        ("log(a*b)", "log(a) + log(b)"),
+        # A global sign flip under a shared radical is never an identity.
+        ("sqrt(x)", "-sqrt(x)"),
+    ],
+)
+def test_protocol_expression_domain_sensitive_pairs_reject_under_generic_real(
+    pred: str, ref: str
+) -> None:
+    result = compare_protocol_answers(_expression(pred), _expression(ref))
+    assert result.equivalent is False
+
+
+def test_protocol_expression_pit_rejects_near_miss_that_agrees_near_zero() -> None:
+    # sin(x) ~ x near 0 but differs generically: wide-range sampling rejects it.
+    assert (
+        compare_protocol_answers(_expression("sin(x)"), _expression("x")).equivalent
+        is False
+    )
+
+
+def test_protocol_expression_pit_rejects_distinct_powers() -> None:
+    assert (
+        compare_protocol_answers(_expression("x**2"), _expression("x**3")).equivalent
+        is False
+    )
+
+
+def test_protocol_relation_deradicalization_gated_off_without_declaration() -> None:
+    # c = sqrt(E/m) is the c >= 0 branch only; without a nonnegative declaration it is
+    # NOT the same constraint as E = m c^2 (which admits c < 0), so squaring is withheld.
+    result = compare_protocol_answers(
+        _relation("E = m*c**2"), _relation("c = sqrt(E/m)")
+    )
+    assert result.equivalent is False
+
+
+def test_protocol_expression_complex_marker_withholds_realness_default() -> None:
+    # Without an imaginary marker, realness makes sqrt(x**2) == Abs(x).
+    assert (
+        compare_protocol_answers(
+            _expression("sqrt(x**2)"), _expression("Abs(x)")
+        ).equivalent
+        is True
+    )
+    # A standalone imaginary unit keeps the symbols complex, where the identity fails.
+    assert (
+        compare_protocol_answers(
+            _expression("I*sqrt(x**2)"), _expression("I*Abs(x)")
+        ).equivalent
+        is False
+    )
+
+
+# --- Existing documented rejects still reject (precision regression guard). ---
+
+
+@pytest.mark.parametrize(
+    "pred, ref",
+    [
+        ("x = 0", "x*y = 0"),
+        ("x = 1", "x**2 = 1"),
+        ("F = m*a", "F = m/a"),
+    ],
+)
+def test_protocol_relation_documented_rejects_unchanged(pred: str, ref: str) -> None:
+    assert compare_protocol_answers(_relation(pred), _relation(ref)).equivalent is False
+
+
+# --- Accept set: recall wins, sound over the declared (or real) domain. ---
+
+
+def test_protocol_expression_sqrt_of_square_equals_abs_over_reals() -> None:
+    # Realness alone (derived) is enough: sqrt(x**2) == |x| for real x.
+    assert (
+        compare_protocol_answers(
+            _expression("sqrt(x**2)"), _expression("Abs(x)")
+        ).equivalent
+        is True
+    )
+
+
+@pytest.mark.parametrize(
+    "pred, ref, domain, symbols",
+    [
+        ("sqrt(a*b)", "sqrt(a)*sqrt(b)", "nonnegative", ("a", "b")),
+        ("sqrt(x**2)", "x", "nonnegative", ("x",)),
+        ("log(x**2)", "2*log(x)", "positive", ("x",)),
+        ("log(a*b)", "log(a) + log(b)", "positive", ("a", "b")),
+        ("atan(x) + atan(1/x)", "pi/2", "positive", ("x",)),
+    ],
+)
+def test_protocol_expression_domain_sensitive_pairs_accept_when_declared(
+    pred: str, ref: str, domain: str, symbols: tuple[str, ...]
+) -> None:
+    context = _assumption_context(domain, *symbols)
+    result = compare_protocol_answers(
+        _expression(pred), _expression(ref), context=context
+    )
+    assert result.equivalent is True
+
+
+@pytest.mark.parametrize(
+    "pred, ref, symbols",
+    [
+        ("E = m*c**2", "c = sqrt(E/m)", ("c", "E", "m")),
+        ("v**2 = u**2 + 2*a*s", "v = sqrt(u**2 + 2*a*s)", ("v", "u", "a", "s")),
+    ],
+)
+def test_protocol_relation_deradicalization_accepts_when_declared_nonnegative(
+    pred: str, ref: str, symbols: tuple[str, ...]
+) -> None:
+    context = _assumption_context("positive", *symbols)
+    result = compare_protocol_answers(_relation(pred), _relation(ref), context=context)
+    assert result.equivalent is True
+    assert result.comparison_mode == "relation"
+
+
+# --- Unit-level contract for the assumption map and numeric identity test. ---
+
+
+def test_derive_symbol_assumptions_is_realness_only() -> None:
+    from prkit.semantics.comparison.semantics import _derive_symbol_assumptions
+
+    # Realness is derived for every symbol; positivity/nonnegativity never is.
+    assert _derive_symbol_assumptions("sqrt(a*b)", "sqrt(a)*sqrt(b)") == {
+        "a": {"real": True},
+        "b": {"real": True},
+    }
+    # An imaginary marker withholds the realness default entirely.
+    assert _derive_symbol_assumptions("sqrt(a) + I", "sqrt(a)") == {}
+
+
+def test_build_symbol_assumption_map_declared_overrides_derived() -> None:
+    from prkit.semantics.comparison.semantics import build_symbol_assumption_map
+
+    context = coerce_question_semantics(_assumption_context("positive", "x"))
+    built = build_symbol_assumption_map("sqrt(x*y)", "sqrt(x)*sqrt(y)", context=context)
+    # Declared positivity wins for x; y falls back to the derived realness default.
+    assert built["x"] == {"positive": True}
+    assert built["y"] == {"real": True}
+
+
+def test_numeric_identity_equivalent_rejection_is_exact() -> None:
+    from prkit.semantics.comparison.semantics import (
+        _numeric_identity_equivalent,
+        parse_scalar_symbolic_expression,
+    )
+
+    left = parse_scalar_symbolic_expression("x + y")
+    right = parse_scalar_symbolic_expression("x*y")
+    # Distinct functions disagree at sampled points -> exact False.
+    assert _numeric_identity_equivalent(left, right, 1e-9) is False
+
+    same_left = parse_scalar_symbolic_expression("(x + 1)**2")
+    same_right = parse_scalar_symbolic_expression("x**2 + 2*x + 1")
+    assert _numeric_identity_equivalent(same_left, same_right, 1e-9) is True

@@ -66,6 +66,20 @@ def build_evaluation_contract(
     )
 
 
+# Structures that `canonicalize_structure` may collapse to ATOMIC (a 1-element collection,
+# a closed point-interval, a single-case piecewise). When any of these is admitted, ATOMIC
+# is admitted too (it is the collapse target).
+_STRUCTURES_COLLAPSIBLE_TO_ATOMIC = frozenset(
+    {
+        AnswerStructure.TUPLE,
+        AnswerStructure.SET,
+        AnswerStructure.VECTOR,
+        AnswerStructure.INTERVAL,
+        AnswerStructure.PIECEWISE,
+    }
+)
+
+
 def validate_answer_against_contract(
     answer: PhysicsAnswerSemantics | dict[str, Any],
     contract: PhysicsEvaluationContract | dict[str, Any],
@@ -82,7 +96,17 @@ def validate_answer_against_contract(
     violating = False
     coercible = False
 
-    if resolved_answer.structure not in question.allowed_structures:
+    if resolved_answer.structure not in question.allowed_structures and not (
+        resolved_answer.structure == AnswerStructure.ATOMIC
+        and any(
+            admitted in _STRUCTURES_COLLAPSIBLE_TO_ATOMIC
+            for admitted in question.allowed_structures
+        )
+    ):
+        # Structure canonicalization collapses a degenerate collapsible structure (1-element
+        # tuple/set/vector, [a,a] interval, single-case piecewise) to ATOMIC before this
+        # check, so admit ATOMIC whenever such a structure is admitted — else a collapsed
+        # answer would spuriously violate the contract in strict/audited modes.
         diagnostics.append(f"structure_not_admitted:{resolved_answer.structure.value}")
         violating = True
 

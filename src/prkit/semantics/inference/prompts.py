@@ -31,7 +31,14 @@ Rules:
 - In `symbol_aliases`, use plain token-style symbol names like `y`, `y_s`, `theta_dot`, not full equations or wrapped LaTeX snippets.
 - `reference_answer_semantics` or `prediction_answer_semantics` must represent only the final answer.
 - Use `object_kind` from: number, physical_quantity, expression, relation, qualitative_label, choice, boolean, sign_direction.
-- Use `structure` from: atomic, multi_part, tuple, set, interval, vector, matrix, tensor, piecewise.
+- Use `structure` from: atomic, multi_part, tuple, set, interval, vector, matrix, tensor, piecewise. Decide structure by denotation, not surface punctuation:
+  - `atomic` = one indivisible value (the default). Prefer it: a single coordinate is atomic, not a 1-tuple; a closed point-range `[a, a]` is the atom `a`.
+  - `tuple` = one ordered coordinate of a single object, `(x, y)`; a bare finite `(a, b)` is a tuple, NOT an interval.
+  - `interval` = a connected range; use it only for bracket forms `[a, b]`/`(a, b]`/… or a range containing `∞`.
+  - `set` = an unordered collection of distinct solutions `{x1, x2}`.
+  - `multi_part` = answers to several question-defined sub-questions; use it only when the question defines parts (`required_parts`) or the answer is explicitly enumerated.
+  - `vector`/`matrix`/`tensor` = a shaped array of rank 1/2/≥3; keep a `(n,)` vector distinct from an `(n, 1)` matrix.
+  - `piecewise` = a function with (expression, condition) branches.
 - Fill `numeric_value`, `numeric_text`, and `unit` for physical quantities when possible.
 - Use `children` for structured answers and `cases` only for true piecewise answers.
 - Use `subject_to` for global constraints on one answer object, such as `x>0`, `a<r<b`, or `n∈Z`.

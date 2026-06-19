@@ -33,7 +33,12 @@ from .contract import (
 from .different_object_kind import compare_different_object_kinds
 from .label_family_fallback import compare_label_family_fallback
 from .same_object_kind import compare_same_object_kind
-from .semantics import canonicalize_qualitative_label, normalize_plain_text
+from .semantics import (
+    canonicalize_qualitative_label,
+    normalize_plain_text,
+    parse_numeric_value,
+)
+from .structure_canonicalization import canonicalize_structure
 
 
 def compare_protocol_answers(
@@ -388,6 +393,52 @@ def _compare_identical_atomic_text(
     return None
 
 
+# Non-atomic comparison runs only when it provably reduces to atomic-vs-atomic element
+# comparisons; anything else is TBD. By default TBD is a distinct non-equivalent sentinel so
+# the hot path (batch eval / RL rewards) does not crash; flip this to raise instead.
+STRICT_STRUCTURE_COMPARISON = False
+
+
+def _structure_tbd(mode: str, *diagnostics: str) -> AnswerComparison:
+    """Signal that a non-atomic comparison cannot yet be certified (TBD)."""
+
+    if STRICT_STRUCTURE_COMPARISON:
+        raise NotImplementedError(
+            f"structure comparison not implemented ({mode}): {', '.join(diagnostics)}"
+        )
+    return AnswerComparison(False, "not_implemented", (mode,) + diagnostics)
+
+
+def _children_all_atomic(*answers: PhysicsAnswerSemantics) -> bool:
+    """Whether every child of every given answer is atomic."""
+
+    return all(
+        child.structure == AnswerStructure.ATOMIC
+        for answer in answers
+        for child in answer.children
+    )
+
+
+def _exact_element_key(answer: PhysicsAnswerSemantics) -> tuple:
+    """A conservative exact-identity key for an atomic element (no tolerance).
+
+    Numbers use their parsed value so ``1/2`` and ``0.5`` match exactly while ``1/3`` and
+    ``0.3333`` do not (exact float equality, never a tolerance window). Everything else uses
+    normalized canonical text.
+    """
+
+    if answer.object_kind in {
+        AnswerObjectKind.NUMBER,
+        AnswerObjectKind.PHYSICAL_QUANTITY,
+    }:
+        value = answer.numeric_value
+        if value is None:
+            value = parse_numeric_value(answer.numeric_text or answer.canonical_text)
+        if value is not None:
+            return ("num", value, answer.unit or "")
+    return ("text", normalize_plain_text(answer.canonical_text or ""))
+
+
 def _compare_ordered_children(
     pred: PhysicsAnswerSemantics,
     ref: PhysicsAnswerSemantics,
@@ -397,10 +448,12 @@ def _compare_ordered_children(
     policy_mode: ComparisonPolicyMode,
     mode: str,
 ) -> AnswerComparison:
-    """Compare structured children position by position."""
+    """Compare structured children position by position (atomic elements only)."""
 
     if len(pred.children) != len(ref.children):
         return AnswerComparison(False, mode, ("different_child_count",))
+    if not _children_all_atomic(pred, ref):
+        return _structure_tbd(mode, "non_atomic_element")
 
     for index, (pred_child, ref_child) in enumerate(zip(pred.children, ref.children)):
         result = compare_protocol_answers(
@@ -429,30 +482,24 @@ def _compare_unordered_children(
     policy_mode: ComparisonPolicyMode,
     mode: str,
 ) -> AnswerComparison:
-    """Compare structured children as an order-insensitive multiset."""
+    """Compare structured children as an order-insensitive multiset.
+
+    Only the certain case is accepted: an *exact* multiset match of atomic elements (no
+    tolerance, no ambiguous matching). A greedy/tolerant bijection is unsound under
+    non-transitive tolerance (it accepts ``{1.0, 1.0}`` vs ``{1.0, 1.1}``), so every other
+    case is TBD pending the sound matching algorithm (roadmap milestone; see STRUCTURE.md).
+    """
 
     if len(pred.children) != len(ref.children):
         return AnswerComparison(False, mode, ("different_child_count",))
+    if not _children_all_atomic(pred, ref):
+        return _structure_tbd(mode, "non_atomic_element")
 
-    unused = list(pred.children)
-    for ref_child in ref.children:
-        match_index = None
-        for index, pred_child in enumerate(unused):
-            result = compare_protocol_answers(
-                pred_child,
-                ref_child,
-                contract=contract,
-                context=context,
-                policy_mode=policy_mode,
-                _validate_top_level=False,
-            )
-            if result.equivalent:
-                match_index = index
-                break
-        if match_index is None:
-            return AnswerComparison(False, mode, ("unmatched_child",))
-        unused.pop(match_index)
-    return AnswerComparison(True, mode)
+    pred_keys = sorted(_exact_element_key(child) for child in pred.children)
+    ref_keys = sorted(_exact_element_key(child) for child in ref.children)
+    if pred_keys == ref_keys:
+        return AnswerComparison(True, mode)
+    return _structure_tbd(mode, "inexact_unordered_match")
 
 
 def _compare_per_part_children(
@@ -468,18 +515,15 @@ def _compare_per_part_children(
 
     if len(pred.children) != len(ref.children):
         return AnswerComparison(False, mode, ("different_child_count",))
+    if not _children_all_atomic(pred, ref):
+        return _structure_tbd(mode, "non_atomic_part")
 
     pred_map = _part_child_map(pred, context=context)
     ref_map = _part_child_map(ref, context=context)
-    if pred_map is None or ref_map is None or tuple(pred_map) != tuple(ref_map):
-        return _compare_ordered_children(
-            pred,
-            ref,
-            context=context,
-            contract=contract,
-            policy_mode=policy_mode,
-            mode=mode,
-        )
+    # Require an explicit, aligned label set on both sides. The previous positional fallback
+    # when labels did not align could compare mismatched parts, so it is retired to TBD.
+    if pred_map is None or ref_map is None or set(pred_map) != set(ref_map):
+        return _structure_tbd(mode, "part_labels_unaligned")
 
     for label in pred_map:
         result = compare_protocol_answers(
@@ -539,22 +583,17 @@ def _compare_shaped(
             (f"shape_mismatch:{pred.shape}!={ref.shape}",),
         )
 
+    # An unparsed shaped payload cannot be certified per-cell; the text-equality fallback is
+    # retired to TBD.
     if not pred.children or not ref.children:
-        if pred.children != ref.children:
-            return AnswerComparison(
-                False,
-                pred.structure.value,
-                ("unparsed_shaped_answer",),
-            )
-        matched = pred.canonical_text == ref.canonical_text
-        return AnswerComparison(
-            matched,
-            pred.structure.value,
-            () if matched else ("unparsed_shaped_answer",),
-        )
+        return _structure_tbd(pred.structure.value, "unparsed_shaped_answer")
 
+    # Coordinate frame: both-unset ⇒ the problem's implicit shared frame (proceed); a
+    # one-sided declaration is unresolved ⇒ TBD; both-set-incompatible is a real mismatch.
     pred_frame = pred.coordinate_frame or context.coordinate_frame
     ref_frame = ref.coordinate_frame or context.coordinate_frame
+    if bool(pred_frame) != bool(ref_frame):
+        return _structure_tbd(pred.structure.value, "coordinate_frame_unresolved")
     if (
         pred_frame
         and ref_frame
@@ -566,11 +605,15 @@ def _compare_shaped(
 
     pred_sign = pred.sign_convention or context.sign_convention
     ref_sign = ref.sign_convention or context.sign_convention
+    if bool(pred_sign) != bool(ref_sign):
+        return _structure_tbd(pred.structure.value, "sign_convention_unresolved")
     if pred_sign and ref_sign and not _metadata_text_compatible(pred_sign, ref_sign):
         return AnswerComparison(
             False, pred.structure.value, ("sign_convention_mismatch",)
         )
 
+    # Per-cell comparison via the ordered path, which itself gates non-atomic cells: a vector
+    # of atomic cells is certified; a matrix/tensor (rows are non-atomic) falls to TBD.
     return _compare_ordered_children(
         pred,
         ref,
@@ -595,6 +638,16 @@ def _compare_piecewise(
         return AnswerComparison(False, "piecewise", ("different_case_count",))
 
     for index, (pred_case, ref_case) in enumerate(zip(pred.cases, ref.cases)):
+        if any(
+            part.structure != AnswerStructure.ATOMIC
+            for part in (
+                pred_case.expression,
+                pred_case.condition,
+                ref_case.expression,
+                ref_case.condition,
+            )
+        ):
+            return _structure_tbd("piecewise", f"non_atomic_case_{index}")
         expr_result = compare_protocol_answers(
             pred_case.expression,
             ref_case.expression,
@@ -645,6 +698,10 @@ def _repair_answer_for_comparison(
     repaired = enrich_answer_quantity_views(answer, context=context)
     repaired = _hydrate_structured_answer(repaired, context=context)
     repaired = _backfill_subject_to(repaired, context=context)
+    # Collapse structural degeneracies LAST (dominates the tuple→vector promotion above), so
+    # a degenerate wrapper reaches atomic before the structure gate; if it does, fall through
+    # to the atomic repair.
+    repaired = canonicalize_structure(repaired, context=context)
     if repaired.structure != AnswerStructure.ATOMIC:
         return repaired
     return _repair_atomic_answer(repaired, context=context)
