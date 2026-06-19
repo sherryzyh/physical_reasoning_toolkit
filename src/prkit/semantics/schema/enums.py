@@ -1,6 +1,8 @@
 """Enumerations for physics answer semantics.
 
-See ``TAXONOMY.md`` in this package for the full human-readable taxonomy.
+See ``../comparison/EQUIVALENCE.md`` for the detailed equivalence-judgement reference
+(object kinds, structures, per-kind criteria, bridges, examples) and
+``../comparison/METHODOLOGY.md`` for the design discipline behind it.
 """
 
 from __future__ import annotations
