@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from prkit.core.domain import Answer, AnswerCategory, PhysicsProblem
+from prkit.core.domain import Answer, PhysicsProblem
 from prkit.semantics import (
     AnswerObjectKind,
     AnswerStructure,
@@ -121,6 +121,20 @@ def test_atomic_boolean_sign_and_qualitative_aliases() -> None:
     assert sign.sign_value == "counterclockwise"
     assert qualitative.object_kind == AnswerObjectKind.QUALITATIVE_LABEL
     assert qualitative.canonical_text == "constant_temperature"
+
+
+def test_atomic_free_form_prose_is_descriptive_text() -> None:
+    # Free-form prose that is not curated controlled vocabulary classifies as the
+    # descriptive_text kind, with a conservative surface canonical form (no aliasing).
+    prose = normalize_physics_answer(
+        "The block slides because the applied force exceeds friction."
+    )
+
+    assert prose.object_kind == AnswerObjectKind.DESCRIPTIVE_TEXT
+    assert (
+        prose.canonical_text
+        == "block slides because the applied force exceeds friction."
+    )
 
 
 def test_structured_tuple_set_interval_and_vector_normalization() -> None:
@@ -266,7 +280,7 @@ def test_fixed_question_unit_allows_bare_number_but_required_unit_does_not() -> 
         PhysicsProblem(
             problem_id="p1",
             question="Find the speed in m/s.",
-            answer=Answer(value="5", answer_category=AnswerCategory.NUMBER),
+            answer=Answer(value="5", answer_kind=AnswerObjectKind.NUMBER),
         )
     )
     required_unit_context = QuestionContext(
@@ -316,7 +330,7 @@ def test_infer_question_context_rejects_prose_after_in_keyword(
             question=question,
             answer=Answer(
                 value=answer_value,
-                answer_category=AnswerCategory.PHYSICAL_QUANTITY,
+                answer_kind=AnswerObjectKind.PHYSICAL_QUANTITY,
             ),
         )
     )
@@ -332,29 +346,23 @@ def test_infer_question_context_drops_stopword_targets_but_keeps_symbol_targets(
         PhysicsProblem(
             problem_id="p_stopword_the",
             question="What is the magnitude of the force on the block?",
-            answer=Answer(
-                value="25 N", answer_category=AnswerCategory.PHYSICAL_QUANTITY
-            ),
+            answer=Answer(value="25 N", answer_kind=AnswerObjectKind.PHYSICAL_QUANTITY),
         ),
         PhysicsProblem(
             problem_id="p_stopword_all",
             question="What is all?",
-            answer=Answer(
-                value="25 N", answer_category=AnswerCategory.PHYSICAL_QUANTITY
-            ),
+            answer=Answer(value="25 N", answer_kind=AnswerObjectKind.PHYSICAL_QUANTITY),
         ),
         PhysicsProblem(
             problem_id="p_stopword_which",
             question="What is which?",
-            answer=Answer(
-                value="25 N", answer_category=AnswerCategory.PHYSICAL_QUANTITY
-            ),
+            answer=Answer(value="25 N", answer_kind=AnswerObjectKind.PHYSICAL_QUANTITY),
         ),
     ]
     symbol_problem = PhysicsProblem(
         problem_id="p_symbol_target",
         question="What is T?",
-        answer=Answer(value="0.78 s", answer_category=AnswerCategory.PHYSICAL_QUANTITY),
+        answer=Answer(value="0.78 s", answer_kind=AnswerObjectKind.PHYSICAL_QUANTITY),
     )
 
     for problem in prose_problems:
@@ -368,7 +376,7 @@ def test_question_semantics_split_uses_gold_target_only_for_reference() -> None:
         question="Give the final expression for the magnetic field.",
         answer=Answer(
             value="B = \\mu_0 I / (2\\pi r)",
-            answer_category=AnswerCategory.EQUATION,
+            answer_kind=AnswerObjectKind.RELATION,
         ),
     )
 
@@ -388,7 +396,7 @@ def test_question_semantics_split_uses_gold_unit_policy_only_for_reference() -> 
         answer=Answer(
             value="5",
             unit="m/s",
-            answer_category=AnswerCategory.PHYSICAL_QUANTITY,
+            answer_kind=AnswerObjectKind.PHYSICAL_QUANTITY,
         ),
     )
 
@@ -404,7 +412,7 @@ def test_prediction_question_semantics_ignores_answer_parts_metadata() -> None:
     problem = PhysicsProblem(
         problem_id="p_answer_parts_split",
         question="Give both values: the displacement value and the time value.",
-        answer=Answer(value="ignored", answer_category=AnswerCategory.TEXT),
+        answer=Answer(value="ignored", answer_kind=AnswerObjectKind.DESCRIPTIVE_TEXT),
         additional_fields={
             "answer_parts": [
                 {"part_label": "speed_slot", "raw_text": "1 m"},
@@ -479,7 +487,7 @@ def test_prediction_question_semantics_ignores_symbol_alias_metadata() -> None:
     problem = PhysicsProblem(
         problem_id="p_symbol_alias_split",
         question="Give the final expression for the displacement.",
-        answer=Answer(value="x_final = v*t", answer_category=AnswerCategory.EQUATION),
+        answer=Answer(value="x_final = v*t", answer_kind=AnswerObjectKind.RELATION),
         additional_fields={
             "symbol_aliases": [
                 {
@@ -503,7 +511,7 @@ def test_problem_answer_parts_take_precedence() -> None:
     problem = PhysicsProblem(
         problem_id="p2",
         question="Give both values.",
-        answer=Answer(value="ignored", answer_category=AnswerCategory.TEXT),
+        answer=Answer(value="ignored", answer_kind=AnswerObjectKind.DESCRIPTIVE_TEXT),
         additional_fields={"answer_parts": ["1 m", "2 m"]},
     )
 
@@ -520,7 +528,7 @@ def test_dataset_backed_relation_and_multi_part_strings() -> None:
         PhysicsProblem(
             problem_id="ugphysics-628",
             question="Give the effect type and the field strength.",
-            answer=Answer(value="C, 7.77", answer_category=AnswerCategory.OPTION),
+            answer=Answer(value="C, 7.77", answer_kind=AnswerObjectKind.CHOICE),
             additional_fields={"answer_parts": ["C", "7.77"]},
         )
     )
@@ -529,8 +537,10 @@ def test_dataset_backed_relation_and_multi_part_strings() -> None:
     assert relation_answer.structure == AnswerStructure.ATOMIC
     assert multipart_answer.structure == AnswerStructure.MULTI_PART
     assert multipart_answer.diagnostics == ()
+    # "C" is not curated controlled vocabulary, so the deterministic normalizer
+    # classifies it as free-form descriptive_text (not qualitative_label).
     assert [child.object_kind for child in multipart_answer.children] == [
-        AnswerObjectKind.QUALITATIVE_LABEL,
+        AnswerObjectKind.DESCRIPTIVE_TEXT,
         AnswerObjectKind.NUMBER,
     ]
 

@@ -1,5 +1,5 @@
 from prkit.core.domain.answer import Answer
-from prkit.core.domain.answer_category import AnswerCategory
+from prkit.core.domain.answer_kinds import AnswerObjectKind
 from prkit.evaluation.llm_judge.payload import (
     answer_to_text_and_category,
     build_standard_answer_judge_payload,
@@ -9,17 +9,15 @@ from prkit.evaluation.llm_judge.payload import (
 
 
 def test_answer_to_text_and_category_for_answers_and_plain_strings():
-    answer = Answer(value=" 42 ", answer_category=AnswerCategory.NUMBER)
+    answer = Answer(value=" 42 ", answer_kind=AnswerObjectKind.NUMBER)
     assert answer_to_text_and_category(answer) == ("42", "number")
     assert answer_to_text_and_category("  free text  ") == ("free text", "unknown")
 
 
 def test_build_standard_answer_judge_payload_cleans_fields():
     payload = build_standard_answer_judge_payload(
-        Answer(
-            value=" 10\u00a0 m/s ", answer_category=AnswerCategory.PHYSICAL_QUANTITY
-        ),
-        Answer(value=" 10\tm/s ", answer_category=AnswerCategory.PHYSICAL_QUANTITY),
+        Answer(value=" 10\u00a0 m/s ", answer_kind=AnswerObjectKind.PHYSICAL_QUANTITY),
+        Answer(value=" 10\tm/s ", answer_kind=AnswerObjectKind.PHYSICAL_QUANTITY),
         "  What is the speed?  ",
     )
 

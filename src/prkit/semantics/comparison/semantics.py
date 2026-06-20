@@ -462,6 +462,25 @@ def canonicalize_qualitative_label(text: str) -> str:
     return normalized
 
 
+def canonicalize_descriptive_text(text: str | None) -> str:
+    """Conservatively canonicalize a free-form descriptive ("explain/why") answer.
+
+    Surface-only normalization (math/text wrappers, case, punctuation, whitespace)
+    with **no** semantic alias or synonym mapping. That is exactly what separates
+    ``descriptive_text`` (free prose, judged equivalent only when the wording is
+    essentially identical) from ``qualitative_label`` (a curated controlled
+    vocabulary canonicalized through :data:`_QUALITATIVE_ALIAS_GROUPS`).
+
+    Richer recall for free-form answers — semantic similarity or a gated
+    model-judge — is a deliberately deferred v2 research lever, **not** added here:
+    it would break determinism and introduce unprincipled thresholds, violating the
+    "canonical form + one principled criterion, no rescue branches" discipline
+    (``METHODOLOGY.md`` §3).
+    """
+
+    return normalize_plain_text(text)
+
+
 def qualitative_label_candidates(text: str) -> tuple[str, ...]:
     """Return canonical qualitative labels that are explicitly asserted in ``text``."""
 

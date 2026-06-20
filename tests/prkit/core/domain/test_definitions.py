@@ -1,8 +1,8 @@
 """
-Tests for definitions: PhysicsDomain, AnswerCategory.
+Tests for definitions: PhysicsDomain, AnswerObjectKind.
 """
 
-from prkit.core.domain import AnswerCategory, PhysicsDomain
+from prkit.core.domain import AnswerObjectKind, PhysicsDomain
 
 
 class TestPhysicsDomain:
@@ -79,35 +79,41 @@ class TestPhysicsDomain:
         assert all(isinstance(d, PhysicsDomain) for d in domains)
 
 
-class TestAnswerCategory:
-    """Test cases for AnswerCategory enum."""
+class TestAnswerObjectKind:
+    """Test cases for the canonical AnswerObjectKind enum."""
 
-    def test_answer_category_enum_values(self):
-        """Test that answer category enum has expected values."""
-        assert AnswerCategory.NUMBER.value == "number"
-        assert AnswerCategory.EQUATION.value == "equation"
-        assert AnswerCategory.PHYSICAL_QUANTITY.value == "physical_quantity"
-        assert AnswerCategory.FORMULA.value == "formula"
-        assert AnswerCategory.TEXT.value == "text"
-        assert AnswerCategory.OPTION.value == "option"
+    def test_answer_kind_enum_values(self):
+        """Test that the answer-kind enum has expected canonical values."""
+        assert AnswerObjectKind.NUMBER.value == "number"
+        assert AnswerObjectKind.RELATION.value == "relation"
+        assert AnswerObjectKind.PHYSICAL_QUANTITY.value == "physical_quantity"
+        assert AnswerObjectKind.EXPRESSION.value == "expression"
+        assert AnswerObjectKind.QUALITATIVE_LABEL.value == "qualitative_label"
+        assert AnswerObjectKind.BOOLEAN.value == "boolean"
+        assert AnswerObjectKind.SIGN_DIRECTION.value == "sign_direction"
+        assert AnswerObjectKind.DESCRIPTIVE_TEXT.value == "descriptive_text"
+        assert AnswerObjectKind.CHOICE.value == "choice"
 
-    def test_all_answer_categories_accessible(self):
-        """Test that all answer categories are accessible."""
+    def test_all_answer_kinds_accessible(self):
+        """Test that all nine canonical answer kinds are accessible."""
         types = [
-            AnswerCategory.NUMBER,
-            AnswerCategory.EQUATION,
-            AnswerCategory.PHYSICAL_QUANTITY,
-            AnswerCategory.FORMULA,
-            AnswerCategory.TEXT,
-            AnswerCategory.OPTION,
+            AnswerObjectKind.NUMBER,
+            AnswerObjectKind.PHYSICAL_QUANTITY,
+            AnswerObjectKind.EXPRESSION,
+            AnswerObjectKind.RELATION,
+            AnswerObjectKind.QUALITATIVE_LABEL,
+            AnswerObjectKind.CHOICE,
+            AnswerObjectKind.BOOLEAN,
+            AnswerObjectKind.SIGN_DIRECTION,
+            AnswerObjectKind.DESCRIPTIVE_TEXT,
         ]
-        assert len(types) == 6
-        assert all(isinstance(t, AnswerCategory) for t in types)
+        assert len(types) == 9
+        assert all(isinstance(t, AnswerObjectKind) for t in types)
 
-    def test_answer_category_str(self):
+    def test_answer_kind_str(self):
         """Test string representation."""
-        assert AnswerCategory.NUMBER.value == "number"
-        assert AnswerCategory.FORMULA.value == "formula"
+        assert AnswerObjectKind.NUMBER.value == "number"
+        assert AnswerObjectKind.EXPRESSION.value == "expression"
 
     def test_domain_from_string_lowercase(self):
         """Test from_string with lowercase input."""
@@ -163,14 +169,14 @@ class TestAnswerCategory:
         assert "CLASSICAL_MECHANICS" in repr_str
         assert "PhysicsDomain" in repr_str
 
-    def test_answer_category_enum_comparison(self):
-        """Test AnswerCategory enum comparison."""
-        assert AnswerCategory.NUMBER == AnswerCategory.NUMBER
-        assert AnswerCategory.NUMBER != AnswerCategory.FORMULA
+    def test_answer_kind_enum_comparison(self):
+        """Test AnswerObjectKind enum comparison."""
+        assert AnswerObjectKind.NUMBER == AnswerObjectKind.NUMBER
+        assert AnswerObjectKind.NUMBER != AnswerObjectKind.EXPRESSION
 
-    def test_answer_category_value_access(self):
-        """Test accessing AnswerCategory values."""
-        assert AnswerCategory.NUMBER.value == "number"
-        assert AnswerCategory.FORMULA.value == "formula"
-        assert AnswerCategory.TEXT.value == "text"
-        assert AnswerCategory.OPTION.value == "option"
+    def test_answer_kind_value_access(self):
+        """Test accessing AnswerObjectKind values."""
+        assert AnswerObjectKind.NUMBER.value == "number"
+        assert AnswerObjectKind.EXPRESSION.value == "expression"
+        assert AnswerObjectKind.DESCRIPTIVE_TEXT.value == "descriptive_text"
+        assert AnswerObjectKind.CHOICE.value == "choice"

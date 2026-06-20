@@ -23,14 +23,17 @@ PRKit therefore models two typed objects:
 Equivalence is then a question-conditioned relation **`Eq(a_pred, a_ref ; q)`** — a typed
 judgement, not string overlap.
 
-### The 8 object kinds
+### The 9 object kinds
 
 `number`, `physical_quantity`, `expression`, `relation`, `qualitative_label`, `choice`,
-`boolean`, `sign_direction`. Each kind has its own canonical form and **one** decision
-criterion (see [EQUIVALENCE.md](../src/prkit/semantics/comparison/EQUIVALENCE.md) §7).
+`boolean`, `sign_direction`, `descriptive_text`. Each kind has its own canonical form and
+**one** decision criterion (see
+[EQUIVALENCE.md](../src/prkit/semantics/comparison/EQUIVALENCE.md) §7).
 
-> A 9th kind (`descriptive_text`) and a taxonomy unification are planned but **not yet
-> implemented**; this page describes the current eight.
+> `descriptive_text` (free-form "explain/why" answers) is a deliberate extension beyond the
+> v1 paper's eight kinds; its criterion is conservative normalized-text equality (no semantic
+> rescue). `AnswerObjectKind` / `AnswerStructure` are the toolkit's single canonical taxonomy,
+> defined in `prkit.core.domain` and re-exported from `prkit.semantics.schema`.
 
 ### The 9 structures
 

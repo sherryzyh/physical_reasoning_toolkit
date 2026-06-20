@@ -148,6 +148,10 @@ def _normalize_declaration_phrase(phrase: str) -> str:
     return _DECLARATION_PHRASE_SEPARATOR_RE.sub(" ", phrase.strip().lower())
 
 
+# Curated controlled vocabulary for the ``qualitative_label`` kind. Text the
+# deterministic normalizer cannot place in a structured kind is classified as
+# ``qualitative_label`` only when it matches one of these curated alias groups;
+# any other free-form prose is ``descriptive_text`` (see _classify_text_kind).
 _QUALITATIVE_ALIAS_GROUPS = {
     "constant_temperature": {
         "temperature stays constant",
@@ -492,13 +496,7 @@ def _normalize_atomic_text(
             provenance=provenance,
         )
 
-    canonical_text = _canonicalize_qualitative_text(raw_text)
-    return PhysicsAnswerSemantics(
-        canonical_text=canonical_text,
-        raw_text=raw_text,
-        object_kind=AnswerObjectKind.QUALITATIVE_LABEL,
-        provenance=provenance,
-    )
+    return _classify_text_kind(raw_text, provenance=provenance)
 
 
 def _normalize_atomic_with_subject_to(
@@ -1280,15 +1278,62 @@ def _strip_math_wrappers(text: str) -> str:
 def _canonicalize_boolean(text: str) -> bool | None:
     """Return the canonical boolean value encoded by ``text``."""
 
-    normalized = _normalize_phrase(text)
+    normalized = _normalize_phrase(text).strip(" .,;:!?")
     return _BOOLEAN_CANONICAL.get(normalized)
 
 
 def _canonicalize_sign_direction(text: str) -> str | None:
     """Return the canonical sign/direction label encoded by ``text``."""
 
-    normalized = _normalize_phrase(text)
+    # Tolerate trailing sentence punctuation (e.g. "to the right.") so a directional
+    # answer is detected as SIGN_DIRECTION instead of falling through to text.
+    normalized = _normalize_phrase(text).strip(" .,;:!?")
     return _SIGN_DIRECTION_CANONICAL.get(normalized)
+
+
+def _curated_qualitative_label(text: str) -> str | None:
+    """Return the curated controlled-vocabulary label for ``text``, else ``None``.
+
+    Only the phrases in :data:`_QUALITATIVE_ALIAS_GROUPS` are ``qualitative_label``;
+    any other free-form text is descriptive prose (``descriptive_text``).
+    """
+
+    normalized = _normalize_phrase(text)
+    for canonical, aliases in _QUALITATIVE_ALIAS_GROUPS.items():
+        if normalized == canonical or normalized in aliases:
+            return canonical
+    return None
+
+
+def _classify_text_kind(
+    raw_text: str,
+    *,
+    provenance: dict[str, Any],
+) -> PhysicsAnswerSemantics:
+    """Classify catch-all text as a curated qualitative label or free-form prose.
+
+    Curated controlled-vocabulary phrases become ``qualitative_label`` (canonicalized
+    through the alias groups). Everything else is ``descriptive_text``, judged later
+    by conservative normalized-text equality only — no semantic alias rescue. Richer
+    recall for free-form answers (semantic similarity / a gated model-judge) is a
+    deferred v2 lever, intentionally not added here (it would break determinism).
+    """
+
+    qualitative_label = _curated_qualitative_label(raw_text)
+    if qualitative_label is not None:
+        return PhysicsAnswerSemantics(
+            canonical_text=qualitative_label,
+            raw_text=raw_text,
+            object_kind=AnswerObjectKind.QUALITATIVE_LABEL,
+            provenance=provenance,
+        )
+
+    return PhysicsAnswerSemantics(
+        canonical_text=_normalize_phrase(raw_text),
+        raw_text=raw_text,
+        object_kind=AnswerObjectKind.DESCRIPTIVE_TEXT,
+        provenance=provenance,
+    )
 
 
 def _canonicalize_choice(
@@ -1306,16 +1351,6 @@ def _canonicalize_choice(
     if choice_space and upper in {choice.upper() for choice in choice_space}:
         return upper
     return None
-
-
-def _canonicalize_qualitative_text(text: str) -> str:
-    """Normalize qualitative text using the same alias groups as comparison."""
-
-    normalized = _normalize_phrase(text)
-    for canonical, aliases in _QUALITATIVE_ALIAS_GROUPS.items():
-        if normalized in aliases:
-            return canonical
-    return normalized
 
 
 def _try_expression_rescue(

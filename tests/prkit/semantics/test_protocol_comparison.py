@@ -4,7 +4,7 @@ import warnings
 
 import pytest
 
-from prkit.core.domain import PhysicsProblem
+from prkit.core.domain import AnswerObjectKind, PhysicsProblem
 from prkit.semantics import (
     ComparisonPolicyMode,
     PhysicsQuestionSemantics,
@@ -101,6 +101,39 @@ def test_protocol_number_record_comparison() -> None:
 
     assert result.equivalent is True
     assert result.comparison_mode == "number"
+
+
+def test_protocol_descriptive_text_accepts_surface_equivalent_prose() -> None:
+    pred = normalize_physics_answer(
+        "The object accelerates because the net force is nonzero."
+    )
+    ref = normalize_physics_answer(
+        "the object accelerates because the net force is nonzero"
+    )
+
+    assert pred.object_kind == AnswerObjectKind.DESCRIPTIVE_TEXT
+    assert ref.object_kind == AnswerObjectKind.DESCRIPTIVE_TEXT
+
+    result = compare_protocol_answers(pred, ref)
+
+    assert result.equivalent is True
+    assert result.comparison_mode == "descriptive_text"
+
+
+def test_protocol_descriptive_text_rejects_different_prose() -> None:
+    # Adversarial: conservative normalized-text equality must NOT treat two
+    # genuinely different explanations as equivalent (no semantic rescue).
+    pred = normalize_physics_answer(
+        "The object accelerates because the net force is nonzero."
+    )
+    ref = normalize_physics_answer(
+        "The object stays at rest because the forces are balanced."
+    )
+
+    result = compare_protocol_answers(pred, ref)
+
+    assert result.equivalent is False
+    assert result.comparison_mode == "descriptive_text"
 
 
 def test_protocol_quantity_comparison_converts_units() -> None:

@@ -93,10 +93,8 @@ hub backfills it in `DatasetHub.get_loader_info`).
 
 Re-routing an existing implementation **that is part of `prkit.api.__all__`** in a
 way that changes its observable behavior is a **major** change and must bump
-`API_VERSION`. This does **not** apply to already-deprecated classes outside the
-contract surface (e.g. `AccuracyEvaluator`, whose default was repointed at the
-`Scorer` contract — see *Current deprecations*); such changes are documented in the
-package release notes, not the contract version.
+`API_VERSION`. This does **not** apply to names **outside** the contract surface;
+changes to those are documented in the package release notes, not the contract version.
 
 ## Deprecation policy
 
@@ -105,19 +103,20 @@ package release notes, not the contract version.
 - Precedent: `BaseModelClient.chat()` / `chat_structured()` (see
   `core/model_clients/base.py`).
 
-### Current deprecations
+### Removed in 2.0
 
-- **`prkit.evaluation.comparator.*`**, **`BaseComparator`**, **`BaseEvaluator`**,
-  **`AccuracyEvaluator`** are deprecated in favor of
-  `prkit.scoring.SemanticsScorer` (the `Scorer` / `Verdict` contract), which wraps
-  the deterministic semantics comparison engine. Constructing any of them emits a
-  `DeprecationWarning`. They will be removed no earlier than the next minor release
-  — but not before downstream consumers migrate off the comparator stack.
-- **Behavior change (0.2.0):** `AccuracyEvaluator` now takes an injectable
-  `scorer=` and **defaults to `SemanticsScorer`** instead of `ExactMatchComparator`.
-  `evaluate()` shapes its legacy result dict from the returned `Verdict`
-  (`accuracy_score=score`, `comparison_result=equivalent`, plus `scorer_version` /
-  `comparison_mode` in `details`). Passing a `comparator=` still selects the old,
-  unchanged comparator path; passing both `scorer=` and `comparator=` raises.
-- `prkit.evaluation.llm_judge` (model-graded scoring) is **not** deprecated — it
-  is a distinct capability, not a duplicate of the deterministic scoring path.
+- **Taxonomy unification (MAJOR).** The legacy `AnswerCategory` enum was **removed**.
+  `Answer.answer_category: AnswerCategory` is now `Answer.answer_kind: AnswerObjectKind`,
+  and the canonical ontology enums `AnswerObjectKind` / `AnswerStructure` are promoted
+  onto `prkit.api.__all__`. Migration mapping for the old `AnswerCategory` members:
+  `NUMBER → number`, `PHYSICAL_QUANTITY → physical_quantity`, `FORMULA → expression`,
+  `EQUATION → relation`, `OPTION → choice`, `TEXT → descriptive_text` (a new 9th object
+  kind for free-form answers). Serialized answers now carry `"answer_kind"` instead of
+  `"answer_category"`.
+- **Deprecated scoring stack deleted.** `prkit.evaluation.comparator.*`,
+  `prkit.evaluation.evaluator.*` (`BaseComparator`, `ExactMatchComparator`,
+  `BaseEvaluator`, `AccuracyEvaluator`, …) were removed. Use
+  `prkit.scoring.SemanticsScorer` (the `Scorer` / `Verdict` contract), or the
+  light-import facade `prkit.verify`, for deterministic scoring.
+- `prkit.evaluation.llm_judge` (model-graded scoring) is **retained** — it is a distinct
+  capability, not a duplicate of the deterministic scoring path.

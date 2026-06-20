@@ -1,24 +1,29 @@
 """
 Answer models for physical reasoning evaluation.
 
-This module provides a unified Answer class that handles all answer categories
+This module provides a unified Answer class that handles all answer kinds
 through composition rather than inheritance.
 """
 
 from dataclasses import dataclass, field
 from typing import Any
 
-from .answer_category import AnswerCategory
+from .answer_kinds import AnswerObjectKind
 
 AnswerValue = int | float | str
 
 
 @dataclass
 class Answer:
-    """Unified answer class that handles all answer categories through composition."""
+    """Unified answer class that handles all answer kinds through composition.
 
-    value: AnswerValue  # NUMBER: number; PHYSICAL_QUANTITY/OPTION/EQUATION/FORMULA/TEXT: text
-    answer_category: AnswerCategory
+    ``answer_kind`` is the canonical :class:`AnswerObjectKind` (the toolkit-wide
+    answer ontology). This is a coarse ingestion-time tag; the physics-semantics
+    engine re-derives the precise ``object_kind`` independently when judging.
+    """
+
+    value: AnswerValue  # NUMBER: number; all other kinds: text
+    answer_kind: AnswerObjectKind
     unit: str | None = None  # Used only for PHYSICAL_QUANTITY (e.g., "m/s²", "N")
     metadata: dict[str, Any] = field(default_factory=dict)
 
@@ -28,16 +33,19 @@ class Answer:
             self.metadata = {}
 
     def validate(self) -> bool:
-        """Validate the answer based on its category."""
+        """Validate the answer based on its kind."""
         validators = {
-            AnswerCategory.NUMBER: self._validate_number,
-            AnswerCategory.EQUATION: self._validate_string,
-            AnswerCategory.PHYSICAL_QUANTITY: self._validate_string,
-            AnswerCategory.FORMULA: self._validate_string,
-            AnswerCategory.TEXT: self._validate_string,
-            AnswerCategory.OPTION: self._validate_option,
+            AnswerObjectKind.NUMBER: self._validate_number,
+            AnswerObjectKind.PHYSICAL_QUANTITY: self._validate_string,
+            AnswerObjectKind.EXPRESSION: self._validate_string,
+            AnswerObjectKind.RELATION: self._validate_string,
+            AnswerObjectKind.QUALITATIVE_LABEL: self._validate_string,
+            AnswerObjectKind.BOOLEAN: self._validate_string,
+            AnswerObjectKind.SIGN_DIRECTION: self._validate_string,
+            AnswerObjectKind.DESCRIPTIVE_TEXT: self._validate_string,
+            AnswerObjectKind.CHOICE: self._validate_option,
         }
-        validator = validators.get(self.answer_category)
+        validator = validators.get(self.answer_kind)
         return validator() if validator else False
 
     def _validate_number(self) -> bool:
@@ -55,41 +63,41 @@ class Answer:
     # Type checking methods
     def is_number(self) -> bool:
         """Check if this is a dimensionless number answer."""
-        return self.answer_category == AnswerCategory.NUMBER
+        return self.answer_kind == AnswerObjectKind.NUMBER
 
     def is_equation(self) -> bool:
-        """Check if this is an equation answer."""
-        return self.answer_category == AnswerCategory.EQUATION
+        """Check if this is an equation/relation answer."""
+        return self.answer_kind == AnswerObjectKind.RELATION
 
     def is_physical_quantity(self) -> bool:
         """Check if this is a physical quantity (number + units) answer."""
-        return self.answer_category == AnswerCategory.PHYSICAL_QUANTITY
+        return self.answer_kind == AnswerObjectKind.PHYSICAL_QUANTITY
 
     def is_formula(self) -> bool:
-        """Check if this is a formula answer."""
-        return self.answer_category == AnswerCategory.FORMULA
+        """Check if this is a formula/expression answer."""
+        return self.answer_kind == AnswerObjectKind.EXPRESSION
 
     def is_text(self) -> bool:
-        """Check if this is a text answer."""
-        return self.answer_category == AnswerCategory.TEXT
+        """Check if this is a free-form descriptive text answer."""
+        return self.answer_kind == AnswerObjectKind.DESCRIPTIVE_TEXT
 
     def is_option(self) -> bool:
-        """Check if this is an option answer."""
-        return self.answer_category == AnswerCategory.OPTION
+        """Check if this is an option/choice answer."""
+        return self.answer_kind == AnswerObjectKind.CHOICE
 
     def is_numerical(self) -> bool:
         """Check if this has a numeric component (number or physical_quantity)."""
-        return self.answer_category in (
-            AnswerCategory.NUMBER,
-            AnswerCategory.PHYSICAL_QUANTITY,
+        return self.answer_kind in (
+            AnswerObjectKind.NUMBER,
+            AnswerObjectKind.PHYSICAL_QUANTITY,
         )
 
     def is_symbolic(self) -> bool:
-        """Check if this is a symbolic/math answer (equation, formula, or physical_quantity)."""
-        return self.answer_category in (
-            AnswerCategory.EQUATION,
-            AnswerCategory.FORMULA,
-            AnswerCategory.PHYSICAL_QUANTITY,
+        """Check if this is a symbolic/math answer (relation, expression, or physical_quantity)."""
+        return self.answer_kind in (
+            AnswerObjectKind.RELATION,
+            AnswerObjectKind.EXPRESSION,
+            AnswerObjectKind.PHYSICAL_QUANTITY,
         )
 
     # Numerical-specific methods
@@ -223,13 +231,13 @@ class Answer:
 
     def __repr__(self) -> str:
         """Detailed string representation for debugging."""
-        return f"Answer(value={repr(self.value)}, answer_category={self.answer_category.value}, unit={repr(self.unit)})"
+        return f"Answer(value={repr(self.value)}, answer_kind={self.answer_kind.value}, unit={repr(self.unit)})"
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
         result: dict[str, Any] = {
             "value": self.value,
-            "answer_category": self.answer_category.value,
+            "answer_kind": self.answer_kind.value,
         }
         if self.unit:
             result["unit"] = self.unit
@@ -241,10 +249,10 @@ class Answer:
         """Get the answer value."""
         return self.value
 
-    def get_type(self) -> AnswerCategory:
-        """Get the answer category."""
-        return self.answer_category
+    def get_type(self) -> AnswerObjectKind:
+        """Get the answer kind."""
+        return self.answer_kind
 
     def get_type_name(self) -> str:
-        """Get the answer category as a string."""
-        return self.answer_category.value
+        """Get the answer kind as a string."""
+        return self.answer_kind.value

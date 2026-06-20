@@ -16,9 +16,9 @@ Every example below is a real engine result. Notation: `pred ≡ ref` means equi
 
 Each side is an `PhysicsAnswerSemantics` record (raw strings are coerced into one):
 
-- **`object_kind`** — one of 8 atomic kinds (`AnswerObjectKind`): `number`,
+- **`object_kind`** — one of 9 atomic kinds (`AnswerObjectKind`): `number`,
   `physical_quantity`, `expression`, `relation`, `qualitative_label`, `choice`,
-  `boolean`, `sign_direction`.
+  `boolean`, `sign_direction`, `descriptive_text`.
 - **`structure`** — one of 9 (`AnswerStructure`): `atomic`, `multi_part`, `tuple`,
   `set`, `interval`, `vector`, `matrix`, `tensor`, `piecewise`.
 - **`canonical_text`** + typed fields (`numeric_value`, `numeric_text`, `unit`,
@@ -307,6 +307,27 @@ under opposite conventions can denote the same direction (`negative` taking righ
 sign-convention lane (§8, `comparison_mode = sign_convention`), gated on the question fixing
 no convention. Absolute labels (`up`, `clockwise`, `into_page`) are **not** axis-relative —
 a flip there is a real disagreement and stays on the plain `sign_direction` path.
+
+### 7.6 `descriptive_text` — free-form prose
+
+For free-form descriptive ("explain/why") answers the criterion is **conservative
+normalized-text equality**: canonicalize the surface (math/text wrappers, case,
+punctuation, whitespace) via `canonicalize_descriptive_text`, then accept only if the
+two canonical forms are identical. There is **no** alias/synonym mapping — that is what
+separates `descriptive_text` (free prose) from `qualitative_label` (a curated controlled
+vocabulary). This honors the precision-first discipline (canonical form + one criterion,
+no rescue branches; §1, `METHODOLOGY.md` §3).
+
+```
+"net force is nonzero." ≡ "Net force is nonzero"   → descriptive_text (surface-equal)
+"forces are balanced"  ≢ "net force is nonzero"    → reject (genuinely different prose)
+```
+
+> Richer recall for free-form answers — semantic similarity or a gated model-judge — is a
+> deliberately deferred v2 research lever, **not** implemented here: it would break
+> determinism and introduce unprincipled thresholds. The deterministic normalizer routes
+> only genuinely free-form text to `descriptive_text`; curated controlled-vocabulary
+> phrases stay `qualitative_label`.
 
 ---
 

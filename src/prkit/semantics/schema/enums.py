@@ -1,5 +1,12 @@
 """Enumerations for physics answer semantics.
 
+The answer *ontology* enums (:class:`AnswerObjectKind`, :class:`AnswerStructure`)
+and the :class:`_StrEnum` base now live in :mod:`prkit.core.domain.answer_kinds`
+as the toolkit's canonical taxonomy; they are re-exported here so existing
+``from prkit.semantics.schema import AnswerObjectKind`` import sites keep working.
+The *judgement-policy* enums below (unit policy, comparison mode, bridge tier, …)
+stay in semantics — they are mechanism, not ontology.
+
 See ``../comparison/EQUIVALENCE.md`` for the detailed equivalence-judgement reference
 (object kinds, structures, per-kind criteria, bridges, examples) and
 ``../comparison/METHODOLOGY.md`` for the design discipline behind it.
@@ -7,41 +14,27 @@ See ``../comparison/EQUIVALENCE.md`` for the detailed equivalence-judgement refe
 
 from __future__ import annotations
 
-from enum import Enum
+# Re-exported canonical ontology enums (defined in prkit.core.domain). ``_StrEnum``
+# is the shared base for the judgement-policy enums defined in this module.
+from prkit.core.domain.answer_kinds import (
+    AnswerObjectKind,
+    AnswerStructure,
+    _StrEnum,
+)
 
-
-class _StrEnum(str, Enum):
-    """Enum subclass with string values and friendly ``str()`` output."""
-
-    def __str__(self) -> str:
-        return str(self.value)
-
-
-class AnswerObjectKind(_StrEnum):
-    """What kind of answer object the normalized final answer is."""
-
-    NUMBER = "number"
-    PHYSICAL_QUANTITY = "physical_quantity"
-    EXPRESSION = "expression"
-    RELATION = "relation"
-    QUALITATIVE_LABEL = "qualitative_label"
-    CHOICE = "choice"
-    BOOLEAN = "boolean"
-    SIGN_DIRECTION = "sign_direction"
-
-
-class AnswerStructure(_StrEnum):
-    """How the answer is structured."""
-
-    ATOMIC = "atomic"
-    MULTI_PART = "multi_part"
-    TUPLE = "tuple"
-    SET = "set"
-    INTERVAL = "interval"
-    VECTOR = "vector"
-    MATRIX = "matrix"
-    TENSOR = "tensor"
-    PIECEWISE = "piecewise"
+__all__ = [
+    # Re-exported canonical ontology (defined in prkit.core.domain)
+    "AnswerObjectKind",
+    "AnswerStructure",
+    # Judgement-policy enums (defined below)
+    "QuestionSymbolicMode",
+    "QuestionUnitPolicy",
+    "OrderingPolicy",
+    "ContractValidationStatus",
+    "ComparisonPolicyMode",
+    "BridgeTier",
+    "SymbolAssumption",
+]
 
 
 class QuestionSymbolicMode(_StrEnum):

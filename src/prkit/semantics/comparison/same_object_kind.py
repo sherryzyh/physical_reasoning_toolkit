@@ -21,6 +21,7 @@ from .semantics import (
     build_symbol_assumption_map,
     canonicalize_boolean_value,
     canonicalize_choice_label,
+    canonicalize_descriptive_text,
     canonicalize_qualitative_label,
     canonicalize_sign_direction,
     equality_like_rhs_expression_text,
@@ -88,6 +89,14 @@ def compare_same_object_kind(
             pred.canonical_text, ref.canonical_text
         )
         return AnswerComparison(matched, "qualitative_label")
+
+    if kind == AnswerObjectKind.DESCRIPTIVE_TEXT:
+        # Free-form prose: conservative normalized-text equality (surface canonical
+        # form, one criterion, no semantic rescue). See canonicalize_descriptive_text.
+        matched = canonicalize_descriptive_text(
+            pred.canonical_text
+        ) == canonicalize_descriptive_text(ref.canonical_text)
+        return AnswerComparison(matched, "descriptive_text")
 
     return AnswerComparison(False, "unsupported_object_kind", (kind.value,))
 

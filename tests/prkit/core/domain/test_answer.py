@@ -2,7 +2,7 @@
 Tests for Answer model.
 """
 
-from prkit.core.domain import Answer, AnswerCategory
+from prkit.core.domain import Answer, AnswerObjectKind
 
 
 class TestAnswer:
@@ -10,76 +10,78 @@ class TestAnswer:
 
     def test_answer_creation_numerical(self):
         """Test creating a numerical answer."""
-        answer = Answer(value=42.0, answer_category=AnswerCategory.NUMBER, unit="m/s")
+        answer = Answer(value=42.0, answer_kind=AnswerObjectKind.NUMBER, unit="m/s")
         assert answer.value == 42.0
-        assert answer.answer_category == AnswerCategory.NUMBER
+        assert answer.answer_kind == AnswerObjectKind.NUMBER
         assert answer.unit == "m/s"
         assert answer.metadata == {}
 
     def test_answer_creation_symbolic(self):
         """Test creating a symbolic answer."""
-        answer = Answer(value="x^2 + 1", answer_category=AnswerCategory.FORMULA)
+        answer = Answer(value="x^2 + 1", answer_kind=AnswerObjectKind.EXPRESSION)
         assert answer.value == "x^2 + 1"
-        assert answer.answer_category == AnswerCategory.FORMULA
+        assert answer.answer_kind == AnswerObjectKind.EXPRESSION
         assert answer.unit is None
 
     def test_answer_creation_textual(self):
         """Test creating a textual answer."""
-        answer = Answer(value="The answer is 42", answer_category=AnswerCategory.TEXT)
+        answer = Answer(
+            value="The answer is 42", answer_kind=AnswerObjectKind.DESCRIPTIVE_TEXT
+        )
         assert answer.value == "The answer is 42"
-        assert answer.answer_category == AnswerCategory.TEXT
+        assert answer.answer_kind == AnswerObjectKind.DESCRIPTIVE_TEXT
 
     def test_answer_creation_option(self):
         """Test creating an option answer."""
-        answer = Answer(value="A", answer_category=AnswerCategory.OPTION)
+        answer = Answer(value="A", answer_kind=AnswerObjectKind.CHOICE)
         assert answer.value == "A"
-        assert answer.answer_category == AnswerCategory.OPTION
+        assert answer.answer_kind == AnswerObjectKind.CHOICE
 
     def test_answer_metadata_initialization(self):
         """Test that metadata is initialized as empty dict."""
-        answer = Answer(value=1, answer_category=AnswerCategory.NUMBER)
+        answer = Answer(value=1, answer_kind=AnswerObjectKind.NUMBER)
         assert answer.metadata == {}
 
     def test_answer_metadata_custom(self):
         """Test custom metadata."""
         metadata = {"source": "test", "confidence": 0.9}
-        answer = Answer(
-            value=1, answer_category=AnswerCategory.NUMBER, metadata=metadata
-        )
+        answer = Answer(value=1, answer_kind=AnswerObjectKind.NUMBER, metadata=metadata)
         assert answer.metadata == metadata
 
     def test_answer_validation_numerical(self):
         """Test numerical answer validation."""
-        valid_answer = Answer(value=42.0, answer_category=AnswerCategory.NUMBER)
+        valid_answer = Answer(value=42.0, answer_kind=AnswerObjectKind.NUMBER)
         assert valid_answer.validate() is True
 
         invalid_answer = Answer(
-            value="not a number", answer_category=AnswerCategory.NUMBER
+            value="not a number", answer_kind=AnswerObjectKind.NUMBER
         )
         assert invalid_answer.validate() is False
 
     def test_answer_validation_symbolic(self):
         """Test symbolic answer validation."""
-        valid_answer = Answer(value="x^2", answer_category=AnswerCategory.FORMULA)
+        valid_answer = Answer(value="x^2", answer_kind=AnswerObjectKind.EXPRESSION)
         assert valid_answer.validate() is True
 
-        invalid_answer = Answer(value="", answer_category=AnswerCategory.FORMULA)
+        invalid_answer = Answer(value="", answer_kind=AnswerObjectKind.EXPRESSION)
         assert invalid_answer.validate() is False
 
     def test_answer_validation_textual(self):
         """Test textual answer validation."""
-        valid_answer = Answer(value="Some text", answer_category=AnswerCategory.TEXT)
+        valid_answer = Answer(
+            value="Some text", answer_kind=AnswerObjectKind.DESCRIPTIVE_TEXT
+        )
         assert valid_answer.validate() is True
 
-        invalid_answer = Answer(value="", answer_category=AnswerCategory.TEXT)
+        invalid_answer = Answer(value="", answer_kind=AnswerObjectKind.DESCRIPTIVE_TEXT)
         assert invalid_answer.validate() is False
 
     def test_answer_category_checking(self):
         """Test answer type checking methods."""
-        numerical = Answer(value=1, answer_category=AnswerCategory.NUMBER)
-        symbolic = Answer(value="x", answer_category=AnswerCategory.FORMULA)
-        textual = Answer(value="text", answer_category=AnswerCategory.TEXT)
-        option = Answer(value="A", answer_category=AnswerCategory.OPTION)
+        numerical = Answer(value=1, answer_kind=AnswerObjectKind.NUMBER)
+        symbolic = Answer(value="x", answer_kind=AnswerObjectKind.EXPRESSION)
+        textual = Answer(value="text", answer_kind=AnswerObjectKind.DESCRIPTIVE_TEXT)
+        option = Answer(value="A", answer_kind=AnswerObjectKind.CHOICE)
 
         assert numerical.is_numerical() is True
         assert numerical.is_symbolic() is False
@@ -89,18 +91,18 @@ class TestAnswer:
 
     def test_answer_numerical_methods(self):
         """Test numerical-specific methods."""
-        answer = Answer(value=42, answer_category=AnswerCategory.NUMBER, unit="m/s")
+        answer = Answer(value=42, answer_kind=AnswerObjectKind.NUMBER, unit="m/s")
         assert answer.get_unit() == "m/s"
         assert answer.has_unit() is True
         assert answer.is_integer() is True
         assert answer.is_positive() is True
 
-        negative_answer = Answer(value=-5, answer_category=AnswerCategory.NUMBER)
+        negative_answer = Answer(value=-5, answer_kind=AnswerObjectKind.NUMBER)
         assert negative_answer.is_negative() is True
 
     def test_answer_symbolic_methods(self):
         """Test symbolic-specific methods."""
-        latex_answer = Answer(value="$x^2$", answer_category=AnswerCategory.FORMULA)
+        latex_answer = Answer(value="$x^2$", answer_kind=AnswerObjectKind.EXPRESSION)
         assert latex_answer.is_latex() is True
 
         clean = latex_answer.get_clean_expression()
@@ -109,7 +111,7 @@ class TestAnswer:
     def test_answer_textual_methods(self):
         """Test textual-specific methods."""
         answer = Answer(
-            value="This is a test answer", answer_category=AnswerCategory.TEXT
+            value="This is a test answer", answer_kind=AnswerObjectKind.DESCRIPTIVE_TEXT
         )
         assert answer.word_count() == 5
         assert answer.char_count() == 21  # "This is a test answer" = 21 chars
@@ -119,34 +121,34 @@ class TestAnswer:
 
     def test_answer_option_methods(self):
         """Test option-specific methods."""
-        letter_answer = Answer(value="A", answer_category=AnswerCategory.OPTION)
+        letter_answer = Answer(value="A", answer_kind=AnswerObjectKind.CHOICE)
         assert letter_answer.is_letter_option() is True
         assert letter_answer.get_option_index() == 0
 
-        numeric_answer = Answer(value="1", answer_category=AnswerCategory.OPTION)
+        numeric_answer = Answer(value="1", answer_kind=AnswerObjectKind.CHOICE)
         assert numeric_answer.is_numeric_option() is True
 
-        yes_answer = Answer(value="YES", answer_category=AnswerCategory.OPTION)
+        yes_answer = Answer(value="YES", answer_kind=AnswerObjectKind.CHOICE)
         assert yes_answer.is_yes_no() is True
 
     def test_answer_to_dict(self):
         """Test answer serialization to dictionary."""
         answer = Answer(
             value=42,
-            answer_category=AnswerCategory.NUMBER,
+            answer_kind=AnswerObjectKind.NUMBER,
             unit="m/s",
             metadata={"test": True},
         )
         result = answer.to_dict()
 
         assert result["value"] == 42
-        assert result["answer_category"] == "number"
+        assert result["answer_kind"] == "number"
         assert result["unit"] == "m/s"
         assert result["metadata"]["test"] is True
 
     def test_answer_str_repr(self):
         """Test string representations."""
-        answer = Answer(value=42, answer_category=AnswerCategory.NUMBER, unit="m/s")
+        answer = Answer(value=42, answer_kind=AnswerObjectKind.NUMBER, unit="m/s")
         assert "42" in str(answer)
         assert "m/s" in str(answer)
 
@@ -155,22 +157,22 @@ class TestAnswer:
 
     def test_answer_validation_numerical_bool_false(self):
         """Test that boolean False is not valid for numerical."""
-        answer = Answer(value=False, answer_category=AnswerCategory.NUMBER)
+        answer = Answer(value=False, answer_kind=AnswerObjectKind.NUMBER)
         assert answer.validate() is False
 
     def test_answer_validation_numerical_bool_true(self):
         """Test that boolean True is not valid for numerical."""
-        answer = Answer(value=True, answer_category=AnswerCategory.NUMBER)
+        answer = Answer(value=True, answer_kind=AnswerObjectKind.NUMBER)
         assert answer.validate() is False
 
     def test_answer_validation_symbolic_whitespace_only(self):
         """Test that whitespace-only string is invalid for symbolic."""
-        answer = Answer(value="   \n\t  ", answer_category=AnswerCategory.FORMULA)
+        answer = Answer(value="   \n\t  ", answer_kind=AnswerObjectKind.EXPRESSION)
         assert answer.validate() is False
 
     def test_answer_numerical_zero(self):
         """Test numerical answer with zero value."""
-        answer = Answer(value=0, answer_category=AnswerCategory.NUMBER)
+        answer = Answer(value=0, answer_kind=AnswerObjectKind.NUMBER)
         assert answer.is_numerical() is True
         assert answer.is_positive() is False
         assert answer.is_negative() is False
@@ -178,47 +180,50 @@ class TestAnswer:
 
     def test_answer_numerical_float_integer(self):
         """Test numerical answer with float that is integer."""
-        answer = Answer(value=42.0, answer_category=AnswerCategory.NUMBER)
+        answer = Answer(value=42.0, answer_kind=AnswerObjectKind.NUMBER)
         assert answer.is_integer() is True
 
     def test_answer_symbolic_latex_double_dollar(self):
         """Test symbolic answer with double dollar LaTeX."""
-        answer = Answer(value="$$x^2 + y^2$$", answer_category=AnswerCategory.FORMULA)
+        answer = Answer(value="$$x^2 + y^2$$", answer_kind=AnswerObjectKind.EXPRESSION)
         clean = answer.get_clean_expression()
         assert "$$" not in clean or clean == "$$x^2 + y^2$$"
 
     def test_answer_symbolic_latex_single_dollar(self):
         """Test symbolic answer with single dollar LaTeX."""
-        answer = Answer(value="$x^2$", answer_category=AnswerCategory.FORMULA)
+        answer = Answer(value="$x^2$", answer_kind=AnswerObjectKind.EXPRESSION)
         clean = answer.get_clean_expression()
         assert "$" not in clean or clean == "$x^2$"
 
     def test_answer_symbolic_backslash_latex(self):
         """Test symbolic answer with backslash LaTeX."""
-        answer = Answer(value="\\frac{1}{2}", answer_category=AnswerCategory.FORMULA)
+        answer = Answer(value="\\frac{1}{2}", answer_kind=AnswerObjectKind.EXPRESSION)
         assert answer.is_latex() is True
 
     def test_answer_textual_word_count_empty(self):
         """Test word count for empty textual answer."""
-        answer = Answer(value="", answer_category=AnswerCategory.TEXT)
+        answer = Answer(value="", answer_kind=AnswerObjectKind.DESCRIPTIVE_TEXT)
         assert answer.word_count() == 0
 
     def test_answer_textual_word_count_multiple_spaces(self):
         """Test word count with multiple spaces."""
         answer = Answer(
-            value="word1    word2   word3", answer_category=AnswerCategory.TEXT
+            value="word1    word2   word3",
+            answer_kind=AnswerObjectKind.DESCRIPTIVE_TEXT,
         )
         assert answer.word_count() == 3
 
     def test_answer_textual_is_long(self):
         """Test is_long method for textual answer."""
         long_text = " ".join(["word"] * 60)  # 60 words
-        answer = Answer(value=long_text, answer_category=AnswerCategory.TEXT)
+        answer = Answer(value=long_text, answer_kind=AnswerObjectKind.DESCRIPTIVE_TEXT)
         assert answer.is_long() is True
 
     def test_answer_textual_contains_keywords_case_insensitive(self):
         """Test contains_keywords is case insensitive."""
-        answer = Answer(value="This is a TEST", answer_category=AnswerCategory.TEXT)
+        answer = Answer(
+            value="This is a TEST", answer_kind=AnswerObjectKind.DESCRIPTIVE_TEXT
+        )
         assert answer.contains_keywords(["test"]) is True
         assert answer.contains_keywords(["TEST"]) is True
         assert answer.contains_keywords(["Test"]) is True
@@ -226,70 +231,74 @@ class TestAnswer:
     def test_answer_option_all_letters(self):
         """Test option methods for all letter options."""
         for letter in ["A", "B", "C", "D", "E"]:
-            answer = Answer(value=letter, answer_category=AnswerCategory.OPTION)
+            answer = Answer(value=letter, answer_kind=AnswerObjectKind.CHOICE)
             assert answer.is_letter_option() is True
             assert answer.get_option_index() is not None
 
     def test_answer_option_numeric_strings(self):
         """Test option methods for numeric option strings."""
         for num_str in ["1", "2", "3", "4", "5"]:
-            answer = Answer(value=num_str, answer_category=AnswerCategory.OPTION)
+            answer = Answer(value=num_str, answer_kind=AnswerObjectKind.CHOICE)
             assert answer.is_numeric_option() is True
             assert answer.get_option_index() is not None
 
     def test_answer_option_invalid_letter(self):
         """Test option with invalid letter."""
-        answer = Answer(value="F", answer_category=AnswerCategory.OPTION)
+        answer = Answer(value="F", answer_kind=AnswerObjectKind.CHOICE)
         assert answer.is_letter_option() is False
 
     def test_answer_option_yes_no_variants(self):
         """Test yes/no option variants."""
         for variant in ["YES", "yes", "Yes", "NO", "no", "No"]:
-            answer = Answer(value=variant, answer_category=AnswerCategory.OPTION)
+            answer = Answer(value=variant, answer_kind=AnswerObjectKind.CHOICE)
             assert answer.is_yes_no() is True
 
     def test_answer_option_true_false_variants(self):
         """Test true/false option variants."""
         for variant in ["TRUE", "true", "True", "FALSE", "false", "False"]:
-            answer = Answer(value=variant, answer_category=AnswerCategory.OPTION)
+            answer = Answer(value=variant, answer_kind=AnswerObjectKind.CHOICE)
             assert answer.is_true_false() is True
 
     def test_answer_to_dict_without_unit(self):
         """Test to_dict without unit."""
-        answer = Answer(value="test", answer_category=AnswerCategory.TEXT)
+        answer = Answer(value="test", answer_kind=AnswerObjectKind.DESCRIPTIVE_TEXT)
         result = answer.to_dict()
         assert "unit" not in result
 
     def test_answer_to_dict_without_metadata(self):
         """Test to_dict with empty metadata."""
-        answer = Answer(value=1, answer_category=AnswerCategory.NUMBER)
+        answer = Answer(value=1, answer_kind=AnswerObjectKind.NUMBER)
         answer.metadata = {}
         result = answer.to_dict()
         # Metadata may or may not be included if empty
         assert "value" in result
-        assert "answer_category" in result
+        assert "answer_kind" in result
 
     def test_answer_get_value(self):
         """Test get_value method."""
-        answer = Answer(value=42, answer_category=AnswerCategory.NUMBER)
+        answer = Answer(value=42, answer_kind=AnswerObjectKind.NUMBER)
         assert answer.get_value() == 42
 
     def test_answer_get_type(self):
         """Test get_type method."""
-        answer = Answer(value="test", answer_category=AnswerCategory.TEXT)
-        assert answer.get_type() == AnswerCategory.TEXT
+        answer = Answer(value="test", answer_kind=AnswerObjectKind.DESCRIPTIVE_TEXT)
+        assert answer.get_type() == AnswerObjectKind.DESCRIPTIVE_TEXT
 
     def test_answer_get_type_name(self):
         """Test get_type_name method."""
-        answer = Answer(value="test", answer_category=AnswerCategory.TEXT)
-        assert answer.get_type_name() == "text"
+        answer = Answer(value="test", answer_kind=AnswerObjectKind.DESCRIPTIVE_TEXT)
+        assert answer.get_type_name() == "descriptive_text"
 
     def test_answer_additional_false_paths_and_option_validation(self):
-        text_answer = Answer(value="text", answer_category=AnswerCategory.TEXT)
-        option_answer = Answer(value=" ", answer_category=AnswerCategory.OPTION)
-        numeric_answer = Answer(value=3.5, answer_category=AnswerCategory.NUMBER)
-        symbolic_answer = Answer(value="plain", answer_category=AnswerCategory.TEXT)
-        invalid_option = Answer(value="Z", answer_category=AnswerCategory.OPTION)
+        text_answer = Answer(
+            value="text", answer_kind=AnswerObjectKind.DESCRIPTIVE_TEXT
+        )
+        option_answer = Answer(value=" ", answer_kind=AnswerObjectKind.CHOICE)
+        numeric_answer = Answer(value=3.5, answer_kind=AnswerObjectKind.NUMBER)
+        symbolic_answer = Answer(
+            value="plain", answer_kind=AnswerObjectKind.DESCRIPTIVE_TEXT
+        )
+        invalid_option = Answer(value="Z", answer_kind=AnswerObjectKind.CHOICE)
 
         assert option_answer.validate() is False
         assert text_answer.is_number() is False
@@ -306,10 +315,10 @@ class TestAnswer:
 
     def test_answer_str_without_unit(self):
         """Test __str__ without unit."""
-        answer = Answer(value=42, answer_category=AnswerCategory.NUMBER)
+        answer = Answer(value=42, answer_kind=AnswerObjectKind.NUMBER)
         assert str(answer) == "42"
 
     def test_answer_str_non_numerical(self):
         """Test __str__ for non-numerical answer."""
-        answer = Answer(value="test", answer_category=AnswerCategory.TEXT)
+        answer = Answer(value="test", answer_kind=AnswerObjectKind.DESCRIPTIVE_TEXT)
         assert str(answer) == "test"

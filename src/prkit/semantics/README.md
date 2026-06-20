@@ -192,6 +192,7 @@ AnswerObjectKind:
   choice
   boolean
   sign_direction
+  descriptive_text
 ```
 
 The answer-structure enum is:
@@ -291,6 +292,7 @@ PASEC-Base covers common final-answer forms in physics:
 - global side conditions using `subject_to`
 - multiple-choice labels and bounded discrete outcomes
 - booleans, signs, directions, and curated qualitative labels
+- free-form descriptive ("explain/why") answers, judged by conservative normalized-text equality
 - question-scoped symbol aliases and notation variants
 - coordinate-frame and sign-convention metadata
 
@@ -303,7 +305,7 @@ The smallest reproducible path is deterministic question inference, answer
 normalization, contract construction, and evaluation.
 
 ```python
-from prkit.core.domain import Answer, AnswerCategory, PhysicsProblem
+from prkit.core.domain import Answer, AnswerObjectKind, PhysicsProblem
 from prkit.semantics import (
     ComparisonPolicyMode,
     build_evaluation_contract,
@@ -315,7 +317,7 @@ from prkit.semantics import (
 problem = PhysicsProblem(
     problem_id="demo-speed",
     question="Find the speed in m/s.",
-    answer=Answer(value="18", unit="km/h", answer_category=AnswerCategory.PHYSICAL_QUANTITY),
+    answer=Answer(value="18", unit="km/h", answer_kind=AnswerObjectKind.PHYSICAL_QUANTITY),
 )
 
 question_semantics = infer_reference_question_semantics(problem)

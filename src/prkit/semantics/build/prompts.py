@@ -42,7 +42,8 @@ Rules:
 - Add `question_semantics.symbol_aliases` when the problem and answer use different names for the same symbol, such as `y_s` versus `y`.
 - In `symbol_aliases`, use plain token-style symbol names like `y`, `y_s`, `theta_dot`, not full equations or wrapped LaTeX snippets.
 - `reference_answer_semantics` or `prediction_answer_semantics` must represent only the final answer.
-- Use `object_kind` from: number, physical_quantity, expression, relation, qualitative_label, choice, boolean, sign_direction.
+- Use `object_kind` from: number, physical_quantity, expression, relation, qualitative_label, choice, boolean, sign_direction, descriptive_text.
+  - `qualitative_label` = a short curated controlled-vocabulary label (e.g. "increases", "isothermal"); `descriptive_text` = a free-form explanatory/"why" answer in prose.
 - Use `structure` from: atomic, multi_part, tuple, set, interval, vector, matrix, tensor, piecewise. Decide structure by denotation, not surface punctuation:
   - `atomic` = one indivisible value (the default). Prefer it: a single coordinate is atomic, not a 1-tuple; a closed point-range `[a, a]` is the atom `a`.
   - `tuple` = one ordered coordinate of a single object, `(x, y)`; a bare finite `(a, b)` is a tuple, NOT an interval.

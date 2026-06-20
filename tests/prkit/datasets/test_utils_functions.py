@@ -4,7 +4,7 @@ Tests for prkit.datasets/utils.py utility functions.
 
 import json
 
-from prkit.core.domain import Answer, AnswerCategory, PhysicalDataset, PhysicsProblem
+from prkit.core.domain import Answer, AnswerObjectKind, PhysicalDataset, PhysicsProblem
 from prkit.datasets import utils
 
 
@@ -130,7 +130,7 @@ class TestFilterByKeywords:
             problem_id="keyword_test",
             question="What is the speed of light?",
             answer=Answer(
-                value=3e8, answer_category=AnswerCategory.PHYSICAL_QUANTITY, unit="m/s"
+                value=3e8, answer_kind=AnswerObjectKind.PHYSICAL_QUANTITY, unit="m/s"
             ),
         )
         all_problems = list(sample_problems_list) + [problem_with_keyword]
@@ -147,7 +147,7 @@ class TestFilterByKeywords:
             problem_id="test_case",
             question="What is the SPEED of light?",
             answer=Answer(
-                value=3e8, answer_category=AnswerCategory.PHYSICAL_QUANTITY, unit="m/s"
+                value=3e8, answer_kind=AnswerObjectKind.PHYSICAL_QUANTITY, unit="m/s"
             ),
         )
         all_problems = list(sample_problems_list) + [problem]
@@ -165,7 +165,7 @@ class TestFilterByKeywords:
             problem_id="test_case",
             question="What is the speed of light?",
             answer=Answer(
-                value=3e8, answer_category=AnswerCategory.PHYSICAL_QUANTITY, unit="m/s"
+                value=3e8, answer_kind=AnswerObjectKind.PHYSICAL_QUANTITY, unit="m/s"
             ),
         )
         all_problems = list(sample_problems_list) + [problem]
@@ -184,7 +184,7 @@ class TestFilterByKeywords:
             problem_id="test_multi",
             question="Test question",
             solution="The answer involves force calculation",
-            answer=Answer(value=1, answer_category=AnswerCategory.NUMBER),
+            answer=Answer(value=1, answer_kind=AnswerObjectKind.NUMBER),
         )
         all_problems = list(sample_problems_list) + [problem]
         dataset = PhysicalDataset(problems=all_problems)

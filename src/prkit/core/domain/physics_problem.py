@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Any
 
 from ..logging_config import PRKitLogger
 from .answer import Answer, AnswerValue
-from .answer_category import AnswerCategory
+from .answer_kinds import AnswerObjectKind
 from .physics_domain import PhysicsDomain
 
 # Get logger for this module
@@ -324,7 +324,7 @@ class PhysicsProblem:
             "image_path",
             "options",
             "correct_option",
-            "answer_category",
+            "answer_kind",
         ]
 
         core_data: dict[str, Any] = {}
@@ -339,22 +339,22 @@ class PhysicsProblem:
                         answer_value: AnswerValue = raw_answer_value
                     else:
                         answer_value = str(raw_answer_value)
-                    answer_category_str = value.get("answer_category")
+                    answer_kind_str = value.get("answer_kind")
                     answer_unit = value.get("unit")
                     answer_metadata = value.get("metadata", {})
 
-                    if answer_category_str:
+                    if answer_kind_str:
                         try:
-                            answer_category = AnswerCategory(answer_category_str)
+                            answer_kind = AnswerObjectKind(answer_kind_str)
                         except ValueError:
-                            answer_category = AnswerCategory.TEXT
+                            answer_kind = AnswerObjectKind.DESCRIPTIVE_TEXT
                     else:
-                        answer_category = AnswerCategory.TEXT
+                        answer_kind = AnswerObjectKind.DESCRIPTIVE_TEXT
 
                     # Create Answer object
                     core_data[key] = Answer(
                         value=answer_value,
-                        answer_category=answer_category,
+                        answer_kind=answer_kind,
                         unit=answer_unit,
                         metadata=answer_metadata,
                     )

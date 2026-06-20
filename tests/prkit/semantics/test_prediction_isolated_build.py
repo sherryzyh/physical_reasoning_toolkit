@@ -17,7 +17,7 @@ from typing import Any
 
 import pytest
 
-from prkit.core.domain import Answer, AnswerCategory, PhysicsProblem
+from prkit.core.domain import Answer, PhysicsProblem
 from prkit.core.model_clients import BaseModelClient
 from prkit.semantics.build.calls import (
     build_extracted_prediction_semantics_artifact,
@@ -39,7 +39,9 @@ def _problem() -> PhysicsProblem:
     return PhysicsProblem(
         problem_id="pred-iso-1",
         question="Find the speed v.",
-        answer=Answer(value="sqrt(E/m), m > 0", answer_category=AnswerCategory.FORMULA),
+        answer=Answer(
+            value="sqrt(E/m), m > 0", answer_kind=AnswerObjectKind.EXPRESSION
+        ),
         solution="Use conservation of energy.",
         domain="mechanics",
         additional_fields={

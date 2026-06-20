@@ -20,8 +20,9 @@ Subpackages:
     - :mod:`prkit.scoring` — reference scorers (``SemanticsScorer``).
     - :mod:`prkit.testing` — conformance suite (``check_dataset``/``check_scorer``/…).
     - :mod:`prkit.semantics` — physics-aware answer normalization & comparison.
-    - :mod:`prkit.evaluation` — comparators, evaluators, LLM judge (deprecated;
-      superseded by :mod:`prkit.scoring`).
+    - :mod:`prkit.evaluation` — model-graded LLM judge (``llm_judge``). The legacy
+      comparator/evaluator stacks were removed in ``API_VERSION`` 2.0; use
+      :mod:`prkit.scoring` for deterministic scoring.
     - :mod:`prkit.annotation` — human annotation tasks (gold, correctness).
 """
 
@@ -33,7 +34,13 @@ except PackageNotFoundError:  # running from a source tree without an installed 
     __version__ = "0.0.0.dev0"
 
 from .core import PRKitLogger
-from .core.domain import AnswerCategory, PhysicalDataset, PhysicsDomain, PhysicsProblem
+from .core.domain import (
+    AnswerObjectKind,
+    AnswerStructure,
+    PhysicalDataset,
+    PhysicsDomain,
+    PhysicsProblem,
+)
 
 __all__ = [
     "__version__",
@@ -41,5 +48,6 @@ __all__ = [
     "PhysicsProblem",
     "PhysicalDataset",
     "PhysicsDomain",
-    "AnswerCategory",
+    "AnswerObjectKind",
+    "AnswerStructure",
 ]

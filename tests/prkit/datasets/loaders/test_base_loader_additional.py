@@ -1,4 +1,4 @@
-from prkit.core.domain import AnswerCategory, PhysicalDataset, PhysicsDomain
+from prkit.core.domain import AnswerObjectKind, PhysicalDataset, PhysicsDomain
 from prkit.datasets.loaders.base_loader import (
     BaseDatasetLoader,
     detect_answer_category,
@@ -32,9 +32,12 @@ def test_base_loader_numeric_and_math_detection():
     assert is_pure_number("3/4") is True
     assert is_pure_number("not-a-number") is False
     assert is_mathematical_expression("x + y") is True
-    assert detect_answer_category("9.8") == AnswerCategory.NUMBER
-    assert detect_answer_category("F = ma") == AnswerCategory.FORMULA
-    assert detect_answer_category("descriptive answer") == AnswerCategory.TEXT
+    assert detect_answer_category("9.8") == AnswerObjectKind.NUMBER
+    assert detect_answer_category("F = ma") == AnswerObjectKind.EXPRESSION
+    assert (
+        detect_answer_category("descriptive answer")
+        == AnswerObjectKind.DESCRIPTIVE_TEXT
+    )
 
 
 def test_base_loader_defaults_validation_and_metadata(tmp_path, monkeypatch):
@@ -82,7 +85,7 @@ def test_base_loader_creates_problem_and_loads_images(tmp_path):
     )
 
     assert problem.problem_id == "p1"
-    assert problem.answer.answer_category == AnswerCategory.NUMBER
+    assert problem.answer.answer_kind == AnswerObjectKind.NUMBER
     assert problem.image_path == [str(image_file.resolve())]
     assert problem.additional_fields["extra"] == "meta"
     assert loader._determine_problem_type({"options": ["A", "B"]}) == "MC"
@@ -102,8 +105,8 @@ def test_base_loader_handles_invalid_image_inputs_and_answer_types():
     number_answer = loader._create_answer_from_raw(
         {"answer": {"value": "5", "unit": "m"}, "answer_category": "physical_quantity"}
     )
-    assert number_answer.answer_category == AnswerCategory.PHYSICAL_QUANTITY
+    assert number_answer.answer_kind == AnswerObjectKind.PHYSICAL_QUANTITY
     assert number_answer.unit == "m"
 
     fallback_answer = loader._create_answer_from_raw({"answer": "F = ma"})
-    assert fallback_answer.answer_category == AnswerCategory.FORMULA
+    assert fallback_answer.answer_kind == AnswerObjectKind.EXPRESSION

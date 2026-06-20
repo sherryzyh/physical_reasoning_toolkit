@@ -6,7 +6,7 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
-from prkit.core.domain import Answer, AnswerCategory, PhysicsProblem
+from prkit.core.domain import Answer, AnswerObjectKind, PhysicsProblem
 from prkit.core.model_clients import BaseModelClient
 from prkit.core.model_clients.structured_output import StructuredOutputPlan
 from prkit.semantics.build.calls import (
@@ -71,7 +71,7 @@ def _build_problem() -> PhysicsProblem:
         answer=Answer(
             value="5",
             unit="N",
-            answer_category=AnswerCategory.PHYSICAL_QUANTITY,
+            answer_kind=AnswerObjectKind.PHYSICAL_QUANTITY,
         ),
         solution="Use Newton's second law.",
         domain="mechanics",
@@ -115,7 +115,7 @@ def test_build_prediction_semantics_prompt_uses_answer_blind_question_draft() ->
     problem = PhysicsProblem(
         problem_id="prob-gold-split",
         question="Give both values: the displacement value and the time value.",
-        answer=Answer(value="F = ma", answer_category=AnswerCategory.EQUATION),
+        answer=Answer(value="F = ma", answer_kind=AnswerObjectKind.RELATION),
         additional_fields={
             "answer_parts": [
                 {"part_label": "speed_slot", "raw_text": "1 m"},

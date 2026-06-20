@@ -10,7 +10,7 @@ from typing import Any
 from prkit.core import PRKitLogger
 from prkit.core.domain import PhysicalDataset, PhysicsProblem
 from prkit.core.domain.answer import Answer
-from prkit.core.domain.answer_category import AnswerCategory
+from prkit.core.domain.answer_kinds import AnswerObjectKind
 
 # Try to import PIL/Pillow for image loading
 PILImageModule: Any | None
@@ -59,14 +59,17 @@ def raw_answer_to_text(value: Any) -> str:
     return str(value).strip()
 
 
-def detect_answer_category(value: str) -> AnswerCategory:
+def detect_answer_category(value: str) -> AnswerObjectKind:
     """
-    Infer answer category from a string value when dataset does not specify it.
+    Infer the coarse answer kind from a string value when a dataset does not specify it.
+
+    This is an ingestion-time hint only; the physics-semantics engine re-derives the
+    precise ``object_kind`` independently when judging.
 
     Strategy:
     1. Try to parse as pure number first -> NUMBER
-    2. Check for mathematical expression patterns -> FORMULA
-    3. Fall back to TEXT if unclear
+    2. Check for mathematical expression patterns -> EXPRESSION
+    3. Fall back to DESCRIPTIVE_TEXT if unclear
     """
     value = str(value).strip()
 
@@ -79,14 +82,14 @@ def detect_answer_category(value: str) -> AnswerCategory:
 
     # Step 1: Check if it's a pure number (including scientific notation)
     if is_pure_number(value):
-        return AnswerCategory.NUMBER
+        return AnswerObjectKind.NUMBER
 
     # Step 2: Check if it's a mathematical expression
     if is_mathematical_expression(value):
-        return AnswerCategory.FORMULA
+        return AnswerObjectKind.EXPRESSION
 
-    # Step 3: Default to text
-    return AnswerCategory.TEXT
+    # Step 3: Default to free-form descriptive text
+    return AnswerObjectKind.DESCRIPTIVE_TEXT
 
 
 def is_pure_number(value: str) -> bool:
@@ -583,9 +586,12 @@ class BaseDatasetLoader(ABC):
         if "MC" in problem_type:
             return Answer(
                 value=raw_answer_to_text(answer),
-                answer_category=AnswerCategory.OPTION,
+                answer_kind=AnswerObjectKind.CHOICE,
             )
 
+        # The metadata tag is a coarse ingestion hint; accept both the canonical
+        # AnswerObjectKind spellings and legacy dataset tags ("formula"/"equation"/
+        # "text"/"option"). The semantics engine re-derives object_kind anyway.
         if answer_category in ("number", "physical_quantity"):
             if isinstance(answer, dict):
                 value = raw_answer_to_text(answer.get("value"))
@@ -601,30 +607,35 @@ class BaseDatasetLoader(ABC):
             value = re.sub(r"\$\$(.*?)\$\$", r"\1", value)
             value = re.sub(r"\$([^$]+)\$", r"\1", value)
 
-            category = (
-                AnswerCategory.PHYSICAL_QUANTITY if unit else AnswerCategory.NUMBER
+            kind = (
+                AnswerObjectKind.PHYSICAL_QUANTITY if unit else AnswerObjectKind.NUMBER
             )
-            return Answer(value=value, answer_category=category, unit=unit or None)
-        elif answer_category in ("formula", "equation"):
+            return Answer(value=value, answer_kind=kind, unit=unit or None)
+        elif answer_category in ("expression", "formula"):
             return Answer(
                 value=raw_answer_to_text(answer),
-                answer_category=AnswerCategory.FORMULA,
+                answer_kind=AnswerObjectKind.EXPRESSION,
             )
-        elif answer_category == "text":
+        elif answer_category in ("relation", "equation"):
             return Answer(
                 value=raw_answer_to_text(answer),
-                answer_category=AnswerCategory.TEXT,
+                answer_kind=AnswerObjectKind.RELATION,
             )
-        elif answer_category == "option":
+        elif answer_category in ("descriptive_text", "text"):
             return Answer(
                 value=raw_answer_to_text(answer),
-                answer_category=AnswerCategory.OPTION,
+                answer_kind=AnswerObjectKind.DESCRIPTIVE_TEXT,
+            )
+        elif answer_category in ("choice", "option"):
+            return Answer(
+                value=raw_answer_to_text(answer),
+                answer_kind=AnswerObjectKind.CHOICE,
             )
         else:
-            # fallback to auto-detect when answer_category not specified
+            # fallback to auto-detect when answer kind not specified
             answer_text = raw_answer_to_text(answer)
             detected = detect_answer_category(answer_text)
-            return Answer(value=answer_text, answer_category=detected)
+            return Answer(value=answer_text, answer_kind=detected)
 
     def create_physics_problem(
         self,

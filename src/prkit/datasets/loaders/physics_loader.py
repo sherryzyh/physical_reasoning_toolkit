@@ -322,7 +322,7 @@ class PhysicsLoader(BaseDatasetLoader):
             )
 
         if not answer_parts:
-            return "", [], "text"
+            return "", [], "descriptive_text"
 
         if len(answer_parts) == 1:
             answer_value = answer_parts[0]
@@ -335,9 +335,11 @@ class PhysicsLoader(BaseDatasetLoader):
         detected_categories = [
             detect_answer_category(answer) for answer in answer_parts
         ]
-        if all(category.value == "text" for category in detected_categories):
-            return answer_value, answer_parts, "text"
-        return answer_value, answer_parts, "formula"
+        if all(
+            category.value == "descriptive_text" for category in detected_categories
+        ):
+            return answer_value, answer_parts, "descriptive_text"
+        return answer_value, answer_parts, "expression"
 
     def _decode_graphs(
         self,

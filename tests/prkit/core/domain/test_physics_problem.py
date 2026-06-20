@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import pytest
 
-from prkit.core.domain import Answer, AnswerCategory, PhysicsDomain, PhysicsProblem
+from prkit.core.domain import Answer, AnswerObjectKind, PhysicsDomain, PhysicsProblem
 from prkit.core.domain import physics_problem as physics_problem_module
 
 
@@ -25,7 +25,7 @@ class TestPhysicsProblem:
 
     def test_problem_creation_full(self):
         """Test creating a full physics problem."""
-        answer = Answer(value=42, answer_category=AnswerCategory.NUMBER)
+        answer = Answer(value=42, answer_kind=AnswerObjectKind.NUMBER)
         problem = PhysicsProblem(
             problem_id="test_001",
             question="What is the answer?",
@@ -222,7 +222,7 @@ class TestPhysicsProblem:
 
     def test_problem_to_dict(self):
         """Test problem serialization."""
-        answer = Answer(value=42, answer_category=AnswerCategory.NUMBER)
+        answer = Answer(value=42, answer_kind=AnswerObjectKind.NUMBER)
         problem = PhysicsProblem(
             problem_id="test_001",
             question="Test",
@@ -239,24 +239,24 @@ class TestPhysicsProblem:
         data = {
             "problem_id": "test_001",
             "question": "Test question",
-            "answer": {"value": 42, "answer_category": "number", "unit": "m/s"},
+            "answer": {"value": 42, "answer_kind": "number", "unit": "m/s"},
             "domain": "classical_mechanics",
         }
         problem = PhysicsProblem.from_dict(data)
         assert problem.problem_id == "test_001"
         assert problem.question == "Test question"
         assert problem.answer.value == 42
-        assert problem.answer.answer_category == AnswerCategory.NUMBER
+        assert problem.answer.answer_kind == AnswerObjectKind.NUMBER
 
         fallback = PhysicsProblem.from_dict(
             {
                 "problem_id": "test_002",
                 "question": "Q",
-                "answer": {"value": "hello", "answer_category": "not-real"},
+                "answer": {"value": "hello", "answer_kind": "not-real"},
                 "custom_field": "custom",
             }
         )
-        assert fallback.answer.answer_category == AnswerCategory.TEXT
+        assert fallback.answer.answer_kind == AnswerObjectKind.DESCRIPTIVE_TEXT
         assert fallback.additional_fields["custom_field"] == "custom"
 
     def test_problem_copy(self):

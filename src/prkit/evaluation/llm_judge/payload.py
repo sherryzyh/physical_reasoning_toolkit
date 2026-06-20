@@ -9,9 +9,9 @@ from prkit.core.domain.answer import Answer
 
 
 def answer_to_text_and_category(answer: str | Answer) -> tuple[str, str]:
-    """Plain text and category label for embedding in a judge JSON payload."""
+    """Plain text and answer-kind label for embedding in a judge JSON payload."""
     if isinstance(answer, Answer):
-        return str(answer).strip(), answer.answer_category.value
+        return str(answer).strip(), answer.answer_kind.value
     return str(answer).strip(), "unknown"
 
 

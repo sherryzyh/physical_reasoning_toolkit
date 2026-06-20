@@ -2,7 +2,7 @@
 Tests for utility functions and helper modules.
 """
 
-from prkit.core.domain import AnswerCategory
+from prkit.core.domain import AnswerObjectKind
 from prkit.datasets.loaders.base_loader import (
     detect_answer_category,
     is_mathematical_expression,
@@ -10,52 +10,52 @@ from prkit.datasets.loaders.base_loader import (
 )
 
 
-class TestAnswerCategoryDetection:
-    """Test cases for answer category detection utilities."""
+class TestAnswerKindDetection:
+    """Test cases for answer-kind detection utilities."""
 
     def test_detect_answer_category_numerical(self):
         """Test detecting number answer category."""
-        assert detect_answer_category("42") == AnswerCategory.NUMBER
-        assert detect_answer_category("3.14") == AnswerCategory.NUMBER
-        assert detect_answer_category("1e-5") == AnswerCategory.NUMBER
-        assert detect_answer_category("1.23e+10") == AnswerCategory.NUMBER
+        assert detect_answer_category("42") == AnswerObjectKind.NUMBER
+        assert detect_answer_category("3.14") == AnswerObjectKind.NUMBER
+        assert detect_answer_category("1e-5") == AnswerObjectKind.NUMBER
+        assert detect_answer_category("1.23e+10") == AnswerObjectKind.NUMBER
 
     def test_detect_answer_category_fraction(self):
         """Test detecting fractions as number."""
-        assert detect_answer_category("3/4") == AnswerCategory.NUMBER
-        assert detect_answer_category("1/2") == AnswerCategory.NUMBER
+        assert detect_answer_category("3/4") == AnswerObjectKind.NUMBER
+        assert detect_answer_category("1/2") == AnswerObjectKind.NUMBER
 
     def test_detect_answer_category_formula(self):
         """Test detecting formula/symbolic answer category."""
-        assert detect_answer_category("x^2 + 1") == AnswerCategory.FORMULA
-        assert detect_answer_category("\\frac{a}{b}") == AnswerCategory.FORMULA
-        assert detect_answer_category("$x^2$") == AnswerCategory.FORMULA
-        assert detect_answer_category("\\boxed{x^2}") == AnswerCategory.FORMULA
+        assert detect_answer_category("x^2 + 1") == AnswerObjectKind.EXPRESSION
+        assert detect_answer_category("\\frac{a}{b}") == AnswerObjectKind.EXPRESSION
+        assert detect_answer_category("$x^2$") == AnswerObjectKind.EXPRESSION
+        assert detect_answer_category("\\boxed{x^2}") == AnswerObjectKind.EXPRESSION
 
     def test_detect_answer_category_text(self):
         """Test detecting text answer category."""
         assert (
             detect_answer_category("This is a descriptive answer")
-            == AnswerCategory.TEXT
+            == AnswerObjectKind.DESCRIPTIVE_TEXT
         )
         assert (
             detect_answer_category("The solution involves multiple steps")
-            == AnswerCategory.TEXT
+            == AnswerObjectKind.DESCRIPTIVE_TEXT
         )
         assert (
             detect_answer_category("Explanation of the physics concept")
-            == AnswerCategory.TEXT
+            == AnswerObjectKind.DESCRIPTIVE_TEXT
         )
 
     def test_detect_answer_category_with_boxed(self):
         """Test detecting answer category with \\boxed{} wrapper."""
-        assert detect_answer_category("\\boxed{42}") == AnswerCategory.NUMBER
-        assert detect_answer_category("\\boxed{x^2}") == AnswerCategory.FORMULA
+        assert detect_answer_category("\\boxed{42}") == AnswerObjectKind.NUMBER
+        assert detect_answer_category("\\boxed{x^2}") == AnswerObjectKind.EXPRESSION
 
     def test_detect_answer_category_with_dollar_signs(self):
         """Test detecting answer category with $ delimiters."""
-        assert detect_answer_category("$42$") == AnswerCategory.NUMBER
-        assert detect_answer_category("$$x^2$$") == AnswerCategory.FORMULA
+        assert detect_answer_category("$42$") == AnswerObjectKind.NUMBER
+        assert detect_answer_category("$$x^2$$") == AnswerObjectKind.EXPRESSION
 
 
 class TestIsPureNumber:

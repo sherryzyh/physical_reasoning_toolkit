@@ -30,7 +30,8 @@ from typing import Any, Protocol, runtime_checkable
 
 # --- re-export EXISTING concrete contract anchors -------------------------
 from prkit.core.domain import (
-    AnswerCategory,
+    AnswerObjectKind,
+    AnswerStructure,
     PhysicalDataset,
     PhysicsDomain,
     PhysicsProblem,
@@ -43,9 +44,11 @@ from prkit.datasets.loaders.base_loader import BaseDatasetLoader
 
 # --- contract version (independent of prkit.__version__) ------------------
 # Bump per CONTRACT.md: additive change -> minor, breaking change -> major.
-# The 0.2.0 additions (the Verdict superset fields + the prkit.verify facade) are
-# fully backward compatible; the contract version is held at 1.0 by decision.
-API_VERSION = "1.0"
+# 2.0 is the taxonomy-unification MAJOR: the legacy ``AnswerCategory`` field on
+# ``Answer`` was removed in favor of the canonical ``AnswerObjectKind`` (with
+# ``AnswerObjectKind``/``AnswerStructure`` promoted onto the contract), and the
+# deprecated ``evaluation`` comparator/evaluator stack was deleted.
+API_VERSION = "2.0"
 
 
 # --- the four nouns as structural Protocols -------------------------------
@@ -121,9 +124,11 @@ __all__ = [
     "Scorer",
     "Runner",
     "Verdict",
+    # canonical answer ontology
+    "AnswerObjectKind",
+    "AnswerStructure",
     # re-exported concrete anchors
     "Answer",
-    "AnswerCategory",
     "PhysicsDomain",
     "PhysicsProblem",
     "PhysicalDataset",
