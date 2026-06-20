@@ -92,6 +92,31 @@ rather than returning a silent verdict. See the per-comparator audit and gating 
 the implementation plan and the batteries in
 `tests/prkit/semantics/`.
 
+### Vector / shaped frames and sign-convention reconciliation
+
+A shaped answer (`vector` / `matrix` / `tensor`) carries an optional coordinate frame, and
+`_compare_shaped` gates on it before the per-cell comparison:
+
+- **both frames unset** ⇒ assume the problem's implicit shared frame, proceed per-cell;
+- **one-sided** (exactly one of pred/ref states a frame) ⇒ unresolved ⇒ **TBD**
+  (`coordinate_frame_unresolved`);
+- **both set, the same** ⇒ proceed per-cell;
+- **both set, opposite** (a *global* axis reversal — antonym positive axes, e.g. *x-right* vs
+  *x-left*) and the question fixes **no** convention ⇒ the **sign-convention** lane: an exact
+  **component-wise** negation is the same physical vector under a reversed frame ⇒ accept
+  (`comparison_mode = sign_convention`, the audited TIER2 bridge — blocked under `strict`); a
+  **partial** flip (some components negated, some not) or a non-`−1` scaling ⇒ reject
+  (`opposite_convention_not_global_negation`) — a single global reversal flips *every* axis,
+  so a partial change is a different vector;
+- **both set, genuinely incompatible** (non-opposite, e.g. *x-axis* vs *y-axis*) ⇒ real
+  mismatch (`coordinate_frame_mismatch`).
+
+This refines the former flat "both-set-incompatible ⇒ reject": only the *opposite* sub-case
+now reconciles, and only on the concrete evidence of two stated, globally-reversed frames
+(see METHODOLOGY.md §4, "Sign convention — concrete data, not a toggle", and EQUIVALENCE.md
+§8). The reconciliation reuses the atomic numeric/`_proportional_ratio` negation check
+cell-by-cell, and at least one cell must be nonzero (a zero vector has no sign to flip).
+
 **`allowed_structures` from the build must admit the collapse closure.** When a built `q`
 (METHODOLOGY.md §6) populates `allowed_structures`, the set is a **hard violating-gate** in
 `validate_answer_against_contract` — there is no bridge or collapse rescue for a structure
@@ -111,6 +136,9 @@ precision lever."
 - folding `subject_to` bound-pairs into an interval (conflates a side-condition with an
   interval-valued answer);
 - `(n,)` ↔ `(n, 1)` shape reconciliation;
+- **per-axis frame reconciliation** for vectors — only a *global* axis reversal is
+  reconciled today (§4); a single-axis frame difference (which would flip one component) is
+  rejected, pending a sound per-axis frame algebra;
 - **sound unordered matching algorithm** (`set` / unordered `multi_part`) under tolerance and
   symbolic equivalence — **roadmap milestone**. Today only *exact* multiset matches are
   accepted (exact numeric value or normalized text); everything requiring a tolerant/symbolic

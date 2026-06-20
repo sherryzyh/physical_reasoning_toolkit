@@ -131,7 +131,7 @@ criterion (not a rescue); the last is deferred pending a justified, gated criter
 | **Real-only identities** | `sqrt(a·b)`↔`√a·√b`, `sqrt(x²)`↔`\|x\|`, `log(ab)`↔`log a+log b` | **domain enrichment**: carry the symbols' real domain into the parse (`build_symbol_assumption_map`); positivity from `q.symbol_assumptions`, realness derived — implemented |
 | **`simplify` incompleteness** | nested-radical / transcendental identities `simplify` cannot crack | **criterion**: domain-honoring numeric identity testing (`_numeric_identity_equivalent`), exact on rejection — implemented |
 | **Solved radical** | `E=mc²` ↔ `c=√(E/m)`, `v²=u²+2as` ↔ `v=√(u²+2as)` | canonical **normalization**: de-radicalize when the non-radical side is nonnegative (`_deradicalize_clause`), gated on `q.symbol_assumptions` — implemented |
-| **Sign convention** | global `−` sign on a directional quantity | needs a **gated criterion** — axis choice *or* real error; only directional quantities, only when frame/sign metadata absent, as an *audited* bridge — deferred |
+| **Sign convention** | a directional answer flipped by a global `−` under an opposite, unstated axis choice (`−20 m/s` right-as-positive ↔ `+20 m/s` left-as-positive; a vector ↔ its negation) | **criterion** reconciling two *stated* conventions to a common frame (`sign_convention`, `_compare_sign_convention`); gated on the question fixing none, both answers declaring **opposite** conventions, and a provable global `−1` — implemented (audited bridge, see below) |
 
 ### Why positivity is declared, not derived from surface form
 
@@ -158,6 +158,35 @@ changes the numerator by a constant, whereas a genuinely different equation diff
 are correctly excluded. It does **not** cover radical-introducing solves (`c=√(E/m)`) or
 inequalities, by design.
 
+### Sign convention — concrete data, not a toggle
+
+A free axis/sign-convention choice acts on a directional quantity as exactly one
+transformation: negating the chosen positive axis (a single global `−1` over the whole
+quantity). The lane forgives that flip, but the convention is **concrete per-answer data**,
+not an on/off switch — the reference's convention is determined at build time (the LLM,
+from problem + figure + golden) and a prediction's comes from its own record; the judgement
+then **reconciles the two stated conventions** to a common frame
+(`sign_convention.py::compare_sign_convention`, and `_reconcile_shaped_sign_convention` for
+vectors). The criterion admits a pair **iff**: (1) the question fixes no convention
+(`q.sign_convention` and `q.coordinate_frame` both absent — else the axis is pinned and a
+flip is a real error); (2) **both** answers declare conventions whose positive axes are a
+provable *global* reversal (antonym directions — `_DIRECTION_OPPOSITE`); and (3) the values
+are an exact global `−1` (reusing `_proportional_ratio`/`numbers_close`; for vectors, an
+exact *component-wise* negation — a **partial** flip is a different vector, not a
+convention). This is the §3 *canonical-reframe* lever applied symmetrically, never a
+rescue.
+
+The change is **precision-symmetric** (the §3 rule against asymmetric relaxation): the same
+machinery that *accepts* a flip also *rejects* the dual — opposite conventions with **equal**
+values denote physically opposite quantities (`−20` left-as-positive ≠ `−20`
+right-as-positive). That reject is policy-independent (rejecting is never a precision risk);
+only the *accept* is the audited `sign_convention` bridge (TIER2 — fires under `audited` by
+default because the stated-opposite-conventions evidence is the strong gate, blocked under
+`strict`, recorded with `bridge_id`/`bridge_tier`/`bridge_evidence`). Because the lane
+activates only when **both** answers carry stated conventions, a bare signed scalar with no
+declared axis (a charge `−5 C` vs `+5 C`, a work `−30 J`) is never reconciled — directional
+intent is *declared, not derived* (§4), exactly as positivity is.
+
 ## 5. Checklist for an equivalence change
 
 1. **Decide the lever:** a canonical-form normalization (§3) or a sharper per-kind
@@ -171,6 +200,13 @@ inequalities, by design.
    assertion in `tests/prkit/verify/test_verify.py` when it changes a verdict).
 5. **Confirm the hot path** isn't materially slowed and the full suite stays green.
 6. **Note the residual limit** so the next gap is discoverable.
+
+The §4 recall-gap inventory is now fully addressed. The known residual frontier for the
+sign-convention lane: (a) only a *global* axis reversal is reconciled — a single-axis frame
+difference (which would flip one vector component) is deliberately rejected, pending a sound
+per-axis frame algebra; and (b) the lane consumes answer-level conventions, so it stays
+dormant until the build routes the reference's inferred convention onto `a_ref` (with
+`q_ref` kept convention-free when the problem fixes none) — a build-side follow-up.
 
 ## 6. Build-time methodology: constructing `q` and `a` for the judgement
 

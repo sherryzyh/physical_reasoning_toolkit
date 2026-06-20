@@ -300,6 +300,14 @@ clockwise   ≡ clockwise  → sign_direction
 increases   ≡ goes up    → qualitative_label (alias group)
 ```
 
+A `sign_direction` polarity (`positive`/`negative`) is *axis-relative*: paired with a
+**stated** convention it resolves to an absolute physical direction, so two polarity answers
+under opposite conventions can denote the same direction (`negative` taking right-as-positive
+≡ `positive` taking left-as-positive — both *left*). That reconciliation is the
+sign-convention lane (§8, `comparison_mode = sign_convention`), gated on the question fixing
+no convention. Absolute labels (`up`, `clockwise`, `into_page`) are **not** axis-relative —
+a flip there is a real disagreement and stays on the plain `sign_direction` path.
+
 ---
 
 ## 8. Different object kind — tiered bridges
@@ -316,12 +324,21 @@ bridge carries a **risk tier**; the tier and policy decide whether it is allowed
 | **T2** | `quantity_to_number` | quantity vs number when `q` fixes the unit | `5` ≡ `5 m/s²` (unit from `q`) |
 | **T2** | `expression_quantity` | expression vs physical quantity | — |
 | **T2** | `choice`, `terminal_polarity_choice`, `terminal_polarity` | choice ↔ label ↔ sign | — |
+| **T2** | `sign_convention` | reconcile a global `−1` between directional answers (`number`/`physical_quantity`/`vector`/`sign_direction`) that declare **opposite** conventions, only when `q` fixes none | `−20 m/s` (right-as-positive) ≡ `+20 m/s` (left-as-positive) |
 | **T3** | `relation_to_qualitative_label` | relation vs a qualitative outcome | — |
 | **T3** | `qualitative_zero` | "no change" ↔ a zero value | `0` ≡ `no change` |
 | **T3** | `label_family_fallback` | last-resort same-/cross-kind label family | — |
 
 A bridged result records `bridge_id` and `bridge_tier` on the `AnswerComparison`. If no
 bridge fires → `object_kind_mismatch` (e.g. `5` vs choice `B`).
+
+`sign_convention` is the one bridge that fires on **same-kind** (and same-structure, for
+vectors) pairs rather than across kinds: it is tried before the same-kind criterion for
+directional answers (and inside the shaped/vector path), but uses the identical tier/policy
+machinery — `bridge_id`/`bridge_tier`/`bridge_evidence`, blocked under `strict`, enabled
+under `audited`. Its evidence records the two stated conventions and the `global_-1`
+reconciliation. See §7.4's `_proportional_ratio` (which already returns `−1` for a negation)
+and METHODOLOGY.md §4 for the criterion and its precision dual.
 
 ---
 
@@ -338,6 +355,19 @@ permissive  → 0  ≡  no change   → qualitative_zero      (bridge fires)
 
 So: `strict` is the same-kind criteria only; `audited` admits exactly the bridge tiers a
 contract opts into; `permissive` is the most lenient (and the legacy default).
+
+The same gating governs the sign-convention lane. `−20 m/s` (right-as-positive) vs
+`+20 m/s` (left-as-positive), with `q` fixing no convention (a TIER2 bridge):
+
+```
+strict      → −20 m/s  ≢  +20 m/s   → bridge_blocked    (no bridges under strict)
+audited     → −20 m/s  ≡  +20 m/s   → sign_convention   (TIER2 enabled; opposite stated conventions, global −1)
+permissive  → −20 m/s  ≡  +20 m/s   → sign_convention
+```
+
+The precision dual is policy-independent: `−20 m/s` (left-as-positive) vs `−20 m/s`
+(right-as-positive) → `sign_convention` **non-equivalent** under every policy (opposite
+conventions, equal values ⇒ physically opposite).
 
 ---
 
@@ -435,6 +465,8 @@ The `AnswerComparison.comparison_mode` names the path taken:
   `expression_to_number`, `quantity_to_number`, `expression_quantity`, `choice`,
   `terminal_polarity`, `terminal_polarity_choice`, `relation_to_qualitative_label`,
   `qualitative_zero`, `label_family_fallback`.
+- **Same-kind / structured bridge:** `sign_convention` (global `−1` reconciliation between
+  opposite stated conventions; also used by the vector/shaped path).
 - **Structured:** `tuple`, `set`, `multi_part`, `interval`, `vector`/`matrix`/`tensor`,
   `piecewise`.
 - **Non-equivalent / control:** `structure_mismatch`, `object_kind_mismatch`,
@@ -476,6 +508,11 @@ it losslessly into the public `Verdict`:
 - `verify` with `q.symbol_assumptions` declaring `c, E, m` positive: `E = m c²` vs `c = √(E/m)`
   → both `relation` → `c = √(E/m)` de-radicalizes to `c² = E/m` (non-radical side `c ≥ 0`)
   → homogeneous numerators `c² m − E` and `E − m c²` differ by `−1` → **equivalent**.
+- `verify("−20 m/s" right-as-positive, "+20 m/s" left-as-positive, unit_policy="audited")`
+  with `q` fixing no convention → both `physical_quantity` → sign-convention lane: conventions
+  are opposite (right vs left) and `+20 = −(−20)` → **equivalent**, mode `sign_convention`,
+  `details.bridge_id = "sign_convention"`. Under the default `strict` policy the same pair is
+  `bridge_blocked` → **non-equivalent**.
 
 ---
 
