@@ -251,3 +251,6 @@ uncertainty_*/
 
 
 **/perturbations/
+
+# uv lockfile (incidental; project standardizes on pip + .venv)
+uv.lock
