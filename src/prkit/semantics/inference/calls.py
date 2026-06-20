@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, TypeVar
+from typing import Any, Literal, TypeVar
 
 from pydantic import BaseModel, ValidationError
 
@@ -299,6 +299,8 @@ _ANSWER_SURFACE_FILL_FIELDS = (
     "choice_label",
     "boolean_value",
     "sign_value",
+    "coordinate_frame",
+    "sign_convention",
 )
 
 
@@ -772,11 +774,20 @@ def build_problem_semantics(
     )
 
 
+PredictionAnswerForm = Literal["structured", "extracted", "auto"]
+_PREDICTION_ANSWER_FORMS: tuple[PredictionAnswerForm, ...] = (
+    "structured",
+    "extracted",
+    "auto",
+)
+
+
 def infer_prediction_semantics(
     problem: PhysicsProblem,
     model_client: BaseModelClient,
     *,
     isolated_solve: bool = True,
+    answer_semantics: PredictionAnswerForm = "auto",
     max_output_tokens: int | None = None,
     allow_non_native_structured_output: bool = False,
     **chat_kwargs: Any,
@@ -790,15 +801,41 @@ def infer_prediction_semantics(
     the ``a_pred_llm``-vs-``a_pred_ext`` structure-disagreement audit. Set
     ``isolated_solve=False`` to keep the legacy fused path (the draft is injected and the
     model authors a prediction-side ``question_semantics``).
+
+    ``answer_semantics`` selects which prediction record the isolated solve yields — the
+    **consumer's** choice, not a toolkit decision (the toolkit is neutral and does exactly
+    what is asked):
+
+    * ``"structured"`` — return ``a_pred_llm`` (native provider-enforced structured output);
+      raises if the provider cannot enforce it (no silent substitution).
+    * ``"extracted"`` — return ``a_pred_ext`` (plain-text solve, then deterministic
+      ``canonicalize_structure(normalize_physics_answer(...))`` extraction); needs no native
+      structured output.
+    * ``"auto"`` (default) — pick by provider capability (``a_pred_llm`` when the provider
+      supports native structured output, otherwise ``a_pred_ext``). The only capability-driven
+      mode, and only because the consumer left the choice to the toolkit.
+
+    ``answer_semantics`` governs the isolated path only; passing a non-``"auto"`` value with
+    ``isolated_solve=False`` raises.
     """
 
+    if answer_semantics not in _PREDICTION_ANSWER_FORMS:
+        raise ValueError(
+            f"answer_semantics must be one of {list(_PREDICTION_ANSWER_FORMS)}, "
+            f"got {answer_semantics!r}."
+        )
+    if not isolated_solve and answer_semantics != "auto":
+        raise ValueError(
+            "answer_semantics is only supported on the isolated solve path "
+            "(isolated_solve=True). The legacy fused path always returns a_pred_llm with "
+            "deterministic a_pred_ext reconstruction for compact providers."
+        )
+
     if isolated_solve:
-        # The isolated solve is always graceful (`allow_non_native_structured_output` applies
-        # only to the legacy fused path): missing native structured output yields a_pred_ext,
-        # never a failure (the user's "plain output -> deterministic extraction" route).
         return _infer_isolated_prediction_semantics(
             problem,
             model_client,
+            answer_semantics=answer_semantics,
             max_output_tokens=max_output_tokens,
             **chat_kwargs,
         )
@@ -858,23 +895,39 @@ def _infer_isolated_prediction_semantics(
     problem: PhysicsProblem,
     model_client: BaseModelClient,
     *,
+    answer_semantics: PredictionAnswerForm = "auto",
     max_output_tokens: int | None,
     **chat_kwargs: Any,
 ) -> PredictionSemanticsArtifact:
-    """Problem-only isolated solve building a_pred_llm (+ the a_pred_ext disagreement audit).
+    """Problem-only isolated solve producing the consumer-selected prediction record.
 
-    Always graceful: native structured output is used when the provider supports it (so
-    ``a_pred_llm`` is produced), otherwise the solve falls back to plain text and only
-    ``a_pred_ext`` (deterministic extraction) is produced — lacking native structured output
-    never fails this step, it just yields one answer-semantics form instead of two.
+    ``answer_semantics`` decides the form (see :func:`infer_prediction_semantics`):
+    ``"structured"`` forces ``a_pred_llm`` and **raises** if the provider cannot enforce native
+    structured output; ``"extracted"`` forces the plain-text ``a_pred_ext`` route; ``"auto"``
+    picks by provider capability (``a_pred_llm`` when supported, else ``a_pred_ext``). The
+    toolkit does exactly what is asked — it never silently substitutes a different form.
     """
 
-    response_model = resolve_isolated_prediction_response_model(model_client)
-    # Best-effort: prefer native when available, never require it.
-    require_native_json_schema = model_client.resolve_structured_output_plan(
-        response_model,
-        structured_policy="best_effort",
-    ).native_schema_enforced
+    response_model: type[BaseModel]
+    if answer_semantics == "structured":
+        # Honor the explicit request: require native structured output; _run_structured_inference
+        # raises a clear error (ensure_semantics_native_structured_output_support) if unavailable.
+        response_model = StrictPredictionIsolatedResponse
+        require_native_json_schema = True
+    elif answer_semantics == "extracted":
+        # Plain-text solve, then deterministic extraction. Never needs native structured output.
+        response_model = StrictPredictionFinalAnswerResponse
+        require_native_json_schema = model_client.resolve_structured_output_plan(
+            response_model,
+            structured_policy="best_effort",
+        ).native_schema_enforced
+    else:
+        # "auto": the only capability-driven mode (the consumer left the choice to the toolkit).
+        response_model = resolve_isolated_prediction_response_model(model_client)
+        require_native_json_schema = model_client.resolve_structured_output_plan(
+            response_model,
+            structured_policy="best_effort",
+        ).native_schema_enforced
     spec = prepare_isolated_prediction_semantics_inference_spec(
         problem,
         response_model=response_model,
@@ -921,10 +974,12 @@ def _infer_isolated_prediction_semantics(
                 f"!={a_pred_ext.structure.value}/{a_pred_ext.object_kind.value}"
             )
     else:
-        # Provider could not enforce the isolated schema; only a_pred_ext is available.
+        # a_pred_ext is the produced record. Under "extracted" it is the requested form (no
+        # flag); under "auto" it means the provider could not enforce the structured schema.
         adopted = a_pred_ext
         build_method = "prediction_isolated_extracted"
-        flags.append("a_pred_llm_unavailable")
+        if answer_semantics == "auto":
+            flags.append("a_pred_llm_unavailable")
 
     report = SemanticsBuildReport(
         build_method=build_method,

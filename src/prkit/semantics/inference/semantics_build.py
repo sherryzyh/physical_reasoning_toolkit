@@ -31,6 +31,10 @@ import re
 from collections.abc import Iterable, Mapping, Sequence
 
 from ..comparison.contract import _STRUCTURES_COLLAPSIBLE_TO_ATOMIC
+from ..comparison.sign_convention import (
+    answer_directional_convention,
+    orientation_relation,
+)
 from ..schema import (
     DEFAULT_NUMERIC_TOLERANCE,
     AnswerObjectKind,
@@ -505,9 +509,10 @@ def reference_pair_consistency(
     """Return ``q_ref`` <-> ``a_ref`` inconsistencies (empty when mutually consistent).
 
     A co-constructed pair must satisfy: the contract admits the gold answer's kind/structure
-    (honoring the collapse target), any shared ``target_variable`` agrees, and every
+    (honoring the collapse target), any shared ``target_variable`` agrees, every
     ``symbol_assumptions`` token is canonical (post-alias) so the engine will not silently
-    drop it.
+    drop it, and -- when the problem fixes a convention -- the gold is not expressed in a
+    provably-opposite one.
     """
 
     issues: list[str] = []
@@ -538,6 +543,22 @@ def reference_pair_consistency(
         f"assumption_alias_source:{symbol}"
         for symbol in alias_source_violations(declared, alias_map)
     )
+
+    # When the problem fixes a convention (q_ref carries one), the gold must not be expressed in
+    # a provably-*opposite* one (a build inconsistency: the golden's stated frame reverses the
+    # problem's). Flag only the proven-opposite case (declared-not-derived); an indeterminate or
+    # matching convention is fine. Reuses the engine's orientation reader so capture and
+    # judgement share one vocabulary.
+    question_convention = question.coordinate_frame or question.sign_convention
+    answer_convention = answer_directional_convention(reference_answer)
+    if (
+        question_convention
+        and answer_convention
+        and orientation_relation(answer_convention, question_convention) == "opposite"
+    ):
+        issues.append(
+            f"opposite_convention_vs_question:{answer_convention}!~{question_convention}"
+        )
 
     return issues
 

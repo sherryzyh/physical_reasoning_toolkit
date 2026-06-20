@@ -15,6 +15,8 @@ from __future__ import annotations
 import json
 from typing import Any
 
+import pytest
+
 from prkit.core.domain import Answer, AnswerCategory, PhysicsProblem
 from prkit.core.model_clients import BaseModelClient
 from prkit.semantics.inference.calls import (
@@ -51,11 +53,17 @@ class _IsolatedSolveStubModelClient(BaseModelClient):
 
     supports_response_format_json_schema = True
 
-    def __init__(self, *, answer_payload: dict[str, Any] | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        answer_payload: dict[str, Any] | None = None,
+        final_answer: str = "sqrt(E/m)",
+    ) -> None:
         super().__init__(model="stub-model")
         self.provider = "stub"
         self.prompts: list[str] = []
         self.response_formats: list[Any] = []
+        self._final_answer = final_answer
         self._answer_payload = answer_payload or {
             "canonical_text": "sqrt(E/m)",
             "object_kind": "expression",
@@ -79,11 +87,25 @@ class _IsolatedSolveStubModelClient(BaseModelClient):
             return json.dumps(
                 {
                     "reasoning": "Energy conservation.",
-                    "final_answer": "sqrt(E/m)",
+                    "final_answer": self._final_answer,
                     "prediction_answer_semantics": self._answer_payload,
                 }
             )
+        if name == "StrictPredictionFinalAnswerResponse":
+            # The compact (plain-text) route used by the "extracted" form.
+            return json.dumps(
+                {
+                    "reasoning": "Energy conservation.",
+                    "final_answer": self._final_answer,
+                }
+            )
         raise AssertionError(f"unexpected response schema: {name}")
+
+
+class _NoNativeSolveStubModelClient(_IsolatedSolveStubModelClient):
+    """A solver that cannot enforce native structured output (so "structured" must raise)."""
+
+    supports_response_format_json_schema = False
 
 
 def test_isolated_solve_prompt_suppresses_question_semantics_draft() -> None:
@@ -152,8 +174,11 @@ def test_isolated_solve_prompt_has_no_golden_or_assumptions_leak() -> None:
 
     solve_prompt = client.prompts[0]
     assert "Toolkit heuristic draft question semantics:" not in solve_prompt
-    # Gold subject_to / domain declarations must not reach the solver.
-    assert "positive" not in solve_prompt
+    # Gold subject_to / domain declarations must not reach the solver. (The bare word
+    # "positive" now appears in the answer-surface sign-convention guidance, e.g.
+    # "right-as-positive", so assert the *gold's symbol assumption* did not leak rather than
+    # the word itself.)
+    assert '"assumption": "positive"' not in solve_prompt
     assert "symbol_assumptions" not in solve_prompt
     assert "m > 0" not in solve_prompt
     assert "Solution:" not in solve_prompt
@@ -197,3 +222,92 @@ def test_resolve_isolated_prediction_response_model_prefers_isolated_schema() ->
         resolve_isolated_prediction_response_model(client)
         is StrictPredictionIsolatedResponse
     )
+
+
+# --- sign-convention capture + consumer-selected answer form ---------------------------------
+
+
+def test_a_pred_llm_carries_solver_declared_sign_convention() -> None:
+    client = _IsolatedSolveStubModelClient(
+        answer_payload={
+            "canonical_text": "-20 m/s",
+            "object_kind": "physical_quantity",
+            "structure": "atomic",
+            "sign_convention": "right-as-positive",
+        },
+        final_answer="-20 m/s",
+    )
+    artifact = infer_prediction_semantics(
+        _problem(), client, answer_semantics="structured"
+    )
+
+    a_pred = artifact.prediction_answer_semantics
+    assert a_pred.object_kind == AnswerObjectKind.PHYSICAL_QUANTITY
+    assert a_pred.sign_convention == "right-as-positive"
+    assert artifact.build_report.build_method == "prediction_isolated_llm"
+
+
+def test_a_pred_ext_parser_captures_surface_convention() -> None:
+    ext = extract_prediction_answer_semantics("-20 m/s (taking rightward as positive)")
+    assert ext.object_kind == AnswerObjectKind.PHYSICAL_QUANTITY
+    assert ext.sign_convention == "rightward as positive"
+    assert ext.numeric_value == -20.0
+    # A bare signed value with no stated direction stays convention-free.
+    assert extract_prediction_answer_semantics("-20 m/s").sign_convention is None
+
+
+def test_answer_semantics_extracted_overrides_capability() -> None:
+    # The stub CAN enforce native structured output, but the consumer asked for "extracted":
+    # the toolkit honors the choice and yields a_pred_ext from the plain-text surface.
+    client = _IsolatedSolveStubModelClient(
+        final_answer="-20 m/s (taking rightward as positive)"
+    )
+    artifact = infer_prediction_semantics(
+        _problem(), client, answer_semantics="extracted"
+    )
+
+    assert artifact.build_report.build_method == "prediction_isolated_extracted"
+    # Not flagged unavailable: extraction was the requested form, not a capability fallback.
+    assert not any(
+        "a_pred_llm_unavailable" in flag for flag in artifact.build_report.flags
+    )
+    assert artifact.build_report.review_required is False
+    # The surface-stated convention is captured deterministically.
+    assert (
+        artifact.prediction_answer_semantics.sign_convention == "rightward as positive"
+    )
+    # The solver was asked for the compact final-answer schema, not the structured one.
+    assert any(
+        isinstance(rf, dict) and rf.get("name") == "StrictPredictionFinalAnswerResponse"
+        for rf in client.response_formats
+    )
+
+
+def test_answer_semantics_structured_raises_without_native_support() -> None:
+    client = _NoNativeSolveStubModelClient()
+
+    with pytest.raises(ValueError, match="native"):
+        infer_prediction_semantics(_problem(), client, answer_semantics="structured")
+
+
+def test_answer_semantics_rejects_unknown_value() -> None:
+    client = _IsolatedSolveStubModelClient()
+
+    with pytest.raises(ValueError, match="answer_semantics"):
+        infer_prediction_semantics(
+            _problem(),
+            client,
+            answer_semantics="weird",  # type: ignore[arg-type]
+        )
+
+
+def test_answer_semantics_non_auto_rejected_on_fused_path() -> None:
+    client = _IsolatedSolveStubModelClient()
+
+    with pytest.raises(ValueError, match="isolated"):
+        infer_prediction_semantics(
+            _problem(),
+            client,
+            isolated_solve=False,
+            answer_semantics="structured",
+        )

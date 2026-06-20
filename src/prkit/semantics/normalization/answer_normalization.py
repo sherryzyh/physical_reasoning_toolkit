@@ -95,6 +95,59 @@ _SIGN_DIRECTION_CANONICAL = {
     "down the plane of the page": "down_in_plane",
 }
 
+# Kinds for which an explicit "<dir> as positive" surface declaration is captured onto the
+# answer's ``sign_convention`` (the directional scalars). Vectors/structured answers carry a
+# convention via the LLM-structured record (``a_pred_llm``), not this deterministic parser.
+_SIGN_CONVENTION_DECLARATION_KINDS = frozenset(
+    {AnswerObjectKind.NUMBER, AnswerObjectKind.PHYSICAL_QUANTITY}
+)
+
+
+def _build_sign_convention_declaration_re() -> re.Pattern[str]:
+    """Compile the declaration-only convention parser from the direction vocabulary.
+
+    Fires only on an explicit direction word *adjacent to* "positive" (e.g. ``taking rightward
+    as positive``, ``right-as-positive``, ``positive direction is up``, ``+ve = left``). A bare
+    sign (``+20``) or a fully-specifying direction phrase (``5 N to the right``, no "positive")
+    is **not** a convention declaration, so it never matches — the sign-convention lane stays
+    declared-not-derived.
+    """
+
+    directions = sorted(
+        (
+            phrase
+            for phrase, orientation in _SIGN_DIRECTION_CANONICAL.items()
+            if orientation not in {"positive", "negative"}
+            and not phrase.startswith(("+", "-"))
+        ),
+        key=len,
+        reverse=True,
+    )
+    dirs = r"\b(?:" + "|".join(re.escape(phrase) for phrase in directions) + r")\b"
+    alternatives = "|".join(
+        (
+            rf"(?:taking|with|assuming|measuring|counting|treating|where)\s+"
+            rf"(?P<dir1>{dirs})\s+(?:as\s+|is\s+|=\s*|to\s+be\s+)?positive",
+            rf"(?P<dir2>{dirs})[\s-]+(?:as|is|=|taken\s+as|counted\s+as)[\s-]*positive",
+            rf"positive\s+(?:direction\s+is\s+|axis\s+is\s+|is\s+)?(?P<dir3>{dirs})",
+            rf"\+\s*ve\s*=\s*(?P<dir4>{dirs})",
+        )
+    )
+    return re.compile(
+        rf"(?P<clause>[\s(,;:]*(?:{alternatives})[\s).;:]*)", re.IGNORECASE
+    )
+
+
+_SIGN_CONVENTION_DECLARATION_RE = _build_sign_convention_declaration_re()
+_DECLARATION_PHRASE_SEPARATOR_RE = re.compile(r"[\s_-]+")
+
+
+def _normalize_declaration_phrase(phrase: str) -> str:
+    """Collapse a matched direction phrase to the judge-readable spaced form."""
+
+    return _DECLARATION_PHRASE_SEPARATOR_RE.sub(" ", phrase.strip().lower())
+
+
 _QUALITATIVE_ALIAS_GROUPS = {
     "constant_temperature": {
         "temperature stays constant",
@@ -186,27 +239,90 @@ def normalize_physics_answer(
             resolved_context,
         )
 
-    structured = _normalize_structured_text(stripped, context=resolved_context)
+    # Capture an explicit "<dir> as positive" convention declaration and strip it before parsing
+    # (declaration-only; no match leaves `main_text == stripped`, so behavior is unchanged). The
+    # strip runs before the structured / subject_to parsers so a parenthetical or comma-introduced
+    # clause is neither misparsed as a tuple nor mis-filed as a subject_to.
+    main_text, declared_convention = _extract_sign_convention_declaration(stripped)
+
+    structured = _normalize_structured_text(main_text, context=resolved_context)
     if structured is not None:
-        structured = structured.model_copy(
+        outcome = structured.model_copy(
             update={"provenance": provenance | structured.provenance}
         )
-        return _finalize_outcome(structured, resolved_context)
+    else:
+        atomic_with_subject_to = _normalize_atomic_with_subject_to(
+            main_text,
+            context=resolved_context,
+            provenance=provenance,
+        )
+        outcome = (
+            atomic_with_subject_to
+            if atomic_with_subject_to is not None
+            else _normalize_atomic_text(
+                main_text,
+                context=resolved_context,
+                provenance=provenance,
+            )
+        )
 
-    atomic_with_subject_to = _normalize_atomic_with_subject_to(
-        stripped,
-        context=resolved_context,
-        provenance=provenance,
-    )
-    if atomic_with_subject_to is not None:
-        return _finalize_outcome(atomic_with_subject_to, resolved_context)
+    outcome = _apply_declared_sign_convention(outcome, declared_convention)
+    return _finalize_outcome(outcome, resolved_context)
 
-    atomic = _normalize_atomic_text(
-        stripped,
-        context=resolved_context,
-        provenance=provenance,
+
+def _extract_sign_convention_declaration(text: str) -> tuple[str, str | None]:
+    """Split off an explicit positive-direction convention declaration from a surface.
+
+    Returns ``(text_without_declaration, sign_convention)`` where ``sign_convention`` is a
+    judge-readable ``"<dir> as positive"`` string (e.g. ``"rightward as positive"``) when an
+    explicit declaration is present, else ``(text, None)``. The convention vocabulary is shared
+    with the comparison engine (:data:`_SIGN_DIRECTION_CANONICAL`), so capture and judgement read
+    one orientation.
+    """
+
+    match = _SIGN_CONVENTION_DECLARATION_RE.search(text)
+    if match is None:
+        return text, None
+    direction_phrase = next(
+        (
+            value
+            for key, value in match.groupdict().items()
+            if key.startswith("dir") and value
+        ),
+        None,
     )
-    return _finalize_outcome(atomic, resolved_context)
+    if direction_phrase is None:
+        return text, None
+    stripped = (text[: match.start("clause")] + text[match.end("clause") :]).strip()
+    stripped = stripped.strip(" ,;:")
+    if not stripped:
+        # The whole surface was the declaration; nothing to attach a value to.
+        return text, None
+    convention = f"{_normalize_declaration_phrase(direction_phrase)} as positive"
+    return stripped, convention
+
+
+def _apply_declared_sign_convention(
+    outcome: PhysicsAnswerSemantics, declared_convention: str | None
+) -> PhysicsAnswerSemantics:
+    """Attach an explicitly-declared positive-direction convention to a directional scalar.
+
+    Applied only to an atomic number / physical quantity whose convention is otherwise unset, so
+    a bare signed value (no stated direction) stays convention-free and the sign-convention lane
+    stays off. Structured answers already inherit context conventions in
+    :func:`_make_structured_outcome`, so they are deliberately excluded here (no double-write).
+    """
+
+    if declared_convention is None:
+        return outcome
+    if (
+        outcome.is_atomic
+        and outcome.object_kind in _SIGN_CONVENTION_DECLARATION_KINDS
+        and outcome.sign_convention is None
+        and outcome.coordinate_frame is None
+    ):
+        return outcome.model_copy(update={"sign_convention": declared_convention})
+    return outcome
 
 
 def _normalize_structured_text(

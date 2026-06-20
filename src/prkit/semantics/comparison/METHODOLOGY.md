@@ -204,9 +204,16 @@ intent is *declared, not derived* (§4), exactly as positivity is.
 The §4 recall-gap inventory is now fully addressed. The known residual frontier for the
 sign-convention lane: (a) only a *global* axis reversal is reconciled — a single-axis frame
 difference (which would flip one vector component) is deliberately rejected, pending a sound
-per-axis frame algebra; and (b) the lane consumes answer-level conventions, so it stays
-dormant until the build routes the reference's inferred convention onto `a_ref` (with
-`q_ref` kept convention-free when the problem fixes none) — a build-side follow-up.
+per-axis frame algebra; and (b) for a *vector* answer a **one-sided** convention (declared on
+one side only) is a deliberate TBD (precision-safe — never a false accept), so populating a
+vector `a_ref`'s frame can move a previously per-cell-accepted pair to TBD until the prediction
+also declares its frame.
+
+The lane is now **live on built data** (it was previously correct-but-dormant): the build
+routes conventions to exactly where the judgement reads them — `a_ref` carries the golden's
+expressed convention, `a_pred` carries the prediction's, and `q_ref` stays convention-free
+unless the problem text itself fixes one (see §6, "Directional conventions"). Δrecall at fixed
+precision is measured in the consumer (`uq`) repo.
 
 ## 6. Build-time methodology: constructing `q` and `a` for the judgement
 
@@ -253,10 +260,14 @@ Native provider-enforced structured output is a **Step-2 output-form concern onl
   provider supports it, otherwise plain text parsed back), so a provider lacking native
   structured output still yields a full `(q_ref, a_ref)`. Lacking it is a normal route, not a
   defect — it does not set `review_required` (only a genuine cross-check failure does).
-- **Step 2 yields one form instead of two.** With native structured output the solve returns
-  `a_pred_llm` (and the `a_pred_ext` disagreement audit); without it there is **one route** —
-  the output is plain text and `a_pred_ext = canonicalize_structure(normalize_physics_answer(...))`
-  is the deterministic extraction. Never a failure; just one record instead of two.
+- **Step 2's form is the consumer's choice, not the toolkit's.** `infer_prediction_semantics`
+  takes `answer_semantics`: `"structured"` returns `a_pred_llm` (native provider-enforced output;
+  it **raises** if the provider cannot enforce it — no silent substitution), `"extracted"` returns
+  `a_pred_ext = canonicalize_structure(normalize_physics_answer(...))` (plain-text solve, needs no
+  native support), and `"auto"` (the default) picks by provider capability — `a_pred_llm` when
+  supported, else `a_pred_ext`. The toolkit is **neutral**: it does exactly what is asked, and
+  `"auto"` is the only capability-driven mode (the consumer explicitly leaves the choice to it).
+  Whichever single record a form yields, the judgement consumes it identically.
 - **Step 3 is provenance-agnostic.** The judgement consumes a `PhysicsAnswerSemantics`
   regardless of whether it came from `a_pred_llm` or `a_pred_ext` — both are simply
   "generated answer semantics." *Which* form a caller feeds in is out of this toolkit's scope.
@@ -303,6 +314,34 @@ would be a statistical patch rather than a methodological one.
 conflict between sources, the build declares the **least-restrictive sound** assumption —
 asserting an unjustified one would manufacture false accepts, exactly the failure §4 guards
 against on the engine side.
+
+### Directional conventions — `q` fixes, `a` expresses
+
+The sign-convention lane (§4) reads *answer-level* conventions and is gated on the question
+fixing none. The build populates them on that exact split — the same declared-not-derived
+discipline as `symbol_assumptions`:
+
+- **`q_ref.sign_convention`/`coordinate_frame`** — set (Call B) **only** when the *problem text*
+  itself fixes a convention every answer must follow. That pins the axis, so a flip is a real
+  error and the lane's gate closes. If the problem leaves the axis free, `q_ref` stays
+  convention-free.
+- **`a_ref.sign_convention`** — set (Call A, adopted fill-only with provenance `llm_declared`)
+  to the convention the *golden is expressed in*, when the golden is a directional quantity on a
+  free axis. This is the lane's evidence, not a question policy.
+- **`a_pred.sign_convention`** — the prediction's own convention: a solver-declared field on
+  `a_pred_llm`, or a **conservative, declaration-only** parse of an explicit
+  "`<dir>` as positive" clause in the `a_pred_ext` surface (`_extract_sign_convention_declaration`).
+  A bare sign (`+20`) is never read as a convention — directional intent is *declared, not
+  derived*, exactly as positivity is.
+
+Two engineering invariants keep capture and judgement aligned: (1) a positive-direction choice
+is recorded in **`sign_convention`** at every capture point (`coordinate_frame` is reserved for
+an explicitly *named* frame), because the vector judge path reads the two fields
+field-specifically — mixing them would manufacture a spurious one-sided TBD; and (2) the captured
+string reuses the engine's direction vocabulary (`_SIGN_DIRECTION_CANONICAL`) so
+`_convention_orientation` reads one orientation. A co-construction cross-check
+(`reference_pair_consistency`) flags the build inconsistency where `q_ref` fixes a convention but
+`a_ref` is expressed in a provably-*opposite* one.
 
 ### `symbol_assumptions` — source precedence and the canonical-token requirement
 

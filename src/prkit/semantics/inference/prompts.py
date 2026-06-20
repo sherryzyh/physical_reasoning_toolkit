@@ -13,13 +13,17 @@ from ..normalization import (
 from ..schema import PhysicsAnswerSemantics, PhysicsQuestionSemantics
 
 REFERENCE_PROMPT_NAME = "reference_semantics"
+# v6: answer-level sign-convention declaration — Call A sets a_ref's expressed convention when the
+# problem leaves the axis free; Call B sets q_ref's convention only when the problem text fixes one.
 # v5: staged 3-call build (answer-surface cleanup / question policy / symbol assumptions)
 # replaces the single fused reference call; structure/kind are deterministically pinned.
-REFERENCE_PROMPT_VERSION = "v5"
+REFERENCE_PROMPT_VERSION = "v6"
 PREDICTION_PROMPT_NAME = "prediction_semantics"
+# v5: directional answers declare their sign convention — a_pred_llm via
+# prediction_answer_semantics.sign_convention, a_pred_ext by stating it in the final-answer surface.
 # v4: isolated problem-only solve flag (suppresses the embedded question-semantics draft) +
 # STRUCTURE.md section-2 surface conventions added to the answer-format guidance.
-PREDICTION_PROMPT_VERSION = "v4"
+PREDICTION_PROMPT_VERSION = "v5"
 PROBLEM_PROMPT_NAME = "problem_semantics"
 # Problem-only (answer-blind) q_prob build, shares the staged question-policy / assumption
 # prompts with no answer context.
@@ -70,6 +74,7 @@ _ANSWER_SURFACE_CONVENTIONS = """Write the final-answer surface using these conv
 - Shaped array: a vector as `<...>` or `[a, b, c]` (depth 1); a matrix as nested brackets (depth 2); keep a `(n,)` vector distinct from an `(n, 1)` matrix.
 - Piecewise function: use `\\begin{cases}...\\end{cases}` or `Piecewise(...)`.
 - Equation/relation: write the full relation, e.g. `F = m*a`, `v >= 0`.
+- Free-axis sign convention: if your answer is a directional quantity (signed scalar, vector, or direction) whose sign depends on a positive-direction choice the problem left free, state that choice explicitly in the surface, e.g. `-20 m/s (taking rightward as positive)`.
 """
 
 
@@ -165,7 +170,10 @@ def build_prediction_semantics_prompt(
     )
     if include_prediction_answer_semantics:
         sections.append(
-            "Make `prediction_answer_semantics` match that final answer exactly."
+            "Make `prediction_answer_semantics` match that final answer exactly. When your answer "
+            "is directional and the problem fixed no positive direction, set "
+            "`prediction_answer_semantics.sign_convention` to the convention you used (e.g. "
+            "`right-as-positive`)."
         )
     else:
         sections.append(
@@ -201,6 +209,13 @@ def build_answer_surface_cleanup_prompt(
             "Only improve `canonical_text`, `canonical_latex`, `unit`, `numeric_text`, "
             "`choice_label`, and similar surface fields; preserve the answer's printed numeric "
             "precision (do not round or add digits).",
+            "If the golden is a directional quantity (a signed scalar, a vector, or a directional "
+            "sign) whose sign depends on a positive-direction / axis choice the problem did NOT fix, "
+            "set `sign_convention` to the convention this answer is expressed in (e.g. "
+            "`right-as-positive`, `up-as-positive`), inferred from the problem text, any figure, and "
+            "the golden's sign. Otherwise leave `sign_convention` null — for a non-directional "
+            "quantity, or when the problem itself fixes the axis (that is a question policy, captured "
+            "separately, not an answer attribute).",
             _format_problem(problem, include_reference_context=True),
             "Ground-truth answer surface:\n" + golden_text,
             "Toolkit deterministic draft answer semantics (authoritative for structure/kind):",
@@ -221,8 +236,12 @@ def build_question_policy_prompt(
         "Task: return the question-side policy semantics that constrain acceptable answers.",
         _STAGED_BUILD_NOTE,
         "Provide `target_variable`, `symbol_aliases`, `question_unit_policy`, `question_unit`, "
-        "`dimension`, `ordering`, `required_parts`, `coordinate_frame`, `sign_convention`, and "
-        "`choice_space` when applicable. Leave `symbol_assumptions` empty here (declared separately).",
+        "`dimension`, `ordering`, `required_parts`, and `choice_space` when applicable. Leave "
+        "`symbol_assumptions` empty here (declared separately).",
+        "Set `coordinate_frame` / `sign_convention` ONLY if the problem statement itself fixes a "
+        "convention every answer must follow (e.g. it says 'take rightward as positive', or it "
+        "defines the axes). If the problem leaves the positive direction / axis free, leave both "
+        "null — the convention the golden answer happens to use is captured on the answer, not here.",
         _format_problem(problem, include_reference_context=answer_draft is not None),
     ]
     if answer_draft is not None:
