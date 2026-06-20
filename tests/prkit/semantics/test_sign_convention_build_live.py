@@ -15,7 +15,7 @@ import pytest
 
 from prkit.core.domain import Answer, AnswerCategory, PhysicsProblem
 from prkit.core.model_clients import create_model_client
-from prkit.semantics.inference.calls import build_reference_semantics
+from prkit.semantics.build.calls import build_reference_semantics
 
 pytestmark = pytest.mark.integration
 

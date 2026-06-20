@@ -1,12 +1,12 @@
-"""Tests for the ``prkit.verify`` light-import facade (parse / verify)."""
+"""Tests for the ``prkit.verify`` light-import facade (verify)."""
 
 from __future__ import annotations
 
 import pytest
 
 from prkit.core.verdict import Verdict
-from prkit.semantics import PhysicsAnswerSemantics
-from prkit.verify import parse, verify
+from prkit.semantics import PhysicsAnswerSemantics, extract_prediction_answer_semantics
+from prkit.verify import verify
 
 
 class TestVerify:
@@ -176,15 +176,13 @@ class TestVerifyThreadsQuestionContext:
         assert v.partial_credit == v.score
 
 
-class TestParse:
+class TestExtractPredictionAnswerSemantics:
+    """The deterministic extractor replaces the removed ``prkit.verify.parse``."""
+
     def test_returns_physics_answer_semantics(self):
-        parsed = parse("9.8 m/s^2")
+        parsed = extract_prediction_answer_semantics("9.8 m/s^2")
         assert isinstance(parsed, PhysicsAnswerSemantics)
         assert parsed.unit == "m/s^2"
-
-    def test_category_not_supported_yet(self):
-        with pytest.raises(NotImplementedError):
-            parse("9.8", category="number")
 
 
 def _answer(payload):

@@ -19,14 +19,14 @@ import pytest
 
 from prkit.core.domain import Answer, AnswerCategory, PhysicsProblem
 from prkit.core.model_clients import BaseModelClient
-from prkit.semantics.inference.calls import (
+from prkit.semantics.build.calls import (
     build_extracted_prediction_semantics_artifact,
     extract_prediction_answer_semantics,
     infer_prediction_semantics,
     resolve_isolated_prediction_response_model,
 )
-from prkit.semantics.inference.prompts import build_prediction_semantics_prompt
-from prkit.semantics.inference.strict_models import (
+from prkit.semantics.build.prompts import build_prediction_semantics_prompt
+from prkit.semantics.build.strict_models import (
     StrictPredictionIsolatedResponse,
 )
 from prkit.semantics.normalization.question_inference import (

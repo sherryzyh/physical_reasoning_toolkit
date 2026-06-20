@@ -12,7 +12,10 @@
 
 # Distribution / packaging
 .Python
-build/
+# Anchored to the repo root so the setuptools build/ artifact is ignored WITHOUT
+# also ignoring the src/prkit/semantics/build package (a bare "build/" matches any
+# directory of that name at any depth).
+/build/
 develop-eggs/
 dist/
 downloads/

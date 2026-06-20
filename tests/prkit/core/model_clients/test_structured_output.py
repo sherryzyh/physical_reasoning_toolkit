@@ -22,7 +22,7 @@ from prkit.core.model_clients.structured_output import (
     strip_schema_keywords,
 )
 from prkit.core.model_clients.xai import XAIModel
-from prkit.semantics.inference.strict_models import (
+from prkit.semantics.build.strict_models import (
     StrictPredictionFinalAnswerResponse,
     StrictPredictionSemanticsResponse,
 )

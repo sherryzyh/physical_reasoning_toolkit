@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from prkit.core import PRKitLogger
-from prkit.semantics.inference import (
+from prkit.semantics.build import (
     load_prediction_semantics_artifact,
     load_reference_semantics_artifact,
     load_semantics_artifact,

@@ -14,7 +14,7 @@ from typing import Any
 
 from prkit.core.domain import Answer, AnswerCategory, PhysicsProblem
 from prkit.core.model_clients import BaseModelClient
-from prkit.semantics.inference.calls import (
+from prkit.semantics.build.calls import (
     build_reference_semantics,
     extract_prediction_answer_semantics,
     infer_prediction_semantics,

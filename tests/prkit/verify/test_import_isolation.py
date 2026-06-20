@@ -1,7 +1,7 @@
 """Import-boundary guard: ``prkit.verify`` must stay light-import-clean.
 
 Runs in a fresh subprocess (so the host test process's own imports cannot mask a
-leak) and asserts that importing the facade — and exercising ``parse``/``verify`` —
+leak) and asserts that importing the facade — and exercising ``verify`` —
 never pulls in provider SDKs, the dataset hub, the ``datasets`` library, or pandas.
 This is the contract that makes ``prkit.verify`` a ``pip install``-and-call verifier.
 """
@@ -30,12 +30,11 @@ def test_verify_path_does_not_import_heavy_deps():
     code = textwrap.dedent(f"""
         import sys
         import prkit.verify
-        from prkit.verify import parse, verify
+        from prkit.verify import verify
 
-        # Exercise the full lazy path: these trigger the SemanticsScorer/sympy
+        # Exercise the full lazy path: this triggers the SemanticsScorer/sympy
         # imports, which still must not drag in the forbidden modules.
         verify("3 m/s", "3 m/s")
-        parse("9.8 m/s^2")
 
         forbidden = {_FORBIDDEN!r}
         leaked = [name for name in forbidden if name in sys.modules]

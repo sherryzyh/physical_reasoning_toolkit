@@ -12,8 +12,8 @@ from __future__ import annotations
 
 import pytest
 
+from prkit.semantics.build.calls import extract_prediction_answer_semantics
 from prkit.semantics.comparison.sign_convention import _convention_orientation
-from prkit.semantics.inference.calls import extract_prediction_answer_semantics
 from prkit.semantics.normalization.answer_normalization import (
     _extract_sign_convention_declaration,
     normalize_physics_answer,

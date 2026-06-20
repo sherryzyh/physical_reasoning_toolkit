@@ -1,103 +1,24 @@
-"""Convenience exports for semantics-generation workflows.
+"""Deprecated import alias for :mod:`prkit.semantics.build`.
 
-The :mod:`prkit.semantics.inference` package wraps three related
-tasks:
-
-- building stable prompts for reference and prediction semantics calls,
-- validating and persisting the resulting artifacts, and
-- comparing saved artifacts with the protocol comparator.
+.. deprecated::
+    This subpackage was renamed to :mod:`prkit.semantics.build`: the layer *builds*
+    reference and prediction records (it **creates** references — not only "infers"),
+    so ``build`` names it for what it does. Importing ``prkit.semantics.inference``
+    re-exports the full ``prkit.semantics.build`` surface and emits a
+    :class:`DeprecationWarning`; this alias will be removed in a future release.
+    Import from ``prkit.semantics.build`` (or the ``prkit.semantics`` public surface)
+    instead. See ``prkit/CONTRACT.md``.
 """
 
-from .artifacts import (
-    PredictionSemanticsArtifact,
-    PredictionSemanticsResponse,
-    ProblemSemanticsArtifact,
-    ReferenceSemanticsArtifact,
-    ReferenceSemanticsResponse,
-    SemanticsArtifact,
-    SemanticsBuildReport,
-    SemanticsComparisonInputs,
-    SemanticsEvaluationRecord,
-    SemanticsGeneratorInfo,
-    SemanticsProblemRecord,
-    SymbolAssumptionProvenance,
-    load_prediction_semantics_artifact,
-    load_problem_semantics_artifact,
-    load_reference_semantics_artifact,
-    load_semantics_artifact,
-    load_semantics_evaluation_record,
-    save_semantics_json,
-)
-from .calls import (
-    PredictionSemanticsInferenceSpec,
-    build_extracted_prediction_semantics_artifact,
-    build_prediction_semantics_artifact,
-    build_problem_semantics,
-    build_reference_semantics,
-    compare_saved_semantics,
-    evaluate_saved_semantics,
-    extract_prediction_answer_semantics,
-    infer_prediction_semantics,
-    infer_reference_semantics,
-    parse_prediction_semantics_response_text,
-    parse_reference_semantics_response_text,
-    prepare_isolated_prediction_semantics_inference_spec,
-    prepare_prediction_semantics_inference_spec,
-    prepare_semantics_comparison,
-    resolve_isolated_prediction_response_model,
-    resolve_prediction_response_model,
-)
-from .prompts import (
-    PREDICTION_PROMPT_NAME,
-    PREDICTION_PROMPT_VERSION,
-    REFERENCE_PROMPT_NAME,
-    REFERENCE_PROMPT_VERSION,
-    answer_like_to_text,
-    build_prediction_semantics_prompt,
-    build_reference_semantics_prompt,
-)
+import warnings
 
-__all__ = [
-    "PREDICTION_PROMPT_NAME",
-    "PREDICTION_PROMPT_VERSION",
-    "PredictionSemanticsArtifact",
-    "PredictionSemanticsInferenceSpec",
-    "PredictionSemanticsResponse",
-    "ProblemSemanticsArtifact",
-    "REFERENCE_PROMPT_NAME",
-    "REFERENCE_PROMPT_VERSION",
-    "ReferenceSemanticsArtifact",
-    "ReferenceSemanticsResponse",
-    "SemanticsArtifact",
-    "SemanticsBuildReport",
-    "SemanticsComparisonInputs",
-    "SemanticsEvaluationRecord",
-    "SemanticsGeneratorInfo",
-    "SemanticsProblemRecord",
-    "SymbolAssumptionProvenance",
-    "answer_like_to_text",
-    "build_extracted_prediction_semantics_artifact",
-    "build_prediction_semantics_prompt",
-    "build_problem_semantics",
-    "build_reference_semantics",
-    "build_reference_semantics_prompt",
-    "build_prediction_semantics_artifact",
-    "compare_saved_semantics",
-    "evaluate_saved_semantics",
-    "extract_prediction_answer_semantics",
-    "infer_prediction_semantics",
-    "infer_reference_semantics",
-    "load_prediction_semantics_artifact",
-    "load_problem_semantics_artifact",
-    "load_reference_semantics_artifact",
-    "load_semantics_artifact",
-    "load_semantics_evaluation_record",
-    "parse_prediction_semantics_response_text",
-    "parse_reference_semantics_response_text",
-    "prepare_isolated_prediction_semantics_inference_spec",
-    "prepare_prediction_semantics_inference_spec",
-    "prepare_semantics_comparison",
-    "resolve_isolated_prediction_response_model",
-    "resolve_prediction_response_model",
-    "save_semantics_json",
-]
+from prkit.semantics.build import *  # noqa: F403 - re-export the renamed surface
+from prkit.semantics.build import __all__ as __all__
+
+warnings.warn(
+    "prkit.semantics.inference has been renamed to prkit.semantics.build; import "
+    "from prkit.semantics.build (or the prkit.semantics public surface) instead. "
+    "This alias will be removed in a future release.",
+    DeprecationWarning,
+    stacklevel=2,
+)

@@ -266,16 +266,24 @@ def resolve_isolated_prediction_response_model(
 #     )
 
 
-def infer_reference_semantics(
+def create_reference_semantics(
     problem: PhysicsProblem,
-    model_client: BaseModelClient,
+    model_client: BaseModelClient | None = None,
     *,
     max_output_tokens: int | None = None,
     **chat_kwargs: Any,
 ) -> ReferenceSemanticsArtifact:
-    """Infer and package reference semantics (q_ref + a_ref) for a problem's golden answer.
+    """Create reference semantics (q_ref + a_ref) for a problem's golden answer.
 
-    Back-compatible entry point: delegates to the staged :func:`build_reference_semantics`.
+    The public entry to the reference-build step; delegates to the staged
+    :func:`build_reference_semantics`. **Deterministic** when ``model_client is None``
+    (the three advisory LLM calls are skipped and the build records the same
+    ``*_call_unavailable`` flags as a degraded call, so ``review_required`` is set);
+    **LLM-assisted** otherwise.
+
+    ``model_client`` is positional-or-keyword (default ``None``) so the deprecated
+    ``infer_reference_semantics`` alias keeps working for callers that pass it
+    positionally.
     """
 
     return build_reference_semantics(
@@ -284,6 +292,11 @@ def infer_reference_semantics(
         max_output_tokens=max_output_tokens,
         **chat_kwargs,
     )
+
+
+#: Deprecated alias for :func:`create_reference_semantics` (renamed in the build/API
+#: restructure). Retained for one release; prefer ``create_reference_semantics``.
+infer_reference_semantics = create_reference_semantics
 
 
 # ----------------------------------------------------------------------------------------
@@ -305,7 +318,7 @@ _ANSWER_SURFACE_FILL_FIELDS = (
 
 
 def _advisory_inference(
-    model_client: BaseModelClient,
+    model_client: BaseModelClient | None,
     *,
     prompt: str,
     response_model: type[ResponseModelT],
@@ -316,7 +329,9 @@ def _advisory_inference(
     """Run one advisory build call, returning ``None`` on any failure.
 
     Advisory calls only refine fields the deterministic backbone has already decided, so a
-    failed call degrades to the deterministic value rather than crashing the build.
+    failed call degrades to the deterministic value rather than crashing the build. When
+    ``model_client is None`` (the deterministic build mode) the call is skipped entirely and
+    ``None`` is returned, so the same "unavailable" degradation path runs with no LLM call.
 
     These calls run **best-effort** (``require_native_json_schema=False``): native structured
     output is used when the provider supports it, otherwise the LLM still enriches via the
@@ -325,6 +340,9 @@ def _advisory_inference(
     native structured output is a Step-2 (answer-generation output-form) concern, not a Step-1
     one. Only a genuine inference/parse failure degrades to the deterministic value.
     """
+
+    if model_client is None:
+        return None
 
     try:
         response, _ = _run_structured_inference(
@@ -478,7 +496,7 @@ def _assumption_provenance(
 
 def build_reference_semantics(
     problem: PhysicsProblem,
-    model_client: BaseModelClient,
+    model_client: BaseModelClient | None = None,
     *,
     golden: str | None = None,
     max_output_tokens: int | None = None,
@@ -493,6 +511,9 @@ def build_reference_semantics(
     Three advisory LLM calls (temperature 0) then clean the answer surface, fill question
     policy, and declare justified symbol assumptions; their outputs are validated and never
     override the deterministic decisions. A build report records provenance and cross-checks.
+    When ``model_client is None`` the advisory calls are skipped and each records its
+    ``*_call_unavailable`` flag, yielding a fully deterministic ``(q_ref, a_ref)`` bundle
+    (``review_required``) with no LLM call.
     """
 
     resolved_golden = (
@@ -782,7 +803,7 @@ _PREDICTION_ANSWER_FORMS: tuple[PredictionAnswerForm, ...] = (
 )
 
 
-def infer_prediction_semantics(
+def generate_prediction_semantics(
     problem: PhysicsProblem,
     model_client: BaseModelClient,
     *,
@@ -873,6 +894,11 @@ def infer_prediction_semantics(
         structured_output_strategy=structured_result.structured_output_strategy,
         draft_question_semantics=spec.draft_question_semantics,
     )
+
+
+#: Deprecated alias for :func:`generate_prediction_semantics` (renamed in the build/API
+#: restructure). Retained for one release; prefer ``generate_prediction_semantics``.
+infer_prediction_semantics = generate_prediction_semantics
 
 
 def _resolve_prediction_native_requirement(
@@ -1824,14 +1850,18 @@ def _merge_question_semantics_fallbacks(
 
 
 def _generator_info(
-    model_client: BaseModelClient,
+    model_client: BaseModelClient | None,
     *,
     prompt_name: str,
     prompt_version: str,
     structured_output_mode: str,
     structured_output_strategy: str | None = None,
 ) -> SemanticsGeneratorInfo:
-    """Capture lightweight provenance for one inference call."""
+    """Capture lightweight provenance for one inference call.
+
+    ``model_client is None`` (the deterministic build) yields a generator record with
+    no provider/model — the ``getattr`` fallbacks resolve to ``None``.
+    """
 
     return _generator_info_from_metadata(
         provider=getattr(model_client, "provider", None),
@@ -2031,10 +2061,12 @@ __all__ = [
     "build_problem_semantics",
     "build_reference_semantics",
     "compare_saved_semantics",
+    "create_reference_semantics",
     "ensure_semantics_native_structured_output_support",
     "ensure_semantics_native_json_schema_support",
     "evaluate_saved_semantics",
     "extract_prediction_answer_semantics",
+    "generate_prediction_semantics",
     "infer_prediction_semantics",
     "infer_reference_semantics",
     "parse_prediction_semantics_response_text",

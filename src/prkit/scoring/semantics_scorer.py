@@ -143,7 +143,8 @@ class SemanticsScorer:
 
         ``prediction`` / ``reference`` may be raw strings, :class:`Answer` objects,
         or already-normalized :class:`PhysicsAnswerSemantics` (e.g. from
-        :func:`prkit.verify.parse`); all three are accepted by the normalizer. The
+        :func:`prkit.semantics.extract_prediction_answer_semantics`); all three are
+        accepted by the normalizer. The
         wider input type stays compatible with the narrower :class:`prkit.api.Scorer`
         protocol by parameter contravariance.
 

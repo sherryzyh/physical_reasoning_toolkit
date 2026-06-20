@@ -11,19 +11,7 @@ For the public schema, read ``TAXONOMY.md``.
 For the operational comparison flow, read ``PROTOCOL_COMPARISON.md``.
 """
 
-from .comparison import (
-    build_evaluation_contract,
-    coerce_evaluation_contract,
-    coerce_policy_mode,
-    coerce_protocol_answer,
-    coerce_question_semantics,
-    compare_physics_answers,
-    compare_predictions,
-    compare_protocol_answers,
-    compare_protocol_answers_legacy,
-    validate_answer_against_contract,
-)
-from .inference import (
+from .build import (
     PREDICTION_PROMPT_NAME,
     PREDICTION_PROMPT_VERSION,
     REFERENCE_PROMPT_NAME,
@@ -37,7 +25,10 @@ from .inference import (
     SemanticsProblemRecord,
     build_prediction_semantics_artifact,
     compare_saved_semantics,
+    create_reference_semantics,
     evaluate_saved_semantics,
+    extract_prediction_answer_semantics,
+    generate_prediction_semantics,
     infer_prediction_semantics,
     infer_reference_semantics,
     load_prediction_semantics_artifact,
@@ -48,6 +39,18 @@ from .inference import (
     prepare_prediction_semantics_inference_spec,
     prepare_semantics_comparison,
     save_semantics_json,
+)
+from .comparison import (
+    build_evaluation_contract,
+    coerce_evaluation_contract,
+    coerce_policy_mode,
+    coerce_protocol_answer,
+    coerce_question_semantics,
+    compare_physics_answers,
+    compare_predictions,
+    compare_protocol_answers,
+    compare_protocol_answers_legacy,
+    validate_answer_against_contract,
 )
 from .normalization import (
     infer_prediction_question_semantics,
@@ -121,11 +124,14 @@ __all__ = [
     "compare_protocol_answers",
     "compare_protocol_answers_legacy",
     "compare_saved_semantics",
+    "create_reference_semantics",
     "coerce_evaluation_contract",
     "coerce_policy_mode",
     "coerce_protocol_answer",
     "coerce_question_semantics",
     "evaluate_saved_semantics",
+    "extract_prediction_answer_semantics",
+    "generate_prediction_semantics",
     "infer_prediction_question_context",
     "infer_prediction_question_semantics",
     "infer_question_semantics",

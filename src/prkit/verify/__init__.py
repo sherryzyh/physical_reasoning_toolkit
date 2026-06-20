@@ -3,8 +3,11 @@
 This is the headline public surface for third parties who just want to verify a
 physics answer::
 
-    from prkit.verify import parse, verify
+    from prkit.verify import verify
     verdict = verify("9.81 m/s^2", "9.8 m/s²")   # verify(gold, pred) -> Verdict
+
+To turn a raw answer string into typed physics semantics (the former
+``prkit.verify.parse``), use ``prkit.semantics.extract_prediction_answer_semantics``.
 
 Import discipline (the whole point of this subpackage): ``import prkit.verify``
 must NOT pull in provider SDKs (anthropic / openai / google.genai), the dataset
@@ -23,9 +26,9 @@ from prkit.core.verdict import Verdict
 if TYPE_CHECKING:  # annotations only — never imported at runtime by this module
     from prkit.core.domain.answer import Answer
     from prkit.semantics import PhysicsAnswerSemantics, PhysicsQuestionSemantics
-    from prkit.semantics.inference import ReferenceSemanticsArtifact
+    from prkit.semantics.build import ReferenceSemanticsArtifact
 
-__all__ = ["parse", "verify", "Verdict"]
+__all__ = ["verify", "Verdict"]
 
 # A ``verify(unit_policy=...)`` value maps onto the engine's enforcement-strictness
 # axis (``ComparisonPolicyMode``). Finer-grained per-question unit rules
@@ -46,10 +49,10 @@ def _resolve_question_context(
     ``symbol_assumptions`` that unlock a domain-gated symbolic accept) into a plain
     ``verify(...)`` call. ``None`` preserves the historical default (empty context).
 
-    A :class:`~prkit.semantics.inference.ReferenceSemanticsArtifact` (or anything else
+    A :class:`~prkit.semantics.build.ReferenceSemanticsArtifact` (or anything else
     exposing ``.question_semantics``) is accepted and unwrapped to its
     ``question_semantics`` — duck-typed so this light-import facade never has to import
-    the heavy inference layer that defines the artifact. A ``PhysicsQuestionSemantics``
+    the heavy build layer that defines the artifact. A ``PhysicsQuestionSemantics``
     or a plain dict is passed straight through to the scorer's own coercion.
     """
     if context is None:
@@ -63,24 +66,6 @@ def _resolve_question_context(
     # cannot statically rule out the (duck-typed) artifact branch, so cast to the
     # scorer-accepted shape.
     return cast("PhysicsQuestionSemantics | dict[str, Any]", context)
-
-
-def parse(text: str, *, category: object | None = None) -> PhysicsAnswerSemantics:
-    """Normalize a raw answer surface into typed physics semantics.
-
-    Mirrors ``math_verify.parse``. ``category`` is reserved for a future
-    answer-category hint; it is not yet wired into the deterministic normalizer, so
-    passing a non-``None`` value raises ``NotImplementedError`` rather than being
-    silently ignored.
-    """
-    if category is not None:
-        raise NotImplementedError(
-            "parse(category=...) is not supported yet; pass category=None."
-        )
-    # Lazy: defers sympy / the semantics layer off the import path.
-    from prkit.semantics import normalize_physics_answer
-
-    return normalize_physics_answer(text)
 
 
 def verify(
@@ -114,7 +99,7 @@ def verify(
             the question's domain/policy fields — e.g. ``symbol_assumptions`` that
             unlock a domain-gated symbolic accept. May be a
             :class:`~prkit.semantics.PhysicsQuestionSemantics`, a dict, or a
-            :class:`~prkit.semantics.inference.ReferenceSemanticsArtifact` (its
+            :class:`~prkit.semantics.build.ReferenceSemanticsArtifact` (its
             ``question_semantics`` is used). Defaults to ``None`` (empty context),
             preserving the historical behavior.
 

@@ -9,7 +9,7 @@ from pydantic import ValidationError
 from prkit.core.domain import Answer, AnswerCategory, PhysicsProblem
 from prkit.core.model_clients import BaseModelClient
 from prkit.core.model_clients.structured_output import StructuredOutputPlan
-from prkit.semantics.inference.calls import (
+from prkit.semantics.build.calls import (
     _merge_question_semantics_fallbacks,
     _parse_response_model,
     _resolve_max_output_tokens,
@@ -18,11 +18,11 @@ from prkit.semantics.inference.calls import (
     infer_reference_semantics,
     resolve_prediction_response_model,
 )
-from prkit.semantics.inference.prompts import (
+from prkit.semantics.build.prompts import (
     build_prediction_semantics_prompt,
     build_reference_semantics_prompt,
 )
-from prkit.semantics.inference.strict_models import (
+from prkit.semantics.build.strict_models import (
     StrictPredictionFinalAnswerResponse,
     StrictPredictionSemanticsResponse,
     StrictReferenceSemanticsResponse,

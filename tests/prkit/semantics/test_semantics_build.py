@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pytest
 
-from prkit.semantics.inference.semantics_build import (
+from prkit.semantics.build.semantics_build import (
     alias_source_violations,
     assumptions_from_subject_to,
     build_alias_map,
