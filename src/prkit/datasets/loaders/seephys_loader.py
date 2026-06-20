@@ -8,6 +8,7 @@ from typing import Any
 
 from prkit.core import PRKitLogger
 from prkit.core.domain import PhysicalDataset, PhysicsProblem
+from prkit.datasets.license_registry import get_license
 
 from .base_loader import BaseDatasetLoader
 
@@ -38,7 +39,8 @@ class SeePhysLoader(BaseDatasetLoader):
             "name": self.name,
             "description": self.description,
             "repository_url": "https://huggingface.co/datasets/SeePhys/SeePhys",
-            "license": "Research use",
+            "license": get_license(self.name).to_info_dict(),
+            "license_spdx": get_license(self.name).spdx,
             "homepage": "https://seephys.github.io/",
             "paper_url": "https://openreview.net/pdf?id=APNWmytTCS",
             "languages": ["en", "zh"],

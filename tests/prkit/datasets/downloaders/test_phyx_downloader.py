@@ -36,7 +36,8 @@ class TestPhyXDownloader:
         assert "paper_url" in info
         assert "homepage" in info
         assert "license" in info
-        assert info["license"] == "MIT"
+        assert info["license"]["spdx"] == "MIT"
+        assert info["license_spdx"] == "MIT"
 
     def test_resolve_download_dir(self, temp_dir, monkeypatch):
         """Test resolve_download_dir method."""

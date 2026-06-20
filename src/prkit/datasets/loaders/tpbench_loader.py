@@ -14,6 +14,7 @@ import pandas as pd
 
 from prkit.core import PRKitLogger
 from prkit.core.domain import PhysicalDataset, PhysicsDomain, PhysicsProblem
+from prkit.datasets.license_registry import get_license
 from prkit.datasets.loaders.base_loader import BaseDatasetLoader
 
 
@@ -39,6 +40,8 @@ class TPBenchLoader(BaseDatasetLoader):
         """Get dataset information."""
         return {
             "name": self.name,
+            "license": get_license(self.name).to_info_dict(),
+            "license_spdx": get_license(self.name).spdx,
             "description": self.description,
             "domains": [
                 "quantum_mechanics",

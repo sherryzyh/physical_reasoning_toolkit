@@ -13,6 +13,7 @@ from typing import Any
 
 from prkit.core import PRKitLogger
 from prkit.core.domain import PhysicalDataset, PhysicsDomain, PhysicsProblem
+from prkit.datasets.license_registry import get_license
 from prkit.datasets.loaders.base_loader import BaseDatasetLoader
 from prkit.datasets.ugphysics_common import (
     UGPHYSICS_DEFAULT_SUBDIR,
@@ -54,6 +55,8 @@ class UGPhysicsLoader(BaseDatasetLoader):
         """Get dataset information."""
         return {
             "name": self.name,
+            "license": get_license(self.name).to_info_dict(),
+            "license_spdx": get_license(self.name).spdx,
             "description": self.description,
             "domains": [
                 "atomic_physics",

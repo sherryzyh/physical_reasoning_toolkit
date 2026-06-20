@@ -12,6 +12,7 @@ from typing import Any
 
 from prkit.core import PRKitLogger
 from prkit.core.domain import PhysicalDataset, PhysicsProblem
+from prkit.datasets.license_registry import get_license
 
 from .base_loader import BaseDatasetLoader
 
@@ -65,7 +66,8 @@ class PhysBenchLoader(BaseDatasetLoader):
             "paper_url": "https://arxiv.org/pdf/2501.16411",
             "homepage": "https://physbench.github.io/",
             "repository_url": "https://huggingface.co/datasets/USC-PSI-Lab/PhysBench",
-            "license": "apache-2.0",
+            "license": get_license(self.name).to_info_dict(),
+            "license_spdx": get_license(self.name).spdx,
             "languages": ["en"],
             "variants": list(self.VARIANT_TO_MODE.keys()),
             "splits": ["full", "val", "test"],

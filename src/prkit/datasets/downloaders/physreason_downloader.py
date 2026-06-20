@@ -11,6 +11,8 @@ import time
 from pathlib import Path
 from typing import Any
 
+from prkit.datasets.license_registry import get_license
+
 from .base_downloader import BaseDownloader
 
 
@@ -42,7 +44,8 @@ class PhysReasonDownloader(BaseDownloader):
             "variants": ["full", "mini"],
             "splits": ["train"],
             "size_bytes": None,  # Size varies by variant
-            "license": "CC BY-NC-SA / MIT",
+            "license": get_license(self.dataset_name).to_info_dict(),
+            "license_spdx": get_license(self.dataset_name).spdx,
             "download_method": "HuggingFace direct download",
         }
 

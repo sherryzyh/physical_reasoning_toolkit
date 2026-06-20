@@ -555,7 +555,11 @@ class TestDatasetHub:
         DatasetHub.register_downloader("mock_auto_download", mock_downloader_class)
 
         try:
-            dataset = DatasetHub.load("mock_auto_download", auto_download=True)
+            # Unregistered mock key is non-redistributable by default; this test exercises the
+            # download mechanism, not the license gate, so override it.
+            dataset = DatasetHub.load(
+                "mock_auto_download", auto_download=True, allow_nonredistributable=True
+            )
             assert dataset is not None
             mock_downloader.download.assert_called_once()
             assert MockLoader.last_loaded_data_dir == Path("/tmp/downloaded_mock_data")
@@ -646,7 +650,11 @@ class TestDatasetHub:
 
         try:
             with pytest.raises(RuntimeError, match="Auto-download failed"):
-                DatasetHub.load("mock_download_fail", auto_download=True)
+                DatasetHub.load(
+                    "mock_download_fail",
+                    auto_download=True,
+                    allow_nonredistributable=True,
+                )
         finally:
             if "mock_download_fail" in DatasetHub._loaders:
                 del DatasetHub._loaders["mock_download_fail"]

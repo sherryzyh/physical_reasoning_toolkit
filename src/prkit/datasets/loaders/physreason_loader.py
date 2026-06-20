@@ -13,6 +13,7 @@ from typing import Any
 
 from prkit.core import PRKitLogger
 from prkit.core.domain import PhysicalDataset, PhysicsProblem
+from prkit.datasets.license_registry import get_license
 from prkit.datasets.loaders.base_loader import BaseDatasetLoader
 
 
@@ -41,7 +42,8 @@ class PhysReasonLoader(BaseDatasetLoader):
             "paper_url": "https://aclanthology.org/2025.acl-long.811.pdf",
             "homepage": "https://dxzxy12138.github.io/PhysReason/",
             "repository_url": "https://huggingface.co/datasets/zhibei1204/PhysReason",
-            "license": "CC BY-NC-SA / MIT",
+            "license": get_license(self.name).to_info_dict(),
+            "license_spdx": get_license(self.name).spdx,
             "languages": ["en"],
             "variants": ["full", "mini"],
             "splits": ["test"],
@@ -220,6 +222,8 @@ class PhysReasonLoader(BaseDatasetLoader):
             problems=physics_problems,
             info={
                 "name": self.name,
+                "license": get_license(self.name).to_info_dict(),
+                "license_spdx": get_license(self.name).spdx,
                 "description": self.description,
                 "variant": variant,
                 "total_problems": len(physics_problems),

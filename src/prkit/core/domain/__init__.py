@@ -13,6 +13,7 @@ It consolidates:
 # Domain models (data classes)
 from .answer import Answer
 from .answer_category import AnswerCategory
+from .license_spec import LicenseSpec
 from .physics_dataset import PhysicalDataset
 from .physics_domain import PhysicsDomain
 from .physics_problem import PhysicsProblem
@@ -27,4 +28,5 @@ __all__ = [
     "PhysicsProblem",
     "PhysicalDataset",
     "PhysicsSolution",
+    "LicenseSpec",
 ]

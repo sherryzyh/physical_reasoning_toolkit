@@ -38,6 +38,7 @@ from typing import Any
 
 from prkit.core import PRKitLogger
 from prkit.core.domain import PhysicalDataset, PhysicsProblem
+from prkit.datasets.license_registry import get_license
 
 from .base_loader import BaseDatasetLoader
 
@@ -71,7 +72,8 @@ class JEEBenchLoader(BaseDatasetLoader):
             "difficulty": "JEE Advanced level",
             "source": "JEE Advanced examination papers",
             "citation": "JEEBench dataset for JEE Advanced preparation",
-            "license": "Research use",
+            "license": get_license(self.name).to_info_dict(),
+            "license_spdx": get_license(self.name).spdx,
             "repository": "Local dataset under data/JEEBench/",
             "modalities": self.modalities,
         }

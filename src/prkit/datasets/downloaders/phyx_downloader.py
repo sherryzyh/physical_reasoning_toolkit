@@ -12,6 +12,8 @@ import time
 from pathlib import Path
 from typing import Any
 
+from prkit.datasets.license_registry import get_license
+
 from .base_downloader import BaseDownloader
 
 # Try to import PIL for image handling
@@ -53,7 +55,8 @@ class PhyXDownloader(BaseDownloader):
             "format": "JSON",
             "splits": ["test_mini"],
             "size_bytes": None,  # Size varies
-            "license": "MIT",
+            "license": get_license(self.dataset_name).to_info_dict(),
+            "license_spdx": get_license(self.dataset_name).spdx,
             "download_method": "datasets-server API",
         }
 

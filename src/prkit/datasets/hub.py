@@ -19,6 +19,7 @@ from prkit.datasets.downloaders import (
     UGPhysicsDownloader,
 )
 from prkit.datasets.downloaders.base_downloader import BaseDownloader
+from prkit.datasets.license_registry import get_license
 from prkit.datasets.loaders import (
     JEEBenchLoader,
     PHYBenchLoader,
@@ -177,6 +178,7 @@ class DatasetHub:
         data_dir: str | Path | None = None,
         sample_size: int | None = None,
         auto_download: bool = False,
+        allow_nonredistributable: bool = False,
         **kwargs: Any,
     ) -> PhysicalDataset:
         """
@@ -187,6 +189,8 @@ class DatasetHub:
             data_dir: Path to the data directory (None = auto-detect)
             sample_size: Number of problems to load (None = all)
             auto_download: If True, automatically download the dataset if it doesn't exist
+            allow_nonredistributable: If True, permit auto_download of a dataset whose license
+                is not marked redistributable (default False gates such downloads)
             **kwargs: Additional arguments for the specific loader (e.g., split, variant, etc.)
 
         Returns:
@@ -196,6 +200,8 @@ class DatasetHub:
             ValueError: If dataset name is unknown, or if variant/split is invalid
             FileNotFoundError: If data directory doesn't exist and auto_download=False
             RuntimeError: If auto_download=True but download fails
+            PermissionError: If auto_download=True for a dataset whose license is not
+                redistributable and allow_nonredistributable=False
 
         Examples:
             >>> # Load UGPhysics dataset (uses default variant and split)
@@ -346,6 +352,24 @@ class DatasetHub:
                 split = load_kwargs.get("split")
                 if split is None:
                     split = loader.get_default_split()
+
+                # License gate: do not auto-download (re-host) a dataset that is not marked
+                # redistributable unless the caller explicitly overrides.
+                license_spec = get_license(dataset_name)
+                if not license_spec.redistributable and not allow_nonredistributable:
+                    notes = f" — {license_spec.notes}" if license_spec.notes else ""
+                    raise PermissionError(
+                        f"auto_download for '{dataset_name}' is gated: license "
+                        f"'{license_spec.spdx}' ({license_spec.name}) is not marked "
+                        f"redistributable{notes}. Download it manually and pass data_dir=, "
+                        "or pass allow_nonredistributable=True to override."
+                    )
+                if license_spec.eval_only:
+                    cls._logger.warning(
+                        "Dataset '%s' is licensed for evaluation only (%s).",
+                        dataset_name,
+                        license_spec.spdx,
+                    )
 
                 try:
                     # Download the dataset

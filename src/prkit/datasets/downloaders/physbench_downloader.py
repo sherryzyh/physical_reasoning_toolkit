@@ -11,6 +11,8 @@ import zipfile
 from pathlib import Path
 from typing import Any
 
+from prkit.datasets.license_registry import get_license
+
 from .base_downloader import BaseDownloader
 
 
@@ -38,7 +40,8 @@ class PhysBenchDownloader(BaseDownloader):
             "paper_url": "https://arxiv.org/pdf/2501.16411",
             "huggingface_url": "https://huggingface.co/datasets/USC-PSI-Lab/PhysBench",
             "homepage": "https://physbench.github.io/",
-            "license": "apache-2.0",
+            "license": get_license(self.dataset_name).to_info_dict(),
+            "license_spdx": get_license(self.dataset_name).spdx,
             "format": "JSON + optional ZIP media archives",
             "variants": ["full", "general", "image_only", "image_video"],
             "splits": ["full", "val", "test"],

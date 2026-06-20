@@ -13,6 +13,7 @@ from typing import Any
 
 from prkit.core import PRKitLogger
 from prkit.core.domain import PhysicalDataset, PhysicsDomain, PhysicsProblem
+from prkit.datasets.license_registry import get_license
 
 from .base_loader import BaseDatasetLoader, detect_answer_category
 
@@ -71,7 +72,8 @@ class PhysicsLoader(BaseDatasetLoader):
             "paper_url": "https://aclanthology.org/2025.findings-acl.610.pdf",
             "homepage": "https://github.com/yale-nlp/Physics",
             "repository_url": "https://github.com/yale-nlp/Physics",
-            "license": "MIT",
+            "license": get_license(self.name).to_info_dict(),
+            "license_spdx": get_license(self.name).spdx,
             "languages": ["en"],
             "variants": ["full", "hard", "textonly"],
             "splits": ["full", "test", "eval"],
