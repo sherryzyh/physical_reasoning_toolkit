@@ -1,66 +1,41 @@
 # Evaluation
 
-`prkit.evaluation` provides physics-oriented evaluation utilities for physical reasoning benchmarks. It focuses on comparisons that are common in this domain (e.g., symbolic expressions, numerical answers with units, multiple-choice options), and is designed to expand to richer evaluation signals over time.
+Evaluation in `prkit` is the **deterministic physics-semantics scorer**: it judges
+whether a predicted answer expresses the same physical meaning as the reference, and
+returns a canonical [`Verdict`](../src/prkit/core/verdict.py).
 
-## Quick Start
+## Use it
 
 ```python
-from prkit.core.domain.answer import Answer
-from prkit.core.domain.answer_category import AnswerCategory
-from prkit.evaluation import AccuracyMetric
+from prkit.verify import verify
 
-predictions = [
-    Answer(value=r"x^2 + 2x + 1", answer_category=AnswerCategory.FORMULA),
-    Answer(value=3.14, answer_category=AnswerCategory.PHYSICAL_QUANTITY, unit="m/s"),
-    Answer(value="A", answer_category=AnswerCategory.OPTION),
-]
-
-ground_truths = [
-    Answer(value=r"(x+1)^2", answer_category=AnswerCategory.FORMULA),
-    Answer(value=3.14159, answer_category=AnswerCategory.PHYSICAL_QUANTITY, unit="m/s"),
-    Answer(value="A", answer_category=AnswerCategory.OPTION),
-]
-
-metric = AccuracyMetric()
-result = metric.compute(predictions=predictions, ground_truths=ground_truths)
-print(result["accuracy"])
+v = verify("9.8 m/s^2", "9.8 m/s²")   # verify(gold, pred) -> Verdict
+v.correct          # True  — the unit suffix normalizes (math-verify strips units)
+v.units_ok         # True
+v.scorer_version   # stamped so a stored score is attributable to its scorer
 ```
 
-## Answer Representation
+- **`prkit.verify.verify`** — the light-import, `math-verify`-shaped one-call facade.
+  Imports no provider SDKs, dataset hub, `datasets`, or pandas.
+- **`prkit.scoring.SemanticsScorer`** — the reference `Scorer` (binary pass/fail) that
+  `verify` wraps. Use it directly when you want the `prkit.api.Scorer` object.
+- **`prkit.scoring.PartialCreditScorer`** — graded EED/SEED partial credit (populates
+  `Verdict.partial_credit`); reachable via `verify(..., partial_credit=True)`.
 
-PRKit uses a single `Answer` dataclass with an `AnswerCategory` enum:
+All three return the same canonical `Verdict`. The judgement itself lives in the
+deterministic engine `prkit.semantics.comparison`.
 
-- **Number**: dimensionless numeric values
-- **Physical Quantity**: numbers with `unit`
-- **Equation**: single-equation form (e.g., F = ma)
-- **Formula**: mathematical expressions (often LaTeX)
-- **Text**: free-form strings
-- **Option**: strings like `"A"` or `"AC"` (multi-select supported via normalization)
+## Learn more
 
-## Comparators
+- [PHYSICS_SEMANTICS.md](PHYSICS_SEMANTICS.md) — the narrative on-ramp: the concept,
+  the five build/judge steps and their entry points, and the doc map.
+- [`src/prkit/semantics/README.md`](../src/prkit/semantics/README.md) — the PASEC
+  protocol and the full semantics API.
+- [`src/prkit/CONTRACT.md`](../src/prkit/CONTRACT.md) — the version-stable public surface
+  (`prkit.api`, `prkit.verify`, `Verdict`).
 
-Comparators live in `prkit.evaluation.comparison` and return structured results (not just booleans):
+## Deprecated
 
-- **`SymbolicComparator`**: parses/normalizes LaTeX and checks equivalence via SymPy
-- **`NumericalComparator`**: compares numbers with significant-figure handling; may compare units
-- **`OptionComparator`**: normalizes option strings and supports multi-select comparisons
-- **`TextualComparator`**: fuzzy/semantic matching (implementation-dependent)
-- **`SmartAnswerComparator`**: routes to the right comparator based on `AnswerCategory`
-
-## Metrics
-
-Metrics live in `prkit.evaluation.metrics`. Currently:
-
-- **`AccuracyMetric`**: accuracy over a list of predictions vs ground truths using `SmartAnswerComparator`
-
-## Working with Datasets
-
-Datasets loaded via `DatasetHub` yield `PhysicsProblem` objects whose `.answer` field (when present) is an `Answer`. To evaluate model outputs, convert your model’s responses into `Answer` objects and compare against the dataset’s ground truth answers.
-
-## Roadmap (Planned)
-
-The evaluation package is designed to grow beyond final-answer correctness, with support for physics-specific signals such as:
-
-- theorem / principle usage checks
-- intermediate-step validation
-- rubric-based or structured reasoning assessments
+The legacy comparator/evaluator stack (`prkit.evaluation.comparator`,
+`prkit.evaluation.evaluator`) is **deprecated** in favor of the scorer above and is slated
+for removal. The model-graded `prkit.evaluation.llm_judge` is **not** deprecated and stays.

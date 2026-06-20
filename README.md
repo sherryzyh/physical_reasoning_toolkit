@@ -37,7 +37,7 @@ verifier—a `math-verify`-shaped API that, unlike `math-verify`, is unit- and
 symbolic-aware and imports no model clients, dataset hub, or provider SDKs:
 
 ```python
-from prkit.verify import parse, verify
+from prkit.verify import verify
 
 v = verify("9.8 m/s^2", "9.8 m/s²")   # verify(gold, pred) -> Verdict
 v.correct          # True  — the unit suffix normalizes (math-verify strips units)
@@ -46,12 +46,29 @@ v.symbolic_equiv   # None  (numeric case); True for e.g. verify("v = a t", "v = 
 v.scorer_version   # stamped so a stored score is attributable to its scorer
 ```
 
+#### Physics semantics (`prkit.semantics`)
+
+Underneath `verify` is the **physics-semantics** layer. It models a question's contract
+`q` and an answer's typed semantics `a`, and judges equivalence as a question-conditioned
+relation `Eq(a_pred, a_ref ; q)` — deterministically, not by string match. It exposes three
+build actions and two judge entry points, all importable from `prkit.semantics`:
+
+- `extract_prediction_answer_semantics(answer_text)` — deterministically type a prediction;
+- `create_reference_semantics(problem, model_client=None)` — build a reference `(q_ref, a_ref)`
+  (deterministic when `model_client` is omitted, LLM-assisted otherwise);
+- `generate_prediction_semantics(problem, solver_client, ...)` — solve, then type the answer;
+- `compare_protocol_answers(pred, ref, ...)` — reference-based judgement;
+- `compare_predictions(a_i, a_j, ...)` — reference-free (symmetric) judgement.
+
+See **[PHYSICS_SEMANTICS.md](docs/PHYSICS_SEMANTICS.md)** for the full story and doc map.
+
 ### 📖 Documentation
 
 **Quick Links:**
 - 🔧 **[CORE.md](docs/CORE.md)** - Core components: domain model, model client, logger, and definitions
 - 📚 **[DATASETS.md](docs/DATASETS.md)** - Complete guide to supported datasets and benchmarks
-- 📊 **[EVALUATION.md](docs/EVALUATION.md)** - Evaluation metrics and comparison strategies
+- 🧪 **[PHYSICS_SEMANTICS.md](docs/PHYSICS_SEMANTICS.md)** - Physics-semantics layer: `q`/`a`, the five build/judge steps, and the doc map
+- 📊 **[EVALUATION.md](docs/EVALUATION.md)** - The deterministic physics-semantics scorer (`verify` / `SemanticsScorer` → `Verdict`)
 - 🏷️ **[ANNOTATION.md](docs/ANNOTATION.md)** - Human annotation tasks (gold, correctness)
 - 📝 **[CHANGELOG.md](CHANGELOG.md)** - Version history and release notes
 
@@ -205,10 +222,13 @@ The essential building blocks of the physical-reasoning-toolkit. All datasets, i
 📖 See [CORE.md](docs/CORE.md) for the full domain model, entity relationships, subpackage dependency diagram, and import reference.
 
 
-### prkit.evaluation 📈
-Answer comparators (symbolic, numerical, textual, option-based), accuracy evaluator, and physics-focused assessment protocols.
+### prkit.scoring / prkit.verify 📈
+The deterministic physics-semantics scorer: `prkit.verify.verify` (light-import, one-call)
+and `prkit.scoring.SemanticsScorer` / `PartialCreditScorer`, all returning the canonical
+`Verdict`. Wraps the `prkit.semantics.comparison` engine. (The legacy `prkit.evaluation`
+comparator/evaluator stack is deprecated; `prkit.evaluation.llm_judge` stays.)
 
-📖 [EVALUATION.md](docs/EVALUATION.md)
+📖 [EVALUATION.md](docs/EVALUATION.md) · [PHYSICS_SEMANTICS.md](docs/PHYSICS_SEMANTICS.md)
 
 ### prkit.datasets 📊
 Dataset hub with a Datasets-like interface: `DatasetHub.load()` for PHYBench, PhysReason, UGPhysics, SeePhys, PhyX (plus JEEBench, TPBench loaders). Auto-download, variant selection, and reproducible sampling.

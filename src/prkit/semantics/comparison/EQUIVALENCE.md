@@ -7,7 +7,7 @@ physical meaning. This is the **reference** for the judgement; the precision-pre
 Every example below is a real engine result. Notation: `pred ≡ ref` means equivalent,
 `pred ≢ ref` means not, and `→ mode` is the resulting `comparison_mode`.
 
-- Entry point: `compare_protocol_answers(pred, ref, *, contract=None, context=None, policy_mode=None)` — [engine.py:39](engine.py)
+- Entry point: `compare_protocol_answers(pred, ref, *, contract=None, context=None, policy_mode=None)` — [engine.py:55](engine.py)
 - It is the deterministic equivalence relation `Eq(a_pred, a_ref ; q)` of the physics-semantics framework: a typed, question-conditioned judgement, not string overlap.
 
 ---
@@ -100,7 +100,7 @@ stable (all in `preprocess_symbolic_text` / `parse_relation_clauses`):
 A `PhysicsEvaluationContract` is derived from the reference answer + `q` (expected kind,
 structure, target variable, unit policy, symbolic mode, choice space, ordering, enabled
 bridges). Each side is classified by `validate_answer_against_contract`
-([contract.py:69](contract.py)):
+([contract.py:83](contract.py)):
 
 - **admitted** — satisfies the expected kind and question-side policies directly.
 - **coercible** — differs in a limited, possibly-meaningful way.
@@ -159,7 +159,7 @@ flowchart TD
   LF2 --> OK
 ```
 
-`_compare_atomic` ([engine.py:314](engine.py)): same kind → the §7 criterion; on a miss,
+`_compare_atomic` ([engine.py:471](engine.py)): same kind → the §7 criterion; on a miss,
 a Tier-3 label-family fallback and an identical-text check. Different kind → the §8
 bridges, then the label-family fallback, else `object_kind_mismatch`.
 
@@ -167,7 +167,7 @@ bridges, then the label-family fallback, else `object_kind_mismatch`.
 
 ## 7. Same object kind — one criterion per kind
 
-`compare_same_object_kind` ([same_object_kind.py:33](same_object_kind.py)) dispatches on
+`compare_same_object_kind` ([same_object_kind.py:34](same_object_kind.py)) dispatches on
 `object_kind`. Each kind has a **canonical form** and **one decision criterion**.
 
 ### 7.1 `number`
@@ -461,6 +461,9 @@ The `AnswerComparison.comparison_mode` names the path taken:
 
 - **Same-kind criteria:** `number`, `physical_quantity`, `expression`, `relation`,
   `choice`, `boolean`, `sign_direction`, `qualitative_label`.
+- **Surface shortcut:** `identical_text` ([engine.py:560](engine.py)) — byte-identical
+  atomic surfaces accept directly, with `surface_shortcut_used=True`. Same-kind by default;
+  also used cross-kind when the dispatcher allows it.
 - **Cross-kind bridges:** `relation_to_expression`, `relation_rhs`,
   `expression_to_number`, `quantity_to_number`, `expression_quantity`, `choice`,
   `terminal_polarity`, `terminal_polarity_choice`, `relation_to_qualitative_label`,
@@ -471,7 +474,14 @@ The `AnswerComparison.comparison_mode` names the path taken:
   `piecewise`.
 - **Non-equivalent / control:** `structure_mismatch`, `object_kind_mismatch`,
   `contract_violation`, `reference_contract_violation`, `bridge_blocked`,
-  `unsupported_structure`, `unsupported_object_kind`.
+  `unsupported_structure`, `unsupported_object_kind`, `not_implemented`
+  ([engine.py:577](engine.py)) — the TBD sentinel returned when a structured comparison is
+  not yet proven sound (see [STRUCTURE.md](STRUCTURE.md)).
+
+`asymmetric_match` is **not** a `comparison_mode`: it is a diagnostic tag added by the
+symmetric reference-free path (`compare_predictions`) when the forward comparison accepts
+but the backward does not. The pair is then judged **non-equivalent**, and
+`comparison_mode` keeps the value the forward criterion produced.
 
 ---
 

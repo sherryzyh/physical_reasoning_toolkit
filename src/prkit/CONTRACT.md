@@ -9,11 +9,14 @@ what is stable, how it is versioned, and how things get deprecated.
 If all you want is to verify a physics answer, use the light-import facade:
 
 ```python
-from prkit.verify import parse, verify
+from prkit.verify import verify
 v = verify("9.8 m/s^2", "9.8 m/s²")   # verify(gold, pred) -> Verdict
 v.correct        # True
 v.units_ok       # True  (the unit suffix normalizes; math-verify would strip it)
 ```
+
+To turn a raw answer string into typed physics semantics (the former
+`prkit.verify.parse`), use `prkit.semantics.extract_prediction_answer_semantics`.
 
 `prkit.verify` imports **no** provider SDKs, dataset hub, `datasets`, or pandas —
 the boundary is enforced by `tests/prkit/verify/test_import_isolation.py`. It is a
@@ -23,7 +26,7 @@ and returns the same canonical `Verdict`.
 ## Stable surface
 
 - **Only names exported in `prkit.api.__all__` are stable**, plus the
-  `prkit.verify` facade (`parse`, `verify`). Everything else — module paths,
+  `prkit.verify` facade (`verify`). Everything else — module paths,
   private helpers, subpackage internals — may change without notice.
 - The conformance suite in `prkit.testing` (`check_dataset`, `check_scorer`,
   `check_model_client`, `ConformanceTestMixin`) is a stable companion: use it to

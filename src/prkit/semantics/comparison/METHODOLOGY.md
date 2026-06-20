@@ -166,8 +166,8 @@ quantity). The lane forgives that flip, but the convention is **concrete per-ans
 not an on/off switch — the reference's convention is determined at build time (the LLM,
 from problem + figure + golden) and a prediction's comes from its own record; the judgement
 then **reconciles the two stated conventions** to a common frame
-(`sign_convention.py::compare_sign_convention`, and `_reconcile_shaped_sign_convention` for
-vectors). The criterion admits a pair **iff**: (1) the question fixes no convention
+(`sign_convention.py::compare_sign_convention`, and `engine.py::_reconcile_shaped_sign_convention`
+for vectors). The criterion admits a pair **iff**: (1) the question fixes no convention
 (`q.sign_convention` and `q.coordinate_frame` both absent — else the axis is pinned and a
 flip is a real error); (2) **both** answers declare conventions whose positive axes are a
 provable *global* reversal (antonym directions — `_DIRECTION_OPPOSITE`); and (3) the values
@@ -222,8 +222,8 @@ discipline for *building* the records the judgement consumes — the question se
 and the answer-semantics records `a` — so that they are constructed with the **same
 precision authority** the engine enforces, not by ad-hoc heuristics. The build is offline
 and one-time per data point; its deterministic core lives in
-[`../inference/semantics_build.py`](../inference/semantics_build.py) and is wrapped by the
-staged calls in [`../inference/calls.py`](../inference/calls.py).
+[`../build/semantics_build.py`](../build/semantics_build.py) and is wrapped by the
+staged calls in [`../build/calls.py`](../build/calls.py).
 
 ### Vocabulary (build outputs)
 
@@ -260,7 +260,7 @@ Native provider-enforced structured output is a **Step-2 output-form concern onl
   provider supports it, otherwise plain text parsed back), so a provider lacking native
   structured output still yields a full `(q_ref, a_ref)`. Lacking it is a normal route, not a
   defect — it does not set `review_required` (only a genuine cross-check failure does).
-- **Step 2's form is the consumer's choice, not the toolkit's.** `infer_prediction_semantics`
+- **Step 2's form is the consumer's choice, not the toolkit's.** `generate_prediction_semantics`
   takes `answer_semantics`: `"structured"` returns `a_pred_llm` (native provider-enforced output;
   it **raises** if the provider cannot enforce it — no silent substitution), `"extracted"` returns
   `a_pred_ext = canonicalize_structure(normalize_physics_answer(...))` (plain-text solve, needs no
@@ -277,9 +277,9 @@ as a standalone capability for users and downstream applications to invoke à la
 with their own references and predictions, build only references, or only extract answer
 semantics. **No step may depend on another inside the toolkit.** Concretely: the judgement
 core (`prkit.semantics.comparison`, `prkit.verify`, `prkit.scoring`) imports **nothing** from
-the build/generation layer (`prkit.semantics.inference`) at runtime — `verify(...)` accepts a
+the build/generation layer (`prkit.semantics.build`) at runtime — `verify(...)` accepts a
 `q_ref` by *duck-typing* `.question_semantics` (a `TYPE_CHECKING`-only annotation), so it never
-pulls in the inference layer; generation never calls the reference build; and every step's
+pulls in the build layer; generation never calls the reference build; and every step's
 entry point takes plain `problem` / `PhysicsAnswerSemantics` / `PhysicsQuestionSemantics`
 inputs rather than requiring another step's output. A new feature must not introduce a runtime
 import or a mandatory call from one step into another.
