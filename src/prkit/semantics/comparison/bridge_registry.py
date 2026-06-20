@@ -72,6 +72,16 @@ def _has_choice_space(
     return bool(contract.question_semantics.choice_space)
 
 
+def _sign_convention_reconcilable(
+    pred: PhysicsAnswerSemantics,
+    ref: PhysicsAnswerSemantics,
+    contract: PhysicsEvaluationContract,
+) -> bool:
+    del pred, ref
+    question = contract.question_semantics
+    return question.sign_convention is None and question.coordinate_frame is None
+
+
 def _looks_like_change_question(
     pred: PhysicsAnswerSemantics,
     ref: PhysicsAnswerSemantics,
@@ -170,6 +180,13 @@ BRIDGE_REGISTRY: dict[str, BridgeSpec] = {
         predicate=_looks_like_change_question,
         description="Treat no-change language as zero only for change-oriented questions.",
     ),
+    "sign_convention": BridgeSpec(
+        bridge_id="sign_convention",
+        tier=BridgeTier.TIER2,
+        predicate=_sign_convention_reconcilable,
+        description="Reconcile a global sign flip between directional answers that declare "
+        "opposite conventions, only when the question fixes none.",
+    ),
 }
 
 
@@ -202,6 +219,12 @@ def _bridge_candidate_ids_for_atomic_kinds(
 
     kinds = {pred_kind, ref_kind}
     candidates: list[str] = []
+    if pred_kind == ref_kind and pred_kind in {
+        AnswerObjectKind.NUMBER,
+        AnswerObjectKind.PHYSICAL_QUANTITY,
+        AnswerObjectKind.SIGN_DIRECTION,
+    }:
+        candidates.append("sign_convention")
     if kinds == {AnswerObjectKind.NUMBER, AnswerObjectKind.PHYSICAL_QUANTITY}:
         candidates.append("quantity_to_number")
     if kinds == {AnswerObjectKind.NUMBER, AnswerObjectKind.EXPRESSION}:

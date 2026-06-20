@@ -43,6 +43,12 @@ from .semantics import (
     normalize_plain_text,
     parse_numeric_value,
 )
+from .sign_convention import (
+    answer_directional_convention,
+    compare_sign_convention,
+    orientation_relation,
+    vectors_exact_negation,
+)
 from .structure_canonicalization import canonicalize_structure
 
 
@@ -474,6 +480,22 @@ def _compare_atomic(
     """Compare two atomic answers using strict, bridged, and fallback logic."""
 
     if pred.object_kind == ref.object_kind:
+        # Sign-convention reconciliation runs first for directional kinds so it can both
+        # accept a global flip between opposite stated conventions and override a plain
+        # equality that would otherwise miss the precision dual (opposite conventions,
+        # equal values => physically opposite). It owns the verdict only on that concrete
+        # evidence; otherwise it declines and the normal criterion decides.
+        sign_convention = compare_sign_convention(pred, ref, context=context)
+        if sign_convention is not None:
+            if sign_convention.equivalent:
+                return _apply_bridge_policy(
+                    sign_convention,
+                    pred=pred,
+                    ref=ref,
+                    contract=contract,
+                    policy_mode=policy_mode,
+                )
+            return sign_convention
         strict = compare_same_object_kind(pred, ref, context=context)
         if strict.equivalent:
             return strict
@@ -712,6 +734,54 @@ def _compare_interval(
     )
 
 
+def _reconcile_shaped_sign_convention(
+    pred: PhysicsAnswerSemantics,
+    ref: PhysicsAnswerSemantics,
+    *,
+    context: PhysicsQuestionSemantics,
+    contract: PhysicsEvaluationContract,
+    policy_mode: ComparisonPolicyMode,
+) -> AnswerComparison | None:
+    """Reconcile a shaped (vector) pair under opposite stated frames; ``None`` to defer.
+
+    Owns the verdict only when the question fixes no convention, both answers declare
+    opposite (globally-reversed) directional conventions, and every cell is atomic. An exact
+    component-wise negation accepts via the audited ``sign_convention`` bridge; a partial /
+    non-negation rejects (the precision dual). Otherwise it declines so the existing frame
+    gates (one-sided ⇒ TBD, genuinely-incompatible ⇒ mismatch, both-unset ⇒ per-cell) run.
+    """
+
+    if context.sign_convention or context.coordinate_frame:
+        return None
+    pred_convention = answer_directional_convention(pred)
+    ref_convention = answer_directional_convention(ref)
+    if not pred_convention or not ref_convention:
+        return None
+    if orientation_relation(pred_convention, ref_convention) != "opposite":
+        return None
+    if not _children_all_atomic(pred, ref):
+        return None
+
+    if vectors_exact_negation(pred, ref, context.tolerance):
+        result = AnswerComparison(
+            True,
+            "sign_convention",
+            ("global_sign_flip", f"kind={pred.structure.value}"),
+        )
+        return _apply_bridge_policy(
+            result,
+            pred=pred,
+            ref=ref,
+            contract=contract,
+            policy_mode=policy_mode,
+        )
+    return AnswerComparison(
+        False,
+        "sign_convention",
+        ("opposite_convention_not_global_negation",),
+    )
+
+
 def _compare_shaped(
     pred: PhysicsAnswerSemantics,
     ref: PhysicsAnswerSemantics,
@@ -733,6 +803,21 @@ def _compare_shaped(
     # retired to TBD.
     if not pred.children or not ref.children:
         return _structure_tbd(pred.structure.value, "unparsed_shaped_answer")
+
+    # Sign-convention reconciliation (vectors): when the question fixes no convention and the
+    # two answers declare opposite (globally-reversed) frames, an exact component-wise
+    # negation is the same physical vector. This refines the both-set-incompatible branch
+    # below — only the *opposite* sub-case reconciles; genuinely-incompatible frames still
+    # reject, partial flips still reject.
+    reconciled = _reconcile_shaped_sign_convention(
+        pred,
+        ref,
+        context=context,
+        contract=contract,
+        policy_mode=policy_mode,
+    )
+    if reconciled is not None:
+        return reconciled
 
     # Coordinate frame: both-unset ⇒ the problem's implicit shared frame (proceed); a
     # one-sided declaration is unresolved ⇒ TBD; both-set-incompatible is a real mismatch.
@@ -1039,6 +1124,10 @@ def _repair_atomic_answer(
             "provenance": dict(answer.provenance) or dict(reparsed.provenance),
             "diagnostics": answer.diagnostics or reparsed.diagnostics,
             "subject_to": answer.subject_to or reparsed.subject_to,
+            # Preserve the answer's stated directional convention through the reparse so the
+            # sign-convention lane can still read it (mirrors the structured reparse merge).
+            "coordinate_frame": answer.coordinate_frame or reparsed.coordinate_frame,
+            "sign_convention": answer.sign_convention or reparsed.sign_convention,
         }
         if reparsed.object_kind == AnswerObjectKind.PHYSICAL_QUANTITY:
             update.update(
@@ -1402,6 +1491,15 @@ def _bridge_evidence(
         and contract.question_semantics.choice_space
     ):
         evidence["choice_space"] = ",".join(contract.question_semantics.choice_space)
+    if bridge_id == "sign_convention":
+        pred_convention = answer_directional_convention(pred)
+        ref_convention = answer_directional_convention(ref)
+        if pred_convention:
+            evidence["pred_convention"] = pred_convention
+        if ref_convention:
+            evidence["ref_convention"] = ref_convention
+        evidence["orientation"] = "opposite"
+        evidence["reconciliation"] = "global_-1"
     return evidence
 
 

@@ -185,3 +185,100 @@ class TestParse:
     def test_category_not_supported_yet(self):
         with pytest.raises(NotImplementedError):
             parse("9.8", category="number")
+
+
+def _answer(payload):
+    """Coerce a protocol-answer mapping into ``PhysicsAnswerSemantics`` for ``verify``."""
+    from prkit.semantics import coerce_protocol_answer
+
+    return coerce_protocol_answer(payload)
+
+
+def _directional_quantity(text, value, unit, convention=None):
+    payload = {
+        "object_kind": "physical_quantity",
+        "canonical_text": text,
+        "numeric_value": value,
+        "numeric_text": str(value),
+        "unit": unit,
+    }
+    if convention is not None:
+        payload["coordinate_frame"] = convention
+    return _answer(payload)
+
+
+def _directional_vector(components, convention=None):
+    payload = {
+        "object_kind": "number",
+        "structure": "vector",
+        "canonical_text": "(" + ", ".join(str(c) for c in components) + ")",
+        "shape": [len(components)],
+        "children": [
+            {
+                "object_kind": "number",
+                "structure": "atomic",
+                "canonical_text": str(c),
+                "numeric_value": float(c),
+                "numeric_text": str(c),
+            }
+            for c in components
+        ],
+    }
+    if convention is not None:
+        payload["coordinate_frame"] = convention
+    return _answer(payload)
+
+
+def _sign_label(label, convention=None):
+    payload = {
+        "object_kind": "sign_direction",
+        "canonical_text": label,
+        "sign_value": label,
+    }
+    if convention is not None:
+        payload["sign_convention"] = convention
+    return _answer(payload)
+
+
+class TestVerifySignConvention:
+    """End-to-end: ``verify`` reconciles a global sign flip between opposite conventions.
+
+    The lane fires only under an enforcement policy that enables bridges
+    (``unit_policy="audited"``) and only when both answers declare opposite,
+    globally-reversed conventions and the question fixes none. The default
+    (``"strict"``) keeps it off. Bridge metadata surfaces under ``Verdict.details``.
+    """
+
+    def test_velocity_flip_accepts_under_audited(self):
+        gold = _directional_quantity("-20 m/s", -20.0, "m/s", "right-as-positive")
+        pred = _directional_quantity("+20 m/s", 20.0, "m/s", "taking left as positive")
+        v = verify(gold, pred, unit_policy="audited")
+        assert v.correct is True
+        assert v.comparison_mode == "sign_convention"
+        assert v.details["bridge_id"] == "sign_convention"
+        assert v.details["bridge_tier"] is not None
+
+    def test_vector_global_negation_accepts_under_audited(self):
+        gold = _directional_vector((-3.0, 4.0), "x to the left")
+        pred = _directional_vector((3.0, -4.0), "x to the right")
+        v = verify(gold, pred, unit_policy="audited")
+        assert v.correct is True
+        assert v.comparison_mode == "sign_convention"
+
+    def test_sign_direction_resolves_under_audited(self):
+        gold = _sign_label("positive", "taking left as positive")
+        pred = _sign_label("negative", "right-as-positive")
+        v = verify(gold, pred, unit_policy="audited")
+        assert v.correct is True
+        assert v.comparison_mode == "sign_convention"
+
+    def test_default_strict_policy_does_not_reconcile(self):
+        gold = _directional_quantity("-20 m/s", -20.0, "m/s", "right-as-positive")
+        pred = _directional_quantity("+20 m/s", 20.0, "m/s", "taking left as positive")
+        assert verify(gold, pred).correct is False
+
+    def test_intrinsic_sign_never_reconciled(self):
+        # Charge sign is intrinsic, not an axis convention: +5 C != -5 C.
+        gold = _directional_quantity("+5 C", 5.0, "C")
+        pred = _directional_quantity("-5 C", -5.0, "C")
+        assert verify(gold, pred, unit_policy="audited").correct is False

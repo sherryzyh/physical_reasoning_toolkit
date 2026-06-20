@@ -2557,3 +2557,571 @@ def test_numeric_identity_equivalent_rejection_is_exact() -> None:
     same_left = parse_scalar_symbolic_expression("(x + 1)**2")
     same_right = parse_scalar_symbolic_expression("x**2 + 2*x + 1")
     assert _numeric_identity_equivalent(same_left, same_right, 1e-9) is True
+
+
+# ---------------------------------------------------------------------------
+# Sign-convention equivalence lane
+#
+# A global sign flip between two directional answers is reconciled only on concrete
+# evidence: the question fixes no convention, both answers declare opposite (globally
+# reversed) conventions, and the values are an exact global -1. The stated conventions are
+# the evidence; the lane is an audited TIER2 bridge (blocked under strict). These batteries
+# span many real open-form physics answers and prove the precision boundary.
+# ---------------------------------------------------------------------------
+
+
+def _directional_quantity(
+    canonical_text: str,
+    *,
+    numeric_value: float,
+    unit: str,
+    convention: str | None = None,
+) -> dict[str, object]:
+    """Build a signed physical-quantity answer optionally carrying a stated convention."""
+
+    payload: dict[str, object] = {
+        "object_kind": "physical_quantity",
+        "canonical_text": canonical_text,
+        "numeric_value": numeric_value,
+        "numeric_text": str(numeric_value),
+        "unit": unit,
+    }
+    if convention is not None:
+        payload["coordinate_frame"] = convention
+    return payload
+
+
+def _directional_number(
+    value: float, *, convention: str | None = None
+) -> dict[str, object]:
+    """Build a signed bare-number answer optionally carrying a stated convention."""
+
+    payload: dict[str, object] = {
+        "object_kind": "number",
+        "canonical_text": ("+" if value >= 0 else "") + str(value),
+        "numeric_value": value,
+        "numeric_text": str(value),
+    }
+    if convention is not None:
+        payload["sign_convention"] = convention
+    return payload
+
+
+def _directional_vector(
+    components: tuple[float, ...],
+    *,
+    convention: str | None = None,
+    unit: str | None = None,
+) -> dict[str, object]:
+    """Build a numeric vector answer optionally carrying a stated frame."""
+
+    payload: dict[str, object] = {
+        "object_kind": "number",
+        "structure": "vector",
+        "canonical_text": "(" + ", ".join(str(c) for c in components) + ")",
+        "shape": [len(components)],
+        "children": [
+            {
+                "object_kind": "number",
+                "structure": "atomic",
+                "canonical_text": str(c),
+                "numeric_value": float(c),
+                "numeric_text": str(c),
+                **({"unit": unit} if unit else {}),
+            }
+            for c in components
+        ],
+    }
+    if convention is not None:
+        payload["coordinate_frame"] = convention
+    return payload
+
+
+def _sign_label(label: str, *, convention: str | None = None) -> dict[str, object]:
+    """Build a sign_direction answer optionally carrying a stated convention."""
+
+    payload: dict[str, object] = {
+        "object_kind": "sign_direction",
+        "canonical_text": label,
+        "sign_value": label,
+    }
+    if convention is not None:
+        payload["sign_convention"] = convention
+    return payload
+
+
+# A pair of opposite axis conventions written in several natural surfaces.
+_RIGHT = "right-as-positive"
+_LEFT = "taking left as positive"
+_UP = "up is positive"
+_DOWN = "down positive"
+_OUT = "out of the page positive"
+_INTO = "into the page positive"
+
+
+@pytest.mark.parametrize(
+    "pred, ref",
+    [
+        # Velocity reported under opposite axis choices.
+        (
+            _directional_quantity(
+                "+20 m/s", numeric_value=20.0, unit="m/s", convention=_LEFT
+            ),
+            _directional_quantity(
+                "-20 m/s", numeric_value=-20.0, unit="m/s", convention=_RIGHT
+            ),
+        ),
+        # Acceleration: up-positive vs down-positive.
+        (
+            _directional_quantity(
+                "-9.8 m/s^2", numeric_value=-9.8, unit="m/s^2", convention=_UP
+            ),
+            _directional_quantity(
+                "+9.8 m/s^2", numeric_value=9.8, unit="m/s^2", convention=_DOWN
+            ),
+        ),
+        # Force.
+        (
+            _directional_quantity(
+                "-15 N", numeric_value=-15.0, unit="N", convention=_RIGHT
+            ),
+            _directional_quantity(
+                "+15 N", numeric_value=15.0, unit="N", convention=_LEFT
+            ),
+        ),
+        # Momentum.
+        (
+            _directional_quantity(
+                "+4 kg*m/s", numeric_value=4.0, unit="kg*m/s", convention=_LEFT
+            ),
+            _directional_quantity(
+                "-4 kg*m/s", numeric_value=-4.0, unit="kg*m/s", convention=_RIGHT
+            ),
+        ),
+        # A unit conversion rides along (72 km/h == 20 m/s).
+        (
+            _directional_quantity(
+                "-72 km/h", numeric_value=-72.0, unit="km/h", convention=_RIGHT
+            ),
+            _directional_quantity(
+                "+20 m/s", numeric_value=20.0, unit="m/s", convention=_LEFT
+            ),
+        ),
+        # Bare numbers.
+        (
+            _directional_number(5.0, convention=_RIGHT),
+            _directional_number(-5.0, convention=_LEFT),
+        ),
+        (
+            _directional_number(-3.0, convention=_UP),
+            _directional_number(3.0, convention=_DOWN),
+        ),
+    ],
+)
+def test_protocol_sign_convention_scalar_accepts_under_audited(
+    pred: dict[str, object], ref: dict[str, object]
+) -> None:
+    result = compare_protocol_answers(
+        pred, ref, context={}, policy_mode=ComparisonPolicyMode.AUDITED
+    )
+    assert result.equivalent is True, (pred, ref)
+    assert result.comparison_mode == "sign_convention"
+    assert result.bridge_id == "sign_convention"
+    assert result.bridge_tier is not None
+    assert result.bridge_evidence.get("orientation") == "opposite"
+    assert result.bridge_evidence.get("reconciliation") == "global_-1"
+
+
+@pytest.mark.parametrize(
+    "pred, ref",
+    [
+        # 2D global reversal.
+        (
+            _directional_vector((3.0, -4.0), convention="x to the right"),
+            _directional_vector((-3.0, 4.0), convention="x to the left"),
+        ),
+        # 3D global reversal.
+        (
+            _directional_vector((1.0, 2.0, -2.0), convention=_RIGHT),
+            _directional_vector((-1.0, -2.0, 2.0), convention=_LEFT),
+        ),
+        # E-field with a zero component (still has a nonzero one).
+        (
+            _directional_vector((0.0, -5.0, 0.0), convention=_UP),
+            _directional_vector((0.0, 5.0, 0.0), convention=_DOWN),
+        ),
+        # Into/out-of-page reversal.
+        (
+            _directional_vector((2.0, -1.0), convention=_OUT),
+            _directional_vector((-2.0, 1.0), convention=_INTO),
+        ),
+    ],
+)
+def test_protocol_sign_convention_vector_accepts_under_audited(
+    pred: dict[str, object], ref: dict[str, object]
+) -> None:
+    result = compare_protocol_answers(
+        pred, ref, context={}, policy_mode=ComparisonPolicyMode.AUDITED
+    )
+    assert result.equivalent is True, (pred, ref)
+    assert result.comparison_mode == "sign_convention"
+    assert result.bridge_id == "sign_convention"
+
+
+def test_protocol_sign_convention_symbolic_vector_accepts() -> None:
+    pred = {
+        "object_kind": "expression",
+        "structure": "vector",
+        "canonical_text": "(a, -b)",
+        "shape": [2],
+        "children": [
+            {"object_kind": "expression", "structure": "atomic", "canonical_text": "a"},
+            {
+                "object_kind": "expression",
+                "structure": "atomic",
+                "canonical_text": "-b",
+            },
+        ],
+        "coordinate_frame": "x to the right",
+    }
+    ref = {
+        "object_kind": "expression",
+        "structure": "vector",
+        "canonical_text": "(-a, b)",
+        "shape": [2],
+        "children": [
+            {
+                "object_kind": "expression",
+                "structure": "atomic",
+                "canonical_text": "-a",
+            },
+            {"object_kind": "expression", "structure": "atomic", "canonical_text": "b"},
+        ],
+        "coordinate_frame": "x to the left",
+    }
+    result = compare_protocol_answers(
+        pred, ref, context={}, policy_mode=ComparisonPolicyMode.AUDITED
+    )
+    assert result.equivalent is True
+    assert result.comparison_mode == "sign_convention"
+
+
+@pytest.mark.parametrize(
+    "pred, ref",
+    [
+        # negative under right-positive == left, positive under left-positive == left.
+        (
+            _sign_label("negative", convention=_RIGHT),
+            _sign_label("positive", convention=_LEFT),
+        ),
+        (
+            _sign_label("positive", convention=_UP),
+            _sign_label("negative", convention=_DOWN),
+        ),
+        (
+            _sign_label("negative", convention=_OUT),
+            _sign_label("positive", convention=_INTO),
+        ),
+    ],
+)
+def test_protocol_sign_convention_sign_direction_resolves_to_same_physical_direction(
+    pred: dict[str, object], ref: dict[str, object]
+) -> None:
+    result = compare_protocol_answers(
+        pred, ref, context={}, policy_mode=ComparisonPolicyMode.AUDITED
+    )
+    assert result.equivalent is True, (pred, ref)
+    assert result.comparison_mode == "sign_convention"
+
+
+def test_protocol_sign_convention_accept_is_audited_but_not_strict() -> None:
+    pred = _directional_quantity(
+        "+20 m/s", numeric_value=20.0, unit="m/s", convention=_LEFT
+    )
+    ref = _directional_quantity(
+        "-20 m/s", numeric_value=-20.0, unit="m/s", convention=_RIGHT
+    )
+
+    audited = compare_protocol_answers(
+        pred, ref, context={}, policy_mode=ComparisonPolicyMode.AUDITED
+    )
+    strict = compare_protocol_answers(
+        pred, ref, context={}, policy_mode=ComparisonPolicyMode.STRICT
+    )
+    permissive = compare_protocol_answers(
+        pred, ref, context={}, policy_mode=ComparisonPolicyMode.PERMISSIVE
+    )
+
+    assert audited.equivalent is True
+    assert audited.bridge_tier is not None
+    assert strict.equivalent is False
+    assert strict.comparison_mode == "bridge_blocked"
+    assert permissive.equivalent is True
+
+
+# --- Adversarial-reject battery (the precision proof) ----------------------
+
+
+@pytest.mark.parametrize(
+    "pred, ref",
+    [
+        # Intrinsic signs never reconcile (no axis convention at all).
+        (
+            _directional_quantity("+5 C", numeric_value=5.0, unit="C"),
+            _directional_quantity("-5 C", numeric_value=-5.0, unit="C"),
+        ),
+        (
+            _directional_quantity("+30 J", numeric_value=30.0, unit="J"),
+            _directional_quantity("-30 J", numeric_value=-30.0, unit="J"),
+        ),
+        (
+            _directional_quantity("-2 K", numeric_value=-2.0, unit="K"),
+            _directional_quantity("+2 K", numeric_value=2.0, unit="K"),
+        ),
+        (
+            _directional_quantity("-12 V", numeric_value=-12.0, unit="V"),
+            _directional_quantity("+12 V", numeric_value=12.0, unit="V"),
+        ),
+        (_directional_number(5.0), _directional_number(-5.0)),
+        # Flipped side missing a convention: never assume the opposite axis.
+        (
+            _directional_quantity("+20 m/s", numeric_value=20.0, unit="m/s"),
+            _directional_quantity(
+                "-20 m/s", numeric_value=-20.0, unit="m/s", convention=_RIGHT
+            ),
+        ),
+        # Opposite orientation, magnitude mismatch.
+        (
+            _directional_quantity(
+                "-20 m/s", numeric_value=-20.0, unit="m/s", convention=_LEFT
+            ),
+            _directional_quantity(
+                "+15 m/s", numeric_value=15.0, unit="m/s", convention=_RIGHT
+            ),
+        ),
+        # Same orientation, opposite value: a real disagreement.
+        (
+            _directional_quantity(
+                "+20 m/s", numeric_value=20.0, unit="m/s", convention=_RIGHT
+            ),
+            _directional_quantity(
+                "-20 m/s", numeric_value=-20.0, unit="m/s", convention=_RIGHT
+            ),
+        ),
+        # Zero has no sign to flip.
+        (
+            _directional_quantity(
+                "0 m/s", numeric_value=0.0, unit="m/s", convention=_LEFT
+            ),
+            _directional_quantity(
+                "0 m/s", numeric_value=0.0, unit="m/s", convention=_RIGHT
+            ),
+        ),
+        # Non-opposite (orthogonal) conventions are indeterminate, not flippable.
+        (
+            _directional_number(5.0, convention="x-axis positive"),
+            _directional_number(-5.0, convention="y-axis positive"),
+        ),
+    ],
+)
+def test_protocol_sign_convention_scalar_rejects(
+    pred: dict[str, object], ref: dict[str, object]
+) -> None:
+    result = compare_protocol_answers(
+        pred, ref, context={}, policy_mode=ComparisonPolicyMode.AUDITED
+    )
+    assert result.equivalent is False, (pred, ref)
+
+
+def test_protocol_sign_convention_precision_dual_rejects_under_every_policy() -> None:
+    # Opposite conventions but EQUAL values => physically opposite quantities.
+    pred = _directional_quantity(
+        "-20 m/s", numeric_value=-20.0, unit="m/s", convention=_LEFT
+    )
+    ref = _directional_quantity(
+        "-20 m/s", numeric_value=-20.0, unit="m/s", convention=_RIGHT
+    )
+    for policy in (
+        ComparisonPolicyMode.STRICT,
+        ComparisonPolicyMode.AUDITED,
+        ComparisonPolicyMode.PERMISSIVE,
+    ):
+        result = compare_protocol_answers(pred, ref, context={}, policy_mode=policy)
+        assert result.equivalent is False, policy
+
+
+@pytest.mark.parametrize(
+    "pred, ref",
+    [
+        # Partial flip: only x negated (a global axis reversal flips every axis).
+        (
+            _directional_vector((3.0, -4.0, 0.0), convention="x to the right"),
+            _directional_vector((-3.0, -4.0, 0.0), convention="x to the left"),
+        ),
+        # 3D one-axis-only flip.
+        (
+            _directional_vector((1.0, 2.0, 3.0), convention=_RIGHT),
+            _directional_vector((-1.0, 2.0, 3.0), convention=_LEFT),
+        ),
+        # Constant ratio != -1 (scaling, not a sign flip).
+        (
+            _directional_vector((3.0, -4.0), convention=_RIGHT),
+            _directional_vector((-6.0, 8.0), convention=_LEFT),
+        ),
+        # Zero vector: nothing to flip.
+        (
+            _directional_vector((0.0, 0.0), convention=_RIGHT),
+            _directional_vector((0.0, 0.0), convention=_LEFT),
+        ),
+    ],
+)
+def test_protocol_sign_convention_vector_rejects(
+    pred: dict[str, object], ref: dict[str, object]
+) -> None:
+    result = compare_protocol_answers(
+        pred, ref, context={}, policy_mode=ComparisonPolicyMode.AUDITED
+    )
+    assert result.equivalent is False, (pred, ref)
+
+
+def test_protocol_sign_convention_blocked_when_question_fixes_convention() -> None:
+    pred = _directional_quantity(
+        "+20 m/s", numeric_value=20.0, unit="m/s", convention=_LEFT
+    )
+    ref = _directional_quantity(
+        "-20 m/s", numeric_value=-20.0, unit="m/s", convention=_RIGHT
+    )
+    context = {"sign_convention": "rightward is positive"}
+    result = compare_protocol_answers(
+        pred, ref, context=context, policy_mode=ComparisonPolicyMode.AUDITED
+    )
+    assert result.equivalent is False
+
+
+def test_protocol_sign_convention_absolute_labels_use_normal_path() -> None:
+    # Absolute directions (up vs down) carry no axis convention -> real disagreement.
+    up_vs_down = compare_protocol_answers(
+        _sign_label("up"),
+        _sign_label("down"),
+        context={},
+        policy_mode=ComparisonPolicyMode.AUDITED,
+    )
+    assert up_vs_down.equivalent is False
+    assert up_vs_down.comparison_mode == "sign_direction"
+    same = compare_protocol_answers(
+        _sign_label("up"),
+        _sign_label("up"),
+        context={},
+        policy_mode=ComparisonPolicyMode.AUDITED,
+    )
+    assert same.equivalent is True
+    assert same.comparison_mode == "sign_direction"
+
+
+def test_protocol_sign_convention_no_convention_same_value_still_matches() -> None:
+    # The "accepted before sign comparison" case: equal values, one side unmarked.
+    pred = _directional_quantity("-20 m/s", numeric_value=-20.0, unit="m/s")
+    ref = _directional_quantity(
+        "-20 m/s", numeric_value=-20.0, unit="m/s", convention=_RIGHT
+    )
+    result = compare_protocol_answers(
+        pred, ref, context={}, policy_mode=ComparisonPolicyMode.AUDITED
+    )
+    assert result.equivalent is True
+    assert result.comparison_mode == "physical_quantity"
+
+
+def test_protocol_sign_convention_opposite_frame_vector_not_global_negation_rejects() -> (
+    None
+):
+    # Both frames opposite but values are identical (not a negation) -> precision reject,
+    # not the legacy coordinate_frame_mismatch.
+    pred = _directional_vector((3.0, -4.0), convention="x to the right")
+    ref = _directional_vector((3.0, -4.0), convention="x to the left")
+    result = compare_protocol_answers(
+        pred, ref, context={}, policy_mode=ComparisonPolicyMode.AUDITED
+    )
+    assert result.equivalent is False
+    assert result.comparison_mode == "sign_convention"
+
+
+def test_protocol_sign_convention_non_opposite_vector_frames_still_mismatch() -> None:
+    # Genuinely-incompatible (non-opposite) frames keep the existing reject path.
+    pred = _directional_vector((3.0, 4.0), convention="x-axis positive")
+    ref = _directional_vector((3.0, 4.0), convention="y-axis positive")
+    result = compare_protocol_answers(
+        pred, ref, context={}, policy_mode=ComparisonPolicyMode.AUDITED
+    )
+    assert result.equivalent is False
+    assert "coordinate_frame_mismatch" in result.diagnostics
+
+
+def test_protocol_sign_convention_sign_direction_precision_dual_rejects() -> None:
+    # Same polarity under opposite conventions resolves to opposite physical directions.
+    pred = _sign_label("positive", convention=_RIGHT)
+    ref = _sign_label("positive", convention=_LEFT)
+    result = compare_protocol_answers(
+        pred, ref, context={}, policy_mode=ComparisonPolicyMode.AUDITED
+    )
+    assert result.equivalent is False
+    assert result.comparison_mode == "sign_convention"
+
+
+def test_protocol_sign_convention_non_polarity_labels_with_conventions_use_normal_path() -> (
+    None
+):
+    # "up"/"down" are absolute, not axis-relative: a stated convention cannot flip them.
+    pred = _sign_label("up", convention=_RIGHT)
+    ref = _sign_label("down", convention=_LEFT)
+    result = compare_protocol_answers(
+        pred, ref, context={}, policy_mode=ComparisonPolicyMode.AUDITED
+    )
+    assert result.equivalent is False
+    assert result.comparison_mode == "sign_direction"
+
+
+def test_protocol_sign_convention_recognized_orthogonal_frames_decline() -> None:
+    # Both frames name a known direction but they are orthogonal (right vs up), not a
+    # global reversal -> the lane declines and the existing frame gate rejects.
+    pred = _directional_vector((3.0, 4.0), convention="x to the right")
+    ref = _directional_vector((3.0, 4.0), convention="up is positive")
+    result = compare_protocol_answers(
+        pred, ref, context={}, policy_mode=ComparisonPolicyMode.AUDITED
+    )
+    assert result.equivalent is False
+    assert "coordinate_frame_mismatch" in result.diagnostics
+
+
+def test_protocol_sign_convention_symbolic_vector_partial_flip_rejects() -> None:
+    # Symbolic cells, only one component negated -> not a global negation.
+    pred = {
+        "object_kind": "expression",
+        "structure": "vector",
+        "canonical_text": "(a, b)",
+        "shape": [2],
+        "children": [
+            {"object_kind": "expression", "structure": "atomic", "canonical_text": "a"},
+            {"object_kind": "expression", "structure": "atomic", "canonical_text": "b"},
+        ],
+        "coordinate_frame": "x to the right",
+    }
+    ref = {
+        "object_kind": "expression",
+        "structure": "vector",
+        "canonical_text": "(-a, b)",
+        "shape": [2],
+        "children": [
+            {
+                "object_kind": "expression",
+                "structure": "atomic",
+                "canonical_text": "-a",
+            },
+            {"object_kind": "expression", "structure": "atomic", "canonical_text": "b"},
+        ],
+        "coordinate_frame": "x to the left",
+    }
+    result = compare_protocol_answers(
+        pred, ref, context={}, policy_mode=ComparisonPolicyMode.AUDITED
+    )
+    assert result.equivalent is False
+    assert result.comparison_mode == "sign_convention"
