@@ -108,7 +108,7 @@ target-version = "py310"
 # "/build" is anchored to the repo root so it excludes the setuptools build/ artifact
 # dir WITHOUT excluding the src/prkit/semantics/build package (gitignore semantics: a
 # bare "build" would match any directory of that name at any depth).
-extend-exclude = ["legacy", "/build", "dist", "htmlcov"]
+extend-exclude = ["/build", "dist", "htmlcov"]
 
 [tool.ruff.lint]
 # E501 (line length) is owned by black. Bugbear (B) is deferred to a later pass.
