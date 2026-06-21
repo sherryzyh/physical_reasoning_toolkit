@@ -8,7 +8,7 @@ PRKit applies a “unified interface” idea to the full physical-reasoning loop
 
 PRKit centers on **core components** that define the physical reasoning ontology. Three integrated subpackages build on this foundation:
 
-- **Core components**: `PhysicsDomain`, `AnswerCategory`, `PhysicsProblem`, `Answer`, `PhysicalDataset`, `PhysicsSolution`, `BaseModelClient`, `create_model_client`, `PRKitLogger`—the shared abstractions used across the toolkit.
+- **Core components**: `PhysicsDomain`, `PhysicsProblem`, `Answer`, `PhysicalDataset`, `PhysicsSolution`, `BaseModelClient`, `create_model_client`, `PRKitLogger`—the shared abstractions used across the toolkit.
 - **`prkit.datasets`**: A Datasets-like hub that downloads/loads benchmarks into the unified schema (`PhysicsProblem`, `PhysicalDataset`).
 - **`prkit.annotation`**: Workflow-oriented tools for structured, lower-level labels (e.g., domain/subdomain, theorem usage).
 - **`prkit.evaluation`**: Evaluate-like components for physics-oriented scoring and comparison (e.g., symbolic/numerical answer matching).
@@ -211,9 +211,8 @@ The toolkit is organized around **core components** and three subpackages that u
 The essential building blocks of the physical-reasoning-toolkit. All datasets, inference, evaluation, and annotation workflows use these components.
 
 * **PhysicsDomain** — Enumeration of physics subfields (mechanics, thermodynamics, quantum mechanics, optics, etc.) for problem classification. Aligned with UGPhysics, PHYBench, TPBench. Use `PhysicsDomain.from_string()` for flexible parsing.
-* **AnswerCategory** — Enumeration of answer types for normalization and evaluation: `NUMBER`, `PHYSICAL_QUANTITY`, `EQUATION`, `FORMULA`, `TEXT`, `OPTION`. Drives how answers are compared (numerical precision, symbolic equivalence, exact match).
 * **PhysicsProblem** — The canonical representation of a physics problem. Required: `problem_id`, `question`. Optional: `answer` (Answer), `solution`, `domain`, `image_path`, `problem_type` (MC/OE), `options`, `correct_option`. Supports dictionary-like access and `load_images()` for visual problems.
-* **Answer** — Unified answer model. `value` holds the number (NUMBER), numeric part (PHYSICAL_QUANTITY), option string (OPTION), or plain string (EQUATION, FORMULA, TEXT). `unit` is optional and used only for PHYSICAL_QUANTITY. Type checks, unit helpers, LaTeX handling, option indexing.
+* **Answer** — Thin observation record: `value` (str, verbatim), optional `unit` (observed unit string), optional `source_type` (dataset-native type tag, verbatim), and `metadata` dict. The canonical answer kind (`AnswerObjectKind`, 9 object kinds) is derived on demand by the `prkit.semantics` layer — it is not stored on `Answer`.
 * **PhysicalDataset** — Collection of `PhysicsProblem` instances. Indexing, slicing, `get_by_id()`, `filter_by_domain()`, `take()`, `sample()`, `save_to_json()` / `from_json()`. Provides `get_statistics()` for domain and problem-type distribution.
 * **PhysicsSolution** — Bundles a `PhysicsProblem`, model `agent_answer`, and optional `intermediate_steps`. Captures the full solution trace for evaluation and analysis.
 * **BaseModelClient** — Abstract base for model clients. Subclasses implement `chat(user_prompt, image_paths=None)`.

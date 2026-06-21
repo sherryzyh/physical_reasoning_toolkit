@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from prkit.semantics.edit_distance.score import (
+from prkit.evaluation.edit_distance.score import (
     EditCosts,
     delete_cost,
     eed_score,
@@ -10,7 +10,7 @@ from prkit.semantics.edit_distance.score import (
     subtree_discount,
     update_cost,
 )
-from prkit.semantics.edit_distance.tree import ExprNode
+from prkit.evaluation.edit_distance.tree import ExprNode
 
 
 class TestEditCosts:

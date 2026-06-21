@@ -15,7 +15,7 @@ from prkit.core import PRKitLogger
 from prkit.core.domain import PhysicalDataset, PhysicsDomain, PhysicsProblem
 from prkit.datasets.license_registry import get_license
 
-from .base_loader import BaseDatasetLoader, detect_answer_category
+from .base_loader import BaseDatasetLoader
 
 
 class PhysicsLoader(BaseDatasetLoader):
@@ -257,7 +257,7 @@ class PhysicsLoader(BaseDatasetLoader):
         source_file: str,
         decode_images: bool,
     ) -> dict[str, Any]:
-        answer_value, answer_parts, answer_category = self._normalize_answers(
+        answer_value, answer_parts = self._normalize_answers(
             metadata.pop("final_answers", None)
         )
         graphs = metadata.pop("graphs", None)
@@ -291,7 +291,6 @@ class PhysicsLoader(BaseDatasetLoader):
             )
 
         metadata["answer"] = answer_value
-        metadata["answer_category"] = answer_category
         metadata["problem_type"] = "OE"
         metadata["domain"] = (
             self.DOMAIN_MAPPING.get(resolved_domain, PhysicsDomain.OTHER)
@@ -309,7 +308,7 @@ class PhysicsLoader(BaseDatasetLoader):
         metadata["source_file"] = source_file
         return metadata
 
-    def _normalize_answers(self, raw_answers: Any) -> tuple[str, list[str], str]:
+    def _normalize_answers(self, raw_answers: Any) -> tuple[str, list[str]]:
         if raw_answers is None:
             answer_parts: list[str] = []
         elif isinstance(raw_answers, list):
@@ -322,24 +321,15 @@ class PhysicsLoader(BaseDatasetLoader):
             )
 
         if not answer_parts:
-            return "", [], "descriptive_text"
+            return "", []
 
         if len(answer_parts) == 1:
-            answer_value = answer_parts[0]
-            answer_category = detect_answer_category(answer_value).value
-            return answer_value, answer_parts, answer_category
+            return answer_parts[0], answer_parts
 
         answer_value = "\n".join(
             f"({index + 1}) {answer}" for index, answer in enumerate(answer_parts)
         )
-        detected_categories = [
-            detect_answer_category(answer) for answer in answer_parts
-        ]
-        if all(
-            category.value == "descriptive_text" for category in detected_categories
-        ):
-            return answer_value, answer_parts, "descriptive_text"
-        return answer_value, answer_parts, "expression"
+        return answer_value, answer_parts
 
     def _decode_graphs(
         self,

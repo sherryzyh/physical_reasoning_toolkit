@@ -7,9 +7,10 @@ import time
 import pytest
 import sympy as sp
 
+from prkit.evaluation.edit_distance import sympy_to_tree
+from prkit.evaluation.edit_distance.timeout import SimplifyTimeout, run_with_timeout
 from prkit.semantics import normalize_physics_answer
-from prkit.semantics.edit_distance import EedConfig, eed_compare, sympy_to_tree
-from prkit.semantics.edit_distance.timeout import SimplifyTimeout, run_with_timeout
+from prkit.semantics.edit_distance import EedConfig, eed_compare
 
 
 class TestTimeout:

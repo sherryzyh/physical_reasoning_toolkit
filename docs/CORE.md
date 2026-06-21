@@ -44,19 +44,6 @@ domain = PhysicsDomain.from_string("unknown")           # → PhysicsDomain.OTHE
 str(domain)                                             # → "quantum_mechanics"
 ```
 
-### AnswerCategory
-
-Enumeration of answer semantic types used for normalization and comparison.
-
-| Category | Description | Example |
-|----------|-------------|---------|
-| `NUMBER` | Dimensionless numeric value | `42`, `3.14` |
-| `PHYSICAL_QUANTITY` | Number with units | `9.8 m/s²`, `5 N` |
-| `EQUATION` | Single-equation form | `F = ma` |
-| `FORMULA` | Mathematical expression | `x² + 1`, `e^(−t/τ)` |
-| `TEXT` | Descriptive text | "The ball accelerates downward." |
-| `OPTION` | Multiple-choice selection | `A`, `B`, `(1)` |
-
 ### PhysicsProblem
 
 The core unit of a physics problem. Works both standalone and as a dataset-compatible object (dictionary-like access).
@@ -89,31 +76,21 @@ The core unit of a physics problem. Works both standalone and as a dataset-compa
 
 ### Answer
 
-Unified answer representation via composition over `AnswerCategory`. Handles all answer semantics in one class.
+A thin observation record: the verbatim answer string, an optional unit, an optional dataset-native type label, and a metadata dict. It captures exactly what the dataset provides—nothing more.
 
 **Fields:**
-- `value`: The answer content; semantics depend on category:
-  - `NUMBER`: Actual number (int or float)
-  - `PHYSICAL_QUANTITY`: The numeric part only (int or float)
-  - `OPTION`: The option string (e.g., `"A"`, `"B"`, `"Yes"`)
-  - `EQUATION`, `FORMULA`, `TEXT`: Plain string
-- `answer_category`: `AnswerCategory`
-- `unit`: Optional; used only for `PHYSICAL_QUANTITY` (e.g., `"m/s²"`, `"N"`)
-- `metadata`: Extra key-value data
+- `value`: `str` — verbatim answer string (always a string; numeric answers remain as strings)
+- `unit`: `str | None` — observed unit, when the dataset provides one (e.g. `"m/s²"`, `"N"`); `None` otherwise
+- `source_type`: `str | None` — dataset-native answer-type label, verbatim (e.g. `"MC"`, `"NV"`, `"EX"`, `"Integer"`); `None` when the dataset provides none; **never fabricated by heuristics**
+- `metadata`: `dict` — extra dataset-provided key-value data
 
-**Type checks:**
-- `is_number()`, `is_physical_quantity()`, `is_equation()`, `is_formula()`, `is_text()`, `is_option()`
-- `is_numerical()` → number or physical quantity
-- `is_symbolic()` → equation, formula, or physical quantity
+> **Canonical answer kind is derived, not stored.** The `AnswerObjectKind` ontology (9 object kinds: `number`, `physical_quantity`, `expression`, `relation`, `choice`, `qualitative_label`, `assertion`, `structured`, `descriptive_text`) lives in `prkit.semantics` and is returned as `object_kind` on `PhysicsAnswerSemantics`. It is not a field on `Answer`.
 
-**Numerical helpers:**
-- `get_unit()`, `has_unit()`, `is_integer()`, `is_positive()`, `is_negative()`
-
-**Symbolic helpers:**
-- `is_latex()`, `get_clean_expression()`
-
-**Option helpers:**
-- `is_letter_option()`, `is_yes_no()`, `is_true_false()`, `get_option_index()`
+**Access helpers:**
+- `get_value()` → `str`
+- `get_unit()` → `str | None`
+- `has_unit()` → `bool`
+- `__str__()` → `"{value} {unit}"` when unit is set, else `value`
 
 ---
 
@@ -349,7 +326,7 @@ logger.info("Message")
 
 - **PhysicalDataset** = a collection of physics problems
 - **PhysicsProblem** = one problem (question + optional ground-truth answer + optional domain)
-- **Answer** = ground-truth or predicted answer, with a category (number, option, text, etc.)
+- **Answer** = thin observation record: `value` (str) + optional `unit` + optional `source_type` + `metadata`
 - **PhysicsSolution** = a problem plus model output (agent_answer), used for evaluation
 
 ### Core Domain Model
@@ -362,7 +339,7 @@ logger.info("Message")
                               │
                               └── answer: Answer (optional, ground truth)
                                            │
-                                           └── answer_category: AnswerCategory (enum)
+                                           └── { value: str, unit: str|None, source_type: str|None, metadata: dict }
 
   PhysicsSolution  (separate: one per model run)
   ├── problem: PhysicsProblem
@@ -374,12 +351,12 @@ logger.info("Message")
 ```
   PhysicalDataset             PhysicsProblem
   ┌──────────────┐         ┌──────────────────┐              Answer
-  │ _problems    │────────►│ problem_id       │       ┌──────────────────┐
-  │ _info        │  1:N    │ question         │       │ value            │
-  │ _split       │         │ domain ──────────┼──┐    │ answer_category ─┼─► AnswerCategory
-  └──────────────┘         │ answer ──────────┼──┼───►│ unit             │
-             model call    │ solution         │  │    └──────────────────┘
-         ┌─────────────────└──────────────────┘  │
+  │ _problems    │────────►│ problem_id       │       ┌──────────────────────┐
+  │ _info        │  1:N    │ question         │       │ value: str           │
+  │ _split       │         │ domain ──────────┼──┐    │ unit: str|None       │
+  └──────────────┘         │ answer ──────────┼──┼───►│ source_type: str|None│
+             model call    │ solution         │  │    │ metadata: dict       │
+         ┌─────────────────└──────────────────┘  │    └──────────────────────┘
          ▼                          ▲            └── PhysicsDomain
   PhysicsSolution                   │
   ┌──────────────┐                  │ problem
@@ -394,7 +371,7 @@ logger.info("Message")
 |--------|----------------|
 | PhysicalDataset | Many PhysicsProblem (_problems list) |
 | PhysicsProblem | problem_id, question, domain (PhysicsDomain), answer (Answer), solution, image_path, ... |
-| Answer | value, answer_category (AnswerCategory), unit |
+| Answer | value (str), unit (str\|None), source_type (str\|None), metadata (dict) |
 | PhysicsSolution | problem (PhysicsProblem), agent_answer (string). Evaluation compares agent_answer to problem.answer |
 
 ### Subpackage Dependencies
@@ -417,8 +394,11 @@ flowchart TB
     end
 
     subgraph evaluation["prkit.evaluation"]
-        EV[Evaluator]
-        CMP[Comparator]
+        LLJ[LLMJudge]
+    end
+
+    subgraph scoring["prkit.scoring / prkit.verify"]
+        SC[SemanticsScorer]
     end
 
     subgraph datasets["prkit.datasets"]
@@ -439,9 +419,10 @@ flowchart TB
     PP -->|has| AN
     PP -->|has| PS
 
-    EV --> CMP
-    AN -->|ground truth| CMP
-    MO[/model output/] -->|model answer| CMP
+    AN -->|ground truth| SC
+    MO[/model output/] -->|model answer| SC
+    AN -.->|model-graded path| LLJ
+    MO -.->|model-graded path| LLJ
 
 ```
 
@@ -449,8 +430,9 @@ flowchart TB
 
 | Package | Uses from Core | Produces / Operates On |
 |---------|----------------|------------------------|
-| prkit.datasets | PhysicalDataset, PhysicsProblem, Answer, AnswerCategory, PhysicsDomain, PRKitLogger | PhysicalDataset (via DatasetLoader.load) |
-| prkit.evaluation | PhysicsProblem, Answer, AnswerCategory, Comparator | Accuracy scores (via AccuracyEvaluator.evaluate) |
+| prkit.datasets | PhysicalDataset, PhysicsProblem, Answer, PhysicsDomain, PRKitLogger | PhysicalDataset (via DatasetLoader.load) |
+| prkit.scoring / prkit.verify | PhysicsProblem, Answer, Verdict | Verdict (via SemanticsScorer / verify) |
+| prkit.evaluation | PhysicsProblem, Answer | Model-graded scores (via LLMJudge; deterministic scoring is in prkit.scoring) |
 
 ---
 
@@ -460,12 +442,14 @@ flowchart TB
 # Core components
 from prkit.core.domain import (
     PhysicsDomain,
-    AnswerCategory,
     Answer,
     PhysicsProblem,
     PhysicalDataset,
     PhysicsSolution,
 )
+
+# Semantics-layer canonical kind (derived, not stored on Answer)
+from prkit.semantics.schema import AnswerObjectKind  # 9 object kinds
 
 # Utility components
 from prkit.core import PRKitLogger
@@ -477,6 +461,6 @@ from prkit.core.model_clients import create_model_client, BaseModelClient
 ## Design Principles
 
 1. **Unified schema:** All supported benchmarks map to `PhysicsProblem` and `PhysicalDataset`.
-2. **Answer semantics:** `AnswerCategory` drives normalization and evaluation.
-3. **Composition over inheritance:** `Answer` uses a category field rather than subclassing.
+2. **Observed data vs. derived interpretation:** `Answer` is a thin observation record (`value`/`unit`/`source_type`/`metadata`). The canonical answer kind (`AnswerObjectKind`) is derived on demand by `prkit.semantics`, not stored on `Answer`.
+3. **Composition over inheritance:** `Answer` is a flat dataclass; type interpretation is a semantics-layer concern, not a subclass hierarchy.
 4. **Dataset compatibility:** `PhysicsProblem` supports dict-like access and `additional_fields`.

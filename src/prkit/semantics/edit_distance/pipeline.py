@@ -24,6 +24,17 @@ from typing import Any
 
 from sympy import simplify
 
+# Pure tree-edit algorithm core (related-work EED/SEED), no semantics dependency.
+from prkit.evaluation.edit_distance import (
+    EditCosts,
+    SimplifyTimeout,
+    UnsupportedExpressionError,
+    eed_score,
+    run_with_timeout,
+    sympy_to_tree,
+    tree_edit_distance,
+)
+
 from ..comparison.common import available_texts, context_symbol_alias_map
 from ..comparison.numeric import (
     NumericComparableAnswer,
@@ -43,10 +54,6 @@ from ..schema import (
     PhysicsQuestionSemantics,
     QuestionUnitPolicy,
 )
-from .score import EditCosts, eed_score
-from .timeout import SimplifyTimeout, run_with_timeout
-from .tree import UnsupportedExpressionError, sympy_to_tree
-from .zss import tree_edit_distance
 
 #: Operators PRKit's tree grammar cannot represent; mirror EED's hard 0-score guard.
 _UNSUPPORTED_RE = re.compile(r"\\(?:i{1,3}nt|oint|sum|prod)")

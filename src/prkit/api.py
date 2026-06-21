@@ -11,9 +11,10 @@ It pins the four integration "nouns" as runtime-checkable structural
 protocols are grounded in.
 
 For the headline "just verify a physics answer" use case, integrators should
-reach for the light-import facade :mod:`prkit.verify` (``parse`` / ``verify``),
-which returns the same :class:`Verdict` without importing clients, the hub, or
-provider SDKs.
+reach for the light-import facade :mod:`prkit.verify` (``verify``), which
+returns the same :class:`Verdict` without importing clients, the hub, or
+provider SDKs. Answer parsing is handled by
+:func:`prkit.semantics.extract_prediction_answer_semantics`.
 
 .. note::
    ``@runtime_checkable`` only verifies that the named **methods/attributes
@@ -43,12 +44,11 @@ from prkit.datasets.hub import DatasetHub
 from prkit.datasets.loaders.base_loader import BaseDatasetLoader
 
 # --- contract version (independent of prkit.__version__) ------------------
-# Bump per CONTRACT.md: additive change -> minor, breaking change -> major.
-# 2.0 is the taxonomy-unification MAJOR: the legacy ``AnswerCategory`` field on
-# ``Answer`` was removed in favor of the canonical ``AnswerObjectKind`` (with
-# ``AnswerObjectKind``/``AnswerStructure`` promoted onto the contract), and the
-# deprecated ``evaluation`` comparator/evaluator stack was deleted.
-API_VERSION = "2.0"
+# The contract is PROVISIONAL at 1.0: breaking changes are allowed and are
+# tracked in src/prkit/CONTRACT.md and internal/PAPER_V1_TO_V2_DELTA.md rather
+# than via a major-version bump. When the contract stabilises, semver policy
+# (additive → minor, breaking → major) will apply.
+API_VERSION = "1.0"
 
 
 # --- the four nouns as structural Protocols -------------------------------

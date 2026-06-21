@@ -9,7 +9,6 @@ import pytest
 
 from prkit.core.domain import (
     Answer,
-    AnswerObjectKind,
     PhysicalDataset,
     PhysicsDomain,
     PhysicsProblem,
@@ -19,30 +18,25 @@ from prkit.core.domain import (
 @pytest.fixture
 def sample_answer_numerical():
     """Create a sample numerical answer."""
-    return Answer(
-        value=42.0, answer_kind=AnswerObjectKind.PHYSICAL_QUANTITY, unit="m/s"
-    )
+    return Answer(value="42.0", unit="m/s", source_type="NV")
 
 
 @pytest.fixture
 def sample_answer_symbolic():
     """Create a sample symbolic answer."""
-    return Answer(value="x^2 + 2x + 1", answer_kind=AnswerObjectKind.EXPRESSION)
+    return Answer(value="x^2 + 2x + 1")
 
 
 @pytest.fixture
 def sample_answer_textual():
     """Create a sample textual answer."""
-    return Answer(
-        value="The force is equal to mass times acceleration",
-        answer_kind=AnswerObjectKind.DESCRIPTIVE_TEXT,
-    )
+    return Answer(value="The force is equal to mass times acceleration")
 
 
 @pytest.fixture
 def sample_answer_option():
     """Create a sample option answer."""
-    return Answer(value="A", answer_kind=AnswerObjectKind.CHOICE)
+    return Answer(value="A", source_type="MC")
 
 
 @pytest.fixture
@@ -51,9 +45,7 @@ def sample_physics_problem():
     return PhysicsProblem(
         problem_id="test_001",
         question="What is the speed of light?",
-        answer=Answer(
-            value=3e8, answer_kind=AnswerObjectKind.PHYSICAL_QUANTITY, unit="m/s"
-        ),
+        answer=Answer(value="3e8", unit="m/s"),
         solution="The speed of light in vacuum is approximately 3 × 10^8 m/s",
         domain=PhysicsDomain.CLASSICAL_MECHANICS,
         language="en",
@@ -67,7 +59,7 @@ def sample_physics_problem_mc():
     return PhysicsProblem(
         problem_id="test_002",
         question="What is F = ma?",
-        answer=Answer(value="A", answer_kind=AnswerObjectKind.CHOICE),
+        answer=Answer(value="A", source_type="MCQ"),
         options=[
             "Newton's second law",
             "Newton's first law",
@@ -104,7 +96,7 @@ def sample_problems_list():
         problem = PhysicsProblem(
             problem_id=f"test_{i:03d}",
             question=f"Test question {i}",
-            answer=Answer(value=i, answer_kind=AnswerObjectKind.NUMBER),
+            answer=Answer(value=str(i)),
             domain=(
                 PhysicsDomain.CLASSICAL_MECHANICS
                 if i % 2 == 0

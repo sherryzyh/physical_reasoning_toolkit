@@ -22,7 +22,11 @@ _FORBIDDEN = [
     "datasets",
     "pandas",
     "prkit.datasets",
-    "prkit.evaluation",
+    # The model-graded judge (pulls ``openai``) must stay off the verify path. We
+    # forbid the ``llm_judge`` subpackage specifically — ``prkit.evaluation`` itself is
+    # now legitimately reachable, since the pure EED/SEED algorithm core lives in
+    # ``prkit.evaluation.edit_distance`` and the partial-credit scorer imports it.
+    "prkit.evaluation.llm_judge",
 ]
 
 

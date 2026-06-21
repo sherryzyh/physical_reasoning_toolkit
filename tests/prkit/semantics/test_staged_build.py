@@ -29,7 +29,7 @@ def _problem() -> PhysicsProblem:
     return PhysicsProblem(
         problem_id="staged-1",
         question="Find the energy E.",
-        answer=Answer(value="x**2/2, x > 0", answer_kind=AnswerObjectKind.EXPRESSION),
+        answer=Answer(value="x**2/2, x > 0"),
         domain="mechanics",
     )
 
@@ -38,7 +38,7 @@ def _directional_problem() -> PhysicsProblem:
     return PhysicsProblem(
         problem_id="staged-dir-1",
         question="Find the velocity v of the block.",
-        answer=Answer(value="-20 m/s", answer_kind=AnswerObjectKind.PHYSICAL_QUANTITY),
+        answer=Answer(value="-20 m/s"),
         domain="mechanics",
     )
 

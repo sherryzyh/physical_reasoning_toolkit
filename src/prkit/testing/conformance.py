@@ -17,7 +17,7 @@ from typing import Any
 from pydantic import BaseModel
 
 from prkit.api import DatasetProvider, ModelClient, Scorer, Verdict
-from prkit.core.domain import AnswerObjectKind, PhysicsProblem
+from prkit.core.domain import PhysicsProblem
 from prkit.core.model_clients.structured_output import StructuredOutputPlan
 from prkit.datasets.loaders.base_loader import BaseDatasetLoader
 
@@ -122,9 +122,15 @@ def check_dataset(
             problem, PhysicsProblem
         ), f"load() must yield PhysicsProblem, got {type(problem)!r}"
         if problem.answer is not None:
-            assert problem.answer.answer_kind in AnswerObjectKind, (
-                f"problem {problem.problem_id!r} has invalid answer_kind "
-                f"{problem.answer.answer_kind!r}"
+            assert isinstance(problem.answer.value, str), (
+                f"problem {problem.problem_id!r}: answer.value must be str, "
+                f"got {type(problem.answer.value)!r}"
+            )
+            assert problem.answer.source_type is None or isinstance(
+                problem.answer.source_type, str
+            ), (
+                f"problem {problem.problem_id!r}: answer.source_type must be "
+                f"str or None, got {type(problem.answer.source_type)!r}"
             )
 
 

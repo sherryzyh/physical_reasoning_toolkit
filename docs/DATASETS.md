@@ -97,9 +97,12 @@ for problem in dataset[:5]:
     print(f"Problem {problem.problem_id}: {problem.question[:100]}...")
     print(f"Domain: {problem.domain}")
     if problem.answer is not None:
-        print(
-            f"Answer: {problem.answer.value} (Category: {problem.answer.answer_category.value})"
-        )
+        parts = [f"Answer: {problem.answer.value}"]
+        if problem.answer.unit:
+            parts.append(f"unit={problem.answer.unit}")
+        if problem.answer.source_type:
+            parts.append(f"source_type={problem.answer.source_type}")
+        print(", ".join(parts))
 ```
 
 ## Problem Representation and Data Contract
@@ -117,31 +120,23 @@ This section documents each structure in dependency order, starting with the fou
 
 The `Answer` class is the foundational building block for representing answers in physics problems. It handles all answer types through composition rather than inheritance.
 
-#### Initialization
+#### Fields
 
 ```python
 Answer(
-    value: Any,                         # The answer value (type depends on answer_category)
-    answer_category: AnswerCategory,    # AnswerCategory enum (see below)
-    unit: Optional[str] = None,         # Unit string for number/physical_quantity answers
-    metadata: Dict[str, Any] = {}       # Additional metadata
+    value: str,                         # Verbatim answer string (always str)
+    unit: Optional[str] = None,         # Observed unit from the dataset, e.g. "m/s²"
+    source_type: Optional[str] = None,  # Dataset-native type label, verbatim, e.g. "MC", "NV", "EX"
+    metadata: Dict[str, Any] = {}       # Additional dataset-provided key-value data
 )
 ```
 
-#### Answer Categories
+`Answer` is a **thin observation record** — it stores exactly what the dataset provides. The canonical answer kind (`AnswerObjectKind` — one of 9 semantic object kinds such as `number`, `physical_quantity`, `choice`, `expression`, etc.) is **derived on demand by `prkit.semantics`**, not stored on `Answer`.
 
-The `answer_category` field uses the `AnswerCategory` enum with the following values:
-
-| Category | Enum Value | Description | Example |
-|----------|------------|-------------|---------|
-| **Number** | `AnswerCategory.NUMBER` | Dimensionless numeric value | `42.5`, `3.14` |
-| **Physical Quantity** | `AnswerCategory.PHYSICAL_QUANTITY` | Number with units | `"9.8 m/s^2"`, `42.5` + `"m/s"` |
-| **Equation** | `AnswerCategory.EQUATION` | Single-equation form | `"F = ma"` |
-| **Formula** | `AnswerCategory.FORMULA` | Mathematical expression | `"\\frac{mv^2}{2}"`, `"E = mc^2"` |
-| **Text** | `AnswerCategory.TEXT` | Text-based answers | `"The force is upward"` |
-| **Option** | `AnswerCategory.OPTION` | Multiple choice selection | `"A"`, `"B"`, `"1"` |
-
-**Note**: Answer category detection is automatic during dataset loading, but can be explicitly set.
+- `value` is always a `str` (the verbatim answer string).
+- `unit` is the observed unit when present; `None` otherwise. It is consumed by the semantics engine.
+- `source_type` is the dataset's own native type tag (e.g. `"MC"` for multiple-choice in UGPhysics, `"Integer"` in JEEBench). It is a verbatim free string, never fabricated by heuristics, and never mapped to `AnswerObjectKind`. The semantics engine ignores it.
+- `metadata` holds any remaining dataset-provided fields.
 
 ### Physics Domains
 

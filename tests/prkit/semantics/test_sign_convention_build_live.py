@@ -13,7 +13,7 @@ import os
 
 import pytest
 
-from prkit.core.domain import Answer, AnswerObjectKind, PhysicsProblem
+from prkit.core.domain import Answer, PhysicsProblem
 from prkit.core.model_clients import create_model_client
 from prkit.semantics.build.calls import build_reference_semantics
 
@@ -33,7 +33,7 @@ def test_live_reference_build_routes_free_axis_convention_to_a_ref() -> None:
             "is specified. Taking the block's motion into account, its velocity is found to "
             "be 20 m/s directed to the left. Report the velocity as a signed value."
         ),
-        answer=Answer(value="-20 m/s", answer_kind=AnswerObjectKind.PHYSICAL_QUANTITY),
+        answer=Answer(value="-20 m/s"),
         domain="mechanics",
     )
 

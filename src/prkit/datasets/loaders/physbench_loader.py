@@ -235,7 +235,6 @@ class PhysBenchLoader(BaseDatasetLoader):
         answer = metadata.get("answer")
         if isinstance(answer, str) and answer.strip().upper() in {"A", "B", "C", "D"}:
             metadata["correct_option"] = ord(answer.strip().upper()) - ord("A")
-            metadata["answer_category"] = "option"
 
         file_names = metadata.get("file_name") or []
         image_paths, video_paths, missing_media_count = self._resolve_media_paths(

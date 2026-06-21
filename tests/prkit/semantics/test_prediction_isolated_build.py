@@ -39,9 +39,7 @@ def _problem() -> PhysicsProblem:
     return PhysicsProblem(
         problem_id="pred-iso-1",
         question="Find the speed v.",
-        answer=Answer(
-            value="sqrt(E/m), m > 0", answer_kind=AnswerObjectKind.EXPRESSION
-        ),
+        answer=Answer(value="sqrt(E/m), m > 0"),
         solution="Use conservation of energy.",
         domain="mechanics",
         additional_fields={

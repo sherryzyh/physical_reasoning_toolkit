@@ -144,6 +144,9 @@ class UGPhysicsLoader(BaseDatasetLoader):
         metadata["raw_answers"] = raw_answers
         metadata["raw_unit"] = raw_unit
 
+        # source_type carries the dataset's own native label verbatim
+        metadata["source_type"] = raw_answer_type or None
+
         if "MC" in raw_answer_type:
             option_answers = self._split_answer_parts(raw_answers)
             option_answers = [
@@ -152,7 +155,6 @@ class UGPhysicsLoader(BaseDatasetLoader):
                 if answer
             ]
             metadata["problem_type"] = "MultipleMC" if is_multiple_answer else "MC"
-            metadata["answer_category"] = "option"
             if is_multiple_answer:
                 metadata["answer"] = ", ".join(option_answers)
                 metadata["answer_parts"] = option_answers
@@ -180,31 +182,24 @@ class UGPhysicsLoader(BaseDatasetLoader):
                             "unit": unit_part,
                         }
                     )
-                metadata["answer_category"] = "text"
                 metadata["answer"] = "; ".join(
                     self._format_physical_answer(str(part["value"] or ""), part["unit"])
                     for part in normalized_parts
                 )
                 metadata["answer_parts"] = normalized_parts
             else:
-                metadata["answer_category"] = (
-                    "physical_quantity" if normalized_unit else "number"
-                )
                 metadata["answer"] = {
                     "value": self._clean_answer_text(raw_answers),
                     "unit": normalized_unit,
                 }
         elif "EX" in raw_answer_type:
-            metadata["answer_category"] = "formula"
             if is_multiple_answer:
                 answer_parts = self._split_answer_parts(raw_answers)
-                metadata["answer_category"] = "text"
                 metadata["answer"] = "; ".join(answer_parts)
                 metadata["answer_parts"] = answer_parts
             else:
                 metadata["answer"] = self._clean_answer_text(raw_answers)
         else:
-            metadata["answer_category"] = "text"
             if is_multiple_answer:
                 answer_parts = self._split_answer_parts(raw_answers)
                 metadata["answer"] = "; ".join(answer_parts)

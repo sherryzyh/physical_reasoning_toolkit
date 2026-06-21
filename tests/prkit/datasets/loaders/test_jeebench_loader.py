@@ -63,11 +63,11 @@ class TestJEEBenchLoader:
         )
 
         assert mcq["problem_type"] == "MC"
-        assert mcq["answer_category"] == "option"
+        assert mcq["source_type"] == "MCQ"
         assert mcq["subject"] == "phy"
         assert mcq["type"] == "MCQ"
         assert numeric["problem_type"] == "OE"
-        assert numeric["answer_category"] == "number"
+        assert numeric["source_type"] == "Numeric"
         assert numeric["subject"] == "phy"
         assert numeric["type"] == "Numeric"
 

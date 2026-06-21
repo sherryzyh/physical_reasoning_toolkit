@@ -80,11 +80,7 @@ class PHYBenchLoader(BaseDatasetLoader):
 
     def _process_metadata(self, metadata: dict[str, Any]) -> dict[str, Any]:
         """Process metadata to create standardized problem fields."""
-
-        metadata["answer_category"] = "formula"
-
         self._map_domain(metadata)
-
         return metadata
 
     def load(

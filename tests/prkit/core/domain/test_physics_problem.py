@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import pytest
 
-from prkit.core.domain import Answer, AnswerObjectKind, PhysicsDomain, PhysicsProblem
+from prkit.core.domain import Answer, PhysicsDomain, PhysicsProblem
 from prkit.core.domain import physics_problem as physics_problem_module
 
 
@@ -25,7 +25,7 @@ class TestPhysicsProblem:
 
     def test_problem_creation_full(self):
         """Test creating a full physics problem."""
-        answer = Answer(value=42, answer_kind=AnswerObjectKind.NUMBER)
+        answer = Answer(value="42")
         problem = PhysicsProblem(
             problem_id="test_001",
             question="What is the answer?",
@@ -222,7 +222,7 @@ class TestPhysicsProblem:
 
     def test_problem_to_dict(self):
         """Test problem serialization."""
-        answer = Answer(value=42, answer_kind=AnswerObjectKind.NUMBER)
+        answer = Answer(value="42")
         problem = PhysicsProblem(
             problem_id="test_001",
             question="Test",
@@ -239,25 +239,28 @@ class TestPhysicsProblem:
         data = {
             "problem_id": "test_001",
             "question": "Test question",
-            "answer": {"value": 42, "answer_kind": "number", "unit": "m/s"},
+            "answer": {"value": "42", "unit": "m/s"},
             "domain": "classical_mechanics",
         }
         problem = PhysicsProblem.from_dict(data)
         assert problem.problem_id == "test_001"
         assert problem.question == "Test question"
-        assert problem.answer.value == 42
-        assert problem.answer.answer_kind == AnswerObjectKind.NUMBER
+        assert problem.answer.value == "42"
+        assert problem.answer.unit == "m/s"
 
-        fallback = PhysicsProblem.from_dict(
+        # Legacy migration: answer_kind in serialized dict → preserved in source_type
+        legacy = PhysicsProblem.from_dict(
             {
                 "problem_id": "test_002",
                 "question": "Q",
-                "answer": {"value": "hello", "answer_kind": "not-real"},
+                "answer": {"value": "hello", "answer_kind": "descriptive_text"},
                 "custom_field": "custom",
             }
         )
-        assert fallback.answer.answer_kind == AnswerObjectKind.DESCRIPTIVE_TEXT
-        assert fallback.additional_fields["custom_field"] == "custom"
+        assert legacy.answer.value == "hello"
+        assert legacy.answer.source_type == "descriptive_text"
+        assert not hasattr(legacy.answer, "answer_kind")
+        assert legacy.additional_fields["custom_field"] == "custom"
 
     def test_problem_copy(self):
         """Test problem copying."""

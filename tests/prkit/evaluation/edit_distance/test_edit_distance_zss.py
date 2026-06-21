@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import sympy as sp
 
-from prkit.semantics.edit_distance.score import EditCosts, eed_score
-from prkit.semantics.edit_distance.tree import ExprNode, sympy_to_tree
-from prkit.semantics.edit_distance.zss import tree_edit_distance
+from prkit.evaluation.edit_distance.score import EditCosts, eed_score
+from prkit.evaluation.edit_distance.tree import ExprNode, sympy_to_tree
+from prkit.evaluation.edit_distance.zss import tree_edit_distance
 
 _COSTS = EditCosts()
 

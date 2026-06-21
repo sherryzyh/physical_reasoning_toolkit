@@ -85,6 +85,10 @@ hub backfills it in `DatasetHub.get_loader_info`).
 
 ## `API_VERSION` semver policy
 
+The contract is currently **provisional / pre-stable** at `1.0`. Breaking changes are
+allowed and are tracked in `internal/PAPER_V1_TO_V2_DELTA.md`, not by bumping a major
+version number. Once the surface stabilizes, semver bumps will follow this policy:
+
 - **PATCH** (`1.0` → `1.0.1`): documentation/typo only.
 - **MINOR** (`1.0` → `1.1`): purely additive — a new protocol, a new optional
   method, a new re-export. Backward compatible.
@@ -103,20 +107,24 @@ changes to those are documented in the package release notes, not the contract v
 - Precedent: `BaseModelClient.chat()` / `chat_structured()` (see
   `core/model_clients/base.py`).
 
-### Removed in 2.0
+### Removed during provisional 1.0 shaping
 
-- **Taxonomy unification (MAJOR).** The legacy `AnswerCategory` enum was **removed**.
-  `Answer.answer_category: AnswerCategory` is now `Answer.answer_kind: AnswerObjectKind`,
-  and the canonical ontology enums `AnswerObjectKind` / `AnswerStructure` are promoted
-  onto `prkit.api.__all__`. Migration mapping for the old `AnswerCategory` members:
-  `NUMBER → number`, `PHYSICAL_QUANTITY → physical_quantity`, `FORMULA → expression`,
-  `EQUATION → relation`, `OPTION → choice`, `TEXT → descriptive_text` (a new 9th object
-  kind for free-form answers). Serialized answers now carry `"answer_kind"` instead of
-  `"answer_category"`.
+- **`Answer` reshaped to a thin observation record.** `Answer` now carries only
+  `value: str`, `unit: str | None`, `source_type: str | None`, and `metadata: dict`.
+  The former `answer_kind: AnswerObjectKind` field (and all predicate helpers such as
+  `is_number()`, `is_option()`, `get_type()`, etc.) are **removed**. The canonical
+  answer ontology (`AnswerObjectKind` / `AnswerStructure`, 9 object kinds) lives only
+  in `prkit.semantics` and is returned as `object_kind` on `PhysicsAnswerSemantics`
+  — it is never stored on `Answer`. `source_type` is the dataset's verbatim native
+  type label (e.g. `"MC"`, `"NV"`, `"EX"`, `"Integer"`); it is never fabricated and
+  never read by the semantics engine. Serialized answers migrate via:
+  `source_type = value.get("source_type") or value.get("answer_kind") or value.get("answer_category")`.
 - **Deprecated scoring stack deleted.** `prkit.evaluation.comparator.*`,
   `prkit.evaluation.evaluator.*` (`BaseComparator`, `ExactMatchComparator`,
   `BaseEvaluator`, `AccuracyEvaluator`, …) were removed. Use
   `prkit.scoring.SemanticsScorer` (the `Scorer` / `Verdict` contract), or the
   light-import facade `prkit.verify`, for deterministic scoring.
+- **`prkit.semantics.inference` alias removed.** The `prkit.semantics.inference`
+  compatibility shim is deleted; import from `prkit.semantics.build` directly.
 - `prkit.evaluation.llm_judge` (model-graded scoring) is **retained** — it is a distinct
   capability, not a duplicate of the deterministic scoring path.

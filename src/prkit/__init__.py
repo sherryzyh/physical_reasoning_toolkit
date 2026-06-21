@@ -21,8 +21,8 @@ Subpackages:
     - :mod:`prkit.testing` — conformance suite (``check_dataset``/``check_scorer``/…).
     - :mod:`prkit.semantics` — physics-aware answer normalization & comparison.
     - :mod:`prkit.evaluation` — model-graded LLM judge (``llm_judge``). The legacy
-      comparator/evaluator stacks were removed in ``API_VERSION`` 2.0; use
-      :mod:`prkit.scoring` for deterministic scoring.
+      comparator/evaluator stacks were removed while shaping the provisional
+      contract; use :mod:`prkit.scoring` for deterministic scoring.
     - :mod:`prkit.annotation` — human annotation tasks (gold, correctness).
 """
 

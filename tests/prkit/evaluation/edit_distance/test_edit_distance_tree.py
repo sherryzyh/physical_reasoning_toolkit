@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 import sympy as sp
 
-from prkit.semantics.edit_distance.tree import (
+from prkit.evaluation.edit_distance.tree import (
     ExprNode,
     UnsupportedExpressionError,
     sympy_to_tree,

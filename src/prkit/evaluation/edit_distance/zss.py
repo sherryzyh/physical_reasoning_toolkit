@@ -1,7 +1,7 @@
 """Extended Zhang-Shasha tree-edit distance with subtree cluster discount.
 
 A clean reimplementation of the ordered-tree edit distance (Zhang & Shasha 1989)
-parametrized by :class:`~prkit.semantics.edit_distance.score.EditCosts`, extended
+parametrized by :class:`~prkit.evaluation.edit_distance.score.EditCosts`, extended
 with PHYBench's whole-subtree "cluster discount": deleting or inserting an entire
 subtree can cost less than the per-node sum, so a large wrong sub-formula is not
 penalized linearly.
