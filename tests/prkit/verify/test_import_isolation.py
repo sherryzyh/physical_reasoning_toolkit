@@ -27,6 +27,12 @@ _FORBIDDEN = [
     # now legitimately reachable, since the pure EED/SEED algorithm core lives in
     # ``prkit.evaluation.edit_distance`` and the partial-credit scorer imports it.
     "prkit.evaluation.llm_judge",
+    # SEED units. The vendored CMPhysBench baseline pulls ``pint`` only on its
+    # unit-aware Numeric path; ``EedScorer``/``SeedScorer`` import the vendored core
+    # lazily inside ``score()`` so ``pint`` stays off ``import prkit.scoring``/``verify``.
+    # (``latex2sympy2_extended``/``antlr4`` are a required core dep already on this
+    # path by design — deliberately NOT forbidden.)
+    "pint",
 ]
 
 
