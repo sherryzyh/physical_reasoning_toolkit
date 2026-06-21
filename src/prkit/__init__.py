@@ -39,7 +39,7 @@ from .core import PRKitLogger
 from .core.domain import (
     AnswerObjectKind,
     AnswerStructure,
-    PhysicalDataset,
+    PhysicsDataset,
     PhysicsDomain,
     PhysicsProblem,
 )
@@ -48,7 +48,7 @@ __all__ = [
     "__version__",
     "PRKitLogger",
     "PhysicsProblem",
-    "PhysicalDataset",
+    "PhysicsDataset",
     "PhysicsDomain",
     "AnswerObjectKind",
     "AnswerStructure",

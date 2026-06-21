@@ -1,4 +1,4 @@
-from prkit.core.domain.answer import Answer
+from prkit.core.domain.answer import PhysicsAnswer
 from prkit.evaluation.llm_judge.payload import (
     answer_to_text_and_category,
     build_standard_answer_judge_payload,
@@ -8,12 +8,12 @@ from prkit.evaluation.llm_judge.payload import (
 
 
 def test_answer_to_text_and_category_for_answers_and_plain_strings():
-    # Answer with source_type → category is the source_type string
-    answer = Answer(value=" 42 ", source_type="NV")
+    # PhysicsAnswer with source_type → category is the source_type string
+    answer = PhysicsAnswer(value=" 42 ", source_type="NV")
     assert answer_to_text_and_category(answer) == ("42", "NV")
 
-    # Answer without source_type → empty string
-    answer_no_type = Answer(value=" 42 ")
+    # PhysicsAnswer without source_type → empty string
+    answer_no_type = PhysicsAnswer(value=" 42 ")
     assert answer_to_text_and_category(answer_no_type) == ("42", "")
 
     # Plain string → empty string category
@@ -22,8 +22,8 @@ def test_answer_to_text_and_category_for_answers_and_plain_strings():
 
 def test_build_standard_answer_judge_payload_cleans_fields():
     payload = build_standard_answer_judge_payload(
-        Answer(value=" 10  m/s "),
-        Answer(value=" 10\tm/s "),
+        PhysicsAnswer(value=" 10  m/s "),
+        PhysicsAnswer(value=" 10\tm/s "),
         "  What is the speed?  ",
     )
 

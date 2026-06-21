@@ -33,11 +33,11 @@ from typing import Any, Protocol, runtime_checkable
 from prkit.core.domain import (
     AnswerObjectKind,
     AnswerStructure,
-    PhysicalDataset,
+    PhysicsDataset,
     PhysicsDomain,
     PhysicsProblem,
 )
-from prkit.core.domain.answer import Answer
+from prkit.core.domain.answer import PhysicsAnswer
 from prkit.core.model_clients import BaseModelClient, create_model_client
 from prkit.core.verdict import Verdict
 from prkit.datasets.hub import DatasetHub
@@ -56,7 +56,7 @@ API_VERSION = "1.0"
 class DatasetProvider(Protocol):
     """Loader noun. Satisfied today by :class:`BaseDatasetLoader` subclasses."""
 
-    def load(self, data_dir: Any = ..., **kwargs: Any) -> PhysicalDataset: ...
+    def load(self, data_dir: Any = ..., **kwargs: Any) -> PhysicsDataset: ...
 
     def get_info(self) -> dict[str, Any]: ...  # MUST include "version"
 
@@ -92,7 +92,10 @@ class Scorer(Protocol):
     version: str
 
     def score(
-        self, prediction: Answer | str, reference: Answer | str, **kwargs: Any
+        self,
+        prediction: PhysicsAnswer | str,
+        reference: PhysicsAnswer | str,
+        **kwargs: Any,
     ) -> Verdict: ...
 
     def get_info(self) -> dict[str, Any]: ...  # MUST include "version"
@@ -101,7 +104,7 @@ class Scorer(Protocol):
 @runtime_checkable
 class Runner(Protocol):
     """Orchestration noun: drive a :class:`ModelClient` over a
-    :class:`PhysicalDataset` and score with a :class:`Scorer`.
+    :class:`PhysicsDataset` and score with a :class:`Scorer`.
 
     No implementation ships today; the contract is reserved for a later
     orchestration item (roadmap N4).
@@ -109,7 +112,7 @@ class Runner(Protocol):
 
     def run(
         self,
-        dataset: PhysicalDataset,
+        dataset: PhysicsDataset,
         model: ModelClient,
         scorer: Scorer,
         **kwargs: Any,
@@ -128,10 +131,10 @@ __all__ = [
     "AnswerObjectKind",
     "AnswerStructure",
     # re-exported concrete anchors
-    "Answer",
+    "PhysicsAnswer",
     "PhysicsDomain",
     "PhysicsProblem",
-    "PhysicalDataset",
+    "PhysicsDataset",
     "DatasetHub",
     "BaseDatasetLoader",
     "BaseModelClient",

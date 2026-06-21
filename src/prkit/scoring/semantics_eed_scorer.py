@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from prkit.core.domain.answer import Answer
+from prkit.core.domain.answer import PhysicsAnswer
 from prkit.core.verdict import Verdict
 from prkit.semantics import (
     ComparisonPolicyMode,
@@ -119,15 +119,15 @@ class SemanticsEedScorer:
 
     def score(
         self,
-        prediction: Answer | str | PhysicsAnswerSemantics,
-        reference: Answer | str | PhysicsAnswerSemantics,
+        prediction: PhysicsAnswer | str | PhysicsAnswerSemantics,
+        reference: PhysicsAnswer | str | PhysicsAnswerSemantics,
         *,
         context: PhysicsQuestionSemantics | dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> Verdict:
         """Score ``prediction`` against ``reference`` with our-semantics + EED core.
 
-        Inputs may be raw strings, :class:`Answer` objects, or already-normalized
+        Inputs may be raw strings, :class:`PhysicsAnswer` objects, or already-normalized
         :class:`PhysicsAnswerSemantics`. A non-applicable reference kind/structure
         yields the reserved ``score=-1.0`` not-applicable verdict.
         """

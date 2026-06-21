@@ -7,7 +7,7 @@ import json
 import pytest
 
 from prkit.api import Scorer, Verdict
-from prkit.core.domain.answer import Answer
+from prkit.core.domain.answer import PhysicsAnswer
 from prkit.scoring import SemanticsScorer
 
 # Empirically validated against the deterministic engine (see plan step 4).
@@ -53,8 +53,8 @@ class TestScoring:
         assert SemanticsScorer().score(value, value).equivalent is True
 
     def test_accepts_answer_objects(self):
-        pred = Answer(value="3.0", unit="m/s")
-        ref = Answer(value="3", unit="m/s")
+        pred = PhysicsAnswer(value="3.0", unit="m/s")
+        ref = PhysicsAnswer(value="3", unit="m/s")
         v = SemanticsScorer().score(pred, ref)
         assert v.equivalent is True
 

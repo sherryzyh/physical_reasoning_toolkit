@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from prkit.core.domain.answer import Answer
+from prkit.core.domain.answer import PhysicsAnswer
 from prkit.core.verdict import Verdict
 
 if TYPE_CHECKING:  # annotations only — never imported at runtime by this module
@@ -66,8 +66,8 @@ class LLMJudgeScorer:
 
     def score(
         self,
-        prediction: Answer | str,
-        reference: Answer | str,
+        prediction: PhysicsAnswer | str,
+        reference: PhysicsAnswer | str,
         *,
         question: str | None = None,
         **kwargs: Any,

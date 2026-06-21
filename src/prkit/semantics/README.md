@@ -305,7 +305,7 @@ The smallest reproducible path is deterministic question inference, answer
 normalization, contract construction, and evaluation.
 
 ```python
-from prkit.core.domain import Answer, PhysicsProblem
+from prkit.core.domain import PhysicsAnswer, PhysicsProblem
 from prkit.semantics import (
     ComparisonPolicyMode,
     build_evaluation_contract,
@@ -317,7 +317,7 @@ from prkit.semantics import (
 problem = PhysicsProblem(
     problem_id="demo-speed",
     question="Find the speed in m/s.",
-    answer=Answer(value="18", unit="km/h", source_type="physical_quantity"),
+    answer=PhysicsAnswer(value="18", unit="km/h", source_type="physical_quantity"),
 )
 
 question_semantics = infer_reference_question_semantics(problem)

@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from prkit.core import PRKitLogger
-from prkit.core.domain import PhysicalDataset
+from prkit.core.domain import PhysicsDataset
 from prkit.datasets.downloaders import (
     PHYBenchDownloader,
     PhysBenchDownloader,
@@ -182,7 +182,7 @@ class DatasetHub:
         auto_download: bool = False,
         allow_nonredistributable: bool = False,
         **kwargs: Any,
-    ) -> PhysicalDataset:
+    ) -> PhysicsDataset:
         """
         Load a physical reasoning dataset.
 
@@ -196,7 +196,7 @@ class DatasetHub:
             **kwargs: Additional arguments for the specific loader (e.g., split, variant, etc.)
 
         Returns:
-            PhysicalDataset: Loaded dataset
+            PhysicsDataset: Loaded dataset
 
         Raises:
             ValueError: If dataset name is unknown, or if variant/split is invalid

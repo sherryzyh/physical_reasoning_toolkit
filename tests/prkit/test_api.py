@@ -11,7 +11,7 @@ from prkit.api import (
     Verdict,
     create_model_client,
 )
-from prkit.core.domain.answer import Answer
+from prkit.core.domain.answer import PhysicsAnswer
 from prkit.core.domain.physics_problem import PhysicsProblem
 from prkit.core.verdict import Verdict as CoreVerdict
 from prkit.datasets.hub import DatasetHub
@@ -35,10 +35,10 @@ class TestContractSurface:
             "Verdict",
             "AnswerObjectKind",
             "AnswerStructure",
-            "Answer",
+            "PhysicsAnswer",
             "PhysicsDomain",
             "PhysicsProblem",
-            "PhysicalDataset",
+            "PhysicsDataset",
             "DatasetHub",
             "BaseDatasetLoader",
             "BaseModelClient",
@@ -87,7 +87,7 @@ class TestLegacyRoundTrip:
         assert problem.answer.source_type == "physical_quantity"
 
     def test_thin_answer_has_no_answer_kind_attribute(self):
-        a = Answer(value="x")
+        a = PhysicsAnswer(value="x")
         assert not hasattr(a, "answer_kind")
 
 

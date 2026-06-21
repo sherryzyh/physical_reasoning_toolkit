@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from prkit.core import PRKitLogger
-from prkit.core.domain import PhysicalDataset, PhysicsDomain, PhysicsProblem
+from prkit.core.domain import PhysicsDataset, PhysicsDomain, PhysicsProblem
 from prkit.datasets.license_registry import get_license
 from prkit.datasets.loaders.base_loader import BaseDatasetLoader
 from prkit.datasets.ugphysics_common import (
@@ -284,7 +284,7 @@ class UGPhysicsLoader(BaseDatasetLoader):
         per_domain: int | None = None,
         language: str | None = None,
         **kwargs: Any,
-    ) -> PhysicalDataset:
+    ) -> PhysicsDataset:
         """
         Load the UGPhysics dataset.
 
@@ -297,7 +297,7 @@ class UGPhysicsLoader(BaseDatasetLoader):
             language: Backward-compatible alias for split selection
 
         Returns:
-            PhysicalDataset instance
+            PhysicsDataset instance
 
         Raises:
             ValueError: If unsupported split or variant is requested
@@ -406,7 +406,7 @@ class UGPhysicsLoader(BaseDatasetLoader):
             f"dataset variant='{variant}' split='{split}'"
         )
 
-        return PhysicalDataset(
+        return PhysicsDataset(
             problems,
             info,
             split=split,

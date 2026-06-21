@@ -5,16 +5,16 @@ This package provides domain-specific data models, definitions, and enumerations
 for PRKit (physical-reasoning-toolkit).
 
 It consolidates:
-- Domain models: Answer, PhysicsProblem, PhysicalDataset, PhysicsSolution
+- Domain models: PhysicsAnswer, PhysicsProblem, PhysicsDataset, PhysicsSolution
 - Domain definitions: AnswerObjectKind, AnswerStructure, PhysicsDomain
 """
 
 # Domain definitions (enums/constants)
 # Domain models (data classes)
-from .answer import Answer
+from .answer import PhysicsAnswer
 from .answer_taxonomy import AnswerObjectKind, AnswerStructure
 from .license_spec import LicenseSpec
-from .physics_dataset import PhysicalDataset
+from .physics_dataset import PhysicsDataset
 from .physics_domain import PhysicsDomain
 from .physics_problem import PhysicsProblem
 from .physics_solution import PhysicsSolution
@@ -26,9 +26,9 @@ __all__ = [
     # Definitions
     "PhysicsDomain",
     # Models
-    "Answer",
+    "PhysicsAnswer",
     "PhysicsProblem",
-    "PhysicalDataset",
+    "PhysicsDataset",
     "PhysicsSolution",
     "LicenseSpec",
 ]

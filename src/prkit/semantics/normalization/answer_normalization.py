@@ -6,7 +6,7 @@ import re
 from collections.abc import Iterable
 from typing import Any
 
-from prkit.core.domain import Answer, PhysicsProblem
+from prkit.core.domain import PhysicsAnswer, PhysicsProblem
 
 from ..part_labels import canonicalize_part_label, infer_multi_part_part_labels
 from ..schema import (
@@ -213,7 +213,7 @@ def normalize_problem_answer(
 
 
 def normalize_physics_answer(
-    answer: str | Answer | PhysicsAnswerSemantics | Any,
+    answer: str | PhysicsAnswer | PhysicsAnswerSemantics | Any,
     *,
     context: PhysicsQuestionSemantics | None = None,
 ) -> PhysicsAnswerSemantics:

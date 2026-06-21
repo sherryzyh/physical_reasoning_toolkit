@@ -8,8 +8,8 @@ from pathlib import Path
 from typing import Any
 
 from prkit.core import PRKitLogger
-from prkit.core.domain import PhysicalDataset, PhysicsProblem
-from prkit.core.domain.answer import Answer
+from prkit.core.domain import PhysicsDataset, PhysicsProblem
+from prkit.core.domain.answer import PhysicsAnswer
 
 # Try to import PIL/Pillow for image loading
 PILImageModule: Any | None
@@ -216,7 +216,7 @@ class BaseDatasetLoader(ABC):
         pass
 
     @abstractmethod
-    def load(self, data_dir: str | Path, **kwargs: Any) -> PhysicalDataset:
+    def load(self, data_dir: str | Path, **kwargs: Any) -> PhysicsDataset:
         """
         Load dataset from the specified directory.
 
@@ -225,7 +225,7 @@ class BaseDatasetLoader(ABC):
             **kwargs: Additional loading parameters
 
         Returns:
-            PhysicalDataset instance
+            PhysicsDataset instance
         """
         pass
 
@@ -541,7 +541,7 @@ class BaseDatasetLoader(ABC):
     def _create_answer_from_raw(
         self,
         metadata: dict[str, Any],
-    ) -> Answer | None:
+    ) -> PhysicsAnswer | None:
         answer = metadata.get("answer")
 
         if answer is None:
@@ -567,7 +567,7 @@ class BaseDatasetLoader(ABC):
         if source_type is not None:
             source_type = str(source_type)
 
-        return Answer(value=value, unit=unit, source_type=source_type)
+        return PhysicsAnswer(value=value, unit=unit, source_type=source_type)
 
     def create_physics_problem(
         self,
@@ -654,11 +654,11 @@ class BaseDatasetLoader(ABC):
             if source_answer_text:
                 metadata["source_answer_text"] = source_answer_text
 
-        # Create Answer object from answer
+        # Create PhysicsAnswer object from answer
         answer_obj = self._create_answer_from_raw(metadata)
         metadata.pop("answer", None)
         metadata.pop("answer_category", None)  # defensive: loaders may still set it
-        metadata.pop("source_type", None)  # consumed into Answer; don't leak
+        metadata.pop("source_type", None)  # consumed into PhysicsAnswer; don't leak
         metadata.pop("unit", None)
 
         # collect all other fields as additional fields

@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from prkit.core import PRKitLogger
-from prkit.core.domain import PhysicalDataset, PhysicsProblem
+from prkit.core.domain import PhysicsDataset, PhysicsProblem
 from prkit.datasets.license_registry import get_license
 from prkit.datasets.loaders.base_loader import BaseDatasetLoader
 
@@ -121,7 +121,7 @@ class PhysReasonLoader(BaseDatasetLoader):
         sample_size: int | None = None,
         split: str | None = None,
         **kwargs: Any,
-    ) -> PhysicalDataset:
+    ) -> PhysicsDataset:
         """
         Load PhysReason dataset from the specified directory.
 
@@ -133,7 +133,7 @@ class PhysReasonLoader(BaseDatasetLoader):
             **kwargs: Additional loading parameters (ignored for compatibility)
 
         Returns:
-            PhysicalDataset containing PhysReason problems
+            PhysicsDataset containing PhysReason problems
         """
         # Use defaults if not provided
         if variant is None:
@@ -217,8 +217,8 @@ class PhysReasonLoader(BaseDatasetLoader):
             f"Successfully created {len(physics_problems)} PhysicsProblem objects"
         )
 
-        # Create PhysicalDataset
-        dataset = PhysicalDataset(
+        # Create PhysicsDataset
+        dataset = PhysicsDataset(
             problems=physics_problems,
             info={
                 "name": self.name,

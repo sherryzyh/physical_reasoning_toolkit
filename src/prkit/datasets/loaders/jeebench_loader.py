@@ -37,7 +37,7 @@ from pathlib import Path
 from typing import Any
 
 from prkit.core import PRKitLogger
-from prkit.core.domain import PhysicalDataset, PhysicsProblem
+from prkit.core.domain import PhysicsDataset, PhysicsProblem
 from prkit.datasets.license_registry import get_license
 
 from .base_loader import BaseDatasetLoader
@@ -100,7 +100,7 @@ class JEEBenchLoader(BaseDatasetLoader):
         split: str | None = None,
         sample_size: int | None = None,
         **kwargs: Any,
-    ) -> PhysicalDataset:
+    ) -> PhysicsDataset:
         """
         Load the JEEBench dataset.
 
@@ -113,7 +113,7 @@ class JEEBenchLoader(BaseDatasetLoader):
             **kwargs: Additional loading parameters
 
         Returns:
-            PhysicalDataset instance
+            PhysicsDataset instance
 
         Raises:
             ValueError: If unsupported split or variant is requested
@@ -181,7 +181,7 @@ class JEEBenchLoader(BaseDatasetLoader):
             f"Successfully loaded {len(problems)} problems from JEEBench dataset"
         )
 
-        return PhysicalDataset(
+        return PhysicsDataset(
             problems,
             info,
             split=split,

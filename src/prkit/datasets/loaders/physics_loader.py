@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from prkit.core import PRKitLogger
-from prkit.core.domain import PhysicalDataset, PhysicsDomain, PhysicsProblem
+from prkit.core.domain import PhysicsDataset, PhysicsDomain, PhysicsProblem
 from prkit.datasets.license_registry import get_license
 
 from .base_loader import BaseDatasetLoader
@@ -105,7 +105,7 @@ class PhysicsLoader(BaseDatasetLoader):
         sample_size: int | None = None,
         decode_images: bool = True,
         **kwargs: Any,
-    ) -> PhysicalDataset:
+    ) -> PhysicsDataset:
         """
         Load the PHYSICS dataset.
 
@@ -118,7 +118,7 @@ class PhysicsLoader(BaseDatasetLoader):
             **kwargs: Additional loading parameters (ignored for compatibility)
 
         Returns:
-            PhysicalDataset instance
+            PhysicsDataset instance
         """
         del kwargs  # Unused, kept for loader API compatibility
 
@@ -181,7 +181,7 @@ class PhysicsLoader(BaseDatasetLoader):
             variant,
             split,
         )
-        return PhysicalDataset(problems, info, split=split)
+        return PhysicsDataset(problems, info, split=split)
 
     def _validate_variant_split_combo(self, variant: str, split: str) -> None:
         if (variant, split) not in self.FILE_PATTERNS:

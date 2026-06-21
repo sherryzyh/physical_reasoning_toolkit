@@ -8,8 +8,8 @@ PRKit applies a “unified interface” idea to the full physical-reasoning loop
 
 PRKit centers on **core components** that define the physical reasoning ontology. Three integrated subpackages build on this foundation:
 
-- **Core components**: `PhysicsDomain`, `PhysicsProblem`, `Answer`, `PhysicalDataset`, `PhysicsSolution`, `BaseModelClient`, `create_model_client`, `PRKitLogger`—the shared abstractions used across the toolkit.
-- **`prkit.datasets`**: A Datasets-like hub that downloads/loads benchmarks into the unified schema (`PhysicsProblem`, `PhysicalDataset`).
+- **Core components**: `PhysicsDomain`, `PhysicsProblem`, `PhysicsAnswer`, `PhysicsDataset`, `PhysicsSolution`, `BaseModelClient`, `create_model_client`, `PRKitLogger`—the shared abstractions used across the toolkit.
+- **`prkit.datasets`**: A Datasets-like hub that downloads/loads benchmarks into the unified schema (`PhysicsProblem`, `PhysicsDataset`).
 - **`prkit.annotation`**: Workflow-oriented tools for structured, lower-level labels (e.g., domain/subdomain, theorem usage).
 - **`prkit.evaluation`**: Evaluate-like components for physics-oriented scoring and comparison (e.g., symbolic/numerical answer matching).
 
@@ -19,7 +19,7 @@ PRKit centers on **core components** that define the physical reasoning ontology
 from prkit.datasets import DatasetHub
 from prkit.core.model_clients import create_model_client
 
-# Load any benchmark into the unified schema (PhysicsProblem, PhysicalDataset)
+# Load any benchmark into the unified schema (PhysicsProblem, PhysicsDataset)
 dataset = DatasetHub.load("physreason", variant="full", split="test")
 
 # Run inference with the unified model client (core component)
@@ -211,9 +211,9 @@ The toolkit is organized around **core components** and three subpackages that u
 The essential building blocks of the physical-reasoning-toolkit. All datasets, inference, evaluation, and annotation workflows use these components.
 
 * **PhysicsDomain** — Enumeration of physics subfields (mechanics, thermodynamics, quantum mechanics, optics, etc.) for problem classification. Aligned with UGPhysics, PHYBench, TPBench. Use `PhysicsDomain.from_string()` for flexible parsing.
-* **PhysicsProblem** — The canonical representation of a physics problem. Required: `problem_id`, `question`. Optional: `answer` (Answer), `solution`, `domain`, `image_path`, `problem_type` (MC/OE), `options`, `correct_option`. Supports dictionary-like access and `load_images()` for visual problems.
-* **Answer** — Thin observation record: `value` (str, verbatim), optional `unit` (observed unit string), optional `source_type` (dataset-native type tag, verbatim), and `metadata` dict. The canonical answer kind (`AnswerObjectKind`, 9 object kinds) is derived on demand by the `prkit.semantics` layer — it is not stored on `Answer`.
-* **PhysicalDataset** — Collection of `PhysicsProblem` instances. Indexing, slicing, `get_by_id()`, `filter_by_domain()`, `take()`, `sample()`, `save_to_json()` / `from_json()`. Provides `get_statistics()` for domain and problem-type distribution.
+* **PhysicsProblem** — The canonical representation of a physics problem. Required: `problem_id`, `question`. Optional: `answer` (PhysicsAnswer), `solution`, `domain`, `image_path`, `problem_type` (MC/OE), `options`, `correct_option`. Supports dictionary-like access and `load_images()` for visual problems.
+* **PhysicsAnswer** — Thin observation record: `value` (str, verbatim), optional `unit` (observed unit string), optional `source_type` (dataset-native type tag, verbatim), and `metadata` dict. The canonical answer kind (`AnswerObjectKind`, 9 object kinds) is derived on demand by the `prkit.semantics` layer — it is not stored on `PhysicsAnswer`.
+* **PhysicsDataset** — Collection of `PhysicsProblem` instances. Indexing, slicing, `get_by_id()`, `filter_by_domain()`, `take()`, `sample()`, `save_to_json()` / `from_json()`. Provides `get_statistics()` for domain and problem-type distribution.
 * **PhysicsSolution** — Bundles a `PhysicsProblem`, model `agent_answer`, and optional `intermediate_steps`. Captures the full solution trace for evaluation and analysis.
 * **BaseModelClient** — Abstract base for model clients. Subclasses implement `chat(user_prompt, image_paths=None)`.
 * **PRKitLogger** — Centralized logging with colored output, file logging, and env config (`PRKIT_LOG_LEVEL`, `PRKIT_LOG_FILE`, etc.).

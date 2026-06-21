@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from prkit.core.domain import Answer, PhysicsProblem
+from prkit.core.domain import PhysicsAnswer, PhysicsProblem
 from prkit.core.model_clients import BaseModelClient
 from prkit.semantics.build.calls import (
     build_reference_semantics,
@@ -26,7 +26,7 @@ def _quantity_problem(golden: str) -> PhysicsProblem:
     return PhysicsProblem(
         problem_id="signconv-int",
         question="Find the block's velocity v.",
-        answer=Answer(value=golden),
+        answer=PhysicsAnswer(value=golden),
         domain="mechanics",
     )
 
@@ -35,7 +35,7 @@ def _vector_problem(golden: str) -> PhysicsProblem:
     return PhysicsProblem(
         problem_id="signconv-int-vec",
         question="Find the displacement vector.",
-        answer=Answer(value=golden),
+        answer=PhysicsAnswer(value=golden),
         domain="mechanics",
     )
 

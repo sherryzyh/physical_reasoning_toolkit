@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from ..logging_config import PRKitLogger
-from .answer import Answer
+from .answer import PhysicsAnswer
 from .physics_domain import PhysicsDomain
 
 # Get logger for this module
@@ -44,7 +44,7 @@ class PhysicsProblem:
     question: str
 
     # Optional core fields
-    answer: Answer | None = None
+    answer: PhysicsAnswer | None = None
     solution: str | None = None
     domain: str | PhysicsDomain | None = None
     language: str = "en"
@@ -348,7 +348,7 @@ class PhysicsProblem:
                     if source_type is not None:
                         source_type = str(source_type)
                     answer_metadata = value.get("metadata") or {}
-                    core_data[key] = Answer(
+                    core_data[key] = PhysicsAnswer(
                         value=answer_value,
                         unit=answer_unit,
                         source_type=source_type,

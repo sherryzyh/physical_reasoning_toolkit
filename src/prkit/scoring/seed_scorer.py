@@ -26,7 +26,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from prkit.core.domain.answer import Answer
+from prkit.core.domain.answer import PhysicsAnswer
 from prkit.core.verdict import Verdict
 
 #: Provenance stamp: ``<algorithm>/<source>@<commit>+frontend-<vendor>+wrap<N>``.
@@ -43,8 +43,8 @@ SEED_ANSWER_TYPES: tuple[str, ...] = (
 _SEED_TYPE_SET = frozenset(SEED_ANSWER_TYPES)
 
 
-def _as_text(value: Answer | str | Any) -> str:
-    """Render an ``Answer``/string answer as the raw text the front-end expects."""
+def _as_text(value: PhysicsAnswer | str | Any) -> str:
+    """Render an ``PhysicsAnswer``/string answer as the raw text the front-end expects."""
     if isinstance(value, str):
         return value
     return str(value)
@@ -90,8 +90,8 @@ class SeedScorer:
 
     def score(
         self,
-        prediction: Answer | str,
-        reference: Answer | str,
+        prediction: PhysicsAnswer | str,
+        reference: PhysicsAnswer | str,
         *,
         answer_type: str | None = None,
         **kwargs: Any,
@@ -127,7 +127,7 @@ class SeedScorer:
     def _resolve_answer_type(
         self,
         answer_type: str | None,
-        reference: Answer | str,
+        reference: PhysicsAnswer | str,
         ref_text: str,
     ) -> tuple[str, bool]:
         """Resolve the SEED dispatch token; return ``(token, classifier_used)``.

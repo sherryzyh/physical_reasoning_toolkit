@@ -107,17 +107,24 @@ changes to those are documented in the package release notes, not the contract v
 - Precedent: `BaseModelClient.chat()` / `chat_structured()` (see
   `core/model_clients/base.py`).
 
-### Removed during provisional 1.0 shaping
+### Removed/renamed during provisional 1.0 shaping
 
-- **`Answer` reshaped to a thin observation record.** `Answer` now carries only
-  `value: str`, `unit: str | None`, `source_type: str | None`, and `metadata: dict`.
-  The former `answer_kind: AnswerObjectKind` field (and all predicate helpers such as
-  `is_number()`, `is_option()`, `get_type()`, etc.) are **removed**. The canonical
-  answer ontology (`AnswerObjectKind` / `AnswerStructure`, 9 object kinds) lives only
-  in `prkit.semantics` and is returned as `object_kind` on `PhysicsAnswerSemantics`
-  — it is never stored on `Answer`. `source_type` is the dataset's verbatim native
-  type label (e.g. `"MC"`, `"NV"`, `"EX"`, `"Integer"`); it is never fabricated and
-  never read by the semantics engine. Serialized answers migrate via:
+- **Domain classes renamed.** `Answer` → **`PhysicsAnswer`** and `PhysicalDataset` →
+  **`PhysicsDataset`** (the latter also resolves the `physics_dataset.py` file/class
+  stem mismatch). The other domain nouns (`PhysicsProblem`, `PhysicsSolution`,
+  `PhysicsDomain`, `AnswerObjectKind`, `AnswerStructure`, `LicenseSpec`) are unchanged.
+  Per the `API_VERSION` policy this breaking rename is **tracked in
+  `internal/PAPER_V1_TO_V2_DELTA.md`, not signalled by a major bump** — the contract
+  stays provisional at `1.0`. No deprecation alias is provided.
+- **`PhysicsAnswer` reshaped to a thin observation record.** `PhysicsAnswer` (formerly
+  `Answer`) now carries only `value: str`, `unit: str | None`, `source_type: str | None`,
+  and `metadata: dict`. The former `answer_kind: AnswerObjectKind` field (and all
+  predicate helpers such as `is_number()`, `is_option()`, `get_type()`, etc.) are
+  **removed**. The canonical answer ontology (`AnswerObjectKind` / `AnswerStructure`,
+  9 object kinds) lives only in `prkit.semantics` and is returned as `object_kind` on
+  `PhysicsAnswerSemantics` — it is never stored on `PhysicsAnswer`. `source_type` is the
+  dataset's verbatim native type label (e.g. `"MC"`, `"NV"`, `"EX"`, `"Integer"`); it is
+  never fabricated and never read by the semantics engine. Serialized answers migrate via:
   `source_type = value.get("source_type") or value.get("answer_kind") or value.get("answer_category")`.
 - **Deprecated scoring stack deleted.** `prkit.evaluation.comparator.*`,
   `prkit.evaluation.evaluator.*` (`BaseComparator`, `ExactMatchComparator`,

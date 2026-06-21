@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from prkit.core.domain.answer import Answer
+from prkit.core.domain.answer import PhysicsAnswer
 from prkit.core.verdict import Verdict
 from prkit.semantics import (
     PREDICTION_PROMPT_VERSION,
@@ -132,8 +132,8 @@ class SemanticsScorer:
 
     def score(
         self,
-        prediction: Answer | str | PhysicsAnswerSemantics,
-        reference: Answer | str | PhysicsAnswerSemantics,
+        prediction: PhysicsAnswer | str | PhysicsAnswerSemantics,
+        reference: PhysicsAnswer | str | PhysicsAnswerSemantics,
         *,
         context: PhysicsQuestionSemantics | dict[str, Any] | None = None,
         policy_mode: ComparisonPolicyMode | str | None = None,
@@ -141,7 +141,7 @@ class SemanticsScorer:
     ) -> Verdict:
         """Score ``prediction`` against ``reference`` and return a canonical Verdict.
 
-        ``prediction`` / ``reference`` may be raw strings, :class:`Answer` objects,
+        ``prediction`` / ``reference`` may be raw strings, :class:`PhysicsAnswer` objects,
         or already-normalized :class:`PhysicsAnswerSemantics` (e.g. from
         :func:`prkit.semantics.extract_prediction_answer_semantics`); all three are
         accepted by the normalizer. The
@@ -154,7 +154,7 @@ class SemanticsScorer:
         effective_context = self._effective_context(context)
         effective_policy = policy_mode if policy_mode is not None else self._policy_mode
 
-        # normalize_physics_answer accepts str | Answer | PhysicsAnswerSemantics.
+        # normalize_physics_answer accepts str | PhysicsAnswer | PhysicsAnswerSemantics.
         pred_sem = normalize_physics_answer(prediction, context=effective_context)
         ref_sem = normalize_physics_answer(reference, context=effective_context)
 

@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import pytest
 
-from prkit.core.domain import Answer, PhysicsDomain, PhysicsProblem
+from prkit.core.domain import PhysicsAnswer, PhysicsDomain, PhysicsProblem
 from prkit.core.domain import physics_problem as physics_problem_module
 
 
@@ -25,7 +25,7 @@ class TestPhysicsProblem:
 
     def test_problem_creation_full(self):
         """Test creating a full physics problem."""
-        answer = Answer(value="42")
+        answer = PhysicsAnswer(value="42")
         problem = PhysicsProblem(
             problem_id="test_001",
             question="What is the answer?",
@@ -222,7 +222,7 @@ class TestPhysicsProblem:
 
     def test_problem_to_dict(self):
         """Test problem serialization."""
-        answer = Answer(value="42")
+        answer = PhysicsAnswer(value="42")
         problem = PhysicsProblem(
             problem_id="test_001",
             question="Test",

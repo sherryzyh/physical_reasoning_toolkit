@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from prkit.api import Scorer
 from prkit.core.domain import AnswerObjectKind, AnswerStructure
-from prkit.core.domain.answer import Answer
+from prkit.core.domain.answer import PhysicsAnswer
 from prkit.scoring import SemanticsSeedScorer
 from prkit.semantics import PhysicsAnswerSemantics
 from prkit.testing import check_scorer
@@ -97,7 +97,9 @@ class TestContainers:
 
 class TestNotApplicable:
     def test_choice_answer_is_not_applicable(self) -> None:
-        verdict = SemanticsSeedScorer().score(Answer(value="A"), Answer(value="B"))
+        verdict = SemanticsSeedScorer().score(
+            PhysicsAnswer(value="A"), PhysicsAnswer(value="B")
+        )
         assert verdict.score == -1.0
         assert verdict.correct is False
         assert verdict.equivalent is False

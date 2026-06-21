@@ -1,27 +1,27 @@
 """
-Tests for PhysicalDataset model.
+Tests for PhysicsDataset model.
 """
 
 from unittest.mock import patch
 
 import pytest
 
-from prkit.core.domain import PhysicalDataset, PhysicsDomain, PhysicsProblem
+from prkit.core.domain import PhysicsDataset, PhysicsDomain, PhysicsProblem
 from prkit.core.domain import physics_dataset as physics_dataset_module
 
 
 class TestPhysicalDataset:
-    """Test cases for PhysicalDataset model."""
+    """Test cases for PhysicsDataset model."""
 
     def test_dataset_creation(self, sample_problems_list):
         """Test creating a dataset."""
-        dataset = PhysicalDataset(problems=sample_problems_list)
+        dataset = PhysicsDataset(problems=sample_problems_list)
         assert len(dataset) == 5
         assert dataset.get_split() == "test"
 
     def test_dataset_getitem(self, sample_problems_list):
         """Test dataset indexing."""
-        dataset = PhysicalDataset(problems=sample_problems_list)
+        dataset = PhysicsDataset(problems=sample_problems_list)
         assert dataset[0].problem_id == "test_000"
         assert dataset[1].problem_id == "test_001"
 
@@ -31,7 +31,7 @@ class TestPhysicalDataset:
 
     def test_dataset_iteration(self, sample_problems_list):
         """Test dataset iteration."""
-        dataset = PhysicalDataset(problems=sample_problems_list)
+        dataset = PhysicsDataset(problems=sample_problems_list)
         count = 0
         for problem in dataset:
             assert isinstance(problem, PhysicsProblem)
@@ -40,7 +40,7 @@ class TestPhysicalDataset:
 
     def test_dataset_get_by_id(self, sample_problems_list):
         """Test getting problem by ID."""
-        dataset = PhysicalDataset(problems=sample_problems_list)
+        dataset = PhysicsDataset(problems=sample_problems_list)
         problem = dataset.get_by_id("test_002")
         assert problem.problem_id == "test_002"
 
@@ -49,7 +49,7 @@ class TestPhysicalDataset:
 
     def test_dataset_get_by_id_safe(self, sample_problems_list):
         """Test safe get by ID."""
-        dataset = PhysicalDataset(problems=sample_problems_list)
+        dataset = PhysicsDataset(problems=sample_problems_list)
         problem = dataset.get_by_id_safe("test_002")
         assert problem is not None
         assert problem.problem_id == "test_002"
@@ -59,14 +59,14 @@ class TestPhysicalDataset:
 
     def test_dataset_filter(self, sample_problems_list):
         """Test dataset filtering."""
-        dataset = PhysicalDataset(problems=sample_problems_list)
+        dataset = PhysicsDataset(problems=sample_problems_list)
         filtered = dataset.filter(lambda p: p.problem_id == "test_000")
         assert len(filtered) == 1
         assert filtered[0].problem_id == "test_000"
 
     def test_dataset_filter_by_domain(self, sample_problems_list):
         """Test filtering by domain."""
-        dataset = PhysicalDataset(problems=sample_problems_list)
+        dataset = PhysicsDataset(problems=sample_problems_list)
         filtered = dataset.filter_by_domain(PhysicsDomain.CLASSICAL_MECHANICS)
         assert len(filtered) >= 1
 
@@ -76,27 +76,27 @@ class TestPhysicalDataset:
 
     def test_dataset_filter_by_domains(self, sample_problems_list):
         """Test filtering by multiple domains."""
-        dataset = PhysicalDataset(problems=sample_problems_list)
+        dataset = PhysicsDataset(problems=sample_problems_list)
         domains = [PhysicsDomain.CLASSICAL_MECHANICS, PhysicsDomain.QUANTUM_MECHANICS]
         filtered = dataset.filter_by_domains(domains)
         assert len(filtered) >= 1
 
     def test_dataset_select(self, sample_problems_list):
         """Test selecting problems by indices."""
-        dataset = PhysicalDataset(problems=sample_problems_list)
+        dataset = PhysicsDataset(problems=sample_problems_list)
         selected = dataset.select([0, 2, 4])
         assert len(selected) == 3
 
     def test_dataset_take(self, sample_problems_list):
         """Test taking first N problems."""
-        dataset = PhysicalDataset(problems=sample_problems_list)
+        dataset = PhysicsDataset(problems=sample_problems_list)
         taken = dataset.take(3)
         assert len(taken) == 3
         assert taken[0].problem_id == "test_000"
 
     def test_dataset_head_tail(self, sample_problems_list):
         """Test head and tail methods."""
-        dataset = PhysicalDataset(problems=sample_problems_list)
+        dataset = PhysicsDataset(problems=sample_problems_list)
         head = dataset.head(2)
         assert len(head) == 2
 
@@ -105,13 +105,13 @@ class TestPhysicalDataset:
 
     def test_dataset_sample(self, sample_problems_list):
         """Test sampling problems."""
-        dataset = PhysicalDataset(problems=sample_problems_list)
+        dataset = PhysicsDataset(problems=sample_problems_list)
         sampled = dataset.sample(3)
         assert len(sampled) == 3
 
     def test_dataset_map(self, sample_problems_list):
         """Test mapping function over problems."""
-        dataset = PhysicalDataset(problems=sample_problems_list)
+        dataset = PhysicsDataset(problems=sample_problems_list)
         ids = dataset.map(lambda p: p.problem_id)
         assert len(ids) == 5
         assert all(isinstance(id, str) for id in ids)
@@ -119,13 +119,13 @@ class TestPhysicalDataset:
     def test_dataset_get_info(self, sample_problems_list):
         """Test getting dataset info."""
         info = {"name": "test", "version": "1.0"}
-        dataset = PhysicalDataset(problems=sample_problems_list, info=info)
+        dataset = PhysicsDataset(problems=sample_problems_list, info=info)
         assert dataset.get_info() == info
         assert dataset.name == "test"
 
     def test_dataset_statistics(self, sample_problems_list):
         """Test dataset statistics."""
-        dataset = PhysicalDataset(problems=sample_problems_list)
+        dataset = PhysicsDataset(problems=sample_problems_list)
         stats = dataset.get_statistics()
         assert stats["total_problems"] == 5
         assert "domains" in stats
@@ -133,14 +133,14 @@ class TestPhysicalDataset:
 
     def test_dataset_to_list(self, sample_problems_list):
         """Test converting dataset to list."""
-        dataset = PhysicalDataset(problems=sample_problems_list)
+        dataset = PhysicsDataset(problems=sample_problems_list)
         problem_list = dataset.to_list()
         assert len(problem_list) == 5
         assert all(isinstance(p, dict) for p in problem_list)
 
     def test_dataset_save_load_json(self, sample_problems_list, temp_dir):
         """Test saving and loading dataset from JSON."""
-        dataset = PhysicalDataset(
+        dataset = PhysicsDataset(
             problems=sample_problems_list, info={"name": "test_dataset"}, split="test"
         )
 
@@ -148,15 +148,15 @@ class TestPhysicalDataset:
         dataset.save_to_json(filepath)
         assert filepath.exists()
 
-        loaded = PhysicalDataset.from_json(filepath)
+        loaded = PhysicsDataset.from_json(filepath)
         assert len(loaded) == 5
         assert loaded.get_split() == "test"
         assert loaded.name == "test_dataset"
 
     def test_dataset_repr_str(self, sample_problems_list):
         """Test string representations."""
-        dataset = PhysicalDataset(problems=sample_problems_list)
-        assert "PhysicalDataset" in repr(dataset)
+        dataset = PhysicsDataset(problems=sample_problems_list)
+        assert "PhysicsDataset" in repr(dataset)
         assert "5" in str(dataset)
 
     def test_dataset_duplicate_and_missing_problem_ids_are_indexed(self):
@@ -170,13 +170,13 @@ class TestPhysicalDataset:
             physics_dataset_module.PRKitLogger.get_logger(__name__),
             "warning",
         ) as _:
-            dataset = PhysicalDataset(problems=problems, info={"name": "demo"})
+            dataset = PhysicsDataset(problems=problems, info={"name": "demo"})
 
         assert dataset.get_all_ids() == ["dup", "problem_2"]
         assert dataset.get_by_id("dup").question == "Q1"
 
     def test_dataset_additional_branches(self, sample_problems_list):
-        dataset = PhysicalDataset(problems=sample_problems_list)
+        dataset = PhysicsDataset(problems=sample_problems_list)
 
         assert len(dataset.select([-1, 100])) == 0
         assert len(dataset.take(0)) == 0
@@ -187,9 +187,9 @@ class TestPhysicalDataset:
     def test_dataset_filter_by_domains_with_strings_invalid_types_and_empty_stats(
         self, sample_problems_list
     ):
-        dataset = PhysicalDataset(problems=sample_problems_list)
+        dataset = PhysicsDataset(problems=sample_problems_list)
         filtered = dataset.filter_by_domains(
             ["Classical Mechanics", "unknown-domain", 123]
         )
         assert len(filtered) >= 1
-        assert PhysicalDataset([]).get_statistics() == {"total_problems": 0}
+        assert PhysicsDataset([]).get_statistics() == {"total_problems": 0}

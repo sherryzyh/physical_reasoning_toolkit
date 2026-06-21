@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from prkit.core.domain import Answer, PhysicsProblem
+from prkit.core.domain import PhysicsAnswer, PhysicsProblem
 from prkit.core.model_clients import BaseModelClient
 from prkit.semantics.build.calls import (
     build_problem_semantics,
@@ -29,7 +29,7 @@ def _problem() -> PhysicsProblem:
     return PhysicsProblem(
         problem_id="staged-1",
         question="Find the energy E.",
-        answer=Answer(value="x**2/2, x > 0"),
+        answer=PhysicsAnswer(value="x**2/2, x > 0"),
         domain="mechanics",
     )
 
@@ -38,7 +38,7 @@ def _directional_problem() -> PhysicsProblem:
     return PhysicsProblem(
         problem_id="staged-dir-1",
         question="Find the velocity v of the block.",
-        answer=Answer(value="-20 m/s"),
+        answer=PhysicsAnswer(value="-20 m/s"),
         domain="mechanics",
     )
 

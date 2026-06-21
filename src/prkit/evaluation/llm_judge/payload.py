@@ -5,12 +5,12 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from prkit.core.domain.answer import Answer
+from prkit.core.domain.answer import PhysicsAnswer
 
 
-def answer_to_text_and_category(answer: str | Answer) -> tuple[str, str]:
+def answer_to_text_and_category(answer: str | PhysicsAnswer) -> tuple[str, str]:
     """Plain text and native-type label for embedding in a judge JSON payload."""
-    if isinstance(answer, Answer):
+    if isinstance(answer, PhysicsAnswer):
         return str(answer).strip(), answer.source_type or ""
     return str(answer).strip(), ""
 
@@ -24,8 +24,8 @@ def clean_answer_text(answer_text: str) -> str:
 
 
 def build_standard_answer_judge_payload(
-    predicted: str | Answer,
-    ground_truth: str | Answer,
+    predicted: str | PhysicsAnswer,
+    ground_truth: str | PhysicsAnswer,
     question: str | None,
 ) -> dict[str, Any]:
     """Standard physics payload: ``question``, ``ground_truth``, ``model_answer``."""

@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from prkit.core import PRKitLogger
-from prkit.core.domain import PhysicalDataset, PhysicsProblem
+from prkit.core.domain import PhysicsDataset, PhysicsProblem
 from prkit.datasets.license_registry import get_license
 
 from .base_loader import BaseDatasetLoader
@@ -105,7 +105,7 @@ class PhysBenchLoader(BaseDatasetLoader):
         split: str | None = None,
         sample_size: int | None = None,
         **kwargs: Any,
-    ) -> PhysicalDataset:
+    ) -> PhysicsDataset:
         """
         Load PhysBench from a local cache directory.
 
@@ -191,7 +191,7 @@ class PhysBenchLoader(BaseDatasetLoader):
             variant,
             split,
         )
-        return PhysicalDataset(problems, info, split=split)
+        return PhysicsDataset(problems, info, split=split)
 
     def _filter_records(
         self,

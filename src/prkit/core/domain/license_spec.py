@@ -3,7 +3,7 @@
 ``LicenseSpec`` is the single machine-readable record of a dataset's license: an SPDX id, a
 human name/url, and boolean usage flags (redistributable / commercial / eval-only / etc.). The
 dataset license registry (``prkit.datasets.license_registry``) owns one ``LicenseSpec`` per
-dataset; loaders and downloaders embed ``to_info_dict()`` at ``PhysicalDataset.info["license"]``
+dataset; loaders and downloaders embed ``to_info_dict()`` at ``PhysicsDataset.info["license"]``
 so every read path reports the same, normalized license truth.
 """
 
@@ -40,7 +40,7 @@ class LicenseSpec:
     notes: str | None = None
 
     def to_info_dict(self) -> dict[str, Any]:
-        """Return the flat dict embedded at ``PhysicalDataset.info["license"]``."""
+        """Return the flat dict embedded at ``PhysicsDataset.info["license"]``."""
 
         return asdict(self)
 

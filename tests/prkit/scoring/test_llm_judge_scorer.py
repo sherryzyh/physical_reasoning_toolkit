@@ -12,7 +12,7 @@ import json
 import pytest
 
 from prkit.api import Scorer, Verdict
-from prkit.core.domain.answer import Answer
+from prkit.core.domain.answer import PhysicsAnswer
 from prkit.evaluation.llm_judge.types import LLMJudgeResult
 from prkit.scoring import LLMJudgeScorer
 
@@ -127,11 +127,11 @@ class TestScoring:
 
     def test_accepts_answer_objects(self):
         runner = FakeJudgeRunner(_result("correct"))
-        pred = Answer(value="3.0", unit="m/s")
-        ref = Answer(value="3", unit="m/s", source_type="NV")
+        pred = PhysicsAnswer(value="3.0", unit="m/s")
+        ref = PhysicsAnswer(value="3", unit="m/s", source_type="NV")
         v = _scorer(runner).score(pred, ref)
         assert v.equivalent is True
-        # Answer.source_type flows into the payload category.
+        # PhysicsAnswer.source_type flows into the payload category.
         assert runner.calls[0]["ground_truth"]["category"] == "NV"
 
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from prkit.core.domain import Answer, PhysicsProblem
+from prkit.core.domain import PhysicsAnswer, PhysicsProblem
 from prkit.semantics import (
     AnswerObjectKind,
     AnswerStructure,
@@ -280,7 +280,7 @@ def test_fixed_question_unit_allows_bare_number_but_required_unit_does_not() -> 
         PhysicsProblem(
             problem_id="p1",
             question="Find the speed in m/s.",
-            answer=Answer(value="5"),
+            answer=PhysicsAnswer(value="5"),
         )
     )
     required_unit_context = QuestionContext(
@@ -328,7 +328,7 @@ def test_infer_question_context_rejects_prose_after_in_keyword(
         PhysicsProblem(
             problem_id=problem_id,
             question=question,
-            answer=Answer(
+            answer=PhysicsAnswer(
                 value=answer_value,
             ),
         )
@@ -345,23 +345,23 @@ def test_infer_question_context_drops_stopword_targets_but_keeps_symbol_targets(
         PhysicsProblem(
             problem_id="p_stopword_the",
             question="What is the magnitude of the force on the block?",
-            answer=Answer(value="25 N"),
+            answer=PhysicsAnswer(value="25 N"),
         ),
         PhysicsProblem(
             problem_id="p_stopword_all",
             question="What is all?",
-            answer=Answer(value="25 N"),
+            answer=PhysicsAnswer(value="25 N"),
         ),
         PhysicsProblem(
             problem_id="p_stopword_which",
             question="What is which?",
-            answer=Answer(value="25 N"),
+            answer=PhysicsAnswer(value="25 N"),
         ),
     ]
     symbol_problem = PhysicsProblem(
         problem_id="p_symbol_target",
         question="What is T?",
-        answer=Answer(value="0.78 s"),
+        answer=PhysicsAnswer(value="0.78 s"),
     )
 
     for problem in prose_problems:
@@ -373,7 +373,7 @@ def test_question_semantics_split_uses_gold_target_only_for_reference() -> None:
     problem = PhysicsProblem(
         problem_id="p_gold_target",
         question="Give the final expression for the magnetic field.",
-        answer=Answer(
+        answer=PhysicsAnswer(
             value="B = \\mu_0 I / (2\\pi r)",
         ),
     )
@@ -391,7 +391,7 @@ def test_question_semantics_split_uses_gold_unit_policy_only_for_reference() -> 
     problem = PhysicsProblem(
         problem_id="p_gold_unit",
         question="Find the speed.",
-        answer=Answer(
+        answer=PhysicsAnswer(
             value="5",
             unit="m/s",
         ),
@@ -409,7 +409,7 @@ def test_prediction_question_semantics_ignores_answer_parts_metadata() -> None:
     problem = PhysicsProblem(
         problem_id="p_answer_parts_split",
         question="Give both values: the displacement value and the time value.",
-        answer=Answer(value="ignored"),
+        answer=PhysicsAnswer(value="ignored"),
         additional_fields={
             "answer_parts": [
                 {"part_label": "speed_slot", "raw_text": "1 m"},
@@ -484,7 +484,7 @@ def test_prediction_question_semantics_ignores_symbol_alias_metadata() -> None:
     problem = PhysicsProblem(
         problem_id="p_symbol_alias_split",
         question="Give the final expression for the displacement.",
-        answer=Answer(value="x_final = v*t"),
+        answer=PhysicsAnswer(value="x_final = v*t"),
         additional_fields={
             "symbol_aliases": [
                 {
@@ -508,7 +508,7 @@ def test_problem_answer_parts_take_precedence() -> None:
     problem = PhysicsProblem(
         problem_id="p2",
         question="Give both values.",
-        answer=Answer(value="ignored"),
+        answer=PhysicsAnswer(value="ignored"),
         additional_fields={"answer_parts": ["1 m", "2 m"]},
     )
 
@@ -525,7 +525,7 @@ def test_dataset_backed_relation_and_multi_part_strings() -> None:
         PhysicsProblem(
             problem_id="ugphysics-628",
             question="Give the effect type and the field strength.",
-            answer=Answer(value="C, 7.77"),
+            answer=PhysicsAnswer(value="C, 7.77"),
             additional_fields={"answer_parts": ["C", "7.77"]},
         )
     )

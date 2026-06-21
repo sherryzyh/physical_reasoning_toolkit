@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from prkit.core.domain import Answer, PhysicsProblem
+from prkit.core.domain import PhysicsAnswer, PhysicsProblem
 from prkit.core.model_clients.prompts import format_problem_context
 
 from ..normalization import (
@@ -290,7 +290,7 @@ def answer_like_to_text(answer: object) -> str:
         return ""
     if isinstance(answer, PhysicsAnswerSemantics):
         return answer.raw_text or answer.canonical_text
-    if isinstance(answer, Answer):
+    if isinstance(answer, PhysicsAnswer):
         value_text = str(answer.value).strip()
         unit_text = "" if answer.unit is None else str(answer.unit).strip()
         if value_text and unit_text:

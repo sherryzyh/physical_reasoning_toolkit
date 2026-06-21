@@ -27,7 +27,7 @@ from pathlib import Path
 from typing import Any
 
 from prkit.core import PRKitLogger
-from prkit.core.domain import PhysicalDataset, PhysicsProblem
+from prkit.core.domain import PhysicsDataset, PhysicsProblem
 from prkit.datasets.license_registry import get_license
 
 from .base_loader import BaseDatasetLoader
@@ -131,7 +131,7 @@ class CMPhysBenchLoader(BaseDatasetLoader):
         split: str | None = None,
         sample_size: int | None = None,
         **kwargs: Any,
-    ) -> PhysicalDataset:
+    ) -> PhysicsDataset:
         """
         Load the CMPhysBench dataset from a local copy.
 
@@ -144,7 +144,7 @@ class CMPhysBenchLoader(BaseDatasetLoader):
             **kwargs: Additional loading parameters.
 
         Returns:
-            PhysicalDataset instance.
+            PhysicsDataset instance.
 
         Raises:
             ValueError: If an unsupported split or variant is requested, or the JSON
@@ -199,4 +199,4 @@ class CMPhysBenchLoader(BaseDatasetLoader):
             f"Successfully loaded {len(problems)} problems from CMPhysBench dataset"
         )
 
-        return PhysicalDataset(problems, info, split=split)
+        return PhysicsDataset(problems, info, split=split)

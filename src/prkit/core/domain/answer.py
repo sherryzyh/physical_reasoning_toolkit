@@ -1,7 +1,7 @@
 """
 Thin observation record for a physics problem's ground-truth answer.
 
-An ``Answer`` captures only what a dataset directly provides:
+An ``PhysicsAnswer`` captures only what a dataset directly provides:
 
 * ``value``       — verbatim answer string (always ``str``)
 * ``unit``        — observed unit string when present (e.g. ``"m/s²"``, ``"N"``)
@@ -21,7 +21,7 @@ from typing import Any
 
 
 @dataclass
-class Answer:
+class PhysicsAnswer:
     """Thin observed-data record for a physics answer.
 
     ``value`` is always a plain string — the verbatim answer text after
@@ -72,7 +72,7 @@ class Answer:
 
     def __repr__(self) -> str:
         return (
-            f"Answer(value={self.value!r}, unit={self.unit!r}, "
+            f"PhysicsAnswer(value={self.value!r}, unit={self.unit!r}, "
             f"source_type={self.source_type!r})"
         )
 

@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Any, cast
 from prkit.core.verdict import Verdict
 
 if TYPE_CHECKING:  # annotations only — never imported at runtime by this module
-    from prkit.core.domain.answer import Answer
+    from prkit.core.domain.answer import PhysicsAnswer
     from prkit.semantics import PhysicsAnswerSemantics, PhysicsQuestionSemantics
     from prkit.semantics.build import ReferenceSemanticsArtifact
 
@@ -69,8 +69,8 @@ def _resolve_question_context(
 
 
 def verify(
-    gold: Answer | str | PhysicsAnswerSemantics,
-    pred: Answer | str | PhysicsAnswerSemantics,
+    gold: PhysicsAnswer | str | PhysicsAnswerSemantics,
+    pred: PhysicsAnswer | str | PhysicsAnswerSemantics,
     *,
     tolerance: float | None = None,
     unit_policy: str = "strict",
@@ -83,7 +83,7 @@ def verify(
 
     A ``math-verify``-shaped one-call verifier returning the canonical
     :class:`~prkit.core.verdict.Verdict`. ``gold`` / ``pred`` may be raw strings,
-    :class:`~prkit.core.domain.answer.Answer` objects, or pre-parsed
+    :class:`~prkit.core.domain.answer.PhysicsAnswer` objects, or pre-parsed
     :class:`~prkit.semantics.PhysicsAnswerSemantics`.
 
     Args:

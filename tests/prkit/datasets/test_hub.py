@@ -7,7 +7,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from prkit.core.domain import PhysicalDataset, PhysicsProblem
+from prkit.core.domain import PhysicsDataset, PhysicsProblem
 from prkit.datasets import DatasetHub
 from prkit.datasets.loaders.base_loader import BaseDatasetLoader
 
@@ -34,7 +34,7 @@ class TestDatasetHub:
 
         class CustomLoader(BaseDatasetLoader):
             def load(self, data_dir=None, **kwargs):
-                return PhysicalDataset(problems=[], info={"name": "custom"})
+                return PhysicsDataset(problems=[], info={"name": "custom"})
 
             def get_info(self):
                 return {"name": "custom", "description": "Custom dataset"}
@@ -84,7 +84,7 @@ class TestDatasetHub:
             PhysicsProblem(problem_id=f"test_{i}", question=f"Question {i}")
             for i in range(10)
         ]
-        mock_dataset = PhysicalDataset(problems=mock_problems)
+        mock_dataset = PhysicsDataset(problems=mock_problems)
         mock_loader.load.return_value = mock_dataset
         mock_loader_class.return_value = mock_loader
 
@@ -112,7 +112,7 @@ class TestDatasetHub:
 
             def load(self, data_dir=None, **kwargs):
                 assert "custom_param" in kwargs
-                return PhysicalDataset(problems=[], info={"name": "mock"})
+                return PhysicsDataset(problems=[], info={"name": "mock"})
 
             def get_info(self):
                 return {"name": "mock", "variants": ["full"], "splits": ["train"]}
@@ -283,7 +283,7 @@ class TestDatasetHub:
             def load(self, data_dir=None, **kwargs):
                 assert kwargs.get("variant") == "full"
                 assert kwargs.get("split") == "train"
-                return PhysicalDataset(problems=[], info={"name": "mock"})
+                return PhysicsDataset(problems=[], info={"name": "mock"})
 
         DatasetHub.register("mock_defaults", MockLoader)
 
@@ -331,7 +331,7 @@ class TestDatasetHub:
             def load(self, data_dir=None, **kwargs):
                 assert kwargs.get("variant") == "mini"
                 assert kwargs.get("split") == "test"
-                return PhysicalDataset(problems=[], info={"name": "mock"})
+                return PhysicsDataset(problems=[], info={"name": "mock"})
 
         DatasetHub.register("mock_explicit", MockLoader)
 
@@ -351,7 +351,7 @@ class TestDatasetHub:
                 return {}
 
             def load(self, data_dir=None, **kwargs):
-                return PhysicalDataset(problems=[], info={"name": "mock"})
+                return PhysicsDataset(problems=[], info={"name": "mock"})
 
             def get_info(self):
                 return {
@@ -396,7 +396,7 @@ class TestDatasetHub:
                 return {}
 
             def load(self, data_dir=None, **kwargs):
-                return PhysicalDataset(problems=[], info={"name": "mock"})
+                return PhysicsDataset(problems=[], info={"name": "mock"})
 
             def get_info(self):
                 return {
@@ -441,7 +441,7 @@ class TestDatasetHub:
                 return {}
 
             def load(self, data_dir=None, **kwargs):
-                return PhysicalDataset(problems=[], info={"name": "mock"})
+                return PhysicsDataset(problems=[], info={"name": "mock"})
 
             def get_info(self):
                 return {"name": "mock", "variants": [], "splits": ["train"]}
@@ -478,7 +478,7 @@ class TestDatasetHub:
                 return {}
 
             def load(self, data_dir=None, **kwargs):
-                return PhysicalDataset(problems=[], info={"name": "mock"})
+                return PhysicsDataset(problems=[], info={"name": "mock"})
 
             def get_info(self):
                 return {"name": "mock", "variants": ["full"], "splits": []}
@@ -544,7 +544,7 @@ class TestDatasetHub:
                     raise FileNotFoundError("Dataset not found")
                 # Second call succeeds
                 self.__class__.last_loaded_data_dir = data_dir
-                return PhysicalDataset(problems=[], info={"name": "mock"})
+                return PhysicsDataset(problems=[], info={"name": "mock"})
 
         # Mock downloader
         mock_downloader = Mock()
@@ -767,7 +767,7 @@ class TestDatasetHubExtensionContract:
                 from pathlib import Path
 
                 items = json.loads((Path(data_dir) / "problems.json").read_text())
-                return PhysicalDataset(
+                return PhysicsDataset(
                     problems=[
                         PhysicsProblem(problem_id=item["id"], question=item["q"])
                         for item in items
@@ -814,7 +814,7 @@ class TestDatasetHubExtensionContract:
                 return {"name": "dummy_guard", "variants": ["full"], "splits": ["full"]}
 
             def load(self, data_dir=None, **kwargs):
-                return PhysicalDataset(problems=[])
+                return PhysicsDataset(problems=[])
 
         try:
             # External loader registered first, with _loaders empty
@@ -839,7 +839,7 @@ class TestDatasetLoadersIntegration:
 
     @pytest.mark.integration
     def test_loader_returns_physical_dataset(self):
-        """Test that loaders return PhysicalDataset instances."""
+        """Test that loaders return PhysicsDataset instances."""
         # This is an integration test that may require actual data files
         # Skip if data is not available
         available = DatasetHub.list_available()
@@ -850,7 +850,7 @@ class TestDatasetLoadersIntegration:
         # Note: This may fail if data files don't exist
         try:
             dataset = DatasetHub.load(available[0], sample_size=1)
-            assert isinstance(dataset, PhysicalDataset)
+            assert isinstance(dataset, PhysicsDataset)
         except (FileNotFoundError, ValueError) as e:
             # If data files don't exist, skip the test
             pytest.skip(f"Data files not available: {e}")

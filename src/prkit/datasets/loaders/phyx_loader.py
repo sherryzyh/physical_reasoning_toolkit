@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from prkit.core import PRKitLogger
-from prkit.core.domain import PhysicalDataset, PhysicsProblem
+from prkit.core.domain import PhysicsDataset, PhysicsProblem
 from prkit.core.domain.physics_domain import PhysicsDomain
 from prkit.datasets.license_registry import get_license
 
@@ -154,7 +154,7 @@ class PhyXLoader(BaseDatasetLoader):
         sample_size: int | None = None,
         split: str | None = None,
         **kwargs: Any,
-    ) -> PhysicalDataset:
+    ) -> PhysicsDataset:
         """
         Load PhyX dataset.
 
@@ -166,7 +166,7 @@ class PhyXLoader(BaseDatasetLoader):
             **kwargs: Additional loading parameters (unused, for compatibility)
 
         Returns:
-            PhysicalDataset containing PhyX problems
+            PhysicsDataset containing PhyX problems
         """
         # Use defaults if not provided
         if variant is None:
@@ -236,7 +236,7 @@ class PhyXLoader(BaseDatasetLoader):
         info["variant"] = variant
         info["split"] = split
 
-        return PhysicalDataset(
+        return PhysicsDataset(
             problems,
             info,
             split=split,

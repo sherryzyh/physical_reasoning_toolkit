@@ -21,17 +21,17 @@ from __future__ import annotations
 
 from typing import Any
 
-from prkit.core.domain.answer import Answer
+from prkit.core.domain.answer import PhysicsAnswer
 from prkit.core.verdict import Verdict
 
 #: Provenance stamp: ``<algorithm>/<source>@<commit>+frontend-<vendor>+wrap<N>``.
 _VERSION = "eed/phybench@706feb4+frontend-vendor+wrap1"
 
 
-def _as_text(value: Answer | str | Any) -> str:
-    """Render an ``Answer``/string answer as the raw text the front-end expects.
+def _as_text(value: PhysicsAnswer | str | Any) -> str:
+    """Render an ``PhysicsAnswer``/string answer as the raw text the front-end expects.
 
-    ``Answer.__str__`` appends the unit when present (``"3 m/s"``), which is exactly
+    ``PhysicsAnswer.__str__`` appends the unit when present (``"3 m/s"``), which is exactly
     the surface the vendored LaTeX front-end parses.
     """
     if isinstance(value, str):
@@ -62,13 +62,13 @@ class EedScorer:
 
     def score(
         self,
-        prediction: Answer | str,
-        reference: Answer | str,
+        prediction: PhysicsAnswer | str,
+        reference: PhysicsAnswer | str,
         **kwargs: Any,
     ) -> Verdict:
         """Score ``prediction`` against ``reference`` with the vendored EED pipeline.
 
-        Both inputs may be raw strings or :class:`Answer` objects. The reference is
+        Both inputs may be raw strings or :class:`PhysicsAnswer` objects. The reference is
         the EED ``answer`` (ground truth) and the prediction is the EED ``test``.
         """
         # Lazy import keeps latex2sympy2_extended off `import prkit.scoring`.

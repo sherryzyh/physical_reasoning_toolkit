@@ -1,4 +1,4 @@
-from prkit.core.domain import PhysicalDataset, PhysicsDomain
+from prkit.core.domain import PhysicsDataset, PhysicsDomain
 from prkit.datasets.loaders.base_loader import (
     BaseDatasetLoader,
     is_mathematical_expression,
@@ -19,8 +19,8 @@ class DummyLoader(BaseDatasetLoader):
     def modalities(self):
         return ["text", "image"]
 
-    def load(self, data_dir, **kwargs) -> PhysicalDataset:
-        return PhysicalDataset(problems=[])
+    def load(self, data_dir, **kwargs) -> PhysicsDataset:
+        return PhysicsDataset(problems=[])
 
     def get_info(self):
         return {"variants": ["mini", "full"], "splits": ["train", "full"]}

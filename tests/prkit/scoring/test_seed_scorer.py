@@ -6,7 +6,7 @@ import pytest
 
 pytest.importorskip("latex2sympy2_extended")
 
-from prkit.core.domain.answer import Answer  # noqa: E402
+from prkit.core.domain.answer import PhysicsAnswer  # noqa: E402
 from prkit.core.verdict import Verdict  # noqa: E402
 from prkit.scoring import SeedScorer  # noqa: E402
 from prkit.scoring.seed_scorer import SEED_ANSWER_TYPES  # noqa: E402
@@ -35,13 +35,15 @@ class TestSeedScorer:
 
     def test_source_type_fallback_for_tuple(self):
         verdict = SeedScorer().score(
-            "(1, 3)", Answer(value="(1, 2)", source_type="Tuple")
+            "(1, 3)", PhysicsAnswer(value="(1, 2)", source_type="Tuple")
         )
         assert verdict.comparison_mode == "seed:Tuple"
         assert verdict.details["answer_type"] == "Tuple"
 
     def test_non_seed_source_type_falls_back_to_expression(self):
-        verdict = SeedScorer().score("x + 1", Answer(value="1 + x", source_type="MC"))
+        verdict = SeedScorer().score(
+            "x + 1", PhysicsAnswer(value="1 + x", source_type="MC")
+        )
         assert verdict.comparison_mode == "seed:Expression"
         assert verdict.equivalent is True
 

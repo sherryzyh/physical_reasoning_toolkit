@@ -8,7 +8,7 @@ import pytest
 # the suite degrades gracefully if it is ever made optional).
 pytest.importorskip("latex2sympy2_extended")
 
-from prkit.core.domain.answer import Answer  # noqa: E402
+from prkit.core.domain.answer import PhysicsAnswer  # noqa: E402
 from prkit.core.verdict import Verdict  # noqa: E402
 from prkit.scoring import EedScorer  # noqa: E402
 
@@ -31,7 +31,7 @@ class TestEedScorer:
 
     def test_accepts_answer_objects(self):
         verdict = EedScorer().score(
-            Answer(value="3.0", unit="m/s"), Answer(value="3", unit="m/s")
+            PhysicsAnswer(value="3.0", unit="m/s"), PhysicsAnswer(value="3", unit="m/s")
         )
         assert verdict.equivalent is True
         assert verdict.score == 1.0

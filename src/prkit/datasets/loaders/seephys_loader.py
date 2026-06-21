@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from prkit.core import PRKitLogger
-from prkit.core.domain import PhysicalDataset, PhysicsProblem
+from prkit.core.domain import PhysicsDataset, PhysicsProblem
 from prkit.datasets.license_registry import get_license
 
 from .base_loader import BaseDatasetLoader
@@ -69,7 +69,7 @@ class SeePhysLoader(BaseDatasetLoader):
         sample_size: int | None = None,
         split: str | None = None,
         **kwargs: Any,
-    ) -> PhysicalDataset:
+    ) -> PhysicsDataset:
         """
         Load SeePhys dataset.
 
@@ -81,7 +81,7 @@ class SeePhysLoader(BaseDatasetLoader):
             **kwargs: Additional loading parameters
 
         Returns:
-            PhysicalDataset containing SeePhys problems
+            PhysicsDataset containing SeePhys problems
         """
         # Use defaults if not provided
         if split is None:
@@ -125,7 +125,7 @@ class SeePhysLoader(BaseDatasetLoader):
         split: str,
         sample_size: int | None,
         **_kwargs: Any,
-    ) -> PhysicalDataset:
+    ) -> PhysicsDataset:
         """Load from split directory."""
         split_dir = data_dir / split
 
@@ -162,7 +162,7 @@ class SeePhysLoader(BaseDatasetLoader):
             f"Successfully loaded {len(problems)} problems from SeePhys dataset"
         )
 
-        return PhysicalDataset(problems, info, split=split)
+        return PhysicsDataset(problems, info, split=split)
 
     def _load_from_json_dir(
         self, split_dir: Path, data_dir: Path

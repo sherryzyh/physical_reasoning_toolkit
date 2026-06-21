@@ -2,7 +2,7 @@
 
 One ``LicenseSpec`` per dataset, keyed by the same lowercase name used in
 ``DatasetHub._loaders`` / ``_downloaders``. Loaders and downloaders read from here instead of
-hardcoding free-text strings, so ``PhysicalDataset.info["license"]`` is uniform and correct
+hardcoding free-text strings, so ``PhysicsDataset.info["license"]`` is uniform and correct
 across every read path. The facts are hardcoded (not fetched from HF cards at runtime) to keep
 the load path network-free and the toolkit independent of external services.
 """
