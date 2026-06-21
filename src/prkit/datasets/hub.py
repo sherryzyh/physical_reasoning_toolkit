@@ -21,6 +21,7 @@ from prkit.datasets.downloaders import (
 from prkit.datasets.downloaders.base_downloader import BaseDownloader
 from prkit.datasets.license_registry import get_license
 from prkit.datasets.loaders import (
+    CMPhysBenchLoader,
     JEEBenchLoader,
     PHYBenchLoader,
     PhysBenchLoader,
@@ -79,6 +80,7 @@ class DatasetHub:
         cls._loaders.setdefault("jeebench", JEEBenchLoader)
         cls._loaders.setdefault("tpbench", TPBenchLoader)
         cls._loaders.setdefault("physreason", PhysReasonLoader)
+        cls._loaders.setdefault("cmphysbench", CMPhysBenchLoader)
 
     @classmethod
     def _register_default_downloaders(cls) -> None:

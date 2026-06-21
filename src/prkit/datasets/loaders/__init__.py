@@ -3,6 +3,7 @@ Dataset loaders for different physical reasoning datasets.
 """
 
 from .base_loader import BaseDatasetLoader
+from .cmphysbench_loader import CMPhysBenchLoader
 from .jeebench_loader import JEEBenchLoader
 from .phybench_loader import PHYBenchLoader
 from .physbench_loader import PhysBenchLoader
@@ -15,6 +16,7 @@ from .ugphysics_loader import UGPhysicsLoader
 
 __all__ = [
     "BaseDatasetLoader",
+    "CMPhysBenchLoader",
     "PhysBenchLoader",
     "PHYBenchLoader",
     "PhysicsLoader",

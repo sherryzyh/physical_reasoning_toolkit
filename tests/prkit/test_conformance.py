@@ -14,7 +14,12 @@ from pydantic import ValidationError
 from prkit.api import Verdict
 from prkit.core.model_clients.base import BaseModelClient
 from prkit.datasets.hub import DatasetHub
-from prkit.scoring import PartialCreditScorer, SemanticsScorer
+from prkit.scoring import (
+    EedScorer,
+    PartialCreditScorer,
+    SeedScorer,
+    SemanticsScorer,
+)
 from prkit.testing import check_dataset, check_model_client, check_scorer
 
 
@@ -44,6 +49,17 @@ def test_reference_scorer_conforms():
 
 def test_partial_credit_scorer_conforms():
     check_scorer(PartialCreditScorer())
+
+
+def test_eed_scorer_conforms():
+    pytest.importorskip("latex2sympy2_extended")
+    check_scorer(EedScorer())
+
+
+def test_seed_scorer_conforms():
+    pytest.importorskip("latex2sympy2_extended")
+    pytest.importorskip("pint")
+    check_scorer(SeedScorer())
 
 
 def test_stub_model_client_conforms_offline():

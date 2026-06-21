@@ -72,8 +72,11 @@ docs = [
 annotation = [
     "streamlit>=1.28.0",
 ]
+baselines = [
+    "pint>=0.23",
+]
 all = [
-    "physical-reasoning-toolkit[dev,docs,annotation]",
+    "physical-reasoning-toolkit[dev,docs,annotation,baselines]",
 ]
 
 [project.urls]
@@ -96,19 +99,30 @@ prkit = ["py.typed"]
     "vendor/katex/*",
     "vendor/katex/fonts/*",
 ]
+# Ship the verbatim upstream attribution alongside each vendored baseline (the
+# extension-less LICENSE/NOTICE are not covered by the "*.md/.txt/.rst" glob below).
+"prkit.evaluation.baselines.phybench_eed" = ["LICENSE", "PROVENANCE.md"]
+"prkit.evaluation.baselines.cmphysbench_seed" = ["LICENSE", "NOTICE", "PROVENANCE.md"]
 "*" = ["*.txt", "*.md", "*.rst"]
 
 [tool.black]
 line-length = 88
 target-version = ['py310', 'py311', 'py312']
+# Vendored baselines are upstream forks kept close to source for auditability —
+# never reformatted. force-exclude applies even to explicitly-passed (pre-commit) paths.
+force-exclude = "src/prkit/evaluation/baselines/"
 
 [tool.ruff]
 line-length = 88
 target-version = "py310"
 # "/build" is anchored to the repo root so it excludes the setuptools build/ artifact
 # dir WITHOUT excluding the src/prkit/semantics/build package (gitignore semantics: a
-# bare "build" would match any directory of that name at any depth).
-extend-exclude = ["/build", "dist", "htmlcov"]
+# bare "build" would match any directory of that name at any depth). The vendored
+# baselines are upstream forks kept close to source for auditability — never linted.
+extend-exclude = ["/build", "dist", "htmlcov", "src/prkit/evaluation/baselines"]
+# force-exclude makes the excludes authoritative even when pre-commit passes the
+# vendored paths explicitly (they live under the linted src/prkit/ tree).
+force-exclude = true
 
 [tool.ruff.lint]
 # E501 (line length) is owned by black. Bugbear (B) is deferred to a later pass.
@@ -124,6 +138,13 @@ python_version = "3.10"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
+
+# Vendored baselines are upstream forks (untyped, star-imports) kept close to source
+# for auditability — not type-checked. Errors there are suppressed even when the
+# scorers import the pure core.
+[[tool.mypy.overrides]]
+module = "prkit.evaluation.baselines.*"
+ignore_errors = true
 
 [[tool.mypy.overrides]]
 module = [

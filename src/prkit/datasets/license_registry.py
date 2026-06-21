@@ -94,6 +94,15 @@ _REGISTRY: dict[str, LicenseSpec] = {
         commercial_use=True,
         attribution_required=True,
     ),
+    "cmphysbench": LicenseSpec(
+        "Apache-2.0",
+        "Apache License 2.0",
+        _APACHE_URL,
+        redistributable=True,
+        commercial_use=True,
+        attribution_required=True,
+        notes="upstream weidawang/CMPhysBench (Apache-2.0)",
+    ),
 }
 
 # Map legacy free-text license strings (and casing variants) onto canonical SPDX ids.

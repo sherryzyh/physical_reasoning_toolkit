@@ -18,10 +18,10 @@ repos:
     rev: v4.6.0
     hooks:
       - id: end-of-file-fixer
-        # Vendored, minified third-party assets are shipped as-is.
-        exclude: ^src/prkit/annotation/tasks/correctness/ui/vendor/
+        # Vendored third-party assets/forks are shipped as-is (verbatim upstream).
+        exclude: ^src/prkit/(annotation/tasks/correctness/ui/vendor|evaluation/baselines)/
       - id: trailing-whitespace
-        exclude: ^src/prkit/annotation/tasks/correctness/ui/vendor/
+        exclude: ^src/prkit/(annotation/tasks/correctness/ui/vendor|evaluation/baselines)/
 
   # Local hooks mirror the CI checks (.github/workflows/ci.yml) so type and
   # test failures surface at commit time instead of in CI. They invoke the
