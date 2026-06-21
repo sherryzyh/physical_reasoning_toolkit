@@ -76,8 +76,9 @@ All are importable from `prkit.semantics`. Notes:
   `math-verify`-shaped one-call facade returning a canonical `Verdict`. It pulls in no
   provider SDKs, dataset hub, `datasets`, or pandas.
 - **Want a `Scorer` object** (e.g. to plug into a runner or for partial credit)? Use
-  **`prkit.scoring.SemanticsScorer`** (binary) or **`prkit.scoring.PartialCreditScorer`**
-  (graded EED/SEED). Both return the same `Verdict`.
+  **`prkit.scoring.SemanticsScorer`** (binary) or **`prkit.scoring.SemanticsSeedScorer`**
+  (graded, our-semantics over the CMPhysBench-SEED edit-distance core). Both return the
+  same `Verdict`.
 - **Want the raw mechanism** (the rich `AnswerComparison` with `comparison_mode`,
   `bridge_*`, `diagnostics`)? Call **`compare_protocol_answers`** (reference-based) or
   **`compare_predictions`** (reference-free) directly.

@@ -16,11 +16,20 @@ from prkit.core.model_clients.base import BaseModelClient
 from prkit.datasets.hub import DatasetHub
 from prkit.scoring import (
     EedScorer,
-    PartialCreditScorer,
     SeedScorer,
+    SemanticsEedScorer,
     SemanticsScorer,
+    SemanticsSeedScorer,
 )
 from prkit.testing import check_dataset, check_model_client, check_scorer
+
+#: Expression/number-only battery for the semantics edit-distance scorers (the
+#: default battery has a CHOICE case that normalizes to a not-applicable verdict).
+_SEMANTICS_EDIT_DISTANCE_CASES = [
+    ("3 m/s", "3 m/s", True),
+    ("x+1", "1+x", True),
+    ("x+1", "x+2", False),  # genuine expression mismatch (bare "x" alone is N/A)
+]
 
 
 class _StubClient(BaseModelClient):
@@ -47,8 +56,12 @@ def test_reference_scorer_conforms():
     check_scorer(SemanticsScorer())
 
 
-def test_partial_credit_scorer_conforms():
-    check_scorer(PartialCreditScorer())
+def test_semantics_eed_scorer_conforms():
+    check_scorer(SemanticsEedScorer(), cases=_SEMANTICS_EDIT_DISTANCE_CASES)
+
+
+def test_semantics_seed_scorer_conforms():
+    check_scorer(SemanticsSeedScorer(), cases=_SEMANTICS_EDIT_DISTANCE_CASES)
 
 
 def test_eed_scorer_conforms():

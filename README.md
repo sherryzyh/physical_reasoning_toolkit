@@ -223,9 +223,11 @@ The essential building blocks of the physical-reasoning-toolkit. All datasets, i
 
 ### prkit.scoring / prkit.verify 📈
 The deterministic physics-semantics scorer: `prkit.verify.verify` (light-import, one-call)
-and `prkit.scoring.SemanticsScorer` / `PartialCreditScorer`, all returning the canonical
-`Verdict`. Wraps the `prkit.semantics.comparison` engine. (The legacy `prkit.evaluation`
-comparator/evaluator stack is deprecated; `prkit.evaluation.llm_judge` stays.)
+and the `prkit.scoring` family — `SemanticsScorer` (binary), the `EedScorer`/`SeedScorer`
+edit-distance baselines, the graded `SemanticsEedScorer`/`SemanticsSeedScorer`, and the
+model-graded `LLMJudgeScorer` — all returning the canonical `Verdict`. Wraps the
+`prkit.semantics.comparison` engine. (The legacy `prkit.evaluation` comparator/evaluator
+stack is deprecated; `prkit.evaluation.llm_judge` stays.)
 
 📖 [EVALUATION.md](docs/EVALUATION.md) · [PHYSICS_SEMANTICS.md](docs/PHYSICS_SEMANTICS.md)
 

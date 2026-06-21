@@ -86,7 +86,15 @@ class Verdict(BaseModel):
     @field_validator("score")
     @classmethod
     def _score_in_range(cls, value: float) -> float:
-        """Reject scores outside the closed unit interval ``[0, 1]``."""
+        """Reject scores outside ``[0, 1]`` except the reserved N/A sentinel.
+
+        ``-1.0`` is the reserved *not-applicable* sentinel (emitted by the
+        edit-distance scorers when an answer kind/structure has no SEED type, with
+        ``comparison_mode="not_applicable"``). It is an honest "N/A", distinct from a
+        ``0.0`` "wrong"; numeric aggregators MUST exclude it (filter ``score >= 0``).
+        """
+        if value == -1.0:
+            return value
         if not (0.0 <= value <= 1.0):
             raise ValueError(f"score must be in [0, 1], got {value!r}")
         return value

@@ -19,11 +19,14 @@ v.scorer_version   # stamped so a stored score is attributable to its scorer
   Imports no provider SDKs, dataset hub, `datasets`, or pandas.
 - **`prkit.scoring.SemanticsScorer`** — the reference `Scorer` (binary pass/fail) that
   `verify` wraps. Use it directly when you want the `prkit.api.Scorer` object.
-- **`prkit.scoring.PartialCreditScorer`** — graded EED/SEED partial credit (populates
-  `Verdict.partial_credit`); reachable via `verify(..., partial_credit=True)`.
+- **`prkit.scoring.SemanticsSeedScorer`** — graded partial credit (our-semantics
+  front-end over the CMPhysBench-SEED edit-distance pure core; populates
+  `Verdict.partial_credit`); reachable via `verify(..., partial_credit=True)`. Its
+  EED-algorithm sibling is `SemanticsEedScorer`, and the faithful vendor-front-end
+  baselines are `EedScorer` / `SeedScorer`.
 
-All three return the same canonical `Verdict`. The judgement itself lives in the
-deterministic engine `prkit.semantics.comparison`.
+All return the same canonical `Verdict`. The deterministic binary judgement itself
+lives in the engine `prkit.semantics.comparison`.
 
 ## Learn more
 

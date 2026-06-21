@@ -38,7 +38,7 @@ The contract pins four structural (`typing.Protocol`) nouns plus one result type
 |------|----------|--------------------------|
 | Dataset loader | `DatasetProvider` | `BaseDatasetLoader` subclasses |
 | Inference client | `ModelClient` | `BaseModelClient` subclasses |
-| Scorer | `Scorer` | `prkit.scoring.SemanticsScorer` (binary); `prkit.scoring.PartialCreditScorer` (graded EED/SEED) |
+| Scorer | `Scorer` | `prkit.scoring.SemanticsScorer` (binary); `EedScorer`/`SeedScorer` (vendor edit-distance baselines); `SemanticsEedScorer`/`SemanticsSeedScorer` (our-semantics edit distance, graded); `LLMJudgeScorer` (model-graded) |
 | Runner | `Runner` | *(reserved; no implementation yet)* |
 | Result | `Verdict` | `prkit.core.verdict.Verdict` |
 
@@ -56,7 +56,7 @@ when not applicable (or not yet produced):
 | Field | Kind | Meaning |
 |-------|------|---------|
 | `equivalent` / `correct` | core | primary pass/fail (`correct` mirrors `equivalent` by default) |
-| `score` | core | continuous score in `[0,1]`; binary scorers emit `1.0`/`0.0` |
+| `score` | core | continuous score in `[0,1]`; binary scorers emit `1.0`/`0.0`; `-1.0` is the reserved not-applicable sentinel (`comparison_mode="not_applicable"`, emitted by the edit-distance scorers for kinds/structures with no SEED type) and MUST be excluded from aggregation (filter `score >= 0`) |
 | `comparison_mode` | core | how the verdict was reached (`number`, `expression`, …) |
 | `scorer_version` | core | Gymnasium-style stamp of the scorer revision |
 | `diagnostics` | core | machine-readable mismatch/fallback tags |
@@ -65,8 +65,8 @@ when not applicable (or not yet produced):
 | `symbolic_equiv` | enriched | equivalence decided symbolically; `None` for non-symbolic modes |
 | `numeric_within_tol` | enriched | numeric/quantity match within tolerance; `None` otherwise |
 | `extracted_answer` | enriched | parsed prediction surface, when available |
-| `partial_credit` | enriched | continuous partial-credit signal; `None` from the binary `SemanticsScorer`, populated by the graded `PartialCreditScorer` (EED/SEED) — also via `verify(..., partial_credit=True)` |
-| `rationale` | enriched | human-readable explanation; `None` from the deterministic engine, populated by `PartialCreditScorer` |
+| `partial_credit` | enriched | continuous partial-credit signal; `None` from the binary `SemanticsScorer`, populated by the graded edit-distance scorers (`EedScorer`/`SeedScorer`/`SemanticsEedScorer`/`SemanticsSeedScorer`) — `verify(..., partial_credit=True)` uses `SemanticsSeedScorer` |
+| `rationale` | enriched | human-readable explanation; `None` from the deterministic engine, populated by the model-graded `LLMJudgeScorer` |
 
 ## Three independent version axes
 

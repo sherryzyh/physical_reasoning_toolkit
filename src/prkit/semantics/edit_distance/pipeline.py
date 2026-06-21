@@ -1,5 +1,14 @@
 """SEED-style per-pair dispatch that ties the EED algorithm to PRKit's substrate.
 
+PARKED REFERENCE (``seed-reimpl``) — not wired to any ``Scorer``. After
+``PartialCreditScorer`` was replaced by the
+:class:`~prkit.scoring.SemanticsSeedScorer` (our-semantics front-end over the
+*vendored* CMPhysBench-SEED pure core), this module's ``eed_compare`` is no longer
+on any scoring path. It is retained for differential testing against that vendored
+core and as a readable record of the SEED dispatch. It stays under ``semantics/``
+(not ``evaluation/``) because it imports ``prkit.semantics.comparison.*``; relocating
+it would create a package-level ``evaluation⇄semantics`` import cycle.
+
 ``eed_compare`` reproduces CMPhysBench SEED's answer-type dispatch on top of
 PRKit's existing parser / unit backend instead of vendoring ``latex2sympy2`` +
 ``pint``:

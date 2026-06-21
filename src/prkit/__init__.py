@@ -17,7 +17,9 @@ Subpackages:
     - :mod:`prkit.api` — frozen public contract (protocols + ``Verdict``).
     - :mod:`prkit.core` — domain models, model clients, logging.
     - :mod:`prkit.datasets` — dataset hub, loaders, downloaders.
-    - :mod:`prkit.scoring` — reference scorers (``SemanticsScorer``).
+    - :mod:`prkit.scoring` — reference scorers (``SemanticsScorer``; the
+      ``Eed``/``Seed`` edit-distance baselines + ``Semantics`` front-end variants;
+      ``LLMJudgeScorer``).
     - :mod:`prkit.testing` — conformance suite (``check_dataset``/``check_scorer``/…).
     - :mod:`prkit.semantics` — physics-aware answer normalization & comparison.
     - :mod:`prkit.evaluation` — model-graded LLM judge (``llm_judge``). The legacy

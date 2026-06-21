@@ -1,8 +1,12 @@
 """Pure Expression Edit Distance (EED / SEED) algorithm core — related-work methods.
 
-A self-contained reimplementation of PHYBench's Expression Edit Distance and
-CMPhysBench's Scalable EED *tree-edit* machinery. These modules are deliberately
-**free of any PRKit semantics dependency** — they import only ``sympy`` + stdlib:
+PARKED REFERENCE (``eed-reimpl``). A self-contained reimplementation of PHYBench's
+Expression Edit Distance and CMPhysBench's Scalable EED *tree-edit* machinery. The
+shipped edit-distance scorers run the **vendored** upstream cores under
+:mod:`prkit.evaluation.baselines` instead; this reimpl is retained as a readable,
+semantics-free reference and as a differential-testing oracle. Its modules are
+deliberately **free of any PRKit semantics dependency** — they import only ``sympy``
++ stdlib:
 
 * :mod:`.tree`    — SymPy expression → :class:`ExprNode` tree builder
 * :mod:`.zss`     — extended Zhang-Shasha tree edit distance

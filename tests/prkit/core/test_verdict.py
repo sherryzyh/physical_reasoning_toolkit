@@ -36,15 +36,29 @@ class TestVerdictConstruction:
 
 
 class TestScoreValidator:
-    @pytest.mark.parametrize("score", [0.0, 0.5, 1.0])
+    @pytest.mark.parametrize("score", [0.0, 0.5, 1.0, -1.0])
     def test_in_range_accepted(self, score):
+        # -1.0 is the reserved not-applicable sentinel (accepted alongside [0, 1]).
         v = Verdict(
             equivalent=True, score=score, comparison_mode="number", scorer_version="x"
         )
         assert v.score == score
 
-    @pytest.mark.parametrize("score", [-0.01, 1.01, 2.0, -1.0])
+    def test_na_sentinel_round_trips(self):
+        v = Verdict(
+            equivalent=False,
+            correct=False,
+            score=-1.0,
+            comparison_mode="not_applicable",
+            scorer_version="x",
+        )
+        assert v.score == -1.0
+        # Survives a dump/reload round trip (the validator runs again on load).
+        assert Verdict.model_validate(v.model_dump()).score == -1.0
+
+    @pytest.mark.parametrize("score", [-0.01, 1.01, 1.5, 2.0, -0.5, -2.0])
     def test_out_of_range_rejected(self, score):
+        # Negatives other than the -1.0 sentinel stay rejected.
         with pytest.raises(ValidationError):
             Verdict(
                 equivalent=True,

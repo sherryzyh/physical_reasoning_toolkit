@@ -92,8 +92,9 @@ def verify(
         tolerance: numeric comparison tolerance (engine default when ``None``).
         unit_policy: enforcement strictness — one of ``"strict"`` / ``"audited"`` /
             ``"permissive"`` (maps to the engine's ``ComparisonPolicyMode``).
-        partial_credit: when ``True``, score with the graded EED/SEED
-            :class:`~prkit.scoring.PartialCreditScorer` (which populates
+        partial_credit: when ``True``, score with the graded
+            :class:`~prkit.scoring.SemanticsSeedScorer` (our-semantics front-end over
+            the CMPhysBench-SEED edit-distance core, which populates
             ``Verdict.partial_credit``) instead of the binary deterministic engine.
         context: optional question contract (``q_ref``) supplying the judgement with
             the question's domain/policy fields — e.g. ``symbol_assumptions`` that
@@ -119,9 +120,9 @@ def verify(
     # math-verify is verify(gold, pred); the Scorer scores prediction vs reference,
     # so prediction=pred and reference=gold — do not swap.
     if partial_credit:
-        from prkit.scoring import PartialCreditScorer
+        from prkit.scoring import SemanticsSeedScorer
 
-        pc_scorer = PartialCreditScorer(tolerance=tolerance, policy_mode=unit_policy)
+        pc_scorer = SemanticsSeedScorer(tolerance=tolerance, policy_mode=unit_policy)
         return pc_scorer.score(pred, gold, context=question_context)
 
     from prkit.scoring import SemanticsScorer
