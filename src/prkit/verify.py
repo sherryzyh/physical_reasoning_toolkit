@@ -9,7 +9,7 @@ physics answer::
 To turn a raw answer string into typed physics semantics (the former
 ``prkit.verify.parse``), use ``prkit.semantics.extract_prediction_answer_semantics``.
 
-Import discipline (the whole point of this subpackage): ``import prkit.verify``
+Import discipline (the whole point of this module): ``import prkit.verify``
 must NOT pull in provider SDKs (anthropic / openai / google.genai), the dataset
 hub, the ``datasets`` library, or pandas. The heavy :class:`~prkit.scoring.SemanticsScorer`
 (and its ``sympy`` dependency) is therefore imported *lazily inside the functions*,
