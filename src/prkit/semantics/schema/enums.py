@@ -1,7 +1,7 @@
 """Enumerations for physics answer semantics.
 
 The answer *ontology* enums (:class:`AnswerObjectKind`, :class:`AnswerStructure`)
-and the :class:`_StrEnum` base now live in :mod:`prkit.core.domain.answer_kinds`
+and the :class:`_StrEnum` base now live in :mod:`prkit.core.domain.answer_taxonomy`
 as the toolkit's canonical taxonomy; they are re-exported here so existing
 ``from prkit.semantics.schema import AnswerObjectKind`` import sites keep working.
 The *judgement-policy* enums below (unit policy, comparison mode, bridge tier, …)
@@ -16,7 +16,7 @@ from __future__ import annotations
 
 # Re-exported canonical ontology enums (defined in prkit.core.domain). ``_StrEnum``
 # is the shared base for the judgement-policy enums defined in this module.
-from prkit.core.domain.answer_kinds import (
+from prkit.core.domain.answer_taxonomy import (
     AnswerObjectKind,
     AnswerStructure,
     _StrEnum,

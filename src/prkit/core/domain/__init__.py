@@ -12,7 +12,7 @@ It consolidates:
 # Domain definitions (enums/constants)
 # Domain models (data classes)
 from .answer import Answer
-from .answer_kinds import AnswerObjectKind, AnswerStructure
+from .answer_taxonomy import AnswerObjectKind, AnswerStructure
 from .license_spec import LicenseSpec
 from .physics_dataset import PhysicalDataset
 from .physics_domain import PhysicsDomain
