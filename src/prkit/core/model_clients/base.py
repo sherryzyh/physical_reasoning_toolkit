@@ -28,7 +28,6 @@ from .structured_output import (
 )
 
 if TYPE_CHECKING:
-    from prkit.batch import BatchSubmission
     from prkit.semantics.schema import PhysicsQuestionSemantics
 
 T = TypeVar("T", bound=BaseModel)
@@ -380,14 +379,16 @@ class BaseModelClient(ABC):
         self,
         problems: PhysicsDataset | Sequence[PhysicsProblem],
         **kwargs: Any,
-    ) -> list[BatchSubmission]:
-        """Submit *problems* as provider batch jobs; return one receipt per batch.
+    ) -> str:
+        """Submit *problems* as provider batch jobs; return the run-folder path.
 
         Thin one-line facade mirroring :meth:`solve_physics_problem`: lazily imports
         :mod:`prkit.batch` (kept off the import-light path, like the lazy
         ``prkit.semantics`` import in :meth:`solve_physics_problem`) and delegates to
         :func:`prkit.batch.submit_batch_physics_reasoning`. See that function for the
-        keyword arguments (``output_dir`` / ``run_name`` / ``batch_size`` / …).
+        keyword arguments (``output_dir`` / ``run_name`` / ``minibatch_size`` / …).
+        The ledger is saved to ``<run_dir>/metadata.json``; reconstruct it later via
+        :meth:`fetch_batch_physics_reasoning` (or ``BatchSubmission.load(run_dir)``).
         """
         from prkit.batch import submit_batch_physics_reasoning as _submit_batch
 

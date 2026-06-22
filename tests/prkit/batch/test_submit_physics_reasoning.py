@@ -2,21 +2,27 @@
 
 Provider SDKs are faked with ``MagicMock`` so these run fully offline (mirroring
 ``tests/prkit/core/model_clients/test_batch.py``); artifacts are written under
-pytest's ``tmp_path``. The tests cover splitting, JSONL artifacts, submission,
-validation, surrogate ids, partial failure, the facade, the Anthropic inline
-path, the run-folder layout, ``metadata.json`` content, id round-trips, defaults,
-and overwrite behavior.
+pytest's ``tmp_path``. Submit now returns the **run-folder path (str)** and saves
+one whole-batch :class:`BatchSubmission` ledger to ``metadata.json``; the tests
+reconstruct it via ``BatchSubmission.load(run_dir)`` and assert on the ledger's
+batch-level fields + per-minibatch dicts. They cover splitting, JSONL artifacts,
+submission, validation, surrogate ids, partial failure, the facade, the Anthropic
+inline path, the run-folder layout, ``metadata.json`` content, id round-trips,
+defaults, and overwrite behavior.
 """
 
 from __future__ import annotations
 
 import json
 from datetime import datetime, timezone
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from prkit.batch import (
+    SUBMIT_ERROR,
+    SUBMITTED,
     BatchInputError,
     BatchSubmission,
     submit_batch_physics_reasoning,
@@ -74,29 +80,31 @@ def _problems(n: int):
 
 # --------------------------------------------------------------------------- #
 class TestSplitting:
-    def test_1200_problems_split_into_three_batches(self, tmp_path):
+    def test_1200_problems_split_into_three_minibatches(self, tmp_path):
         client = _openai_client()
-        subs = submit_batch_physics_reasoning(
-            client, _dataset(1200), output_dir=tmp_path, batch_size=500
+        run_dir = submit_batch_physics_reasoning(
+            client, _dataset(1200), output_dir=tmp_path, minibatch_size=500
         )
-        assert [s.num_requests for s in subs] == [500, 500, 200]
-        assert [s.batch_index for s in subs] == [0, 1, 2]
-        run_dir = tmp_path / subs[0].input_file_path.split("/")[-3]
-        files = sorted(p.name for p in (run_dir / "inputs").glob("*.jsonl"))
-        assert files == ["batch_0000.jsonl", "batch_0001.jsonl", "batch_0002.jsonl"]
+        sub = BatchSubmission.load(run_dir)
+        assert [mb["num_requests"] for mb in sub.minibatches] == [500, 500, 200]
+        assert [mb["index"] for mb in sub.minibatches] == [0, 1, 2]
+        assert sub.minibatch_count == 3
+        files = sorted(p.name for p in (Path(run_dir) / "inputs").glob("*.jsonl"))
+        assert files == [
+            "minibatch_0000.jsonl",
+            "minibatch_0001.jsonl",
+            "minibatch_0002.jsonl",
+        ]
 
 
 class TestJsonlArtifact:
     def test_one_json_object_per_line_roundtrips(self, tmp_path):
         client = _openai_client()
-        subs = submit_batch_physics_reasoning(
-            client, _dataset(3), output_dir=tmp_path, batch_size=2
+        run_dir = submit_batch_physics_reasoning(
+            client, _dataset(3), output_dir=tmp_path, minibatch_size=2
         )
         lines = (
-            (tmp_path / subs[0].input_file_path.split("/")[-3] / "inputs")
-            .joinpath("batch_0000.jsonl")
-            .read_text()
-            .splitlines()
+            (Path(run_dir) / "inputs" / "minibatch_0000.jsonl").read_text().splitlines()
         )
         assert len(lines) == 2
         objs = [json.loads(line) for line in lines]
@@ -105,11 +113,11 @@ class TestJsonlArtifact:
 
 
 class TestSubmission:
-    def test_submit_called_once_per_batch_with_its_chunk(self, tmp_path):
+    def test_submit_called_once_per_minibatch_with_its_chunk(self, tmp_path):
         client = _openai_client()
         client.submit_batch = MagicMock(side_effect=["b0", "b1", "b2"])
         submit_batch_physics_reasoning(
-            client, _dataset(5), output_dir=tmp_path, batch_size=2
+            client, _dataset(5), output_dir=tmp_path, minibatch_size=2
         )
         assert client.submit_batch.call_count == 3
         chunk_ids = [
@@ -118,30 +126,32 @@ class TestSubmission:
         ]
         assert chunk_ids == [["p0", "p1"], ["p2", "p3"], ["p4"]]
 
-    def test_receipt_carries_stub_fields(self, tmp_path):
+    def test_ledger_carries_minibatch_fields(self, tmp_path):
         client = _openai_client()
-        subs = submit_batch_physics_reasoning(
-            client, _dataset(2), output_dir=tmp_path, batch_size=2
+        run_dir = submit_batch_physics_reasoning(
+            client, _dataset(2), output_dir=tmp_path, minibatch_size=2
         )
-        (s,) = subs
-        assert s.batch_id == "batch_abc"
-        assert s.num_requests == 2
-        assert s.provider == "openai"
-        assert s.model == "gpt-5.1"
-        assert s.error is None
-        assert isinstance(s.submitted_at, datetime)
-        assert s.submitted_at.tzinfo == timezone.utc
-        assert s.id_map == {"p0": "p0", "p1": "p1"}
+        sub = BatchSubmission.load(run_dir)
+        assert sub.provider == "openai"
+        assert sub.model == "gpt-5.1"
+        assert isinstance(sub.created_at, datetime)
+        assert sub.created_at.tzinfo == timezone.utc
+        (mb,) = sub.minibatches
+        assert mb["batch_id"] == "batch_abc"
+        assert mb["num_requests"] == 2
+        assert mb["status"] == SUBMITTED
+        assert mb["error"] is None
+        assert mb["id_map"] == {"p0": "p0", "p1": "p1"}
 
     def test_display_name_routed_through_submit_metadata(self, tmp_path):
         client = _openai_client()
         client.submit_batch = MagicMock(return_value="b0")
-        subs = submit_batch_physics_reasoning(
+        run_dir = submit_batch_physics_reasoning(
             client, _dataset(1), output_dir=tmp_path, run_name="my-run"
         )
         _, kwargs = client.submit_batch.call_args
         assert kwargs["metadata"]["display_name"] == "my-run"
-        assert subs[0].metadata["display_name"] == "my-run"
+        assert BatchSubmission.load(run_dir).display_name == "my-run"
 
 
 class TestValidation:
@@ -174,61 +184,30 @@ class TestValidation:
         with pytest.raises(BatchInputError, match="empty"):
             submit_batch_physics_reasoning(client, [], output_dir=tmp_path)
 
-    def test_non_positive_batch_size_raises(self, tmp_path):
+    def test_non_positive_minibatch_size_raises(self, tmp_path):
         client = _openai_client()
-        with pytest.raises(BatchInputError, match="batch_size must be positive"):
+        with pytest.raises(BatchInputError, match="minibatch_size must be positive"):
             submit_batch_physics_reasoning(
-                client, _dataset(2), output_dir=tmp_path, batch_size=0
+                client, _dataset(2), output_dir=tmp_path, minibatch_size=0
             )
-
-
-class TestBatchSubmitError:
-    def test_carries_successes_and_failed_for_resume(self):
-        from prkit.batch import BatchSubmitError
-
-        ok = BatchSubmission(
-            provider="openai",
-            model="gpt-5.1",
-            batch_id="batch_0",
-            input_file_path="/x/inputs/batch_0000.jsonl",
-            submitted_at=datetime.now(timezone.utc),
-            num_requests=1,
-            batch_index=0,
-            id_map={"p0": "p0"},
-        )
-        failed = BatchSubmission(
-            provider="openai",
-            model="gpt-5.1",
-            batch_id="",
-            input_file_path="/x/inputs/batch_0001.jsonl",
-            submitted_at=datetime.now(timezone.utc),
-            num_requests=1,
-            batch_index=1,
-            id_map={"p1": "p1"},
-            error="RuntimeError: boom",
-        )
-        err = BatchSubmitError("submit failed", successes=[ok], failed=failed)
-        assert err.successes == [ok]
-        assert err.failed is failed
-        assert isinstance(err, RuntimeError)
 
 
 class TestSurrogateIds:
     def test_custom_id_fn_surrogates_recovered_via_id_map(self, tmp_path):
         client = _openai_client()
-        subs = submit_batch_physics_reasoning(
+        run_dir = submit_batch_physics_reasoning(
             client,
             _dataset(2),
             output_dir=tmp_path,
-            batch_size=2,
+            minibatch_size=2,
             custom_id_fn=lambda p: f"sur-{p.problem_id}",
         )
-        (s,) = subs
-        assert s.id_map == {"sur-p0": "p0", "sur-p1": "p1"}
+        sub = BatchSubmission.load(run_dir)
+        (mb,) = sub.minibatches
+        assert mb["id_map"] == {"sur-p0": "p0", "sur-p1": "p1"}
         # The wire custom_id is the surrogate.
         line = json.loads(
-            (tmp_path / s.input_file_path.split("/")[-3] / "inputs")
-            .joinpath("batch_0000.jsonl")
+            (Path(run_dir) / "inputs" / "minibatch_0000.jsonl")
             .read_text()
             .splitlines()[0]
         )
@@ -236,26 +215,26 @@ class TestSurrogateIds:
 
 
 class TestPartialFailure:
-    def test_middle_batch_failure_recorded_others_succeed(self, tmp_path):
+    def test_middle_minibatch_failure_recorded_others_succeed(self, tmp_path):
         client = _openai_client()
         client.client.batches.create.side_effect = [
             MagicMock(id="batch_0"),
             RuntimeError("boom"),
             MagicMock(id="batch_2"),
         ]
-        subs = submit_batch_physics_reasoning(
-            client, _dataset(5), output_dir=tmp_path, batch_size=2
+        run_dir = submit_batch_physics_reasoning(
+            client, _dataset(5), output_dir=tmp_path, minibatch_size=2
         )
-        assert len(subs) == 3
-        assert subs[0].error is None and subs[0].batch_id == "batch_0"
-        assert subs[1].error is not None and "boom" in subs[1].error
-        assert subs[1].batch_id == ""
-        assert subs[2].error is None and subs[2].batch_id == "batch_2"
-        # Failed batch's input file still exists for resume.
-        for s in subs:
-            assert (
-                tmp_path / s.input_file_path.split(str(tmp_path) + "/")[-1]
-            ).exists()
+        mbs = BatchSubmission.load(run_dir).minibatches
+        assert len(mbs) == 3
+        assert mbs[0]["error"] is None and mbs[0]["batch_id"] == "batch_0"
+        assert mbs[0]["status"] == SUBMITTED
+        assert mbs[1]["error"] is not None and "boom" in mbs[1]["error"]
+        assert mbs[1]["batch_id"] == "" and mbs[1]["status"] == SUBMIT_ERROR
+        assert mbs[2]["error"] is None and mbs[2]["batch_id"] == "batch_2"
+        # Every minibatch's input file still exists for resume.
+        for mb in mbs:
+            assert Path(mb["input_file_path"]).exists()
 
 
 class TestFacade:
@@ -263,7 +242,7 @@ class TestFacade:
         client = _openai_client()
         ds = _dataset(1)
         with patch("prkit.batch.submit_batch_physics_reasoning") as mock_submit:
-            mock_submit.return_value = []
+            mock_submit.return_value = str(tmp_path / "run")
             client.submit_batch_physics_reasoning(ds, output_dir=tmp_path)
         mock_submit.assert_called_once()
         args, kwargs = mock_submit.call_args
@@ -274,14 +253,11 @@ class TestFacade:
 class TestAnthropicInline:
     def test_artifact_written_and_inline_list_submitted(self, tmp_path):
         client = _anthropic_client()
-        subs = submit_batch_physics_reasoning(
-            client, _dataset(2), output_dir=tmp_path, batch_size=2
+        run_dir = submit_batch_physics_reasoning(
+            client, _dataset(2), output_dir=tmp_path, minibatch_size=2
         )
-        (s,) = subs
         # The .jsonl artifact is still written for Anthropic (audit/resume).
-        artifact = (
-            tmp_path / s.input_file_path.split("/")[-3] / "inputs" / "batch_0000.jsonl"
-        )
+        artifact = Path(run_dir) / "inputs" / "minibatch_0000.jsonl"
         assert artifact.exists()
         # submit_batch received the inline list of request dicts (no file upload).
         _, kwargs = client.client.messages.batches.create.call_args
@@ -293,48 +269,48 @@ class TestAnthropicInline:
 class TestRunFolderLayout:
     def test_layout_and_paths(self, tmp_path):
         client = _openai_client()
-        subs = submit_batch_physics_reasoning(
-            client, _dataset(3), output_dir=tmp_path, run_name="run-x", batch_size=2
+        run_dir = submit_batch_physics_reasoning(
+            client, _dataset(3), output_dir=tmp_path, run_name="run-x", minibatch_size=2
         )
-        run_dir = tmp_path / "run-x"
-        assert (run_dir / "metadata.json").is_file()
-        assert (run_dir / "inputs" / "batch_0000.jsonl").is_file()
-        for s in subs:
-            assert s.input_file_path.startswith(str(run_dir / "inputs"))
-            assert s.metadata_path == str(run_dir / "metadata.json")
+        rd = Path(run_dir)
+        assert rd == tmp_path / "run-x"
+        assert (rd / "metadata.json").is_file()
+        assert (rd / "inputs" / "minibatch_0000.jsonl").is_file()
+        sub = BatchSubmission.load(run_dir)
+        assert sub.run_dir == str(rd)
+        for mb in sub.minibatches:
+            assert mb["input_file_path"].startswith(str(rd / "inputs"))
 
 
 class TestMetadataContent:
-    def test_metadata_written_before_return_with_header_and_submissions(self, tmp_path):
+    def test_metadata_written_before_return_with_header_and_minibatches(self, tmp_path):
         client = _openai_client()
-        subs = submit_batch_physics_reasoning(
-            client, _dataset(3), output_dir=tmp_path, run_name="run-x", batch_size=2
+        run_dir = submit_batch_physics_reasoning(
+            client, _dataset(3), output_dir=tmp_path, run_name="run-x", minibatch_size=2
         )
-        record = json.loads((tmp_path / "run-x" / "metadata.json").read_text())
-        assert record["run_id"] == "run-x"
+        record = json.loads((Path(run_dir) / "metadata.json").read_text())
+        assert record["run_name"] == "run-x"
         assert record["provider"] == "openai"
         assert record["model"] == "gpt-5.1"
-        assert record["batch_size"] == 2
+        assert record["minibatch_size"] == 2
         assert record["total_problems"] == 3
-        assert record["num_batches"] == 2
+        assert record["minibatch_count"] == 2
         assert record["request_kind"] == "free_text"
         assert record["prkit_api_version"]
         assert record["dataset"] == {"name": "physreason", "version": "1.0"}
-        assert record["submissions"] == [s.to_dict() for s in subs]
+        assert len(record["minibatches"]) == 2
+        # metadata.json == BatchSubmission.to_dict() (the consolidated ledger).
+        assert record == BatchSubmission.load(run_dir).to_dict()
 
     def test_bare_list_omits_dataset_field_and_segment(self, tmp_path):
         client = _openai_client()
-        subs = submit_batch_physics_reasoning(
-            client, _problems(2), output_dir=tmp_path, batch_size=2
+        run_dir = submit_batch_physics_reasoning(
+            client, _problems(2), output_dir=tmp_path, minibatch_size=2
         )
-        record = json.loads(
-            (
-                tmp_path / subs[0].metadata_path.split("/")[-2] / "metadata.json"
-            ).read_text()
-        )
+        record = json.loads((Path(run_dir) / "metadata.json").read_text())
         assert record["dataset"] is None
         # run name omits the <dataset> segment -> starts with the slugified model.
-        assert record["run_id"].startswith("gpt-5.1-")
+        assert record["run_name"].startswith("gpt-5.1-")
 
 
 class TestIdNormalizationRoundTrip:
@@ -348,23 +324,24 @@ class TestIdNormalizationRoundTrip:
     )
     def test_wire_id_lands_verbatim(self, builder, expected, tmp_path):
         client = builder()
-        subs = submit_batch_physics_reasoning(
-            client, _dataset(1), output_dir=tmp_path, batch_size=1
+        run_dir = submit_batch_physics_reasoning(
+            client, _dataset(1), output_dir=tmp_path, minibatch_size=1
         )
-        assert subs[0].batch_id == expected
+        assert BatchSubmission.load(run_dir).minibatches[0]["batch_id"] == expected
 
     def test_openai_id_accepted_by_poll_batch(self, tmp_path):
         client = _openai_client()
-        subs = submit_batch_physics_reasoning(
-            client, _dataset(1), output_dir=tmp_path, batch_size=1
+        run_dir = submit_batch_physics_reasoning(
+            client, _dataset(1), output_dir=tmp_path, minibatch_size=1
         )
+        batch_id = BatchSubmission.load(run_dir).minibatches[0]["batch_id"]
         client.client.batches.retrieve.return_value = MagicMock(
             status="completed",
             output_file_id=None,
             error_file_id=None,
             request_counts=MagicMock(total=1, completed=1, failed=0),
         )
-        status = client.poll_batch(subs[0].batch_id)
+        status = client.poll_batch(batch_id)
         assert status.batch_id == "batch_abc"
 
 
@@ -372,18 +349,20 @@ class TestDefaultsAndOverrides:
     def test_default_output_dir_and_display_name(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
         client = _openai_client()
-        subs = submit_batch_physics_reasoning(client, _dataset(1))
-        run_id = subs[0].metadata_path.split("/")[-2]
+        run_dir = submit_batch_physics_reasoning(client, _dataset(1))
+        sub = BatchSubmission.load(run_dir)
+        run_id = sub.run_name
         assert (tmp_path / "batch_runs" / run_id / "metadata.json").is_file()
-        assert subs[0].metadata["display_name"] == run_id
+        assert sub.display_name == run_id
 
     def test_explicit_run_name_is_slugified(self, tmp_path):
         client = _openai_client()
-        subs = submit_batch_physics_reasoning(
+        run_dir = submit_batch_physics_reasoning(
             client, _dataset(1), output_dir=tmp_path, run_name="My Eval 001!"
         )
         assert (tmp_path / "my-eval-001").is_dir()
-        assert subs[0].metadata_path == str(tmp_path / "my-eval-001" / "metadata.json")
+        assert run_dir == str(tmp_path / "my-eval-001")
+        assert BatchSubmission.load(run_dir).run_dir == str(tmp_path / "my-eval-001")
 
 
 class TestOverwrite:
@@ -402,15 +381,18 @@ class TestOverwrite:
         submit_batch_physics_reasoning(
             client, _dataset(1), output_dir=tmp_path, run_name="run-x"
         )
-        stale = tmp_path / "run-x" / "inputs" / "batch_0005.jsonl"
+        stale = tmp_path / "run-x" / "inputs" / "minibatch_0005.jsonl"
         stale.write_text("stale\n")
-        subs = submit_batch_physics_reasoning(
+        run_dir = submit_batch_physics_reasoning(
             client, _dataset(1), output_dir=tmp_path, run_name="run-x", overwrite=True
         )
-        assert len(subs) == 1
+        assert len(BatchSubmission.load(run_dir).minibatches) == 1
         assert not stale.exists()
 
-    def test_returns_list_of_batch_submission(self, tmp_path):
+    def test_returns_run_dir_str_holding_metadata(self, tmp_path):
         client = _openai_client()
-        subs = submit_batch_physics_reasoning(client, _dataset(1), output_dir=tmp_path)
-        assert all(isinstance(s, BatchSubmission) for s in subs)
+        run_dir = submit_batch_physics_reasoning(
+            client, _dataset(1), output_dir=tmp_path
+        )
+        assert isinstance(run_dir, str)
+        assert (Path(run_dir) / "metadata.json").is_file()
