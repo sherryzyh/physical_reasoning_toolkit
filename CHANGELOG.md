@@ -50,6 +50,7 @@ Production releases follow semantic versioning. TestPyPI validation builds use P
 - **`DatasetHub` registration-ordering bug** — calling `DatasetHub.register(name, Loader)` before any built-in dataset was touched caused all built-in loaders and downloaders to be permanently suppressed. Built-ins are now seeded idempotently (via `setdefault`) at the start of every public mutating method, so external registrations can safely happen in any order.
 - JEEBench loader handling for numeric answer categories and retained metadata.
 - Workflow module behavior in domain assessment, theorem review, and workflow composition paths.
+- **Anthropic structured output 400** — the Anthropic client no longer sends an invalid `name` key inside `output_config.format` (a key Anthropic's API forbids), which previously made every native-schema call — `parse()`, `chat_structured()`, `response(response_format=...)`, and the batch structured path — fail with HTTP 400. The request is now built via the SDK's typed `OutputConfigParam`, so future schema drift surfaces as a type error rather than a runtime 400. OpenAI (which requires `name`) and Gemini are unaffected.
 
 ### Deprecated
 

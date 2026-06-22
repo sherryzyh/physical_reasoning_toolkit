@@ -14,6 +14,7 @@ from prkit.core.model_clients.anthropic import (
     _parse_data_url,
 )
 from prkit.core.model_clients.base import DEFAULT_INSTRUCTIONS
+from prkit.core.model_clients.structured_output import coerce_structured_output_spec
 
 ANTHROPIC_TEST_MODEL = "claude-sonnet-4-6"
 
@@ -165,9 +166,38 @@ class TestAnthropicModel:
         assert response == '{"answer":"Response"}'
         call_kwargs = mock_client.messages.create.call_args.kwargs
         assert call_kwargs["output_config"]["format"]["type"] == "json_schema"
-        assert call_kwargs["output_config"]["format"]["name"] == "ExampleResponse"
+        # Anthropic forbids a ``name`` key in output_config.format (400 otherwise).
+        assert "name" not in call_kwargs["output_config"]["format"]
         assert call_kwargs["output_config"]["format"]["schema"]["type"] == "object"
         assert "tools" not in call_kwargs
+
+    @patch("prkit.core.model_clients.anthropic.Anthropic")
+    def test_batch_structured_request_omits_name(self, mock_anthropic_class):
+        """Batch structured requests must also omit Anthropic's forbidden `name` key."""
+        mock_client = MagicMock()
+        mock_anthropic_class.return_value = mock_client
+
+        class ExampleResponse(BaseModel):
+            answer: str
+
+        client = AnthropicModel(ANTHROPIC_TEST_MODEL)
+        spec = coerce_structured_output_spec(ExampleResponse)
+        plan = client._resolve_structured_output_plan(
+            spec, structured_policy="native_required"
+        )
+        request = client._build_batch_structured_request(
+            request_id="r1",
+            user_prompt="hi",
+            response_model=ExampleResponse,
+            image_paths=(),
+            max_output_tokens=None,
+            plan=plan,
+        )
+
+        fmt = request["params"]["output_config"]["format"]
+        assert fmt["type"] == "json_schema"
+        assert "name" not in fmt  # Anthropic forbids it (400 otherwise)
+        assert fmt["schema"]["type"] == "object"
 
     def test_extract_tool_use_json_requires_exactly_one_tool_block(self):
         with pytest.raises(ValueError, match="exactly one tool_use block"):

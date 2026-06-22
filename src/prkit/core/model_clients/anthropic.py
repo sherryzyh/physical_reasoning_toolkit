@@ -5,7 +5,7 @@ import logging
 import os
 import re
 from collections.abc import Callable, Iterator, Sequence
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
 
@@ -33,6 +33,9 @@ try:
     anthropic_transform_schema = _anthropic_transform_schema
 except ImportError:  # pragma: no cover - tested via runtime error path
     pass
+
+if TYPE_CHECKING:
+    from anthropic.types import OutputConfigParam
 
 TOOL_NAME = "emit_structured_output"
 _TOOL_NAME_RE = re.compile(r"[^A-Za-z0-9_-]+")
@@ -329,13 +332,16 @@ class AnthropicModel(BaseModelClient):
             params["system"] = instructions
         if response_format is not None:
             normalized = normalize_response_format(response_format)
-            params["output_config"] = {
+            # Anthropic's output_config.format accepts only ``type`` and ``schema``;
+            # a ``name`` key (an OpenAI-ism) makes the API reject the request with a
+            # 400. The typed annotation makes any future stray key a mypy error.
+            output_config: OutputConfigParam = {
                 "format": {
                     "type": "json_schema",
-                    "name": normalized["name"],
                     "schema": normalized["schema"],
                 }
             }
+            params["output_config"] = output_config
         if extra:
             params.update(extra)
         return params
