@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any, TypeVar
 
 from pydantic import BaseModel, ValidationError
 
-from ..domain import PhysicsProblem
+from ..domain import PhysicsDataset, PhysicsProblem
 from ..logging_config import PRKitLogger
 from ..project_env import load_project_dotenv
 from .batch_types import BatchResult, BatchStatus
@@ -28,6 +28,7 @@ from .structured_output import (
 )
 
 if TYPE_CHECKING:
+    from prkit.batch import BatchSubmission
     from prkit.semantics.schema import PhysicsQuestionSemantics
 
 T = TypeVar("T", bound=BaseModel)
@@ -380,6 +381,73 @@ class BaseModelClient(ABC):
             temperature=temperature,
             **kwargs,
         )
+
+    def build_problem_batch_request(
+        self,
+        problem: PhysicsProblem | str,
+        *,
+        request_id: str | None = None,
+        instructions: str | None = None,
+        max_output_tokens: int | None = None,
+        temperature: float | None = None,
+        **kwargs: Any,
+    ) -> dict[str, Any]:
+        """Build a free-text batch request line for *problem*.
+
+        Batch analogue of :meth:`solve_physics_problem`, dispatching on the
+        runtime type of *problem* the same way: a ``str`` is treated as the
+        question text (no images, and *request_id* is required since there is no
+        ``problem_id``); a :class:`~prkit.core.domain.PhysicsProblem` is rendered
+        with :func:`build_plain_question_prompt` and its ``image_path`` images,
+        defaulting *request_id* to ``problem.problem_id``. Reusing the same prompt
+        builder and image path as the synchronous solver guarantees batch ≡ sync
+        prompts. Free-text only, matching the ANSWER_TEXT-only sync path; delegates
+        to :meth:`build_batch_request`.
+        """
+        if isinstance(problem, str):
+            if request_id is None:
+                raise ValueError(
+                    "request_id is required when problem is a raw question string."
+                )
+            prompt = problem.strip()
+            image_paths: list[str] | None = None
+        elif isinstance(problem, PhysicsProblem):
+            prompt = build_plain_question_prompt(problem)
+            image_paths = problem.image_path or None
+            if request_id is None:
+                request_id = problem.problem_id
+        else:
+            raise TypeError(
+                f"Unsupported problem input type: {type(problem)!r}. Expected a "
+                "PhysicsProblem or a question string."
+            )
+
+        return self.build_batch_request(
+            request_id=request_id,
+            input=prompt,
+            instructions=instructions,
+            image_paths=image_paths,
+            max_output_tokens=max_output_tokens,
+            temperature=temperature,
+            **kwargs,
+        )
+
+    def submit_batch_physics_reasoning(
+        self,
+        problems: PhysicsDataset | Sequence[PhysicsProblem],
+        **kwargs: Any,
+    ) -> list[BatchSubmission]:
+        """Submit *problems* as provider batch jobs; return one receipt per batch.
+
+        Thin one-line facade mirroring :meth:`solve_physics_problem`: lazily imports
+        :mod:`prkit.batch` (kept off the import-light path, like the lazy
+        ``prkit.semantics`` import in :meth:`solve_physics_problem`) and delegates to
+        :func:`prkit.batch.submit_batch_physics_reasoning`. See that function for the
+        keyword arguments (``output_dir`` / ``run_name`` / ``batch_size`` / …).
+        """
+        from prkit.batch import submit_batch_physics_reasoning as _submit_batch
+
+        return _submit_batch(self, problems, **kwargs)
 
     def _build_batch_request(
         self,
