@@ -14,6 +14,7 @@ defaults, and overwrite behavior.
 from __future__ import annotations
 
 import json
+import logging
 from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -389,6 +390,23 @@ class TestOverwrite:
         assert len(BatchSubmission.load(run_dir).minibatches) == 1
         assert not stale.exists()
 
+    def test_overwrite_true_clears_stale_results_and_manifest(self, tmp_path):
+        client = _openai_client()
+        submit_batch_physics_reasoning(
+            client, _dataset(1), output_dir=tmp_path, run_name="run-x"
+        )
+        rd = tmp_path / "run-x"
+        (rd / "results").mkdir()
+        stale_result = rd / "results" / "p0.json"
+        stale_result.write_text("{}\n")
+        stale_manifest = rd / "results_manifest.json"
+        stale_manifest.write_text("{}\n")
+        submit_batch_physics_reasoning(
+            client, _dataset(1), output_dir=tmp_path, run_name="run-x", overwrite=True
+        )
+        assert not stale_result.exists()
+        assert not stale_manifest.exists()
+
     def test_returns_run_dir_str_holding_metadata(self, tmp_path):
         client = _openai_client()
         run_dir = submit_batch_physics_reasoning(
@@ -396,3 +414,18 @@ class TestOverwrite:
         )
         assert isinstance(run_dir, str)
         assert (Path(run_dir) / "metadata.json").is_file()
+
+
+class TestNextCommand:
+    def test_submit_logs_fetch_next(self, tmp_path, caplog):
+        client = _openai_client()
+        with caplog.at_level(logging.INFO, logger="prkit.batch"):
+            submit_batch_physics_reasoning(
+                client, _dataset(1), output_dir=tmp_path, run_name="run-x"
+            )
+        msgs = [r.getMessage() for r in caplog.records if r.name == "prkit.batch"]
+        assert any(
+            m.startswith("Submitted 1 minibatches")
+            and "fetch_batch_physics_reasoning" in m
+            for m in msgs
+        )

@@ -550,3 +550,59 @@ class TestWaitLoop:
         assert not sub.is_complete()
         assert client.poll_calls == ["b0"]  # timeout=0 -> exactly one pass
         slept.assert_not_called()
+
+
+class TestNextCommandAfterFetch:
+    """The §5.6 3-way end-of-fetch next-command prompt (gated by ``progress``)."""
+
+    def _msgs(self, caplog):
+        return [r.getMessage() for r in caplog.records if r.name == "prkit.batch"]
+
+    def test_in_progress_points_back_at_fetch(self, tmp_path, caplog):
+        run_dir = _submit_run(tmp_path, n=1, minibatch_size=1, batch_ids=["b0"])
+        client = _FetchClient("openai", states={"b0": [BatchState.IN_PROGRESS]})
+        with caplog.at_level(logging.INFO, logger="prkit.batch"):
+            caplog.clear()
+            fetch_batch(client, run_dir, progress=True)
+        assert any(
+            m.startswith("Batch in progress") and "Re-run" in m
+            for m in self._msgs(caplog)
+        )
+
+    def test_all_succeeded_points_at_consolidate(self, tmp_path, caplog):
+        run_dir = _submit_run(tmp_path, n=2, minibatch_size=1, batch_ids=["b0", "b1"])
+        cid_of = {
+            mb["batch_id"]: next(iter(mb["id_map"]))
+            for mb in BatchSubmission.load(run_dir).minibatches
+        }
+        client = _FetchClient(
+            "openai",
+            states={"b0": [BatchState.COMPLETED], "b1": [BatchState.COMPLETED]},
+            results={
+                b: [BatchResult(c, BatchItemStatus.SUCCEEDED, text="x")]
+                for b, c in cid_of.items()
+            },
+        )
+        with caplog.at_level(logging.INFO, logger="prkit.batch"):
+            caplog.clear()
+            fetch_batch(client, run_dir, progress=True)
+        assert any(
+            "All 2 minibatches succeeded" in m and "consolidate_batch_results" in m
+            for m in self._msgs(caplog)
+        )
+
+    def test_some_failed_points_at_resubmit(self, tmp_path, caplog):
+        run_dir = _submit_run(tmp_path, n=2, minibatch_size=1, batch_ids=["b0", "b1"])
+        cid0 = next(iter(BatchSubmission.load(run_dir).minibatches[0]["id_map"]))
+        client = _FetchClient(
+            "openai",
+            states={"b0": [BatchState.COMPLETED], "b1": [BatchState.FAILED]},
+            results={"b0": [BatchResult(cid0, BatchItemStatus.SUCCEEDED, text="x")]},
+        )
+        with caplog.at_level(logging.INFO, logger="prkit.batch"):
+            caplog.clear()
+            fetch_batch(client, run_dir, progress=True)
+        assert any(
+            "1 minibatches failed" in m and "resubmit_failed_minibatches" in m
+            for m in self._msgs(caplog)
+        )
