@@ -58,9 +58,13 @@ dev = [
     "build>=1.2.2",
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
-    "black>=23.0.0",
-    "ruff>=0.6.0",
-    "mypy>=1.0.0",
+    # Gate tools are pinned exactly: their version decides pass/fail, so a
+    # floating ``>=`` lets a fresh CI install silently drift from local and
+    # break the build (a new ruff/black reformats, a new mypy newly-errors).
+    # Bump these deliberately, not by accident. Keep them in sync with the venv.
+    "black==26.1.0",
+    "ruff==0.15.17",
+    "mypy==1.19.1",
     "pre-commit>=3.5.0",
     "twine>=6.0.0",
 ]
@@ -166,6 +170,17 @@ module = [
     "tqdm.*",
 ]
 ignore_missing_imports = true
+
+# numpy>=2.5 ships PEP 695 ``type`` statements in its bundled stubs, which mypy
+# rejects as a syntax error whenever the target ``python_version`` is below 3.12
+# (we target 3.10). Skip following numpy's stubs so a dependency shipping
+# newer-syntax stubs can't break the type gate; numpy call sites become untyped,
+# as with the libraries above. (ignore_missing_imports does not help — the stub
+# is found; the failure is parsing it under the 3.10 syntax target.)
+[[tool.mypy.overrides]]
+module = ["numpy", "numpy.*"]
+follow_imports = "skip"
+follow_imports_for_stubs = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -112,8 +112,11 @@ class TestRuntimeCheckableProtocols:
             loader = DatasetHub._get_loader(name)
             assert isinstance(loader, DatasetProvider), name
 
-    def test_model_client_satisfies_protocol(self):
-        # Construction only — no network call, works without an API key.
+    def test_model_client_satisfies_protocol(self, monkeypatch):
+        # Construction builds a real provider SDK client, which validates that a
+        # credential is present (no network call). Inject a dummy key so the
+        # check runs offline anywhere — CI has no .env to supply OPENAI_API_KEY.
+        monkeypatch.setenv("OPENAI_API_KEY", "test-key")
         client = create_model_client("gpt-4.1")
         assert isinstance(client, ModelClient)
 
