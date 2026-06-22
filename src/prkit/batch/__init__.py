@@ -41,7 +41,9 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
+import tempfile
 import time
 from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass, field
@@ -58,6 +60,7 @@ __all__ = [
     "BatchSubmission",
     "BatchInputError",
     "BatchFetchUnsupportedError",
+    "BatchNotTerminalError",
     "submit_batch_physics_reasoning",
     "fetch_batch",
     "iter_batch_results",
@@ -74,6 +77,7 @@ __all__ = [
     "FAILED",
     "CANCELLED",
     "FETCHED",
+    "CONSOLIDATED",
     "SUBMIT_ERROR",
     "FETCH_ERROR",
 ]
@@ -88,19 +92,36 @@ EXPIRED = "expired"  # window elapsed and nothing was retrievable
 FAILED = "failed"  # batch-level provider failure
 CANCELLED = "cancelled"  # cancelled at the provider
 FETCHED = "fetched"  # results downloaded + persisted to outputs/ (terminal-good)
-SUBMIT_ERROR = "submit_error"  # never submitted (batch_id == ""); re-submit via Stage 1
+CONSOLIDATED = "consolidated"  # results/ files written (post-FETCHED, terminal-good)
+SUBMIT_ERROR = "submit_error"  # never submitted (batch_id == ""); resubmit target
 FETCH_ERROR = "fetch_error"  # retrieve raised; non-final, retried on the next pass
 
 # Minibatches in these statuses are done with the fetch loop and skipped on the
 # next pass (idempotent resume). EXPIRED is deliberately NOT here: an expired job
 # is re-polled (cheap snapshot) until its results window truly closes — matches
-# the design's skip set exactly.
-_SKIP_FETCH_STATUSES = frozenset({FETCHED, SUBMIT_ERROR, FAILED, CANCELLED})
+# the design's skip set exactly. CONSOLIDATED is FETCHED-and-finalized, so it is
+# skipped too (fetch never re-polls a consolidated minibatch).
+_SKIP_FETCH_STATUSES = frozenset(
+    {FETCHED, CONSOLIDATED, SUBMIT_ERROR, FAILED, CANCELLED}
+)
 
-# Minibatches in these statuses are terminal for ``is_complete()`` — fetched, or
-# terminal-failed with nothing left to retrieve. ``wait=True`` stops once every
-# minibatch is one of these.
-_COMPLETE_STATUSES = frozenset({FETCHED, FAILED, CANCELLED, SUBMIT_ERROR, EXPIRED})
+# Minibatches in these statuses are terminal for ``is_complete()`` — fetched (or
+# consolidated), or terminal-failed with nothing left to retrieve. ``wait=True``
+# stops once every minibatch is one of these.
+_COMPLETE_STATUSES = frozenset(
+    {FETCHED, CONSOLIDATED, FAILED, CANCELLED, SUBMIT_ERROR, EXPIRED}
+)
+
+# Minibatches that have a readable ``outputs/`` file on disk: FETCHED, and
+# FETCHED-then-CONSOLIDATED (consolidation never deletes the outputs/ file). The
+# offline readers (:func:`iter_batch_results` / :func:`consolidate_batch_results`)
+# gate on this so re-scoring still works after finalize.
+_HAS_OUTPUT_STATUSES = frozenset({FETCHED, CONSOLIDATED})
+
+# Minibatches that :func:`resubmit_failed_minibatches` re-submits: terminal, not
+# consolidatable, and NOT a deliberate CANCELLED (excluded by owner decision). This
+# is exactly ``_COMPLETE_STATUSES − {FETCHED, CONSOLIDATED, CANCELLED}``.
+_RESUBMIT_STATUSES = frozenset({FAILED, SUBMIT_ERROR, EXPIRED})
 
 # Providers with a full batch fetch lifecycle (poll + retrieve). Gemini's
 # provider string is "google" (not "gemini"); xAI / DeepSeek / Dashscope / Ollama
@@ -112,6 +133,14 @@ _KEY_ID_PROVIDERS = frozenset({"google", "gemini"})
 # Anthropic restricts custom ids to this charset/length.
 _ANTHROPIC_ID_RE = re.compile(r"^[a-zA-Z0-9_-]{1,64}$")
 _MAX_ID_LEN = 64
+
+# ``problem_id`` is not constrained to a filesystem-safe charset (only wire ids are
+# validated), so consolidation renders it to a safe ``<stem>.json`` filename: runs
+# of non-``[A-Za-z0-9._-]`` collapse to ``_`` and the stem is capped well under the
+# 255-byte POSIX name limit. The mapping is lossy, so a collision is possible and
+# guarded loudly (never a silent overwrite) by :func:`consolidate_batch_results`.
+_UNSAFE_FILENAME_RE = re.compile(r"[^A-Za-z0-9._-]+")
+_MAX_RESULTS_STEM_LEN = 200
 
 # Leaf-light logger: flows through PRKitLogger handlers when the app configured
 # them, plain stdlib logging otherwise. Used for the per-pass progress summary.
@@ -286,6 +315,16 @@ class BatchFetchUnsupportedError(BatchInputError):
     """
 
 
+class BatchNotTerminalError(BatchInputError):
+    """The ledger is not terminal, so a terminal-gated finalize step refuses.
+
+    Raised **up front** by :func:`resubmit_failed_minibatches` when some minibatch
+    is still ``SUBMITTED`` / ``RUNNING`` / ``COMPLETED`` / ``FETCH_ERROR``. Run
+    :func:`fetch_batch` first to drive every minibatch terminal (which also resolves
+    any transient ``FETCH_ERROR`` by re-downloading), then resubmit the failures.
+    """
+
+
 def _slug(text: str) -> str:
     """Lowercase, collapse non-``[a-z0-9._-]`` runs to ``-``, trim edges.
 
@@ -448,6 +487,17 @@ def submit_batch_physics_reasoning(
             stale.unlink()
         for stale in (run_dir / "outputs").glob("minibatch_*.jsonl"):
             stale.unlink()
+        # Also clear a stale Stage-3 results set, so reusing a run folder for a fresh
+        # submit cannot leave old per-problem answers next to a new ledger. This is
+        # the *only* auto-clear of results/ (consolidate/resubmit never clear it).
+        results_dir = run_dir / "results"
+        if results_dir.is_dir():
+            for stale in results_dir.iterdir():
+                if stale.is_file():
+                    stale.unlink()
+        stale_manifest = run_dir / "results_manifest.json"
+        if stale_manifest.exists():
+            stale_manifest.unlink()
     inputs_dir = run_dir / "inputs"
     inputs_dir.mkdir(parents=True, exist_ok=True)
 
@@ -702,55 +752,71 @@ def iter_batch_results(
     """Pure offline reader: yield ``(problem_id, BatchResult)`` in input order.
 
     Loads the ledger if given a ``run_dir`` (else uses *submission* as-is). For
-    every ``FETCHED`` minibatch, reads its persisted ``outputs/`` file and
-    correlates each line's ``custom_id`` back to its ``problem_id`` via that
-    minibatch's ``id_map``, emitting one result per ``id_map`` entry (input order).
-    A synthetic ERRORED :class:`BatchResult` is emitted for any submitted id the
-    provider never returned (completeness); extra/uncorrelated ids are dropped and
-    counted on the minibatch (``uncorrelated_count``). Reads no network — safe to
-    re-run for re-scoring.
+    every minibatch with a persisted ``outputs/`` file (``FETCHED`` *or*
+    ``CONSOLIDATED`` — consolidation keeps the file, so re-scoring still works
+    post-finalize), reads it and correlates each line's ``custom_id`` back to its
+    ``problem_id`` via that minibatch's ``id_map``, emitting one result per
+    ``id_map`` entry (input order). A synthetic ERRORED :class:`BatchResult` is
+    emitted for any submitted id the provider never returned (completeness);
+    extra/uncorrelated ids are dropped and counted on the minibatch
+    (``uncorrelated_count``). Reads no network — safe to re-run for re-scoring.
     """
-    from prkit.core.model_clients.batch_types import BatchItemStatus, BatchResult
-
     sub = (
         submission
         if isinstance(submission, BatchSubmission)
         else BatchSubmission.load(submission)
     )
     for mb in sub.minibatches:
-        if mb["status"] != FETCHED:
-            continue
-        id_map: dict[str, str] = mb.get("id_map") or {}
-        output_path = mb.get("output_path")
+        if mb["status"] in _HAS_OUTPUT_STATUSES:
+            yield from _iter_minibatch_results(mb)
 
-        results_by_cid: dict[str, BatchResult] = {}
-        uncorrelated = 0
-        if output_path and Path(output_path).exists():
-            for line in _read_jsonl(output_path):
-                obj = json.loads(line)
-                cid = str(obj.get("custom_id", ""))
-                result = BatchResult(
-                    custom_id=cid,
-                    status=_coerce_item_status(obj.get("status"), BatchItemStatus),
-                    text=obj.get("text"),
-                    error=obj.get("error"),
-                )
-                if cid in id_map:
-                    results_by_cid[cid] = result
-                else:
-                    uncorrelated += 1
-        if uncorrelated:
-            mb["uncorrelated_count"] = uncorrelated
 
-        for cid, problem_id in id_map.items():
-            correlated = results_by_cid.get(cid)
-            if correlated is None:
-                correlated = BatchResult(
-                    custom_id=cid,
-                    status=BatchItemStatus.ERRORED,
-                    error="No result returned by the provider for this request.",
-                )
-            yield problem_id, correlated
+def _iter_minibatch_results(
+    mb: dict[str, Any],
+) -> Iterator[tuple[str, BatchResult]]:
+    """Correlate one minibatch's persisted ``outputs/`` file back to ``problem_id``.
+
+    Reads ``mb["output_path"]``, maps each line's ``custom_id`` to its ``problem_id``
+    via ``mb["id_map"]``, and yields one ``(problem_id, BatchResult)`` per ``id_map``
+    entry in input order — synthesizing an ERRORED result for any id the provider
+    never returned, and dropping/counting extras on ``mb["uncorrelated_count"]``.
+    Shared by :func:`iter_batch_results` and :func:`consolidate_batch_results`; the
+    caller gates on status (this helper assumes a readable ``outputs/`` file). Reads
+    no network. ``batch_types`` is imported lazily here to keep the leaf light.
+    """
+    from prkit.core.model_clients.batch_types import BatchItemStatus, BatchResult
+
+    id_map: dict[str, str] = mb.get("id_map") or {}
+    output_path = mb.get("output_path")
+
+    results_by_cid: dict[str, BatchResult] = {}
+    uncorrelated = 0
+    if output_path and Path(output_path).exists():
+        for line in _read_jsonl(output_path):
+            obj = json.loads(line)
+            cid = str(obj.get("custom_id", ""))
+            result = BatchResult(
+                custom_id=cid,
+                status=_coerce_item_status(obj.get("status"), BatchItemStatus),
+                text=obj.get("text"),
+                error=obj.get("error"),
+            )
+            if cid in id_map:
+                results_by_cid[cid] = result
+            else:
+                uncorrelated += 1
+    if uncorrelated:
+        mb["uncorrelated_count"] = uncorrelated
+
+    for cid, problem_id in id_map.items():
+        correlated = results_by_cid.get(cid)
+        if correlated is None:
+            correlated = BatchResult(
+                custom_id=cid,
+                status=BatchItemStatus.ERRORED,
+                error="No result returned by the provider for this request.",
+            )
+        yield problem_id, correlated
 
 
 def _coerce_item_status(value: Any, batch_item_status: type[Any]) -> Any:
@@ -772,6 +838,49 @@ def _read_jsonl(path: str | Path) -> Iterator[str]:
 def _now_iso() -> str:
     """Current UTC time as an ISO 8601 string."""
     return datetime.now(timezone.utc).isoformat()
+
+
+def _atomic_write_text(path: str | Path, text: str) -> None:
+    """Write *text* to *path* atomically (temp file in the same dir + ``os.replace``).
+
+    The temp file is created in the destination directory so ``os.replace`` is a
+    same-filesystem rename (atomic on POSIX and Windows); a crash mid-write therefore
+    never leaves a truncated or corrupt file at *path*. Used for every
+    ``results/<problem_id>.json`` and ``results_manifest.json`` write so finalize is
+    crash-safe.
+    """
+    target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_name = tempfile.mkstemp(
+        dir=str(target.parent), prefix=f".{target.name}.", suffix=".tmp"
+    )
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(text)
+        os.replace(tmp_name, target)
+    except BaseException:
+        # Best-effort cleanup if the replace never happened (temp file orphaned).
+        try:
+            os.unlink(tmp_name)
+        except OSError:  # pragma: no cover - defensive
+            pass
+        raise
+
+
+def _safe_results_filename(problem_id: str) -> str:
+    """Render *problem_id* as a filesystem-safe ``<stem>.json`` results filename.
+
+    Collapses runs of non-``[A-Za-z0-9._-]`` characters to ``_``, strips leading
+    ``._-`` (so the result is never a dotfile or empty), caps the stem length, and
+    falls back to ``"problem"`` when nothing usable remains. The mapping is lossy, so
+    two distinct ids can collide on one name — :func:`consolidate_batch_results`
+    guards that by refusing to overwrite a file that holds a *different*
+    ``problem_id`` (it never silently clobbers).
+    """
+    stem = _UNSAFE_FILENAME_RE.sub("_", problem_id).strip("._-") or "problem"
+    if len(stem) > _MAX_RESULTS_STEM_LEN:
+        stem = stem[:_MAX_RESULTS_STEM_LEN]
+    return f"{stem}.json"
 
 
 # --------------------------------------------------------------------------- #
