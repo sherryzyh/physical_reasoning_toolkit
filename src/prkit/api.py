@@ -101,31 +101,12 @@ class Scorer(Protocol):
     def get_info(self) -> dict[str, Any]: ...  # MUST include "version"
 
 
-@runtime_checkable
-class Runner(Protocol):
-    """Orchestration noun: drive a :class:`ModelClient` over a
-    :class:`PhysicsDataset` and score with a :class:`Scorer`.
-
-    No implementation ships today; the contract is reserved for a later
-    orchestration item (roadmap N4).
-    """
-
-    def run(
-        self,
-        dataset: PhysicsDataset,
-        model: ModelClient,
-        scorer: Scorer,
-        **kwargs: Any,
-    ) -> Any: ...
-
-
 __all__ = [
     "API_VERSION",
     # the four structural nouns + the canonical result
     "DatasetProvider",
     "ModelClient",
     "Scorer",
-    "Runner",
     "Verdict",
     # canonical answer ontology
     "AnswerObjectKind",

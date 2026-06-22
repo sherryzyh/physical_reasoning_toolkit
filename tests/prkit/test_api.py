@@ -6,7 +6,6 @@ import prkit.api as api
 from prkit.api import (
     DatasetProvider,
     ModelClient,
-    Runner,
     Scorer,
     Verdict,
     create_model_client,
@@ -31,7 +30,6 @@ class TestContractSurface:
             "DatasetProvider",
             "ModelClient",
             "Scorer",
-            "Runner",
             "Verdict",
             "AnswerObjectKind",
             "AnswerStructure",
@@ -124,4 +122,3 @@ class TestRuntimeCheckableProtocols:
         assert not isinstance(object(), DatasetProvider)
         assert not isinstance(object(), ModelClient)
         assert not isinstance(object(), Scorer)
-        assert not isinstance(object(), Runner)

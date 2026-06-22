@@ -9,7 +9,7 @@ Import name: ``prkit``
 
 Integration entry point:
     :mod:`prkit.api` is the frozen, semver-governed public contract (the
-    ``DatasetProvider``/``ModelClient``/``Scorer``/``Runner`` protocols and the
+    ``DatasetProvider``/``ModelClient``/``Scorer`` protocols and the
     ``Verdict`` result). Integrate against it rather than reaching into
     subpackages. See ``prkit/CONTRACT.md`` for the stability and version policy.
 
