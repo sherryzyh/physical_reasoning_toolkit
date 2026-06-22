@@ -10,7 +10,6 @@ from typing import Any
 import PIL.Image
 from google import genai
 from google.genai import types
-from pydantic import BaseModel
 
 from .base import BaseModelClient
 from .batch_types import BatchItemStatus, BatchResult, BatchState, BatchStatus
@@ -164,51 +163,6 @@ class GeminiModel(BaseModelClient):
                 }
             ),
         )
-
-    def _build_batch_structured_request(
-        self,
-        *,
-        request_id: str,
-        user_prompt: str,
-        response_model: type[BaseModel],
-        image_paths: tuple[str, ...],
-        max_output_tokens: int | None,
-        plan: StructuredOutputPlan,
-        **kwargs: Any,
-    ) -> dict[str, Any]:
-        del response_model, kwargs
-        if plan.mode != "json_schema":
-            raise ValueError(
-                f"Gemini batch structured requests require json_schema mode. Got {plan.mode!r}."
-            )
-
-        parts: list[dict[str, Any]] = []
-        for image_path in image_paths:
-            parts.append(
-                {
-                    "inline_data": {
-                        "mime_type": _guess_mime_type(image_path),
-                        "data": _encode_image_file_base64(image_path),
-                    }
-                }
-            )
-        parts.append({"text": user_prompt})
-
-        normalized = normalize_response_format(plan.response_format or {})
-        generation_config: dict[str, Any] = {
-            "response_mime_type": "application/json",
-            "response_json_schema": extract_schema_for_gemini(normalized),
-        }
-        if max_output_tokens is not None:
-            generation_config["max_output_tokens"] = max_output_tokens
-
-        return {
-            "key": request_id,
-            "request": {
-                "contents": [{"parts": parts, "role": "user"}],
-                "generation_config": generation_config,
-            },
-        }
 
     def _build_batch_request(
         self,

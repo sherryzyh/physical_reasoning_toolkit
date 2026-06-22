@@ -444,34 +444,6 @@ class AnthropicModel(BaseModelClient):
             response_format=_anthropic_transformed_response_format(spec),
         )
 
-    def _build_batch_structured_request(
-        self,
-        *,
-        request_id: str,
-        user_prompt: str,
-        response_model: type[BaseModel],
-        image_paths: tuple[str, ...],
-        max_output_tokens: int | None,
-        plan: StructuredOutputPlan,
-        **kwargs: Any,
-    ) -> dict[str, Any]:
-        del response_model, kwargs
-        if plan.mode != "json_schema":
-            raise ValueError(
-                "Anthropic batch structured requests require json_schema mode. "
-                f"Got {plan.mode!r}."
-            )
-        params = self._build_messages_params(
-            input=user_prompt,
-            instructions=None,
-            image_paths=image_paths,
-            max_output_tokens=(
-                max_output_tokens if max_output_tokens is not None else 4096
-            ),
-            response_format=plan.response_format or {},
-        )
-        return {"custom_id": request_id, "params": params}
-
 
 def _parse_anthropic_result_entry(entry: Any) -> BatchResult:
     """Parse one streamed Message Batch result entry into a ``BatchResult``."""

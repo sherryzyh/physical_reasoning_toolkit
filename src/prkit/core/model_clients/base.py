@@ -294,61 +294,6 @@ class BaseModelClient(ABC):
             **kwargs,
         )
 
-    def build_batch_structured_request(
-        self,
-        *,
-        request_id: str,
-        user_prompt: str,
-        response_model: type[T],
-        image_paths: Sequence[str] | None = None,
-        max_output_tokens: int | None = None,
-        structured_policy: StructuredOutputPolicy = "native_required",
-        **kwargs: Any,
-    ) -> dict[str, Any]:
-        """Build a provider-specific batch request dict for structured output."""
-        plan = self.resolve_structured_output_plan(
-            response_model,
-            structured_policy=structured_policy,
-        )
-        return self._build_batch_structured_request(
-            request_id=request_id,
-            user_prompt=user_prompt + (plan.prompt_suffix or ""),
-            response_model=response_model,
-            image_paths=tuple(image_paths or ()),
-            max_output_tokens=max_output_tokens,
-            plan=plan,
-            **kwargs,
-        )
-
-    def parse_batch_structured_response(
-        self,
-        *,
-        response_model: type[T],
-        raw_response_text: str,
-        structured_policy: StructuredOutputPolicy = "native_required",
-        structured_output_strategy: str | None = None,
-    ) -> StructuredCallResult[T]:
-        """Parse a raw batch response text into a typed ``StructuredCallResult``."""
-        plan = self.resolve_structured_output_plan(
-            response_model,
-            structured_policy=structured_policy,
-        )
-        if structured_output_strategy is not None:
-            plan = StructuredOutputPlan(
-                mode=plan.mode,
-                strategy=structured_output_strategy,
-                native_schema_enforced=plan.native_schema_enforced,
-                accepted_artifact_modes=plan.accepted_artifact_modes,
-                accepted_artifact_strategies=plan.accepted_artifact_strategies,
-                response_format=plan.response_format,
-                prompt_suffix=plan.prompt_suffix,
-            )
-        return self._build_structured_call_result(
-            response_model=response_model,
-            raw_text=raw_response_text,
-            plan=plan,
-        )
-
     # ------------------------------------------------------------------
     # Free-text batch requests + the asynchronous job lifecycle
     # ------------------------------------------------------------------
@@ -369,8 +314,7 @@ class BaseModelClient(ABC):
         no ``response_format``. Passing ``instructions=""`` suppresses the system
         prompt on every provider (see :meth:`_resolve_instructions`), so the
         resulting request matches a synchronous
-        ``response(input=..., instructions="")`` call. Use
-        :meth:`build_batch_structured_request` instead for schema-enforced output.
+        ``response(input=..., instructions="")`` call.
         """
         return self._build_batch_request(
             request_id=request_id,
@@ -596,27 +540,3 @@ class BaseModelClient(ABC):
     ) -> dict[str, Any] | list[Any] | None:
         del plan
         return extract_json_payload(raw_text)
-
-    def _build_batch_structured_request(
-        self,
-        *,
-        request_id: str,
-        user_prompt: str,
-        response_model: type[T],
-        image_paths: tuple[str, ...],
-        max_output_tokens: int | None,
-        plan: StructuredOutputPlan,
-        **kwargs: Any,
-    ) -> dict[str, Any]:
-        del (
-            request_id,
-            user_prompt,
-            response_model,
-            image_paths,
-            max_output_tokens,
-            plan,
-            kwargs,
-        )
-        raise NotImplementedError(
-            f"Batch structured requests are not implemented for provider={self._provider_name()!r}."
-        )
