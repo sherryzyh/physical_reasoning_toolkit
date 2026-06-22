@@ -64,6 +64,8 @@ __all__ = [
     "submit_batch_physics_reasoning",
     "fetch_batch",
     "iter_batch_results",
+    "consolidate_batch_results",
+    "resubmit_failed_minibatches",
     "batch_fetch_supported",
     "dumps_batch_jsonl",
     "write_batch_jsonl",
@@ -586,6 +588,7 @@ def submit_batch_physics_reasoning(
         minibatches=minibatches,
     )
     submission.save()
+    _log_next_after_submit(submission)
 
     return str(run_dir)
 
@@ -654,6 +657,8 @@ def fetch_batch(
         if timeout is not None and (time.monotonic() - start) >= timeout:
             break
         time.sleep(poll_interval)
+    if progress:
+        _log_next_after_fetch(sub)
     return sub
 
 
@@ -945,4 +950,368 @@ def _log_transition(
             old_status,
             new_status,
             num_results,
+        )
+
+
+# --------------------------------------------------------------------------- #
+# Finalize half (Stage 3): consolidate + resubmit                             #
+# --------------------------------------------------------------------------- #
+def consolidate_batch_results(
+    submission: BatchSubmission | str | Path,
+    *,
+    results_dirname: str = "results",
+) -> BatchSubmission:
+    """Stream every FETCHED-not-yet-CONSOLIDATED minibatch's results to disk.
+
+    For each such minibatch, correlate each output line's ``custom_id`` back to its
+    ``problem_id`` (via the minibatch ``id_map``) and write
+    ``<run_dir>/<results_dirname>/<problem_id>.json`` =
+    ``{problem_id, custom_id, status, text, error}`` **atomically**, then mark the
+    minibatch ``CONSOLIDATED`` and persist the ledger. This is incremental and
+    resumable: a re-run skips already-``CONSOLIDATED`` minibatches and a crash
+    resumes from the first non-consolidated FETCHED one. Results are **streamed** —
+    one record is held in memory at a time, never the whole run.
+
+    Offline (no client, like :func:`iter_batch_results`) and **lenient**: it WARNS
+    (does not raise) when some minibatches are not yet succeeded, consolidating the
+    succeeded subset; re-run after resubmit + fetch to complete. A refreshed
+    ``<run_dir>/results_manifest.json`` summary is written last (atomic).
+
+    Raises:
+        BatchInputError: an empty ledger (no minibatches), or a filename collision
+            (two problems sanitizing to the same file — never a silent overwrite).
+    """
+    sub = (
+        submission
+        if isinstance(submission, BatchSubmission)
+        else BatchSubmission.load(submission)
+    )
+    if not sub.minibatches:
+        raise BatchInputError(
+            "Ledger has no minibatches to consolidate (empty/degenerate run)."
+        )
+
+    pending = [mb for mb in sub.minibatches if mb["status"] not in _HAS_OUTPUT_STATUSES]
+    if pending:
+        _logger.warning(
+            "Consolidating the succeeded subset: %d/%d minibatches not yet succeeded "
+            "(resubmit + fetch them, then re-run consolidate).",
+            len(pending),
+            len(sub.minibatches),
+        )
+
+    results_dir = Path(sub.run_dir) / results_dirname
+    results_dir.mkdir(parents=True, exist_ok=True)  # NEVER cleared here (incremental)
+
+    status_counts: dict[str, int] = {}
+    results_written = 0
+    uncorrelated_total = 0
+    for mb in sub.minibatches:
+        if mb["status"] != FETCHED:  # CONSOLIDATED already done; the rest are skipped
+            continue
+        for problem_id, result in _iter_minibatch_results(mb):
+            path = results_dir / _safe_results_filename(problem_id)
+            existing_pid = _existing_problem_id(path)
+            if existing_pid is not None and existing_pid != problem_id:
+                raise BatchInputError(
+                    f"Results filename collision: {path.name!r} already holds "
+                    f"problem_id {existing_pid!r}, cannot also write {problem_id!r}. "
+                    "Two problems sanitize to the same file; disambiguate their ids."
+                )
+            status_str = str(result.status)
+            _atomic_write_text(
+                path,
+                json.dumps(
+                    {
+                        "problem_id": problem_id,
+                        "custom_id": result.custom_id,
+                        "status": status_str,
+                        "text": result.text,
+                        "error": result.error,
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                ),
+            )
+            status_counts[status_str] = status_counts.get(status_str, 0) + 1
+            results_written += 1
+        uncorrelated_total += int(mb.get("uncorrelated_count", 0) or 0)
+        sub.set_status(mb["index"], CONSOLIDATED)
+        sub.save()  # crash-safe per minibatch (ledger owns resumability)
+
+    _write_results_manifest(sub, status_counts, results_written, uncorrelated_total)
+    _log_next_after_consolidate(sub, results_dirname)
+    return sub
+
+
+def _existing_problem_id(path: Path) -> str | None:
+    """Return the ``problem_id`` recorded in an existing results file, else ``None``.
+
+    Lets :func:`consolidate_batch_results` tell a genuine filename collision (the
+    file holds a *different* problem) from an idempotent re-write of the same problem
+    on a resume. A missing/malformed/unreadable file returns ``None`` (a safe
+    overwrite target — the atomic re-write replaces it cleanly).
+    """
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    pid = data.get("problem_id")
+    return pid if isinstance(pid, str) else None
+
+
+def _write_results_manifest(
+    sub: BatchSubmission,
+    status_counts: dict[str, int],
+    results_written: int,
+    uncorrelated_total: int,
+) -> None:
+    """Refresh ``<run_dir>/results_manifest.json`` (atomic, written last each call).
+
+    A human/consumer-facing at-a-glance summary at the run-dir root (``results/``
+    holds only per-problem files); crash-safety/resumability is owned by the ledger
+    (``metadata.json``), not this marker. ``minibatches_consolidated`` /
+    ``fully_consolidated`` are ledger-derived (cumulative); ``results_written`` /
+    ``status_counts`` / ``uncorrelated_total`` reflect *this call's* newly
+    consolidated minibatches (per the design's streaming counters). A failed or
+    CANCELLED minibatch keeps ``fully_consolidated`` false (see Known limitations).
+    """
+    consolidated = sub.status_counts().get(CONSOLIDATED, 0)
+    manifest = {
+        "run_name": sub.run_name,
+        "provider": sub.provider,
+        "model": sub.model,
+        "total_problems": sub.total_problems,
+        "results_written": results_written,
+        "status_counts": status_counts,
+        "minibatches_consolidated": consolidated,
+        "minibatches_total": sub.minibatch_count,
+        "fully_consolidated": consolidated == sub.minibatch_count,
+        "uncorrelated_total": uncorrelated_total,
+        "consolidated_at": _now_iso(),
+    }
+    _atomic_write_text(
+        Path(sub.run_dir) / "results_manifest.json",
+        json.dumps(manifest, indent=2, ensure_ascii=False),
+    )
+
+
+def resubmit_failed_minibatches(
+    client: Any,
+    submission: BatchSubmission | str | Path,
+) -> BatchSubmission:
+    """Re-submit each FAILED / SUBMIT_ERROR / EXPIRED minibatch (NOT CANCELLED).
+
+    Re-reads each target minibatch's persisted ``inputs/minibatch_XXXX.jsonl`` and
+    calls ``client.submit_batch`` with the run's merged metadata, then — **only after
+    the submit returns a new ``batch_id``** — resets that ledger entry (status →
+    ``SUBMITTED``, new ``batch_id``, cleared ``output_path`` / ``fetched_at`` /
+    ``counts`` / ``error``) in memory and on disk. A single minibatch's submit
+    failure is recorded as ``SUBMIT_ERROR`` (``batch_id=""``, ``error`` set) and the
+    loop continues. CANCELLED minibatches are left untouched (a deliberate cancel is
+    not auto-resubmitted — a known dead-end). Returns the updated ledger; the
+    consumer then re-runs :func:`fetch_batch` on the new jobs.
+
+    Raises:
+        BatchFetchUnsupportedError: up front, for a provider with no batch lifecycle.
+        BatchNotTerminalError: if the ledger is not terminal (run ``fetch_batch``
+            first to resolve any RUNNING / FETCH_ERROR minibatch).
+    """
+    if not batch_fetch_supported(client):
+        provider = getattr(client, "provider", None) or "unknown"
+        raise BatchFetchUnsupportedError(
+            f"Provider {provider!r} has no batch lifecycle; batch-capable providers "
+            f"are {sorted(_FETCH_CAPABLE_PROVIDERS)}."
+        )
+
+    sub = (
+        submission
+        if isinstance(submission, BatchSubmission)
+        else BatchSubmission.load(submission)
+    )
+    if not sub.is_complete():
+        raise BatchNotTerminalError(
+            f"Batch {sub.run_name!r} is not terminal; run fetch_batch first to drive "
+            "every minibatch terminal (resolving any FETCH_ERROR), then resubmit."
+        )
+
+    targets = [mb for mb in sub.minibatches if mb["status"] in _RESUBMIT_STATUSES]
+    if not targets:
+        _log_next_after_resubmit(sub, resubmitted=0, still_failed=0)
+        return sub
+
+    # The ledger stores the un-merged user metadata + display_name separately, so
+    # reconstruct the provider-side merged metadata exactly as submit did (:486).
+    merged_metadata = {**sub.metadata, "display_name": sub.display_name}
+    outputs_dir = Path(sub.run_dir) / "outputs"
+    resubmitted = 0
+    still_failed = 0
+    for mb in targets:
+        index = mb["index"]
+        old_status = mb["status"]
+        try:
+            requests = [json.loads(line) for line in _read_jsonl(mb["input_file_path"])]
+            new_id = client.submit_batch(requests, metadata=merged_metadata)
+        except Exception as exc:  # noqa: BLE001 - recorded on the ledger; loop goes on
+            sub.set_status(
+                index,
+                SUBMIT_ERROR,
+                batch_id="",
+                error=f"{type(exc).__name__}: {exc}",
+                output_path=None,
+                fetched_at=None,
+                counts={},
+            )
+            still_failed += 1
+            _log_transition(index, old_status, SUBMIT_ERROR)
+            sub.save()
+            continue
+        # Submit succeeded: drop a stale downloaded artifact (defensive — targets
+        # normally have output_path=None), then reset the entry to SUBMITTED.
+        stale_output = outputs_dir / f"minibatch_{index:04d}.jsonl"
+        if stale_output.exists():
+            stale_output.unlink()
+        sub.set_status(
+            index,
+            SUBMITTED,
+            batch_id=new_id,
+            submitted_at=_now_iso(),
+            error=None,
+            output_path=None,
+            fetched_at=None,
+            counts={},
+        )
+        resubmitted += 1
+        _log_transition(index, old_status, SUBMITTED)
+        sub.save()  # crash-safe per minibatch
+
+    _log_next_after_resubmit(sub, resubmitted=resubmitted, still_failed=still_failed)
+    return sub
+
+
+# --------------------------------------------------------------------------- #
+# Next-command guidance (one INFO line telling the human what to run next)     #
+# --------------------------------------------------------------------------- #
+def _log_next_after_submit(sub: BatchSubmission) -> None:
+    """After submit: point at fetch (a fetch routes any SUBMIT_ERROR afterward)."""
+    _logger.info(
+        'Submitted %d minibatches. Next: client.fetch_batch_physics_reasoning("%s").',
+        sub.minibatch_count,
+        sub.run_dir,
+    )
+
+
+def _log_next_after_fetch(sub: BatchSubmission) -> None:
+    """After a fetch pass: the owner's 3-way next-command prompt (§5.6)."""
+    counts = sub.status_counts()
+    n = sub.minibatch_count
+    succeeded = counts.get(FETCHED, 0) + counts.get(CONSOLIDATED, 0)
+
+    if not sub.is_complete():
+        running = (
+            counts.get(SUBMITTED, 0)
+            + counts.get(RUNNING, 0)
+            + counts.get(COMPLETED, 0)
+            + counts.get(FETCH_ERROR, 0)
+        )
+        _logger.info(
+            "Batch in progress (%d running). Re-run "
+            'fetch_batch_physics_reasoning("%s") later to continue.',
+            running,
+            sub.run_dir,
+        )
+        return
+
+    if succeeded == n:
+        _logger.info(
+            'All %d minibatches succeeded. Next: consolidate_batch_results("%s") '
+            "to write results/.",
+            n,
+            sub.run_dir,
+        )
+        return
+
+    # Terminal, some failed.
+    failed_total = n - succeeded
+    resubmittable = sum(counts.get(s, 0) for s in _RESUBMIT_STATUSES)
+    if resubmittable:
+        if succeeded:
+            _logger.info(
+                '%d minibatches failed. Next: client.resubmit_failed_minibatches("%s"),'
+                " then fetch again. (%d already succeeded — consolidate_batch_results"
+                " can capture them now.)",
+                failed_total,
+                sub.run_dir,
+                succeeded,
+            )
+        else:
+            _logger.info(
+                '%d minibatches failed. Next: client.resubmit_failed_minibatches("%s"),'
+                " then fetch again.",
+                failed_total,
+                sub.run_dir,
+            )
+        return
+
+    # All failures are CANCELLED dead-ends (none resubmittable; see Known limitations).
+    if succeeded:
+        _logger.info(
+            "%d minibatches were CANCELLED — a dead-end (not auto-resubmitted; see "
+            'Known limitations). consolidate_batch_results("%s") can still capture '
+            "the %d succeeded.",
+            failed_total,
+            sub.run_dir,
+            succeeded,
+        )
+    else:
+        _logger.info(
+            "%d minibatches were CANCELLED — a dead-end (not auto-resubmitted; see "
+            "Known limitations); nothing left to fetch or consolidate.",
+            failed_total,
+        )
+
+
+def _log_next_after_resubmit(
+    sub: BatchSubmission, *, resubmitted: int, still_failed: int
+) -> None:
+    """After resubmit: the K-resubmitted / M-failed summary + the fetch-next hint."""
+    if resubmitted == 0 and still_failed == 0:
+        cancelled = sub.status_counts().get(CANCELLED, 0)
+        if cancelled:
+            _logger.info(
+                "Nothing to resubmit: %d CANCELLED minibatch(es) are a dead-end (not "
+                "auto-resubmitted) and the rest already succeeded. Run "
+                'consolidate_batch_results("%s") to capture the succeeded subset.',
+                cancelled,
+                sub.run_dir,
+            )
+        else:
+            _logger.info(
+                "Nothing to resubmit — all minibatches already succeeded. "
+                'Next: consolidate_batch_results("%s").',
+                sub.run_dir,
+            )
+        return
+    _logger.info(
+        "Resubmitted %d minibatches (%d still failed). "
+        'Next: client.fetch_batch_physics_reasoning("%s").',
+        resubmitted,
+        still_failed,
+        sub.run_dir,
+    )
+
+
+def _log_next_after_consolidate(sub: BatchSubmission, results_dirname: str) -> None:
+    """After consolidate: 'done' when fully consolidated, else the resume hint."""
+    consolidated = sub.status_counts().get(CONSOLIDATED, 0)
+    n = sub.minibatch_count
+    if consolidated == n:
+        _logger.info("Done — results in %s/%s/.", sub.run_dir, results_dirname)
+    else:
+        _logger.info(
+            "Consolidated %d/%d minibatches; the rest are not yet succeeded — "
+            'resubmit + fetch them, then re-run consolidate_batch_results("%s").',
+            consolidated,
+            n,
+            sub.run_dir,
         )

@@ -440,10 +440,12 @@ class TestProgressReporting:
         client = _FetchClient("openai", states=states, results=results)
         with caplog.at_level(logging.INFO, logger="prkit.batch"):
             fetch_batch(client, run_dir, progress=True)
+        # The per-pass summary is the line carrying "(+N this pass)"; the Stage-3
+        # end-of-fetch next-command line ("Batch in progress …") is excluded.
         summaries = [
             r.getMessage()
             for r in caplog.records
-            if r.name == "prkit.batch" and r.getMessage().startswith("Batch ")
+            if r.name == "prkit.batch" and "this pass" in r.getMessage()
         ]
         assert len(summaries) == 1
         line = summaries[0]
@@ -463,6 +465,7 @@ class TestProgressReporting:
             results={"b0": [BatchResult(cid, BatchItemStatus.SUCCEEDED, text="A")]},
         )
         with caplog.at_level(logging.INFO, logger="prkit.batch"):
+            caplog.clear()  # drop submit's own next-command line; isolate the fetch
             fetch_batch(client, run_dir, progress=False)
         assert [r for r in caplog.records if r.name == "prkit.batch"] == []
 
