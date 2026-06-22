@@ -1,47 +1,67 @@
-"""Batch-mode *submit* for physics-reasoning runs (N4).
+"""Batch-mode *submit* and *fetch* for physics-reasoning runs (N4).
 
-This leaf turns a set of :class:`~prkit.core.domain.PhysicsProblem`\\s into
-submitted provider batch jobs and one whole-batch :class:`BatchSubmission` ledger.
+This leaf drives the discounted provider **batch lane** end to end while staying
+a bounded helper — never an orchestrating runner.
 
 **Vocabulary** (owner-set): a **batch** is the whole thing a user triggers over a
 dataset (one :func:`submit_batch_physics_reasoning` call → one *run folder* → one
 :class:`BatchSubmission` ledger). A **minibatch** is one ``minibatch_size``-problem
 group = one provider batch job = one ``minibatch_XXXX.jsonl`` = one element of
-:attr:`BatchSubmission.minibatches`. ``prkit.batch`` / ``submit_batch_*`` keep
-"batch" because it names the *batch lane*, not a unit.
+:attr:`BatchSubmission.minibatches`. ``prkit.batch`` / ``submit_batch_*`` /
+:func:`fetch_batch` keep "batch" because it names the *batch lane*, not a unit.
 
-:func:`submit_batch_physics_reasoning` preprocesses each problem exactly like the
-synchronous ``solve_physics_problem`` path (via the client's
-``build_problem_batch_request``), splits the dataset into minibatches of
+**Submit half** (Stage 1): :func:`submit_batch_physics_reasoning` preprocesses each
+problem exactly like the synchronous ``solve_physics_problem`` path (via the
+client's ``build_problem_batch_request``), splits the dataset into minibatches of
 ``minibatch_size`` problems, writes each minibatch's requests as provider-correct
 JSONL under one run folder, submits each minibatch, saves the consolidated
-``metadata.json`` ledger, and **returns the run-folder path** (a ``str``). The
-ledger is mutable on purpose — it is the resume state store (each minibatch carries
-a ``status``); disk is the source of truth across the ~24h provider window, so the
-object is reconstructed on demand via :meth:`BatchSubmission.load`. Polling /
-downloading / correlating the results is a later milestone that consumes the ledger.
+``metadata.json`` ledger, and **returns the run-folder path** (a ``str``).
 
-Import discipline: at module load this imports only :mod:`prkit.core.domain`
-and the standard library — never ``prkit.api``, the dataset hub, a scorer, the
-cost meter, or a provider SDK. The model client is duck-typed.
+**Fetch half** (Stage 2): :func:`fetch_batch` reconstructs the ledger from that
+path, polls each non-final minibatch once (or loops until terminal when
+``wait=True``), downloads terminal-and-retrievable minibatches to
+``outputs/minibatch_XXXX.jsonl``, and persists the advanced ledger. It is
+idempotent/resumable: already-fetched and terminal-failed minibatches are skipped,
+so re-runs never re-hit the network. :func:`iter_batch_results` is a pure offline
+reader that correlates each persisted result back to its ``problem_id`` via the
+minibatch's ``id_map``, emitting one ``(problem_id, BatchResult)`` per submitted
+problem. Scoring and pricing are **not** done here — the consumer calls
+``prkit.api.Scorer`` / ``Verdict`` directly (cost metering is N6's job).
+
+Import discipline: at module load this imports only :mod:`prkit.core.domain` and
+the standard library — never ``prkit.api``, the dataset hub, a scorer, the cost
+meter, or a provider SDK. The model client is duck-typed. The batch-lifecycle
+types (:class:`~prkit.core.model_clients.batch_types.BatchResult` etc.) live under
+``prkit.core.model_clients`` (an import-isolation forbidden module), so they are
+imported **lazily inside** :func:`fetch_batch` / :func:`iter_batch_results`, never
+at module load. See ``tests/prkit/batch/test_import_isolation.py``.
 """
 
 from __future__ import annotations
 
 import json
+import logging
 import re
-from collections.abc import Callable, Sequence
+import time
+from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from prkit.core.domain import PhysicsDataset, PhysicsProblem
+
+if TYPE_CHECKING:
+    from prkit.core.model_clients.batch_types import BatchResult, BatchState
 
 __all__ = [
     "BatchSubmission",
     "BatchInputError",
+    "BatchFetchUnsupportedError",
     "submit_batch_physics_reasoning",
+    "fetch_batch",
+    "iter_batch_results",
+    "batch_fetch_supported",
     "dumps_batch_jsonl",
     "write_batch_jsonl",
     "validate_batch_requests",
@@ -78,8 +98,14 @@ FETCH_ERROR = "fetch_error"  # retrieve raised; non-final, retried on the next p
 _SKIP_FETCH_STATUSES = frozenset({FETCHED, SUBMIT_ERROR, FAILED, CANCELLED})
 
 # Minibatches in these statuses are terminal for ``is_complete()`` — fetched, or
-# terminal-failed with nothing left to retrieve.
+# terminal-failed with nothing left to retrieve. ``wait=True`` stops once every
+# minibatch is one of these.
 _COMPLETE_STATUSES = frozenset({FETCHED, FAILED, CANCELLED, SUBMIT_ERROR, EXPIRED})
+
+# Providers with a full batch fetch lifecycle (poll + retrieve). Gemini's
+# provider string is "google" (not "gemini"); xAI / DeepSeek / Dashscope / Ollama
+# have no batch fetch surface and are intentionally absent.
+_FETCH_CAPABLE_PROVIDERS = frozenset({"openai", "anthropic", "google"})
 
 # Providers whose batch line correlates by ``key`` rather than ``custom_id``.
 _KEY_ID_PROVIDERS = frozenset({"google", "gemini"})
@@ -87,13 +113,17 @@ _KEY_ID_PROVIDERS = frozenset({"google", "gemini"})
 _ANTHROPIC_ID_RE = re.compile(r"^[a-zA-Z0-9_-]{1,64}$")
 _MAX_ID_LEN = 64
 
+# Leaf-light logger: flows through PRKitLogger handlers when the app configured
+# them, plain stdlib logging otherwise. Used for the per-pass progress summary.
+_logger = logging.getLogger("prkit.batch")
+
 
 @dataclass
 class BatchSubmission:
     """The whole-batch ledger = one run folder = one ``metadata.json``.
 
-    Mutable on purpose: the fetch step advances each minibatch's ``status`` and
-    persists the ledger, which is what makes fetch idempotent/resumable across
+    Mutable on purpose: :func:`fetch_batch` advances each minibatch's ``status``
+    and persists the ledger, which is what makes fetch idempotent/resumable across
     processes. Batch-level facts are stored once; the per-minibatch fetch state
     lives in :attr:`minibatches`, a list of plain dicts (one per provider job).
 
@@ -247,6 +277,15 @@ class BatchInputError(ValueError):
     pre-existing non-empty run folder (when ``overwrite`` is False)."""
 
 
+class BatchFetchUnsupportedError(BatchInputError):
+    """The client's provider has no batch fetch lifecycle (poll + retrieve).
+
+    Raised **up front** by :func:`fetch_batch` for providers outside
+    :data:`_FETCH_CAPABLE_PROVIDERS` — never a raw ``NotImplementedError`` from
+    partway through a sweep.
+    """
+
+
 def _slug(text: str) -> str:
     """Lowercase, collapse non-``[a-z0-9._-]`` runs to ``-``, trim edges.
 
@@ -361,7 +400,8 @@ def submit_batch_physics_reasoning(
 
     Disk is the source of truth across the ~24h provider window, so the ledger is
     persisted rather than handed back as an object: reconstruct it on demand at
-    fetch time via :meth:`BatchSubmission.load`.
+    fetch time via :meth:`BatchSubmission.load` (or just pass the ``run_dir`` to
+    :func:`fetch_batch` / :func:`iter_batch_results`).
 
     A minibatch whose submit raises is recorded with ``status=SUBMIT_ERROR``,
     ``error`` set, and ``batch_id=""`` (its input file remains for re-submission via
@@ -498,3 +538,302 @@ def submit_batch_physics_reasoning(
     submission.save()
 
     return str(run_dir)
+
+
+# --------------------------------------------------------------------------- #
+# Fetch half (Stage 2)                                                        #
+# --------------------------------------------------------------------------- #
+def batch_fetch_supported(client: Any) -> bool:
+    """True only for providers with a full fetch lifecycle (in the allow-list)."""
+    return getattr(client, "provider", None) in _FETCH_CAPABLE_PROVIDERS
+
+
+def fetch_batch(
+    client: Any,
+    submission: BatchSubmission | str | Path,
+    *,
+    wait: bool = False,
+    poll_interval: float = 10.0,
+    timeout: float | None = None,
+    outputs_dirname: str = "outputs",
+    progress: bool = True,
+) -> BatchSubmission:
+    """Poll, download, and persist a submitted batch run; return the ledger.
+
+    Loads the ledger if given a ``run_dir`` (else uses *submission* as-is), then
+    polls each non-final minibatch once — downloading terminal-and-retrievable ones
+    to ``<run_dir>/<outputs_dirname>/minibatch_XXXX.jsonl`` and advancing + saving
+    the ledger after each change. With ``wait=True`` the pass repeats every
+    ``poll_interval`` seconds until every minibatch is terminal (or ``timeout``
+    seconds elapse). Idempotent: ``FETCHED`` / terminal-failed / ``SUBMIT_ERROR``
+    minibatches are skipped, so re-runs never re-hit the network for finished work.
+
+    ``EXPIRED`` minibatches are still retrieved (they can carry a completed subset);
+    only ``FAILED`` / ``CANCELLED`` have nothing to fetch. When ``progress=True``
+    (the default), a one-line status summary is logged at INFO after each pass.
+
+    Raises:
+        BatchFetchUnsupportedError: up front, if the client's provider has no fetch
+            lifecycle (never a raw ``NotImplementedError`` mid-sweep).
+    """
+    if not batch_fetch_supported(client):
+        provider = getattr(client, "provider", None) or "unknown"
+        raise BatchFetchUnsupportedError(
+            f"Provider {provider!r} has no batch fetch lifecycle; fetch-capable "
+            f"providers are {sorted(_FETCH_CAPABLE_PROVIDERS)}."
+        )
+
+    sub = (
+        submission
+        if isinstance(submission, BatchSubmission)
+        else BatchSubmission.load(submission)
+    )
+    # Lazy import: batch_types sits under prkit.core.model_clients (forbidden at
+    # leaf load time). The caller already holds a live client, so the package is
+    # loaded by now anyway.
+    from prkit.core.model_clients.batch_types import BatchState
+
+    outputs_dir = Path(sub.run_dir) / outputs_dirname
+    start = time.monotonic()
+    while True:
+        newly_fetched = _run_fetch_pass(client, sub, outputs_dir, BatchState)
+        if progress:
+            _log_progress(sub, newly_fetched)
+        if not wait or sub.is_complete():
+            break
+        if timeout is not None and (time.monotonic() - start) >= timeout:
+            break
+        time.sleep(poll_interval)
+    return sub
+
+
+def _run_fetch_pass(
+    client: Any,
+    sub: BatchSubmission,
+    outputs_dir: Path,
+    batch_state: type[BatchState],
+) -> int:
+    """One poll-and-download pass over the non-final minibatches; return Δ fetched."""
+    newly_fetched = 0
+    for mb in sub.minibatches_to_fetch():
+        index = mb["index"]
+        old_status = mb["status"]
+        st = client.poll_batch(mb["batch_id"])
+        counts = dict(st.counts)
+
+        if st.state in (batch_state.COMPLETED, batch_state.EXPIRED):
+            try:
+                results = list(client.retrieve_batch_results(mb["batch_id"]))
+            except Exception as exc:  # noqa: BLE001 - retried on the next pass
+                sub.set_status(
+                    index,
+                    FETCH_ERROR,
+                    counts=counts,
+                    error=f"{type(exc).__name__}: {exc}",
+                )
+                _log_transition(index, old_status, FETCH_ERROR)
+                sub.save()
+                continue
+            # COMPLETED always persists (an empty file still marks the minibatch
+            # final; iter_batch_results synthesizes failures for the missing ids).
+            # EXPIRED persists only when it carried a partial subset.
+            if results or st.state == batch_state.COMPLETED:
+                output_path = outputs_dir / f"minibatch_{index:04d}.jsonl"
+                _write_results(output_path, results)
+                sub.set_status(
+                    index,
+                    FETCHED,
+                    counts=counts,
+                    output_path=str(output_path),
+                    fetched_at=_now_iso(),
+                )
+                newly_fetched += 1
+                _log_transition(index, old_status, FETCHED, len(results))
+            else:
+                sub.set_status(index, EXPIRED, counts=counts)
+                _log_transition(index, old_status, EXPIRED)
+        else:
+            new_status = _status_for_state(st.state, batch_state)
+            if new_status is None:  # UNKNOWN: keep prior status, refresh counts
+                sub.set_status(index, old_status, counts=counts)
+            else:
+                sub.set_status(index, new_status, counts=counts)
+                if new_status != old_status:
+                    _log_transition(index, old_status, new_status)
+        sub.save()
+    return newly_fetched
+
+
+def _status_for_state(state: BatchState, batch_state: type[BatchState]) -> str | None:
+    """Map a poll's ``BatchState`` to a minibatch status.
+
+    Returns ``None`` for ``UNKNOWN`` (keep the prior status and keep polling).
+    ``COMPLETED`` / ``EXPIRED`` are handled by the retrieve path, not here.
+    """
+    return {
+        batch_state.PENDING: RUNNING,
+        batch_state.IN_PROGRESS: RUNNING,
+        batch_state.FAILED: FAILED,
+        batch_state.CANCELLED: CANCELLED,
+    }.get(state)
+
+
+def _write_results(path: Path, results: Sequence[BatchResult]) -> None:
+    """Write normalized ``BatchResult`` lines as JSONL to *path* (creating parents)."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lines = [
+        json.dumps(
+            {
+                "custom_id": r.custom_id,
+                "status": str(r.status),
+                "text": r.text,
+                "error": r.error,
+            },
+            ensure_ascii=False,
+        )
+        for r in results
+    ]
+    path.write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
+
+
+def iter_batch_results(
+    submission: BatchSubmission | str | Path,
+) -> Iterator[tuple[str, BatchResult]]:
+    """Pure offline reader: yield ``(problem_id, BatchResult)`` in input order.
+
+    Loads the ledger if given a ``run_dir`` (else uses *submission* as-is). For
+    every ``FETCHED`` minibatch, reads its persisted ``outputs/`` file and
+    correlates each line's ``custom_id`` back to its ``problem_id`` via that
+    minibatch's ``id_map``, emitting one result per ``id_map`` entry (input order).
+    A synthetic ERRORED :class:`BatchResult` is emitted for any submitted id the
+    provider never returned (completeness); extra/uncorrelated ids are dropped and
+    counted on the minibatch (``uncorrelated_count``). Reads no network — safe to
+    re-run for re-scoring.
+    """
+    from prkit.core.model_clients.batch_types import BatchItemStatus, BatchResult
+
+    sub = (
+        submission
+        if isinstance(submission, BatchSubmission)
+        else BatchSubmission.load(submission)
+    )
+    for mb in sub.minibatches:
+        if mb["status"] != FETCHED:
+            continue
+        id_map: dict[str, str] = mb.get("id_map") or {}
+        output_path = mb.get("output_path")
+
+        results_by_cid: dict[str, BatchResult] = {}
+        uncorrelated = 0
+        if output_path and Path(output_path).exists():
+            for line in _read_jsonl(output_path):
+                obj = json.loads(line)
+                cid = str(obj.get("custom_id", ""))
+                result = BatchResult(
+                    custom_id=cid,
+                    status=_coerce_item_status(obj.get("status"), BatchItemStatus),
+                    text=obj.get("text"),
+                    error=obj.get("error"),
+                )
+                if cid in id_map:
+                    results_by_cid[cid] = result
+                else:
+                    uncorrelated += 1
+        if uncorrelated:
+            mb["uncorrelated_count"] = uncorrelated
+
+        for cid, problem_id in id_map.items():
+            correlated = results_by_cid.get(cid)
+            if correlated is None:
+                correlated = BatchResult(
+                    custom_id=cid,
+                    status=BatchItemStatus.ERRORED,
+                    error="No result returned by the provider for this request.",
+                )
+            yield problem_id, correlated
+
+
+def _coerce_item_status(value: Any, batch_item_status: type[Any]) -> Any:
+    """Map a persisted status string back to ``BatchItemStatus`` (ERRORED on miss)."""
+    try:
+        return batch_item_status(value)
+    except (ValueError, KeyError):
+        return batch_item_status.ERRORED
+
+
+def _read_jsonl(path: str | Path) -> Iterator[str]:
+    """Yield non-empty stripped lines from a JSONL file."""
+    for line in Path(path).read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        if stripped:
+            yield stripped
+
+
+def _now_iso() -> str:
+    """Current UTC time as an ISO 8601 string."""
+    return datetime.now(timezone.utc).isoformat()
+
+
+# --------------------------------------------------------------------------- #
+# Progress reporting (per fetch pass)                                         #
+# --------------------------------------------------------------------------- #
+def _log_progress(sub: BatchSubmission, newly_fetched: int) -> None:
+    """Emit the one-line INFO status summary (or completion line) for a pass."""
+    counts = sub.status_counts()
+    n = sub.minibatch_count
+    fetched = counts.get(FETCHED, 0)
+    running = (
+        counts.get(SUBMITTED, 0)
+        + counts.get(RUNNING, 0)
+        + counts.get(COMPLETED, 0)
+        + counts.get(FETCH_ERROR, 0)
+    )
+    failed = counts.get(FAILED, 0) + counts.get(CANCELLED, 0) + counts.get(EXPIRED, 0)
+    not_submitted = counts.get(SUBMIT_ERROR, 0)
+
+    if sub.is_complete():
+        _logger.info(
+            "✓ Batch %r complete — %d/%d minibatches fetched, %d failed, "
+            "%d not submitted.",
+            sub.run_name,
+            fetched,
+            n,
+            failed,
+            not_submitted,
+        )
+        return
+
+    problems_done = sum(
+        mb["num_requests"] for mb in sub.minibatches if mb["status"] == FETCHED
+    )
+    _logger.info(
+        "Batch %r [%s/%s] — fetched %d/%d minibatches (+%d this pass) · "
+        "running %d · failed %d · not-submitted %d  |  results %d/%d",
+        sub.run_name,
+        sub.provider,
+        sub.model,
+        fetched,
+        n,
+        newly_fetched,
+        running,
+        failed,
+        not_submitted,
+        problems_done,
+        sub.total_problems,
+    )
+
+
+def _log_transition(
+    index: int, old_status: str, new_status: str, num_results: int | None = None
+) -> None:
+    """Emit a per-minibatch DEBUG transition line (off unless the logger is DEBUG)."""
+    if num_results is None:
+        _logger.debug("minibatch %d: %s → %s", index, old_status, new_status)
+    else:
+        _logger.debug(
+            "minibatch %d: %s → %s (%d results)",
+            index,
+            old_status,
+            new_status,
+            num_results,
+        )

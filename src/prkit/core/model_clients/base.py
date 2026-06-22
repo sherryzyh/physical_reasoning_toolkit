@@ -28,6 +28,9 @@ from .structured_output import (
 )
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
+    from prkit.batch import BatchSubmission
     from prkit.semantics.schema import PhysicsQuestionSemantics
 
 T = TypeVar("T", bound=BaseModel)
@@ -393,6 +396,25 @@ class BaseModelClient(ABC):
         from prkit.batch import submit_batch_physics_reasoning as _submit_batch
 
         return _submit_batch(self, problems, **kwargs)
+
+    def fetch_batch_physics_reasoning(
+        self,
+        run_dir_or_submission: BatchSubmission | str | Path,
+        **kwargs: Any,
+    ) -> BatchSubmission:
+        """Poll + download a submitted batch run; return the updated ledger.
+
+        Thin one-line facade mirroring :meth:`submit_batch_physics_reasoning`: lazily
+        imports :mod:`prkit.batch` and delegates to :func:`prkit.batch.fetch_batch`.
+        Typically called with the ``run_dir`` string that submit returned;
+        reconstructs the ledger via :meth:`BatchSubmission.load` and returns the
+        freshly-updated :class:`~prkit.batch.BatchSubmission`. See
+        :func:`prkit.batch.fetch_batch` for the keyword arguments (``wait`` /
+        ``poll_interval`` / ``timeout`` / ``outputs_dirname`` / ``progress``).
+        """
+        from prkit.batch import fetch_batch
+
+        return fetch_batch(self, run_dir_or_submission, **kwargs)
 
     def _build_batch_request(
         self,
