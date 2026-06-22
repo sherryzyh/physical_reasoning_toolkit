@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from prkit.core.domain import Answer, PhysicsProblem
+from prkit.core.domain import PhysicsAnswer, PhysicsProblem
 
 from ..part_labels import (
     canonicalize_part_label,
@@ -158,6 +158,7 @@ _PREDICTION_REDACTED_ADDITIONAL_FIELDS = frozenset(
         "answer_parts",
         "source_answer_text",
         "symbol_aliases",
+        "symbol_assumptions",
     }
 )
 
@@ -606,7 +607,7 @@ def _answer_to_raw_text(answer: Any) -> str:
         return ""
     if isinstance(answer, PhysicsAnswerSemantics):
         return answer.canonical_text
-    if isinstance(answer, Answer):
+    if isinstance(answer, PhysicsAnswer):
         return _join_value_and_unit(answer.value, answer.unit)
     if isinstance(answer, dict):
         raw_text = answer.get("raw_text")

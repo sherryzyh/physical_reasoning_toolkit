@@ -17,7 +17,7 @@ from typing import Any
 from pydantic import BaseModel
 
 from prkit.api import DatasetProvider, ModelClient, Scorer, Verdict
-from prkit.core.domain import AnswerCategory, PhysicsProblem
+from prkit.core.domain import PhysicsProblem
 from prkit.core.model_clients.structured_output import StructuredOutputPlan
 from prkit.datasets.loaders.base_loader import BaseDatasetLoader
 
@@ -122,9 +122,15 @@ def check_dataset(
             problem, PhysicsProblem
         ), f"load() must yield PhysicsProblem, got {type(problem)!r}"
         if problem.answer is not None:
-            assert problem.answer.answer_category in AnswerCategory, (
-                f"problem {problem.problem_id!r} has invalid answer_category "
-                f"{problem.answer.answer_category!r}"
+            assert isinstance(problem.answer.value, str), (
+                f"problem {problem.problem_id!r}: answer.value must be str, "
+                f"got {type(problem.answer.value)!r}"
+            )
+            assert problem.answer.source_type is None or isinstance(
+                problem.answer.source_type, str
+            ), (
+                f"problem {problem.problem_id!r}: answer.source_type must be "
+                f"str or None, got {type(problem.answer.source_type)!r}"
             )
 
 
@@ -138,6 +144,12 @@ def check_scorer(
     Checks: non-empty ``version``; structural conformance; ``get_info()['version']``
     matches; for each case a frozen :class:`Verdict` with ``score`` in ``[0, 1]``,
     propagated ``scorer_version``, expected ``equivalent``; determinism; identity.
+
+    A ``score`` of ``-1.0`` is the reserved *not-applicable* sentinel (a kind/structure
+    with no SEED type, ``comparison_mode == "not_applicable"``): it is accepted by the
+    range check, and the ``equivalent``/identity expectations are skipped for it (an
+    N/A answer is neither a match nor a mismatch). Pass an expression-only ``cases``
+    battery to a semantics edit-distance scorer to avoid N/A cases entirely.
 
     Raises:
         AssertionError: on any non-conformance.
@@ -160,17 +172,23 @@ def check_scorer(
         assert isinstance(
             verdict, Verdict
         ), f"score({pred!r}, {ref!r}) must return a Verdict, got {type(verdict)!r}"
+        not_applicable = (
+            verdict.score == -1.0 or verdict.comparison_mode == "not_applicable"
+        )
         assert (
-            0.0 <= verdict.score <= 1.0
+            not_applicable or 0.0 <= verdict.score <= 1.0
         ), f"score out of range for ({pred!r}, {ref!r}): {verdict.score!r}"
         assert verdict.scorer_version == scorer.version, (
             f"verdict.scorer_version {verdict.scorer_version!r} != scorer.version "
             f"{scorer.version!r}"
         )
-        assert verdict.equivalent is expect, (
-            f"score({pred!r}, {ref!r}).equivalent expected {expect}, "
-            f"got {verdict.equivalent}"
-        )
+        # An N/A verdict is neither a match nor a mismatch — skip the equivalence
+        # expectation for it (the identity check below skips it too).
+        if not not_applicable:
+            assert verdict.equivalent is expect, (
+                f"score({pred!r}, {ref!r}).equivalent expected {expect}, "
+                f"got {verdict.equivalent}"
+            )
         # Determinism: same inputs -> equal Verdict.
         assert (
             scorer.score(pred, ref) == verdict
@@ -179,6 +197,8 @@ def check_scorer(
 
     for pred in seen_predictions:
         identity = scorer.score(pred, pred)
+        if identity.score == -1.0 or identity.comparison_mode == "not_applicable":
+            continue  # N/A kinds have no identity expectation
         assert (
             identity.equivalent is True
         ), f"identity case failed: score({pred!r}, {pred!r}).equivalent is not True"

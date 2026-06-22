@@ -4,7 +4,7 @@ Tests for prkit.datasets/utils.py utility functions.
 
 import json
 
-from prkit.core.domain import Answer, AnswerCategory, PhysicalDataset, PhysicsProblem
+from prkit.core.domain import PhysicsAnswer, PhysicsDataset, PhysicsProblem
 from prkit.datasets import utils
 
 
@@ -13,7 +13,7 @@ class TestSampleBalanced:
 
     def test_sample_balanced_by_domain(self, sample_problems_list):
         """Test sampling balanced by domain."""
-        dataset = PhysicalDataset(problems=sample_problems_list)
+        dataset = PhysicsDataset(problems=sample_problems_list)
         balanced = utils.sample_balanced(
             dataset, "domain", samples_per_category=1, seed=42
         )
@@ -24,7 +24,7 @@ class TestSampleBalanced:
 
     def test_sample_balanced_insufficient_samples(self, sample_problems_list):
         """Test sampling when category has fewer samples than requested."""
-        dataset = PhysicalDataset(problems=sample_problems_list)
+        dataset = PhysicsDataset(problems=sample_problems_list)
         # Request more samples than available in some categories
         balanced = utils.sample_balanced(
             dataset, "domain", samples_per_category=100, seed=42
@@ -36,7 +36,7 @@ class TestSampleBalanced:
 
     def test_sample_balanced_with_seed(self, sample_problems_list):
         """Test that seed produces reproducible results."""
-        dataset = PhysicalDataset(problems=sample_problems_list)
+        dataset = PhysicsDataset(problems=sample_problems_list)
         balanced1 = utils.sample_balanced(
             dataset, "domain", samples_per_category=1, seed=42
         )
@@ -56,7 +56,7 @@ class TestGetStatistics:
 
     def test_get_statistics_basic(self, sample_problems_list):
         """Test getting basic statistics."""
-        dataset = PhysicalDataset(problems=sample_problems_list)
+        dataset = PhysicsDataset(problems=sample_problems_list)
         stats = utils.get_statistics(dataset)
 
         assert stats["total_samples"] == len(dataset)
@@ -64,7 +64,7 @@ class TestGetStatistics:
 
     def test_get_statistics_empty_dataset(self):
         """Test getting statistics for empty dataset."""
-        dataset = PhysicalDataset(problems=[])
+        dataset = PhysicsDataset(problems=[])
         stats = utils.get_statistics(dataset)
 
         assert stats["total_samples"] == 0
@@ -72,7 +72,7 @@ class TestGetStatistics:
 
     def test_get_statistics_domain_distribution(self, sample_problems_list):
         """Test domain distribution in statistics."""
-        dataset = PhysicalDataset(problems=sample_problems_list)
+        dataset = PhysicsDataset(problems=sample_problems_list)
         stats = utils.get_statistics(dataset)
 
         # Should have domain distribution if problems have domain
@@ -85,7 +85,7 @@ class TestExportToJson:
 
     def test_export_to_json(self, sample_problems_list, temp_dir):
         """Test exporting dataset to JSON."""
-        dataset = PhysicalDataset(problems=sample_problems_list, info={"name": "test"})
+        dataset = PhysicsDataset(problems=sample_problems_list, info={"name": "test"})
         output_path = temp_dir / "test_export.json"
 
         utils.export_to_json(dataset, output_path)
@@ -98,7 +98,7 @@ class TestExportToJson:
 
     def test_export_to_json_with_info(self, sample_problems_list, temp_dir):
         """Test exporting dataset with info."""
-        dataset = PhysicalDataset(problems=sample_problems_list, info={"name": "test"})
+        dataset = PhysicsDataset(problems=sample_problems_list, info={"name": "test"})
         output_path = temp_dir / "test_export_info.json"
 
         utils.export_to_json(dataset, output_path, include_info=True)
@@ -110,7 +110,7 @@ class TestExportToJson:
 
     def test_export_to_json_without_info(self, sample_problems_list, temp_dir):
         """Test exporting dataset without info."""
-        dataset = PhysicalDataset(problems=sample_problems_list, info={"name": "test"})
+        dataset = PhysicsDataset(problems=sample_problems_list, info={"name": "test"})
         output_path = temp_dir / "test_export_no_info.json"
 
         utils.export_to_json(dataset, output_path, include_info=False)
@@ -129,12 +129,10 @@ class TestFilterByKeywords:
         problem_with_keyword = PhysicsProblem(
             problem_id="keyword_test",
             question="What is the speed of light?",
-            answer=Answer(
-                value=3e8, answer_category=AnswerCategory.PHYSICAL_QUANTITY, unit="m/s"
-            ),
+            answer=PhysicsAnswer(value="3e8", unit="m/s"),
         )
         all_problems = list(sample_problems_list) + [problem_with_keyword]
-        dataset = PhysicalDataset(problems=all_problems)
+        dataset = PhysicsDataset(problems=all_problems)
 
         filtered = utils.filter_by_keywords(dataset, ["speed"], fields=["question"])
 
@@ -146,12 +144,10 @@ class TestFilterByKeywords:
         problem = PhysicsProblem(
             problem_id="test_case",
             question="What is the SPEED of light?",
-            answer=Answer(
-                value=3e8, answer_category=AnswerCategory.PHYSICAL_QUANTITY, unit="m/s"
-            ),
+            answer=PhysicsAnswer(value="3e8", unit="m/s"),
         )
         all_problems = list(sample_problems_list) + [problem]
-        dataset = PhysicalDataset(problems=all_problems)
+        dataset = PhysicsDataset(problems=all_problems)
 
         filtered = utils.filter_by_keywords(
             dataset, ["speed"], fields=["question"], case_sensitive=False
@@ -164,12 +160,10 @@ class TestFilterByKeywords:
         problem = PhysicsProblem(
             problem_id="test_case",
             question="What is the speed of light?",
-            answer=Answer(
-                value=3e8, answer_category=AnswerCategory.PHYSICAL_QUANTITY, unit="m/s"
-            ),
+            answer=PhysicsAnswer(value="3e8", unit="m/s"),
         )
         all_problems = list(sample_problems_list) + [problem]
-        dataset = PhysicalDataset(problems=all_problems)
+        dataset = PhysicsDataset(problems=all_problems)
 
         filtered = utils.filter_by_keywords(
             dataset, ["SPEED"], fields=["question"], case_sensitive=True
@@ -184,10 +178,10 @@ class TestFilterByKeywords:
             problem_id="test_multi",
             question="Test question",
             solution="The answer involves force calculation",
-            answer=Answer(value=1, answer_category=AnswerCategory.NUMBER),
+            answer=PhysicsAnswer(value="1"),
         )
         all_problems = list(sample_problems_list) + [problem]
-        dataset = PhysicalDataset(problems=all_problems)
+        dataset = PhysicsDataset(problems=all_problems)
 
         filtered = utils.filter_by_keywords(
             dataset, ["force"], fields=["question", "solution"]
@@ -201,18 +195,18 @@ class TestCreateCrossValidationSplits:
 
     def test_create_cv_splits(self, sample_problems_list):
         """Test creating cross-validation splits."""
-        dataset = PhysicalDataset(problems=sample_problems_list)
+        dataset = PhysicsDataset(problems=sample_problems_list)
         splits = utils.create_cross_validation_splits(dataset, n_splits=3, seed=42)
 
         assert len(splits) == 3
         for train, val in splits:
-            assert isinstance(train, PhysicalDataset)
-            assert isinstance(val, PhysicalDataset)
+            assert isinstance(train, PhysicsDataset)
+            assert isinstance(val, PhysicsDataset)
             assert len(train) + len(val) == len(dataset)
 
     def test_create_cv_splits_reproducible(self, sample_problems_list):
         """Test that CV splits are reproducible with same seed."""
-        dataset = PhysicalDataset(problems=sample_problems_list)
+        dataset = PhysicsDataset(problems=sample_problems_list)
         splits1 = utils.create_cross_validation_splits(dataset, n_splits=3, seed=42)
         splits2 = utils.create_cross_validation_splits(dataset, n_splits=3, seed=42)
 
@@ -223,7 +217,7 @@ class TestCreateCrossValidationSplits:
 
     def test_create_cv_splits_no_overlap(self, sample_problems_list):
         """Test that train and validation sets don't overlap."""
-        dataset = PhysicalDataset(problems=sample_problems_list)
+        dataset = PhysicsDataset(problems=sample_problems_list)
         splits = utils.create_cross_validation_splits(dataset, n_splits=2, seed=42)
 
         for train, val in splits:
@@ -237,7 +231,7 @@ class TestValidateDatasetFormat:
 
     def test_validate_dataset_format_valid(self, sample_problems_list):
         """Test validating a valid dataset."""
-        dataset = PhysicalDataset(problems=sample_problems_list)
+        dataset = PhysicsDataset(problems=sample_problems_list)
         report = utils.validate_dataset_format(dataset)
 
         assert report["valid"] is True
@@ -245,7 +239,7 @@ class TestValidateDatasetFormat:
 
     def test_validate_dataset_format_empty(self):
         """Test validating an empty dataset."""
-        dataset = PhysicalDataset(problems=[])
+        dataset = PhysicsDataset(problems=[])
         report = utils.validate_dataset_format(dataset)
 
         assert report["valid"] is False
@@ -260,14 +254,14 @@ class TestValidateDatasetFormat:
         del problem_dict["question"]
 
         # Create a custom dataset-like object for testing
-        # Note: This is a simplified test since PhysicalDataset expects PhysicsProblem objects
+        # Note: This is a simplified test since PhysicsDataset expects PhysicsProblem objects
         # In practice, this would be caught earlier, but we test the validation logic
-        dataset = PhysicalDataset(problems=[problem])
+        dataset = PhysicsDataset(problems=[problem])
         report = utils.validate_dataset_format(
             dataset, required_fields=["question", "problem_id"]
         )
 
-        # Should be valid since PhysicalDataset ensures problems have required fields
+        # Should be valid since PhysicsDataset ensures problems have required fields
         # This test mainly verifies the function doesn't crash
         assert "valid" in report
 
@@ -276,7 +270,7 @@ class TestValidateDatasetFormat:
         # Create problems with duplicate IDs
         problem1 = PhysicsProblem(problem_id="duplicate", question="Question 1")
         problem2 = PhysicsProblem(problem_id="duplicate", question="Question 2")
-        dataset = PhysicalDataset(problems=[problem1, problem2])
+        dataset = PhysicsDataset(problems=[problem1, problem2])
 
         report = utils.validate_dataset_format(dataset)
 

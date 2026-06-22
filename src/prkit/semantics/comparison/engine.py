@@ -10,6 +10,7 @@ from ..schema import (
     AnswerComparison,
     AnswerObjectKind,
     AnswerStructure,
+    BridgeTier,
     ComparisonPolicyMode,
     ContractValidationStatus,
     OrderingPolicy,
@@ -18,7 +19,11 @@ from ..schema import (
     PhysicsQuestionSemantics,
     QuestionSymbolicMode,
 )
-from .bridge_registry import bridge_enabled_for_policy, bridge_spec_for
+from .bridge_registry import (
+    BRIDGE_REGISTRY,
+    bridge_enabled_for_policy,
+    bridge_spec_for,
+)
 from .coercion import (
     coerce_evaluation_contract,
     coerce_protocol_answer,
@@ -33,7 +38,18 @@ from .contract import (
 from .different_object_kind import compare_different_object_kinds
 from .label_family_fallback import compare_label_family_fallback
 from .same_object_kind import compare_same_object_kind
-from .semantics import canonicalize_qualitative_label, normalize_plain_text
+from .semantics import (
+    canonicalize_qualitative_label,
+    normalize_plain_text,
+    parse_numeric_value,
+)
+from .sign_convention import (
+    answer_directional_convention,
+    compare_sign_convention,
+    orientation_relation,
+    vectors_exact_negation,
+)
+from .structure_canonicalization import canonicalize_structure
 
 
 def compare_protocol_answers(
@@ -311,6 +327,147 @@ def compare_protocol_answers_legacy(
     )
 
 
+def compare_predictions(
+    a_i: PhysicsAnswerSemantics | dict,
+    a_j: PhysicsAnswerSemantics | dict,
+    *,
+    context: PhysicsQuestionSemantics | dict | None = None,
+    policy_mode: ComparisonPolicyMode | str | None = None,
+) -> AnswerComparison:
+    """Symmetric reference-free equivalence ``Eq(a_i, a_j ; q_prob)`` for clustering.
+
+    Unlike :func:`compare_protocol_answers` — whose contract is co-built with a *gold*
+    second argument — neither argument here is a reference, so deriving the expected
+    kind/structure or the numeric precision bar from one of the two predictions is
+    unsound (it makes the verdict depend on argument order and lets a prediction reject
+    the very contract it defined). This entry point removes both hazards:
+
+    - **Explicit ``q_prob`` contract.** A single contract is built from ``context``
+      (``q_prob``) and shared by both directions, so the engine never infers
+      ``expected_object_kind`` / ``expected_structure`` from one prediction. Its
+      ``allowed_*`` and ``expected_*`` come from the question's declared admissibility
+      (permissive when ``q_prob`` is unconstrained), so a self-derived
+      ``reference_contract_violation`` cannot arise.
+    - **Symmetrization.** The verdict is ``equivalent`` iff the engine accepts in *both*
+      directions under that shared contract. This neutralizes the only remaining
+      asymmetry — the reference-printed-precision steps of
+      ``numbers_match_with_reference_precision`` (an order-sensitive accept that fires
+      only one way is rejected) — without letting either side's printed precision set the
+      bar. Relative ``q_prob.tolerance`` (symmetric by construction) still applies in both
+      directions, so genuine numeric agreement is accepted both ways.
+
+    The structure routing, per-kind criteria, and bridges are reused unchanged because
+    they are already symmetric. Defaults to the permissive policy (no gold to gate
+    against); an explicit ``policy_mode`` is honored and uses the shared ``q_prob``
+    contract for any contract enforcement.
+
+    See ``EQUIVALENCE.md`` §1.1 and §10.3 for the methodology.
+    """
+
+    resolved_policy = coerce_policy_mode(policy_mode)
+    resolved_context = coerce_question_semantics(context)
+    contract = _build_reference_free_contract(resolved_context)
+
+    forward = _normalize_reference_free_mode(
+        compare_protocol_answers(
+            a_i,
+            a_j,
+            contract=contract,
+            context=resolved_context,
+            policy_mode=resolved_policy,
+        )
+    )
+    if not forward.equivalent:
+        return forward
+
+    backward = compare_protocol_answers(
+        a_j,
+        a_i,
+        contract=contract,
+        context=resolved_context,
+        policy_mode=resolved_policy,
+    )
+    if backward.equivalent:
+        return forward
+    return AnswerComparison(
+        equivalent=False,
+        comparison_mode=forward.comparison_mode,
+        diagnostics=("asymmetric_match",) + backward.diagnostics,
+        validation_status=forward.validation_status,
+        policy_mode=resolved_policy,
+    )
+
+
+def _normalize_reference_free_mode(result: AnswerComparison) -> AnswerComparison:
+    """Drop the incoherent ``reference_contract_violation`` mode when neither side is gold.
+
+    ``compare_protocol_answers`` validates its *second* argument as the reference and labels
+    a violation ``reference_contract_violation``. In reference-free comparison neither side
+    is gold, so a contract violation of one prediction is just a ``contract_violation`` (a
+    prediction failing the ``q_prob`` contract), never a *reference* violation. Remapping
+    keeps the verdict symmetric and avoids the self-rejection audit #4 calls out — the
+    contract was derived from ``q_prob``, not from the answer it rejects.
+    """
+
+    if result.comparison_mode != "reference_contract_violation":
+        return result
+    return result.model_copy(update={"comparison_mode": "contract_violation"})
+
+
+def _build_reference_free_contract(
+    context: PhysicsQuestionSemantics,
+) -> PhysicsEvaluationContract:
+    """Build a symmetric, ``q_prob``-derived contract for reference-free comparison.
+
+    Expected kind/structure are taken from the question's *declared* admissibility
+    (``allowed_object_kinds`` / ``allowed_structures``) rather than from either
+    prediction: a singleton allowed set pins the expectation, while an unconstrained
+    (default-permissive) set yields a permissive expectation that admits every kind /
+    structure. This is the build-time analogue of ``q_prob`` carrying only ``allowed_*``
+    and policy fields, never a realized answer.
+    """
+
+    expected_object_kind = _single_or_default(
+        context.allowed_object_kinds,
+        full=tuple(AnswerObjectKind),
+        default=AnswerObjectKind.EXPRESSION,
+    )
+    expected_structure = _single_or_default(
+        context.allowed_structures,
+        full=tuple(AnswerStructure),
+        default=AnswerStructure.ATOMIC,
+    )
+    return PhysicsEvaluationContract(
+        question_semantics=context,
+        expected_object_kind=expected_object_kind,
+        expected_structure=expected_structure,
+        target_variable=context.target_variable,
+        enabled_bridge_ids=tuple(BRIDGE_REGISTRY),
+        enabled_bridge_tiers=(BridgeTier.TIER1, BridgeTier.TIER2, BridgeTier.TIER3),
+    )
+
+
+def _single_or_default(
+    values: tuple[Any, ...], *, full: tuple[Any, ...], default: Any
+) -> Any:
+    """Pin a singleton declared set, else fall back to a permissive default.
+
+    A singleton ``allowed_*`` is an explicit, symmetric expectation. The default-permissive
+    set (every member) carries no expectation, so a neutral ``default`` is used — under the
+    permissive policy (the reference-free default) the contract's ``expected_*`` is never
+    read, and under an explicit strict/audited override the neutral default keeps the gate
+    from favoring one prediction's shape over the other's.
+    """
+
+    if len(values) == 1:
+        return values[0]
+    if values and set(values) != set(full):
+        # A narrowed-but-not-singleton declaration; pick a member deterministically so the
+        # shared contract is identical for both directions.
+        return next(iter(values))
+    return default
+
+
 def _compare_atomic(
     pred: PhysicsAnswerSemantics,
     ref: PhysicsAnswerSemantics,
@@ -323,6 +480,22 @@ def _compare_atomic(
     """Compare two atomic answers using strict, bridged, and fallback logic."""
 
     if pred.object_kind == ref.object_kind:
+        # Sign-convention reconciliation runs first for directional kinds so it can both
+        # accept a global flip between opposite stated conventions and override a plain
+        # equality that would otherwise miss the precision dual (opposite conventions,
+        # equal values => physically opposite). It owns the verdict only on that concrete
+        # evidence; otherwise it declines and the normal criterion decides.
+        sign_convention = compare_sign_convention(pred, ref, context=context)
+        if sign_convention is not None:
+            if sign_convention.equivalent:
+                return _apply_bridge_policy(
+                    sign_convention,
+                    pred=pred,
+                    ref=ref,
+                    contract=contract,
+                    policy_mode=policy_mode,
+                )
+            return sign_convention
         strict = compare_same_object_kind(pred, ref, context=context)
         if strict.equivalent:
             return strict
@@ -388,6 +561,52 @@ def _compare_identical_atomic_text(
     return None
 
 
+# Non-atomic comparison runs only when it provably reduces to atomic-vs-atomic element
+# comparisons; anything else is TBD. By default TBD is a distinct non-equivalent sentinel so
+# the hot path (batch eval / RL rewards) does not crash; flip this to raise instead.
+STRICT_STRUCTURE_COMPARISON = False
+
+
+def _structure_tbd(mode: str, *diagnostics: str) -> AnswerComparison:
+    """Signal that a non-atomic comparison cannot yet be certified (TBD)."""
+
+    if STRICT_STRUCTURE_COMPARISON:
+        raise NotImplementedError(
+            f"structure comparison not implemented ({mode}): {', '.join(diagnostics)}"
+        )
+    return AnswerComparison(False, "not_implemented", (mode,) + diagnostics)
+
+
+def _children_all_atomic(*answers: PhysicsAnswerSemantics) -> bool:
+    """Whether every child of every given answer is atomic."""
+
+    return all(
+        child.structure == AnswerStructure.ATOMIC
+        for answer in answers
+        for child in answer.children
+    )
+
+
+def _exact_element_key(answer: PhysicsAnswerSemantics) -> tuple:
+    """A conservative exact-identity key for an atomic element (no tolerance).
+
+    Numbers use their parsed value so ``1/2`` and ``0.5`` match exactly while ``1/3`` and
+    ``0.3333`` do not (exact float equality, never a tolerance window). Everything else uses
+    normalized canonical text.
+    """
+
+    if answer.object_kind in {
+        AnswerObjectKind.NUMBER,
+        AnswerObjectKind.PHYSICAL_QUANTITY,
+    }:
+        value = answer.numeric_value
+        if value is None:
+            value = parse_numeric_value(answer.numeric_text or answer.canonical_text)
+        if value is not None:
+            return ("num", value, answer.unit or "")
+    return ("text", normalize_plain_text(answer.canonical_text or ""))
+
+
 def _compare_ordered_children(
     pred: PhysicsAnswerSemantics,
     ref: PhysicsAnswerSemantics,
@@ -397,10 +616,12 @@ def _compare_ordered_children(
     policy_mode: ComparisonPolicyMode,
     mode: str,
 ) -> AnswerComparison:
-    """Compare structured children position by position."""
+    """Compare structured children position by position (atomic elements only)."""
 
     if len(pred.children) != len(ref.children):
         return AnswerComparison(False, mode, ("different_child_count",))
+    if not _children_all_atomic(pred, ref):
+        return _structure_tbd(mode, "non_atomic_element")
 
     for index, (pred_child, ref_child) in enumerate(zip(pred.children, ref.children)):
         result = compare_protocol_answers(
@@ -429,30 +650,24 @@ def _compare_unordered_children(
     policy_mode: ComparisonPolicyMode,
     mode: str,
 ) -> AnswerComparison:
-    """Compare structured children as an order-insensitive multiset."""
+    """Compare structured children as an order-insensitive multiset.
+
+    Only the certain case is accepted: an *exact* multiset match of atomic elements (no
+    tolerance, no ambiguous matching). A greedy/tolerant bijection is unsound under
+    non-transitive tolerance (it accepts ``{1.0, 1.0}`` vs ``{1.0, 1.1}``), so every other
+    case is TBD pending the sound matching algorithm (roadmap milestone; see STRUCTURE.md).
+    """
 
     if len(pred.children) != len(ref.children):
         return AnswerComparison(False, mode, ("different_child_count",))
+    if not _children_all_atomic(pred, ref):
+        return _structure_tbd(mode, "non_atomic_element")
 
-    unused = list(pred.children)
-    for ref_child in ref.children:
-        match_index = None
-        for index, pred_child in enumerate(unused):
-            result = compare_protocol_answers(
-                pred_child,
-                ref_child,
-                contract=contract,
-                context=context,
-                policy_mode=policy_mode,
-                _validate_top_level=False,
-            )
-            if result.equivalent:
-                match_index = index
-                break
-        if match_index is None:
-            return AnswerComparison(False, mode, ("unmatched_child",))
-        unused.pop(match_index)
-    return AnswerComparison(True, mode)
+    pred_keys = sorted(_exact_element_key(child) for child in pred.children)
+    ref_keys = sorted(_exact_element_key(child) for child in ref.children)
+    if pred_keys == ref_keys:
+        return AnswerComparison(True, mode)
+    return _structure_tbd(mode, "inexact_unordered_match")
 
 
 def _compare_per_part_children(
@@ -468,18 +683,15 @@ def _compare_per_part_children(
 
     if len(pred.children) != len(ref.children):
         return AnswerComparison(False, mode, ("different_child_count",))
+    if not _children_all_atomic(pred, ref):
+        return _structure_tbd(mode, "non_atomic_part")
 
     pred_map = _part_child_map(pred, context=context)
     ref_map = _part_child_map(ref, context=context)
-    if pred_map is None or ref_map is None or tuple(pred_map) != tuple(ref_map):
-        return _compare_ordered_children(
-            pred,
-            ref,
-            context=context,
-            contract=contract,
-            policy_mode=policy_mode,
-            mode=mode,
-        )
+    # Require an explicit, aligned label set on both sides. The previous positional fallback
+    # when labels did not align could compare mismatched parts, so it is retired to TBD.
+    if pred_map is None or ref_map is None or set(pred_map) != set(ref_map):
+        return _structure_tbd(mode, "part_labels_unaligned")
 
     for label in pred_map:
         result = compare_protocol_answers(
@@ -522,6 +734,54 @@ def _compare_interval(
     )
 
 
+def _reconcile_shaped_sign_convention(
+    pred: PhysicsAnswerSemantics,
+    ref: PhysicsAnswerSemantics,
+    *,
+    context: PhysicsQuestionSemantics,
+    contract: PhysicsEvaluationContract,
+    policy_mode: ComparisonPolicyMode,
+) -> AnswerComparison | None:
+    """Reconcile a shaped (vector) pair under opposite stated frames; ``None`` to defer.
+
+    Owns the verdict only when the question fixes no convention, both answers declare
+    opposite (globally-reversed) directional conventions, and every cell is atomic. An exact
+    component-wise negation accepts via the audited ``sign_convention`` bridge; a partial /
+    non-negation rejects (the precision dual). Otherwise it declines so the existing frame
+    gates (one-sided ⇒ TBD, genuinely-incompatible ⇒ mismatch, both-unset ⇒ per-cell) run.
+    """
+
+    if context.sign_convention or context.coordinate_frame:
+        return None
+    pred_convention = answer_directional_convention(pred)
+    ref_convention = answer_directional_convention(ref)
+    if not pred_convention or not ref_convention:
+        return None
+    if orientation_relation(pred_convention, ref_convention) != "opposite":
+        return None
+    if not _children_all_atomic(pred, ref):
+        return None
+
+    if vectors_exact_negation(pred, ref, context.tolerance):
+        result = AnswerComparison(
+            True,
+            "sign_convention",
+            ("global_sign_flip", f"kind={pred.structure.value}"),
+        )
+        return _apply_bridge_policy(
+            result,
+            pred=pred,
+            ref=ref,
+            contract=contract,
+            policy_mode=policy_mode,
+        )
+    return AnswerComparison(
+        False,
+        "sign_convention",
+        ("opposite_convention_not_global_negation",),
+    )
+
+
 def _compare_shaped(
     pred: PhysicsAnswerSemantics,
     ref: PhysicsAnswerSemantics,
@@ -539,22 +799,32 @@ def _compare_shaped(
             (f"shape_mismatch:{pred.shape}!={ref.shape}",),
         )
 
+    # An unparsed shaped payload cannot be certified per-cell; the text-equality fallback is
+    # retired to TBD.
     if not pred.children or not ref.children:
-        if pred.children != ref.children:
-            return AnswerComparison(
-                False,
-                pred.structure.value,
-                ("unparsed_shaped_answer",),
-            )
-        matched = pred.canonical_text == ref.canonical_text
-        return AnswerComparison(
-            matched,
-            pred.structure.value,
-            () if matched else ("unparsed_shaped_answer",),
-        )
+        return _structure_tbd(pred.structure.value, "unparsed_shaped_answer")
 
+    # Sign-convention reconciliation (vectors): when the question fixes no convention and the
+    # two answers declare opposite (globally-reversed) frames, an exact component-wise
+    # negation is the same physical vector. This refines the both-set-incompatible branch
+    # below — only the *opposite* sub-case reconciles; genuinely-incompatible frames still
+    # reject, partial flips still reject.
+    reconciled = _reconcile_shaped_sign_convention(
+        pred,
+        ref,
+        context=context,
+        contract=contract,
+        policy_mode=policy_mode,
+    )
+    if reconciled is not None:
+        return reconciled
+
+    # Coordinate frame: both-unset ⇒ the problem's implicit shared frame (proceed); a
+    # one-sided declaration is unresolved ⇒ TBD; both-set-incompatible is a real mismatch.
     pred_frame = pred.coordinate_frame or context.coordinate_frame
     ref_frame = ref.coordinate_frame or context.coordinate_frame
+    if bool(pred_frame) != bool(ref_frame):
+        return _structure_tbd(pred.structure.value, "coordinate_frame_unresolved")
     if (
         pred_frame
         and ref_frame
@@ -566,11 +836,15 @@ def _compare_shaped(
 
     pred_sign = pred.sign_convention or context.sign_convention
     ref_sign = ref.sign_convention or context.sign_convention
+    if bool(pred_sign) != bool(ref_sign):
+        return _structure_tbd(pred.structure.value, "sign_convention_unresolved")
     if pred_sign and ref_sign and not _metadata_text_compatible(pred_sign, ref_sign):
         return AnswerComparison(
             False, pred.structure.value, ("sign_convention_mismatch",)
         )
 
+    # Per-cell comparison via the ordered path, which itself gates non-atomic cells: a vector
+    # of atomic cells is certified; a matrix/tensor (rows are non-atomic) falls to TBD.
     return _compare_ordered_children(
         pred,
         ref,
@@ -595,6 +869,16 @@ def _compare_piecewise(
         return AnswerComparison(False, "piecewise", ("different_case_count",))
 
     for index, (pred_case, ref_case) in enumerate(zip(pred.cases, ref.cases)):
+        if any(
+            part.structure != AnswerStructure.ATOMIC
+            for part in (
+                pred_case.expression,
+                pred_case.condition,
+                ref_case.expression,
+                ref_case.condition,
+            )
+        ):
+            return _structure_tbd("piecewise", f"non_atomic_case_{index}")
         expr_result = compare_protocol_answers(
             pred_case.expression,
             ref_case.expression,
@@ -645,6 +929,10 @@ def _repair_answer_for_comparison(
     repaired = enrich_answer_quantity_views(answer, context=context)
     repaired = _hydrate_structured_answer(repaired, context=context)
     repaired = _backfill_subject_to(repaired, context=context)
+    # Collapse structural degeneracies LAST (dominates the tuple→vector promotion above), so
+    # a degenerate wrapper reaches atomic before the structure gate; if it does, fall through
+    # to the atomic repair.
+    repaired = canonicalize_structure(repaired, context=context)
     if repaired.structure != AnswerStructure.ATOMIC:
         return repaired
     return _repair_atomic_answer(repaired, context=context)
@@ -836,6 +1124,10 @@ def _repair_atomic_answer(
             "provenance": dict(answer.provenance) or dict(reparsed.provenance),
             "diagnostics": answer.diagnostics or reparsed.diagnostics,
             "subject_to": answer.subject_to or reparsed.subject_to,
+            # Preserve the answer's stated directional convention through the reparse so the
+            # sign-convention lane can still read it (mirrors the structured reparse merge).
+            "coordinate_frame": answer.coordinate_frame or reparsed.coordinate_frame,
+            "sign_convention": answer.sign_convention or reparsed.sign_convention,
         }
         if reparsed.object_kind == AnswerObjectKind.PHYSICAL_QUANTITY:
             update.update(
@@ -1199,6 +1491,15 @@ def _bridge_evidence(
         and contract.question_semantics.choice_space
     ):
         evidence["choice_space"] = ",".join(contract.question_semantics.choice_space)
+    if bridge_id == "sign_convention":
+        pred_convention = answer_directional_convention(pred)
+        ref_convention = answer_directional_convention(ref)
+        if pred_convention:
+            evidence["pred_convention"] = pred_convention
+        if ref_convention:
+            evidence["ref_convention"] = ref_convention
+        evidence["orientation"] = "opposite"
+        evidence["reconciliation"] = "global_-1"
     return evidence
 
 

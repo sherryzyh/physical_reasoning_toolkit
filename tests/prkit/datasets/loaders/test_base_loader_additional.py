@@ -1,7 +1,6 @@
-from prkit.core.domain import AnswerCategory, PhysicalDataset, PhysicsDomain
+from prkit.core.domain import PhysicsDataset, PhysicsDomain
 from prkit.datasets.loaders.base_loader import (
     BaseDatasetLoader,
-    detect_answer_category,
     is_mathematical_expression,
     is_pure_number,
 )
@@ -20,8 +19,8 @@ class DummyLoader(BaseDatasetLoader):
     def modalities(self):
         return ["text", "image"]
 
-    def load(self, data_dir, **kwargs) -> PhysicalDataset:
-        return PhysicalDataset(problems=[])
+    def load(self, data_dir, **kwargs) -> PhysicsDataset:
+        return PhysicsDataset(problems=[])
 
     def get_info(self):
         return {"variants": ["mini", "full"], "splits": ["train", "full"]}
@@ -32,9 +31,6 @@ def test_base_loader_numeric_and_math_detection():
     assert is_pure_number("3/4") is True
     assert is_pure_number("not-a-number") is False
     assert is_mathematical_expression("x + y") is True
-    assert detect_answer_category("9.8") == AnswerCategory.NUMBER
-    assert detect_answer_category("F = ma") == AnswerCategory.FORMULA
-    assert detect_answer_category("descriptive answer") == AnswerCategory.TEXT
 
 
 def test_base_loader_defaults_validation_and_metadata(tmp_path, monkeypatch):
@@ -73,7 +69,6 @@ def test_base_loader_creates_problem_and_loads_images(tmp_path):
             "problem_id": "p1",
             "question": "What is 2 + 2?",
             "answer": "4",
-            "answer_category": "number",
             "domain": PhysicsDomain.CLASSICAL_MECHANICS,
             "image_paths": [image_file.name],
             "extra": "meta",
@@ -82,7 +77,9 @@ def test_base_loader_creates_problem_and_loads_images(tmp_path):
     )
 
     assert problem.problem_id == "p1"
-    assert problem.answer.answer_category == AnswerCategory.NUMBER
+    assert isinstance(problem.answer.value, str)
+    assert problem.answer.value == "4"
+    assert problem.answer.source_type is None
     assert problem.image_path == [str(image_file.resolve())]
     assert problem.additional_fields["extra"] == "meta"
     assert loader._determine_problem_type({"options": ["A", "B"]}) == "MC"
@@ -99,11 +96,40 @@ def test_base_loader_handles_invalid_image_inputs_and_answer_types():
     assert loader.load_images_from_paths(None) == []
     assert loader.load_images_from_paths(123) == []
 
-    number_answer = loader._create_answer_from_raw(
-        {"answer": {"value": "5", "unit": "m"}, "answer_category": "physical_quantity"}
+    # dict answer with unit → unit is preserved in Answer
+    unit_answer = loader._create_answer_from_raw(
+        {"answer": {"value": "5", "unit": "m"}}
     )
-    assert number_answer.answer_category == AnswerCategory.PHYSICAL_QUANTITY
-    assert number_answer.unit == "m"
+    assert unit_answer is not None
+    assert unit_answer.unit == "m"
+    assert unit_answer.value == "5"
 
-    fallback_answer = loader._create_answer_from_raw({"answer": "F = ma"})
-    assert fallback_answer.answer_category == AnswerCategory.FORMULA
+    # plain expression answer → no kind needed; engine derives
+    plain_answer = loader._create_answer_from_raw({"answer": "F = ma"})
+    assert plain_answer is not None
+    assert plain_answer.value == "F = ma"
+    assert plain_answer.source_type is None
+
+
+def test_base_loader_source_type_from_metadata():
+    loader = DummyLoader()
+
+    answer = loader._create_answer_from_raw({"answer": "42", "source_type": "Integer"})
+    assert answer is not None
+    assert answer.source_type == "Integer"
+
+
+def test_base_loader_strips_latex_wrappers():
+    loader = DummyLoader()
+
+    boxed = loader._create_answer_from_raw({"answer": "\\boxed{9.81}"})
+    assert boxed is not None
+    assert boxed.value == "9.81"
+
+    dollar = loader._create_answer_from_raw({"answer": "$x^2$"})
+    assert dollar is not None
+    assert dollar.value == "x^2"
+
+    ddollar = loader._create_answer_from_raw({"answer": "$$42$$"})
+    assert ddollar is not None
+    assert ddollar.value == "42"

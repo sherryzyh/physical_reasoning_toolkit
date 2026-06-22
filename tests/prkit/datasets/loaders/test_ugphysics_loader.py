@@ -8,7 +8,6 @@ from unittest.mock import patch
 
 import pytest
 
-from prkit.core.domain.answer_category import AnswerCategory
 from prkit.datasets.loaders import UGPhysicsLoader
 
 
@@ -249,7 +248,7 @@ class TestUGPhysicsLoader:
 
         problem = dataset[0]
         assert problem.problem_type == "MC"
-        assert problem.answer.answer_category == AnswerCategory.OPTION
+        assert problem.answer.source_type == "MC"
         assert problem.answer.value == "B"
 
     def test_load_preserves_multi_answer_metadata(self, temp_dir):
@@ -281,7 +280,8 @@ class TestUGPhysicsLoader:
         )
 
         problem = dataset[0]
-        assert problem.answer.answer_category == AnswerCategory.TEXT
+        assert isinstance(problem.answer.value, str)
+        assert problem.answer.source_type == "NV"
         assert problem.additional_fields["answer_parts"] == [
             {"value": "2", "unit": None},
             {"value": "3", "unit": None},

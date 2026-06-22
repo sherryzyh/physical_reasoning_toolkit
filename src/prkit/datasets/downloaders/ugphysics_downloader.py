@@ -10,6 +10,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from prkit.datasets.license_registry import get_license
 from prkit.datasets.ugphysics_common import (
     UGPHYSICS_DOMAIN_COUNTS,
     UGPHYSICS_DOMAIN_VARIANTS,
@@ -59,7 +60,8 @@ class UGPhysicsDownloader(BaseDownloader):
             "domains": self.DOMAINS,
             "languages": self.LANGUAGES,
             "size_bytes": None,
-            "license": "cc-by-nc-sa-4.0",
+            "license": get_license(self.dataset_name).to_info_dict(),
+            "license_spdx": get_license(self.dataset_name).spdx,
             "download_method": "datasets library",
             "total_problems": {
                 "en": UGPHYSICS_SPLIT_TOTALS["en"],

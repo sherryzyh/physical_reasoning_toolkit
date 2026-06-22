@@ -51,7 +51,7 @@ def test_build_plain_question_prompt_matches_context():
 
 def test_header_parity_with_semantics_format_problem():
     """The core header must match the semantics layer's prediction header."""
-    from prkit.semantics.inference.prompts import _format_problem
+    from prkit.semantics.build.prompts import _format_problem
 
     problem = PhysicsProblem(
         problem_id="p5",

@@ -48,7 +48,8 @@ class TestPhyXLoader:
         assert "homepage" in info
         assert "repository_url" in info
         assert "license" in info
-        assert info["license"] == "MIT"
+        assert info["license"]["spdx"] == "MIT"
+        assert info["license_spdx"] == "MIT"
         assert "domains" in info
         assert "splits" in info
         assert "test_mini" in info["splits"]

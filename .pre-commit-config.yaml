@@ -1,14 +1,15 @@
 repos:
+  # ruff is the linter only. Formatting is owned by black (the single formatter CI
+  # enforces via `black --check`); ruff-format is intentionally NOT enabled because
+  # the two disagree and would ping-pong files on every run.
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.15.17
     hooks:
       - id: ruff
         files: ^(src/prkit|tests/prkit)/
-      - id: ruff-format
-        files: ^(src/prkit|tests/prkit)/
 
   - repo: https://github.com/psf/black
-    rev: 24.8.0
+    rev: 26.1.0  # keep in sync with the venv/CI black to avoid format ping-pong
     hooks:
       - id: black
         files: ^(src/prkit|tests/prkit)/
@@ -17,7 +18,10 @@ repos:
     rev: v4.6.0
     hooks:
       - id: end-of-file-fixer
+        # Vendored third-party assets/forks are shipped as-is (verbatim upstream).
+        exclude: ^src/prkit/(annotation/tasks/correctness/ui/vendor|evaluation/baselines)/
       - id: trailing-whitespace
+        exclude: ^src/prkit/(annotation/tasks/correctness/ui/vendor|evaluation/baselines)/
 
   # Local hooks mirror the CI checks (.github/workflows/ci.yml) so type and
   # test failures surface at commit time instead of in CI. They invoke the

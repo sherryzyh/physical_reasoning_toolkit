@@ -66,7 +66,7 @@ The following table shows which physics domains are available in each dataset:
 
 **Domain Coverage Summary:**
 - **UGPhysics**: 13 domains (most comprehensive coverage) - 5,520 problems
-- **SeePhys**: 1 domain (Other - visual physics focus) - 2,000 problems  
+- **SeePhys**: 1 domain (Other - visual physics focus) - 2,000 problems
 - **PHYBench**: 6 domains (focused on core physics areas) - 500 problems
 - **TPBench**: 5 domains (specialized in theoretical physics) - 10 problems
 - **PhysReason**: 7 domains (comprehensive reasoning focus) - 1,200 problems
@@ -97,51 +97,46 @@ for problem in dataset[:5]:
     print(f"Problem {problem.problem_id}: {problem.question[:100]}...")
     print(f"Domain: {problem.domain}")
     if problem.answer is not None:
-        print(
-            f"Answer: {problem.answer.value} (Category: {problem.answer.answer_category.value})"
-        )
+        parts = [f"Answer: {problem.answer.value}"]
+        if problem.answer.unit:
+            parts.append(f"unit={problem.answer.unit}")
+        if problem.answer.source_type:
+            parts.append(f"source_type={problem.answer.source_type}")
+        print(", ".join(parts))
 ```
 
 ## Problem Representation and Data Contract
 
 All datasets in PRKit are converted to a unified format built on four core data structures that work together:
 
-1. **`Answer`** - Represents answer values with type information
-2. **`PhysicsProblem`** - Represents a single physics problem (uses `Answer`)
-3. **`PhysicalDataset`** - Container for collections of `PhysicsProblem` objects
+1. **`PhysicsAnswer`** - Represents answer values with type information
+2. **`PhysicsProblem`** - Represents a single physics problem (uses `PhysicsAnswer`)
+3. **`PhysicsDataset`** - Container for collections of `PhysicsProblem` objects
 4. **`PhysicsSolution`** - Tracks LLM solutions to problems (uses `PhysicsProblem`)
 
 This section documents each structure in dependency order, starting with the foundational building blocks.
 
-### Answer Structure
+### PhysicsAnswer Structure
 
-The `Answer` class is the foundational building block for representing answers in physics problems. It handles all answer types through composition rather than inheritance.
+The `PhysicsAnswer` class is the foundational building block for representing answers in physics problems. It handles all answer types through composition rather than inheritance.
 
-#### Initialization
+#### Fields
 
 ```python
-Answer(
-    value: Any,                         # The answer value (type depends on answer_category)
-    answer_category: AnswerCategory,    # AnswerCategory enum (see below)
-    unit: Optional[str] = None,         # Unit string for number/physical_quantity answers
-    metadata: Dict[str, Any] = {}       # Additional metadata
+PhysicsAnswer(
+    value: str,                         # Verbatim answer string (always str)
+    unit: Optional[str] = None,         # Observed unit from the dataset, e.g. "m/s²"
+    source_type: Optional[str] = None,  # Dataset-native type label, verbatim, e.g. "MC", "NV", "EX"
+    metadata: Dict[str, Any] = {}       # Additional dataset-provided key-value data
 )
 ```
 
-#### Answer Categories
+`PhysicsAnswer` is a **thin observation record** — it stores exactly what the dataset provides. The canonical answer kind (`AnswerObjectKind` — one of 9 semantic object kinds such as `number`, `physical_quantity`, `choice`, `expression`, etc.) is **derived on demand by `prkit.semantics`**, not stored on `PhysicsAnswer`.
 
-The `answer_category` field uses the `AnswerCategory` enum with the following values:
-
-| Category | Enum Value | Description | Example |
-|----------|------------|-------------|---------|
-| **Number** | `AnswerCategory.NUMBER` | Dimensionless numeric value | `42.5`, `3.14` |
-| **Physical Quantity** | `AnswerCategory.PHYSICAL_QUANTITY` | Number with units | `"9.8 m/s^2"`, `42.5` + `"m/s"` |
-| **Equation** | `AnswerCategory.EQUATION` | Single-equation form | `"F = ma"` |
-| **Formula** | `AnswerCategory.FORMULA` | Mathematical expression | `"\\frac{mv^2}{2}"`, `"E = mc^2"` |
-| **Text** | `AnswerCategory.TEXT` | Text-based answers | `"The force is upward"` |
-| **Option** | `AnswerCategory.OPTION` | Multiple choice selection | `"A"`, `"B"`, `"1"` |
-
-**Note**: Answer category detection is automatic during dataset loading, but can be explicitly set.
+- `value` is always a `str` (the verbatim answer string).
+- `unit` is the observed unit when present; `None` otherwise. It is consumed by the semantics engine.
+- `source_type` is the dataset's own native type tag (e.g. `"MC"` for multiple-choice in UGPhysics, `"Integer"` in JEEBench). It is a verbatim free string, never fabricated by heuristics, and never mapped to `AnswerObjectKind`. The semantics engine ignores it.
+- `metadata` holds any remaining dataset-provided fields.
 
 ### Physics Domains
 
@@ -161,7 +156,7 @@ The `PhysicsDomain` enum is used to classify physics problems by domain. The `do
 
 ### PhysicsProblem Structure
 
-The `PhysicsProblem` class is the core data structure representing a physics problem. It uses `Answer` objects and `PhysicsDomain` enums, and provides both object-oriented access and dictionary-like access for dataset compatibility.
+The `PhysicsProblem` class is the core data structure representing a physics problem. It uses `PhysicsAnswer` objects and `PhysicsDomain` enums, and provides both object-oriented access and dictionary-like access for dataset compatibility.
 
 #### Problem Types
 
@@ -178,7 +173,7 @@ The `PhysicsProblem` class is the core data structure representing a physics pro
 
 #### Optional Core Fields
 
-- **`answer`** (`Answer`, optional): Answer object containing the solution
+- **`answer`** (`PhysicsAnswer`, optional): PhysicsAnswer object containing the solution
 - **`solution`** (`str`, optional): Step-by-step solution text
 - **`domain`** (`PhysicsDomain` enum or `str`, optional): Physics domain classification
 - **`problem_type`** (`str`, optional): Problem type - `"MC"`, `"MultipleMC"`, or `"OE"`
@@ -223,14 +218,14 @@ For problems with images (`image_path` is non-empty):
 - **`load_images()`**: Method to load PIL Image objects from paths
 - Images are automatically converted to RGB format for consistency
 
-### PhysicalDataset Structure
+### PhysicsDataset Structure
 
-The `PhysicalDataset` class is a container for `PhysicsProblem` objects, providing a unified interface similar to Hugging Face Datasets. It supports iteration, indexing, filtering, and various dataset operations.
+The `PhysicsDataset` class is a container for `PhysicsProblem` objects, providing a unified interface similar to Hugging Face Datasets. It supports iteration, indexing, filtering, and various dataset operations.
 
 #### Initialization
 
 ```python
-PhysicalDataset(
+PhysicsDataset(
     problems: List[PhysicsProblem],      # List of PhysicsProblem instances
     info: Optional[Dict[str, Any]] = None,  # Optional dataset metadata
     split: str = "test"                  # Dataset split ("train", "test", "val", or "eval")
@@ -556,7 +551,7 @@ subclass needed.
 ```python
 from prkit.datasets import DatasetHub
 from prkit.datasets.loaders.base_loader import BaseDatasetLoader
-from prkit.core.domain import PhysicalDataset, PhysicsProblem
+from prkit.core.domain import PhysicsDataset, PhysicsProblem
 
 class MyLoader(BaseDatasetLoader):
     @property
@@ -571,7 +566,7 @@ class MyLoader(BaseDatasetLoader):
         }
 
     def load(self, data_dir=None, **kwargs):
-        # Read from data_dir and return a PhysicalDataset
+        # Read from data_dir and return a PhysicsDataset
         ...
 
 DatasetHub.register("my_dataset", MyLoader)

@@ -205,5 +205,6 @@ class TestPHYBenchLoader:
         processed = loader._process_metadata(
             metadata
         )  # pylint: disable=protected-access
-        assert processed["answer_category"] == "formula"
+        assert processed.get("answer_category") is None
+        assert processed.get("source_type") is None
         assert "domain" in processed

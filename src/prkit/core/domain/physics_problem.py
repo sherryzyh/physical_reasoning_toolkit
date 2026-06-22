@@ -13,8 +13,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from ..logging_config import PRKitLogger
-from .answer import Answer, AnswerValue
-from .answer_category import AnswerCategory
+from .answer import PhysicsAnswer
 from .physics_domain import PhysicsDomain
 
 # Get logger for this module
@@ -45,7 +44,7 @@ class PhysicsProblem:
     question: str
 
     # Optional core fields
-    answer: Answer | None = None
+    answer: PhysicsAnswer | None = None
     solution: str | None = None
     domain: str | PhysicsDomain | None = None
     language: str = "en"
@@ -312,8 +311,13 @@ class PhysicsProblem:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "PhysicsProblem":
-        """Create PhysicsProblem from dictionary."""
-        # Extract core fields
+        """Create PhysicsProblem from dictionary.
+
+        Legacy migration: previously-cached answer dicts may carry
+        ``answer_kind`` or ``answer_category`` in place of ``source_type``.
+        Both are accepted and folded into ``source_type`` so stored datasets
+        survive the reshape without data loss.
+        """
         core_fields = [
             "question",
             "problem_id",
@@ -324,7 +328,6 @@ class PhysicsProblem:
             "image_path",
             "options",
             "correct_option",
-            "answer_category",
         ]
 
         core_data: dict[str, Any] = {}
@@ -333,48 +336,39 @@ class PhysicsProblem:
         for key, value in data.items():
             if key in core_fields:
                 if key == "answer" and isinstance(value, dict):
-                    # Convert answer dictionary to Answer object
-                    raw_answer_value = value.get("value", "")
-                    if isinstance(raw_answer_value, (int, float, str)):
-                        answer_value: AnswerValue = raw_answer_value
-                    else:
-                        answer_value = str(raw_answer_value)
-                    answer_category_str = value.get("answer_category")
-                    answer_unit = value.get("unit")
-                    answer_metadata = value.get("metadata", {})
-
-                    if answer_category_str:
-                        try:
-                            answer_category = AnswerCategory(answer_category_str)
-                        except ValueError:
-                            answer_category = AnswerCategory.TEXT
-                    else:
-                        answer_category = AnswerCategory.TEXT
-
-                    # Create Answer object
-                    core_data[key] = Answer(
+                    answer_value = str(value.get("value", ""))
+                    answer_unit = value.get("unit") or None
+                    # Legacy migration: accept answer_kind / answer_category as source_type
+                    source_type = (
+                        value.get("source_type")
+                        or value.get("answer_kind")
+                        or value.get("answer_category")
+                        or None
+                    )
+                    if source_type is not None:
+                        source_type = str(source_type)
+                    answer_metadata = value.get("metadata") or {}
+                    core_data[key] = PhysicsAnswer(
                         value=answer_value,
-                        answer_category=answer_category,
                         unit=answer_unit,
+                        source_type=source_type,
                         metadata=answer_metadata,
                     )
                 else:
                     core_data[key] = value
+            elif key in ("answer_kind", "answer_category"):
+                # Top-level legacy keys: ignore (they belonged to the old schema)
+                pass
             elif key == "additional_fields":
-                # Handle additional fields separately
                 if value:
                     core_data["additional_fields"] = value
             elif key == "domain":
-                # Handle domain - will be converted in __post_init__
                 core_data["domain"] = value
             else:
-                # Store as custom field
                 custom_data[key] = value
 
-        # Create instance
         problem = cls(**core_data)
 
-        # Add custom fields
         if custom_data:
             problem.additional_fields.update(custom_data)
 

@@ -18,8 +18,10 @@ from .common import (
 )
 from .numeric import compare_numeric_like_answers
 from .semantics import (
+    build_symbol_assumption_map,
     canonicalize_boolean_value,
     canonicalize_choice_label,
+    canonicalize_descriptive_text,
     canonicalize_qualitative_label,
     canonicalize_sign_direction,
     equality_like_rhs_expression_text,
@@ -88,6 +90,14 @@ def compare_same_object_kind(
         )
         return AnswerComparison(matched, "qualitative_label")
 
+    if kind == AnswerObjectKind.DESCRIPTIVE_TEXT:
+        # Free-form prose: conservative normalized-text equality (surface canonical
+        # form, one criterion, no semantic rescue). See canonicalize_descriptive_text.
+        matched = canonicalize_descriptive_text(
+            pred.canonical_text
+        ) == canonicalize_descriptive_text(ref.canonical_text)
+        return AnswerComparison(matched, "descriptive_text")
+
     return AnswerComparison(False, "unsupported_object_kind", (kind.value,))
 
 
@@ -106,12 +116,17 @@ def _compare_symbolic_answers(
     if not pred_primary or not ref_primary:
         return AnswerComparison(False, mode, ("missing_symbolic_text",))
 
+    assumptions_map = build_symbol_assumption_map(
+        pred_primary, ref_primary, context=context, alias_map=alias_map
+    )
+
     if _symbolic_compare(
         mode,
         pred_primary,
         ref_primary,
         tolerance=context.tolerance,
         alias_map=alias_map,
+        assumptions_map=assumptions_map,
     ):
         return AnswerComparison(True, mode)
 
@@ -127,6 +142,7 @@ def _compare_symbolic_answers(
             ref_fallback,
             tolerance=context.tolerance,
             alias_map=alias_map,
+            assumptions_map=assumptions_map,
         )
     ):
         return AnswerComparison(True, mode)
@@ -138,6 +154,7 @@ def _compare_symbolic_answers(
         ref_fallback,
         tolerance=context.tolerance,
         alias_map=alias_map,
+        assumptions_map=assumptions_map,
     ):
         return AnswerComparison(True, mode)
 
@@ -147,6 +164,7 @@ def _compare_symbolic_answers(
         ref_fallback,
         context=context,
         alias_map=alias_map,
+        assumptions_map=assumptions_map,
     ):
         return AnswerComparison(True, mode)
 
@@ -160,6 +178,7 @@ def _symbolic_compare(
     *,
     tolerance: float,
     alias_map: Mapping[str, str] | None,
+    assumptions_map: Mapping[str, Mapping[str, bool]] | None = None,
 ) -> bool:
     """Dispatch symbolic comparison to expression or relation matching."""
 
@@ -169,12 +188,14 @@ def _symbolic_compare(
             right,
             tolerance,
             alias_map=alias_map,
+            assumptions_map=assumptions_map,
         )
     return relations_equivalent(
         left,
         right,
         tolerance,
         alias_map=alias_map,
+        assumptions_map=assumptions_map,
     )
 
 
@@ -185,6 +206,7 @@ def _prediction_rhs_matches_expression(
     *,
     context: PhysicsQuestionSemantics,
     alias_map: Mapping[str, str] | None,
+    assumptions_map: Mapping[str, Mapping[str, bool]] | None = None,
 ) -> bool:
     """Retry expression comparison against a prediction-side extracted RHS."""
 
@@ -201,6 +223,7 @@ def _prediction_rhs_matches_expression(
             ref_primary,
             context.tolerance,
             alias_map=alias_map,
+            assumptions_map=assumptions_map,
         ):
             return True
         if (
@@ -211,6 +234,7 @@ def _prediction_rhs_matches_expression(
                 ref_fallback,
                 context.tolerance,
                 alias_map=alias_map,
+                assumptions_map=assumptions_map,
             )
         ):
             return True
@@ -225,6 +249,7 @@ def _relation_alternatives_match(
     *,
     tolerance: float,
     alias_map: Mapping[str, str] | None,
+    assumptions_map: Mapping[str, Mapping[str, bool]] | None = None,
 ) -> bool:
     """Retry relation comparison across explicitly signposted equivalent forms."""
 
@@ -247,6 +272,7 @@ def _relation_alternatives_match(
                 ref_text,
                 tolerance,
                 alias_map=alias_map,
+                assumptions_map=assumptions_map,
             ):
                 return True
     return False

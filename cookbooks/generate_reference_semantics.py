@@ -14,7 +14,7 @@ from typing import Any
 from prkit.core import PRKitLogger
 from prkit.core.model_clients import create_model_client
 from prkit.datasets import DatasetHub
-from prkit.semantics import infer_reference_semantics, save_semantics_json
+from prkit.semantics import create_reference_semantics, save_semantics_json
 
 logger = PRKitLogger.get_logger(__name__)
 
@@ -83,9 +83,9 @@ def main() -> None:
 
         artifact_path = output_dir / f"{_safe_filename(problem.problem_id)}.json"
         try:
-            artifact = infer_reference_semantics(
+            artifact = create_reference_semantics(
                 problem,
-                client,
+                model_client=client,
                 max_output_tokens=args.max_output_tokens,
             )
             save_semantics_json(artifact, artifact_path)

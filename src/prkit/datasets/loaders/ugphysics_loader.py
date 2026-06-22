@@ -12,7 +12,8 @@ from pathlib import Path
 from typing import Any
 
 from prkit.core import PRKitLogger
-from prkit.core.domain import PhysicalDataset, PhysicsDomain, PhysicsProblem
+from prkit.core.domain import PhysicsDataset, PhysicsDomain, PhysicsProblem
+from prkit.datasets.license_registry import get_license
 from prkit.datasets.loaders.base_loader import BaseDatasetLoader
 from prkit.datasets.ugphysics_common import (
     UGPHYSICS_DEFAULT_SUBDIR,
@@ -54,6 +55,8 @@ class UGPhysicsLoader(BaseDatasetLoader):
         """Get dataset information."""
         return {
             "name": self.name,
+            "license": get_license(self.name).to_info_dict(),
+            "license_spdx": get_license(self.name).spdx,
             "description": self.description,
             "domains": [
                 "atomic_physics",
@@ -141,6 +144,9 @@ class UGPhysicsLoader(BaseDatasetLoader):
         metadata["raw_answers"] = raw_answers
         metadata["raw_unit"] = raw_unit
 
+        # source_type carries the dataset's own native label verbatim
+        metadata["source_type"] = raw_answer_type or None
+
         if "MC" in raw_answer_type:
             option_answers = self._split_answer_parts(raw_answers)
             option_answers = [
@@ -149,7 +155,6 @@ class UGPhysicsLoader(BaseDatasetLoader):
                 if answer
             ]
             metadata["problem_type"] = "MultipleMC" if is_multiple_answer else "MC"
-            metadata["answer_category"] = "option"
             if is_multiple_answer:
                 metadata["answer"] = ", ".join(option_answers)
                 metadata["answer_parts"] = option_answers
@@ -177,31 +182,24 @@ class UGPhysicsLoader(BaseDatasetLoader):
                             "unit": unit_part,
                         }
                     )
-                metadata["answer_category"] = "text"
                 metadata["answer"] = "; ".join(
                     self._format_physical_answer(str(part["value"] or ""), part["unit"])
                     for part in normalized_parts
                 )
                 metadata["answer_parts"] = normalized_parts
             else:
-                metadata["answer_category"] = (
-                    "physical_quantity" if normalized_unit else "number"
-                )
                 metadata["answer"] = {
                     "value": self._clean_answer_text(raw_answers),
                     "unit": normalized_unit,
                 }
         elif "EX" in raw_answer_type:
-            metadata["answer_category"] = "formula"
             if is_multiple_answer:
                 answer_parts = self._split_answer_parts(raw_answers)
-                metadata["answer_category"] = "text"
                 metadata["answer"] = "; ".join(answer_parts)
                 metadata["answer_parts"] = answer_parts
             else:
                 metadata["answer"] = self._clean_answer_text(raw_answers)
         else:
-            metadata["answer_category"] = "text"
             if is_multiple_answer:
                 answer_parts = self._split_answer_parts(raw_answers)
                 metadata["answer"] = "; ".join(answer_parts)
@@ -286,7 +284,7 @@ class UGPhysicsLoader(BaseDatasetLoader):
         per_domain: int | None = None,
         language: str | None = None,
         **kwargs: Any,
-    ) -> PhysicalDataset:
+    ) -> PhysicsDataset:
         """
         Load the UGPhysics dataset.
 
@@ -299,7 +297,7 @@ class UGPhysicsLoader(BaseDatasetLoader):
             language: Backward-compatible alias for split selection
 
         Returns:
-            PhysicalDataset instance
+            PhysicsDataset instance
 
         Raises:
             ValueError: If unsupported split or variant is requested
@@ -408,7 +406,7 @@ class UGPhysicsLoader(BaseDatasetLoader):
             f"dataset variant='{variant}' split='{split}'"
         )
 
-        return PhysicalDataset(
+        return PhysicsDataset(
             problems,
             info,
             split=split,

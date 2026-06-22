@@ -14,6 +14,8 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from prkit.datasets.license_registry import get_license
+
 from .base_downloader import BaseDownloader
 
 try:
@@ -51,7 +53,8 @@ class SeePhysDownloader(BaseDownloader):
             "format": "Parquet/JSON",
             "splits": ["train"],
             "size_bytes": None,  # Size varies
-            "license": "Research use",
+            "license": get_license(self.dataset_name).to_info_dict(),
+            "license_spdx": get_license(self.dataset_name).spdx,
             "download_method": "datasets library",
         }
 

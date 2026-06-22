@@ -17,6 +17,7 @@ from sympy import (
     Float,
     Ge,
     Gt,
+    I,
     Integer,
     Le,
     Lt,
@@ -24,6 +25,7 @@ from sympy import (
     Min,
     N,
     Piecewise,
+    Pow,
     Rational,
     Symbol,
     acos,
@@ -33,6 +35,7 @@ from sympy import (
     cosh,
     exp,
     false,
+    fraction,
     log,
     oo,
     pi,
@@ -42,6 +45,7 @@ from sympy import (
     sqrt,
     tan,
     tanh,
+    together,
     trigsimp,
     true,
 )
@@ -57,6 +61,7 @@ from ..units import UNIT_NAMESPACE as _SHARED_UNIT_NAMESPACE
 from ..units import convert_numeric_value as _shared_convert_numeric_value
 from ..units import normalize_unit_text as _shared_normalize_unit_text
 from ..units import unit_conversion_factor as _shared_unit_conversion_factor
+from .common import context_symbol_assumption_map
 
 _TRANSFORMATIONS = standard_transformations + (
     implicit_multiplication_application,
@@ -137,6 +142,11 @@ _RELATION_CONDITION_PREFIX_RE = re.compile(
 _RELATION_CONSTRAINT_TOKEN_RE = re.compile(
     r"(?:<=|>=|<|>|≤|≥|!=|≠|≈|∈|∉|\\(?:leq|geq|neq|approx|in|notin)\b)"
 )
+_BIG_OPERATOR_BOUND_RE = re.compile(
+    r"\\?(?P<op>sum|prod|coprod|int|oint|iint|iiint|bigcup|bigcap|bigoplus|bigotimes)"
+    r"\s*_\s*\{(?P<lower>[^{}]*=[^{}]*)\}"
+    r"(?:\s*\^\s*(?:\{(?P<upper_braced>[^{}]*)\}|(?P<upper_plain>[A-Za-z0-9]+)))?"
+)
 _BARE_FUNCTION_NAMES = (
     "sinh",
     "cosh",
@@ -164,8 +174,21 @@ _BARE_FUNCTION_ARG_RE = re.compile(
     r"\s+(?P<arg>\{[^{}]+\}|[A-Za-z0-9_]+)"
 )
 _FUNCTION_COMMANDS = frozenset(_BARE_FUNCTION_NAMES) | {"ln"}
-_SHORT_SYMBOL_RUN_RE = re.compile(r"(?<!\\)\b[A-Za-z]{2,}\b")
+_SHORT_SYMBOL_RUN_RE = re.compile(
+    r"(?<!\\)\b(?P<run>[A-Za-z]{2,})(?P<sub>_[A-Za-z0-9]+)?\b"
+)
 _TRIG_FUNCTION_RE = re.compile(r"\b(?:sin|cos|tan|asin|acos|atan|sinh|cosh|tanh)\b")
+# Explicit imaginary-unit markers. Lower-case ``i``/``j`` are intentionally *not* markers:
+# they are overwhelmingly summation indices / ordinary symbols in physics answers, so
+# treating them as imaginary would needlessly disable the (precision-safe) realness
+# default. A standalone capital ``I`` or a LaTeX imaginary command withholds realness so
+# such answers stay generic complex (no recall gain, but never a wrong accept).
+_IMAGINARY_MARKER_RE = re.compile(
+    r"(?<![A-Za-z])I(?![A-Za-z])|\\imath|\\jmath|\\mathrm\s*\{\s*[ij]\s*\}"
+)
+# Cheap pre-check for a radical in clause text before the (costlier) de-radicalization
+# parse: an explicit root, or a fractional power with an even denominator.
+_RADICAL_HINT_RE = re.compile(r"sqrt|√|\\sqrt|\*\*\s*\(?\s*\d+\s*/\s*\d*[02468]\b")
 _ALIAS_BOUNDARY_TOKEN_RE = re.compile(r"[A-Za-z0-9_]")
 _DEFINITION_LIKE_TOKEN_RE = re.compile(r"(?<![<>=!])\b[\w]+\s*=")
 _DECORATION_SUFFIXES = ("_ddot", "_dot", "_hat", "_vec", "_bar", "_tilde")
@@ -437,6 +460,25 @@ def canonicalize_qualitative_label(text: str) -> str:
         if normalized in aliases:
             return canonical
     return normalized
+
+
+def canonicalize_descriptive_text(text: str | None) -> str:
+    """Conservatively canonicalize a free-form descriptive ("explain/why") answer.
+
+    Surface-only normalization (math/text wrappers, case, punctuation, whitespace)
+    with **no** semantic alias or synonym mapping. That is exactly what separates
+    ``descriptive_text`` (free prose, judged equivalent only when the wording is
+    essentially identical) from ``qualitative_label`` (a curated controlled
+    vocabulary canonicalized through :data:`_QUALITATIVE_ALIAS_GROUPS`).
+
+    Richer recall for free-form answers — semantic similarity or a gated
+    model-judge — is a deliberately deferred v2 research lever, **not** added here:
+    it would break determinism and introduce unprincipled thresholds, violating the
+    "canonical form + one principled criterion, no rescue branches" discipline
+    (``METHODOLOGY.md`` §3).
+    """
+
+    return normalize_plain_text(text)
 
 
 def qualitative_label_candidates(text: str) -> tuple[str, ...]:
@@ -820,8 +862,15 @@ def parse_symbolic_expression(
     text: str,
     *,
     alias_map: Mapping[str, str] | None = None,
+    assumptions_map: Mapping[str, Mapping[str, bool]] | None = None,
 ) -> Any | None:
-    """Parse algebraic text into a SymPy expression after light canonicalization."""
+    """Parse algebraic text into a SymPy expression after light canonicalization.
+
+    ``assumptions_map`` carries per-symbol SymPy assumption kwargs (e.g.
+    ``{"m": {"positive": True}}``) so the equivalence judgement is decided over the
+    intended physical domain rather than the generic complex default. Keys are the
+    canonical (post-alias) tokens that appear after preprocessing.
+    """
 
     candidate = preprocess_symbolic_text(text, alias_map=alias_map)
     if not candidate:
@@ -835,7 +884,12 @@ def parse_symbolic_expression(
     local_dict = dict(_EXPRESSION_FUNCTIONS)
     for token in _SYMBOL_TOKEN_RE.findall(parse_candidate):
         if token not in local_dict:
-            local_dict[token] = Symbol(token)
+            token_assumptions = assumptions_map.get(token) if assumptions_map else None
+            local_dict[token] = (
+                Symbol(token, **token_assumptions)
+                if token_assumptions
+                else Symbol(token)
+            )
 
     try:
         return parse_expr(
@@ -861,13 +915,255 @@ def parse_scalar_symbolic_expression(
     text: str,
     *,
     alias_map: Mapping[str, str] | None = None,
+    assumptions_map: Mapping[str, Mapping[str, bool]] | None = None,
 ) -> Any | None:
     """Parse one scalar symbolic expression and reject tuple/set-like parses."""
 
-    expression = parse_symbolic_expression(text, alias_map=alias_map)
+    expression = parse_symbolic_expression(
+        text, alias_map=alias_map, assumptions_map=assumptions_map
+    )
     if not _is_scalar_symbolic_object(expression):
         return None
     return expression
+
+
+def build_symbol_assumption_map(
+    pred_text: str | None,
+    ref_text: str | None,
+    *,
+    context: Any,
+    alias_map: Mapping[str, str] | None = None,
+) -> Mapping[str, Mapping[str, bool]]:
+    """Build the per-symbol assumption map used to decide symbolic equivalence.
+
+    Two sources are merged. The **authoritative** source is the question's declared
+    ``symbol_assumptions`` (``context_symbol_assumption_map``); whatever it declares wins. The
+    gaps are filled by a **conservative** in-engine derivation that fires only on
+    self-justifying, symmetric signals (see ``_derive_symbol_assumptions``). The result is
+    meaning-preserving: it never invents a domain that the answers themselves do not
+    already presuppose, so it raises recall without eroding precision.
+    """
+
+    declared = context_symbol_assumption_map(context)
+    derived = _derive_symbol_assumptions(pred_text, ref_text, alias_map=alias_map)
+    if not declared:
+        return derived
+    merged: dict[str, Mapping[str, bool]] = dict(derived)
+    merged.update(declared)
+    return merged
+
+
+def _derive_symbol_assumptions(
+    pred_text: str | None,
+    ref_text: str | None,
+    *,
+    alias_map: Mapping[str, str] | None = None,
+) -> dict[str, Mapping[str, bool]]:
+    """Conservatively infer real-domain assumptions from the two answer surfaces.
+
+    The only derived signal is the **realness default**: every free symbol is assumed
+    ``real`` unless an explicit imaginary-unit marker appears in either surface (in which
+    case the answers may be complex and nothing is derived). Physics expression answers
+    are real-valued functions of real variables, so this is precision-safe -- it unlocks
+    identities that hold over the reals (e.g. ``sqrt(x**2) == Abs(x)``) without changing
+    any truth value.
+
+    Positivity / nonnegativity is deliberately **not** derived from surface appearance.
+    Writing ``sqrt(a*b)`` or ``log(x**2)`` does not presuppose any individual symbol is
+    nonnegative (only that a product / even power is), so a surface heuristic would
+    manufacture sign assumptions that flip truth values -- e.g. wrongly accepting
+    ``sqrt(a*b)`` vs ``sqrt(a)*sqrt(b)`` or ``log(x**2)`` vs ``2*log(x)``, which differ at
+    negative arguments. Those accepts require an explicit ``symbol_assumptions`` declaration,
+    which is the authoritative source. Symbol-name whitelists are likewise avoided
+    (physics reuses letters: ``m`` mass vs metre, ``T`` period vs temperature, signed
+    coordinates ``x``).
+    """
+
+    if not pred_text or not ref_text:
+        return {}
+    if _has_imaginary_marker(pred_text) or _has_imaginary_marker(ref_text):
+        return {}
+    left = parse_symbolic_expression(pred_text, alias_map=alias_map)
+    right = parse_symbolic_expression(ref_text, alias_map=alias_map)
+    if left is None or right is None:
+        return {}
+
+    all_names = _expression_free_symbol_names(left) | _expression_free_symbol_names(
+        right
+    )
+    return {name: {"real": True} for name in all_names}
+
+
+def _has_imaginary_marker(text: str | None) -> bool:
+    """Whether a surface carries an explicit imaginary-unit marker (see the regex)."""
+
+    if not text:
+        return False
+    return _IMAGINARY_MARKER_RE.search(text) is not None
+
+
+def _expression_free_symbol_names(expression: Any) -> set[str]:
+    """Return the names of an expression's free symbols, tolerant of odd parses."""
+
+    try:
+        return {symbol.name for symbol in expression.free_symbols}
+    except Exception:
+        return set()
+
+
+def _has_strengthening_assumption(
+    assumptions_map: Mapping[str, Mapping[str, bool]] | None,
+) -> bool:
+    """Whether any symbol carries an assumption stronger than plain realness."""
+
+    if not assumptions_map:
+        return False
+    for kwargs in assumptions_map.values():
+        if any(kwargs.get(key) for key in ("positive", "nonnegative", "nonzero")):
+            return True
+    return False
+
+
+# Deterministic generic sample magnitudes for numeric identity testing. They are spread
+# over a wide range and deliberately avoid integers / simple fractions / special constants
+# (0, 1, pi, e) so a genuinely different function cannot coincide with the reference at all
+# of them, while a true identity matches to full working precision.
+_PIT_SAMPLE_MAGNITUDES = (
+    0.6431,
+    1.2719,
+    2.3137,
+    0.8923,
+    3.7211,
+    1.9043,
+    4.5317,
+    0.4129,
+    2.8761,
+    5.3119,
+    1.4567,
+    3.1409,
+    0.7321,
+    6.2237,
+    2.0173,
+    4.1287,
+    0.5519,
+    1.6633,
+    3.9041,
+    7.1129,
+    2.5503,
+    0.3697,
+    5.7919,
+    1.1087,
+    4.8231,
+    2.2391,
+    0.9817,
+    3.4523,
+    6.6133,
+    1.8219,
+    5.0317,
+    0.7129,
+    2.6611,
+    4.3719,
+    1.3313,
+    8.2237,
+)
+_PIT_WORKING_PRECISION = 30
+_PIT_MAX_POINTS = 36
+_PIT_MIN_AGREEMENTS = 12
+_PIT_AGREE_REL = 1e-12
+_PIT_REJECT_REL = 1e-6
+
+
+def _pit_sample_value(symbol: Any, point_index: int, symbol_index: int) -> Any:
+    """Pick a deterministic generic sample for ``symbol`` honoring its real-domain.
+
+    Positive / nonnegative symbols sample positive; generic real symbols sample both
+    signs (so domain-sensitive identities such as ``sqrt(x**2) == x`` are rejected when
+    ``x`` is not nonnegative); symbols with no real assumption sample a generic complex
+    value (so identities that hold only over the reals are not falsely accepted).
+
+    Each symbol's sign is bit ``symbol_index`` of ``point_index``, so signs vary
+    *independently* across points: as ``point_index`` increases, every sign combination of
+    the first ``log2(point_count)`` symbols is visited. That coverage is what rejects
+    products like ``sqrt(a*b)`` vs ``sqrt(a)*sqrt(b)``, which agree unless several symbols
+    are simultaneously negative.
+    """
+
+    pool = _PIT_SAMPLE_MAGNITUDES
+    size = len(pool)
+    magnitude = pool[(point_index * 7 + symbol_index * 13) % size]
+    if symbol.is_nonnegative:
+        return Float(magnitude)
+    if symbol.is_real:
+        negative = bool((point_index >> symbol_index) & 1)
+        return Float(-magnitude if negative else magnitude)
+    imaginary = pool[(point_index * 5 + symbol_index * 11 + 3) % size]
+    return Float(magnitude) + Float(imaginary) * I
+
+
+def _numeric_identity_equivalent(
+    left_expr: Any,
+    right_expr: Any,
+    tolerance: float,
+) -> bool | None:
+    """Decide ``left == right`` as functions by multi-point numeric identity testing.
+
+    Returns ``True`` when the two evaluate equal at enough generic domain points,
+    ``False`` on the first clear disagreement (an exact disproof of a function identity),
+    and ``None`` when too few points could be evaluated to decide. Sampling honors each
+    symbol's domain assumptions (see ``_pit_sample_value``); evaluation uses high working
+    precision and skips singular / ill-conditioned points so numeric noise never produces
+    a false verdict.
+    """
+
+    try:
+        symbols = sorted(
+            left_expr.free_symbols | right_expr.free_symbols,
+            key=lambda symbol: symbol.name,
+        )
+    except Exception:
+        return None
+
+    point_count = 1 if not symbols else _PIT_MAX_POINTS
+    required = 1 if not symbols else _PIT_MIN_AGREEMENTS
+    agreements = 0
+    for point_index in range(point_count):
+        subs = {
+            symbol: _pit_sample_value(symbol, point_index, symbol_index)
+            for symbol_index, symbol in enumerate(symbols)
+        }
+        try:
+            left_value = left_expr.evalf(_PIT_WORKING_PRECISION, subs=subs)
+            right_value = right_expr.evalf(_PIT_WORKING_PRECISION, subs=subs)
+        except Exception:
+            continue
+        if getattr(left_value, "free_symbols", set()) or getattr(
+            right_value, "free_symbols", set()
+        ):
+            continue
+        try:
+            left_complex = complex(left_value)
+            right_complex = complex(right_value)
+        except (TypeError, ValueError):
+            continue
+        if not _is_finite_complex(left_complex) or not _is_finite_complex(
+            right_complex
+        ):
+            continue
+        scale = max(abs(left_complex), abs(right_complex), 1.0)
+        relative = abs(left_complex - right_complex) / scale
+        if relative > _PIT_REJECT_REL:
+            return False
+        if relative <= _PIT_AGREE_REL:
+            agreements += 1
+            if agreements >= required:
+                return True
+    return True if agreements >= required else None
+
+
+def _is_finite_complex(value: complex) -> bool:
+    """Whether a Python complex value is fully finite."""
+
+    return math.isfinite(value.real) and math.isfinite(value.imag)
 
 
 def expressions_equivalent(
@@ -876,8 +1172,17 @@ def expressions_equivalent(
     tolerance: float,
     *,
     alias_map: Mapping[str, str] | None = None,
+    assumptions_map: Mapping[str, Mapping[str, bool]] | None = None,
 ) -> bool:
-    """Check symbolic equivalence between two expression texts."""
+    """Check symbolic equivalence between two expression texts.
+
+    Equivalence is the single predicate "is ``left - right`` the zero function over the
+    declared domain?". It is decided symbolically first (canonical text, ``simplify``,
+    ``trigsimp``) and, when that is inconclusive, by ``_numeric_identity_equivalent`` --
+    multi-point evaluation over the symbols' domain. Numeric *disagreement* is an exact
+    disproof, so it also guards a symbolic acceptance reached under a strengthening
+    assumption.
+    """
 
     if not left_text or not right_text:
         return False
@@ -897,8 +1202,12 @@ def expressions_equivalent(
     ):
         return True
 
-    left_expr = parse_symbolic_expression(left_text, alias_map=alias_map)
-    right_expr = parse_symbolic_expression(right_text, alias_map=alias_map)
+    left_expr = parse_symbolic_expression(
+        left_text, alias_map=alias_map, assumptions_map=assumptions_map
+    )
+    right_expr = parse_symbolic_expression(
+        right_text, alias_map=alias_map, assumptions_map=assumptions_map
+    )
     if left_expr is None or right_expr is None:
         return normalize_plain_text(left_text) == normalize_plain_text(right_text)
     if isinstance(left_expr, Relational) or isinstance(right_expr, Relational):
@@ -907,6 +1216,7 @@ def expressions_equivalent(
             right_text,
             tolerance,
             alias_map=alias_map,
+            assumptions_map=assumptions_map,
         )
     if not _is_scalar_symbolic_object(left_expr) or not _is_scalar_symbolic_object(
         right_expr
@@ -916,27 +1226,52 @@ def expressions_equivalent(
     try:
         diff = simplify(left_expr - right_expr)
     except Exception:
-        return normalize_plain_text(left_text) == normalize_plain_text(right_text)
-    if diff == 0 or diff.is_zero is True:
-        return True
-    if _TRIG_FUNCTION_RE.search(left_text) or _TRIG_FUNCTION_RE.search(right_text):
+        diff = None
+
+    symbolic_equal = diff is not None and (diff == 0 or diff.is_zero is True)
+    if not symbolic_equal and (
+        _TRIG_FUNCTION_RE.search(left_text) or _TRIG_FUNCTION_RE.search(right_text)
+    ):
         try:
             trig_diff = trigsimp(left_expr - right_expr)
             if trig_diff == 0 or trig_diff.is_zero is True:
-                return True
+                symbolic_equal = True
         except Exception:
             pass
+        if not symbolic_equal:
+            try:
+                if trigsimp(left_expr) == trigsimp(right_expr):
+                    symbolic_equal = True
+            except Exception:
+                pass
+    if not symbolic_equal and diff is not None:
         try:
-            if trigsimp(left_expr) == trigsimp(right_expr):
-                return True
+            if diff.equals(0):
+                symbolic_equal = True
         except Exception:
             pass
-    try:
-        if diff.equals(0):
-            return True
-    except Exception:
-        pass
-    if diff.is_number:
+
+    if symbolic_equal:
+        # Guard: a symbolic acceptance reached under a strengthening assumption
+        # (positive/nonnegative/nonzero) is confirmed numerically over that domain; an
+        # exact numeric disproof vetoes it. Plain realness and assumption-free accepts are
+        # already exact, so they skip the (hot-path) guard.
+        if _has_strengthening_assumption(assumptions_map) and (
+            _numeric_identity_equivalent(left_expr, right_expr, tolerance) is False
+        ):
+            return False
+        return True
+
+    # Symbolic test inconclusive: decide by numeric identity testing over the domain.
+    verdict = _numeric_identity_equivalent(left_expr, right_expr, tolerance)
+    if verdict is True:
+        return True
+    if verdict is False:
+        return False
+
+    # Numerically undecidable (e.g. every sample hit a singularity): preserve the legacy
+    # constant-residual fallback, then fail closed.
+    if diff is not None and diff.is_number:
         try:
             return numbers_close(float(N(diff)), 0.0, tolerance)
         except (TypeError, ValueError):
@@ -948,8 +1283,16 @@ def parse_relation_clauses(
     text: str | None,
     *,
     alias_map: Mapping[str, str] | None = None,
+    assumptions_map: Mapping[str, Mapping[str, bool]] | None = None,
 ) -> tuple[RelationClause, ...] | None:
-    """Parse relation text into a flat tuple of binary clauses."""
+    """Parse relation text into a flat tuple of canonical binary clauses.
+
+    Canonicalization folds a single-symbol functional-form left-hand side
+    (``r(t) = ...`` -> ``r = ...``) -- the standard "target as a function of its
+    variable" notation -- and de-radicalizes a solved even root (``c = sqrt(E/m)`` ->
+    ``c**2 = E/m``) when the symbol assumptions make squaring sign-safe, so a relation has
+    one canonical clause form independent of those surface choices.
+    """
 
     candidate = preprocess_symbolic_text(text, alias_map=alias_map)
     if not candidate:
@@ -959,7 +1302,9 @@ def parse_relation_clauses(
     if relation_object is not None:
         relation_clauses = _clauses_from_relation_object(relation_object)
         if relation_clauses:
-            return relation_clauses
+            return _canonical_relation_clauses(
+                relation_clauses, alias_map=alias_map, assumptions_map=assumptions_map
+            )
 
     clauses: list[RelationClause] = []
     for segment in _split_top_level_conjunctions(candidate):
@@ -967,7 +1312,11 @@ def parse_relation_clauses(
         if parsed is None:
             return None
         clauses.extend(parsed)
-    return tuple(clauses) if clauses else None
+    if not clauses:
+        return None
+    return _canonical_relation_clauses(
+        tuple(clauses), alias_map=alias_map, assumptions_map=assumptions_map
+    )
 
 
 def relations_equivalent(
@@ -976,6 +1325,7 @@ def relations_equivalent(
     tolerance: float,
     *,
     alias_map: Mapping[str, str] | None = None,
+    assumptions_map: Mapping[str, Mapping[str, bool]] | None = None,
 ) -> bool:
     """Check whether two relation strings encode the same constraint set."""
 
@@ -990,10 +1340,34 @@ def relations_equivalent(
     ):
         return True
 
-    left_clauses = parse_relation_clauses(left_text, alias_map=alias_map)
-    right_clauses = parse_relation_clauses(right_text, alias_map=alias_map)
+    left_clauses = parse_relation_clauses(
+        left_text, alias_map=alias_map, assumptions_map=assumptions_map
+    )
+    right_clauses = parse_relation_clauses(
+        right_text, alias_map=alias_map, assumptions_map=assumptions_map
+    )
     if left_clauses is None or right_clauses is None:
         return normalize_plain_text(left_text) == normalize_plain_text(right_text)
+
+    return _relation_clause_sets_equivalent(
+        left_clauses,
+        right_clauses,
+        tolerance,
+        alias_map=alias_map,
+        assumptions_map=assumptions_map,
+    )
+
+
+def _relation_clause_sets_equivalent(
+    left_clauses: tuple[RelationClause, ...],
+    right_clauses: tuple[RelationClause, ...],
+    tolerance: float,
+    *,
+    alias_map: Mapping[str, str] | None = None,
+    assumptions_map: Mapping[str, Mapping[str, bool]] | None = None,
+) -> bool:
+    """Match two clause sets as an order-insensitive collection of equivalent clauses."""
+
     if len(left_clauses) != len(right_clauses):
         return False
 
@@ -1006,6 +1380,7 @@ def relations_equivalent(
                 right_clause,
                 tolerance,
                 alias_map=alias_map,
+                assumptions_map=assumptions_map,
             ):
                 matched_index = index
                 break
@@ -1013,6 +1388,140 @@ def relations_equivalent(
             return False
         unused.pop(matched_index)
     return True
+
+
+_FUNCTIONAL_FORM_LHS_RE = re.compile(
+    r"^(?P<name>[A-Za-z][A-Za-z0-9_]*)\s*\((?P<args>[^()]*)\)$"
+)
+
+
+def _canonical_relation_clauses(
+    clauses: tuple[RelationClause, ...],
+    *,
+    alias_map: Mapping[str, str] | None = None,
+    assumptions_map: Mapping[str, Mapping[str, bool]] | None = None,
+) -> tuple[RelationClause, ...]:
+    """Return the canonical clause form used for all relation comparison."""
+
+    canonical = []
+    for clause in clauses:
+        collapsed = _collapse_functional_form_lhs(clause)
+        canonical.append(
+            _deradicalize_clause(
+                collapsed, alias_map=alias_map, assumptions_map=assumptions_map
+            )
+        )
+    return tuple(canonical)
+
+
+def _collapse_functional_form_lhs(clause: RelationClause) -> RelationClause:
+    """Canonicalize a single-symbol functional-form LHS (``r(t)`` -> ``r``).
+
+    Physics answers write the requested quantity as a function of its variable on the
+    left of an equation (``r(t) = ...``, ``v(x) = ...``). That is the same assertion as
+    ``r = ...``, so the canonical relation form drops the argument list. The rewrite is
+    meaning-preserving and applied to every relation, so equal relations share one
+    clause form regardless of this surface choice. It fires only on the bare
+    ``name(args)`` LHS form with a variable argument, leaving genuine point evaluations
+    such as ``f(2) = 3`` untouched.
+    """
+
+    match = _FUNCTIONAL_FORM_LHS_RE.match(clause.lhs_text.strip())
+    if match is None:
+        return clause
+    if not re.search(r"[A-Za-z]", match.group("args")):
+        return clause
+    return RelationClause(match.group("name"), clause.operator, clause.rhs_text)
+
+
+def _deradicalize_clause(
+    clause: RelationClause,
+    *,
+    alias_map: Mapping[str, str] | None = None,
+    assumptions_map: Mapping[str, Mapping[str, bool]] | None = None,
+) -> RelationClause:
+    """Square a solved even-root equality into polynomial form when sign-safe.
+
+    A solved radical equality such as ``c = sqrt(E/m)`` or ``v = sqrt(u**2 + 2*a*s)`` is
+    the same constraint as its squared form (``c**2 = E/m``) *provided the non-radical side
+    is known nonnegative* -- squaring is injective on the nonnegative reals, so it
+    introduces no spurious branch. This is a meaning-preserving canonical form (applied to
+    every relation, gated on the assumptions), so the squared clause is then matched by the
+    existing polynomial equality criterion (``_equalities_equivalent``). The gate is
+    essential: without a nonnegative non-radical side, squaring would wrongly merge
+    ``c = sqrt(E/m)`` (the ``c >= 0`` branch) with ``E = m*c**2`` (both branches), so the
+    rewrite is skipped and the clause is left untouched.
+    """
+
+    if clause.operator != "=":
+        return clause
+    # Squaring needs a provably-nonnegative non-radical side, which only a strengthening
+    # assumption (declared positive/nonnegative/nonzero) supplies -- realness alone never
+    # does. Gate on that and on a cheap radical hint so the common no-radical relation
+    # comparison does no extra parsing.
+    if not _has_strengthening_assumption(assumptions_map):
+        return clause
+    if not _RADICAL_HINT_RE.search(clause.lhs_text) and not _RADICAL_HINT_RE.search(
+        clause.rhs_text
+    ):
+        return clause
+    lhs = parse_scalar_symbolic_expression(
+        clause.lhs_text, alias_map=alias_map, assumptions_map=assumptions_map
+    )
+    rhs = parse_scalar_symbolic_expression(
+        clause.rhs_text, alias_map=alias_map, assumptions_map=assumptions_map
+    )
+    if lhs is None or rhs is None:
+        return clause
+
+    for plain_side, radical_side in ((lhs, rhs), (rhs, lhs)):
+        squared = _square_isolated_even_root(plain_side, radical_side)
+        if squared is not None:
+            new_lhs, new_rhs = squared
+            return RelationClause(str(new_lhs), "=", str(new_rhs))
+    return clause
+
+
+def _square_isolated_even_root(
+    plain_side: Any, radical_side: Any
+) -> tuple[Any, Any] | None:
+    """Return ``(plain_side**2, radical_side**2)`` when squaring is justified, else ``None``.
+
+    Justified iff the ``plain_side`` is provably nonnegative (the sign gate), the
+    ``radical_side`` carries an even root, and squaring removes that root (so the result is
+    rational and the polynomial equality criterion applies).
+    """
+
+    if plain_side.is_nonnegative is not True:
+        return None
+    if not _contains_even_root(radical_side):
+        return None
+    try:
+        radical_squared = simplify(radical_side**2)
+        plain_squared = simplify(plain_side**2)
+    except Exception:
+        return None
+    if _contains_even_root(radical_squared) or _contains_even_root(plain_squared):
+        return None
+    return plain_squared, radical_squared
+
+
+def _contains_even_root(expression: Any) -> bool:
+    """Whether the expression contains a non-integer power with an even denominator."""
+
+    try:
+        powers = expression.atoms(Pow)
+    except Exception:
+        return False
+    for power in powers:
+        exponent = power.exp
+        if (
+            getattr(exponent, "is_Rational", False)
+            and not exponent.is_Integer
+            and int(exponent.q) % 2 == 0
+        ):
+            return True
+    return False
 
 
 def relation_compare_candidates(
@@ -1258,6 +1767,7 @@ def preprocess_symbolic_text(
     normalized = _LATEX_SPACING_RE.sub(" ", normalized)
     normalized = normalized.replace(" true", " True").replace(" false", " False")
     normalized = normalized.replace("true", "True").replace("false", "False")
+    normalized = _normalize_big_operator_bounds(normalized)
     normalized = _replace_simple_latex(normalized)
     normalized = _normalize_latex_accents(normalized)
     normalized = _replace_latex_symbol_commands(normalized)
@@ -1433,6 +1943,7 @@ def _normalize_alias_surface(text: str | None) -> str:
     normalized = _LATEX_SPACING_RE.sub(" ", normalized)
     normalized = normalized.replace(" true", " True").replace(" false", " False")
     normalized = normalized.replace("true", "True").replace("false", "False")
+    normalized = _normalize_big_operator_bounds(normalized)
     normalized = _replace_simple_latex(normalized)
     normalized = _normalize_latex_accents(normalized)
     normalized = _replace_latex_symbol_commands(normalized)
@@ -1532,14 +2043,20 @@ def _normalize_symbol_products(text: str) -> str:
 
 
 def _rewrite_symbol_run(match: re.Match[str]) -> str:
-    """Expand an ambiguous symbol run unless it is a protected function/constant name."""
+    """Expand an ambiguous symbol run unless it is a protected function/constant name.
 
-    token = match.group(0)
-    if token in _PROTECTED_SYMBOL_RUNS or token.lower() in _PROTECTED_SYMBOL_RUNS:
-        return token
-    if token[0].islower() and len(token) > 3:
-        return token
-    return "*".join(token)
+    A trailing subscript (``NmV_r``) is kept attached to the final factor so a compact
+    product with a subscript expands the same way as the bare run: ``NmV_r`` ->
+    ``N*m*V_r``, consistent with ``NmV`` -> ``N*m*V``.
+    """
+
+    run = match.group("run")
+    subscript = match.group("sub") or ""
+    if run in _PROTECTED_SYMBOL_RUNS or run.lower() in _PROTECTED_SYMBOL_RUNS:
+        return run + subscript
+    if run[0].islower() and len(run) > 3:
+        return run + subscript
+    return "*".join(run) + subscript
 
 
 def _normalize_bare_function_calls(text: str) -> str:
@@ -1608,6 +2125,30 @@ def _strip_text_wrappers(text: str | None) -> str:
             continue
         break
     return stripped
+
+
+def _normalize_big_operator_bounds(text: str) -> str:
+    """Fold a big operator carrying an ``=``-bearing limit into one opaque token.
+
+    ``\\sum_{n=1}^{N}`` (or the backslash-free ``sum_{n=1}^{N}`` surface) becomes
+    ``sum_n_1_N``. This removes the limit ``=``, which the relation parser would
+    otherwise mistake for a top-level equality separator and split on -- corrupting
+    ``V = sum_{n=1}^{N} ...`` into nonsense clauses. The bounds are folded into the
+    token so distinct summations are never conflated; full summation equivalence
+    (dummy-index renaming, reindexing) is intentionally out of scope here.
+    """
+
+    def _replace(match: re.Match[str]) -> str:
+        op = match.group("op")
+        lower = match.group("lower")
+        upper = match.group("upper_braced") or match.group("upper_plain") or ""
+        parts = [op, *re.split(r"=", lower), upper]
+        token = "_".join(
+            cleaned for part in parts if (cleaned := re.sub(r"[^A-Za-z0-9]+", "", part))
+        )
+        return f" {token} "
+
+    return _BIG_OPERATOR_BOUND_RE.sub(_replace, text)
 
 
 def _replace_simple_latex(text: str) -> str:
@@ -2011,8 +2552,14 @@ def _relation_clause_equivalent(
     tolerance: float,
     *,
     alias_map: Mapping[str, str] | None = None,
+    assumptions_map: Mapping[str, Mapping[str, bool]] | None = None,
 ) -> bool:
-    """Compare two relation clauses, including reversed and scaled formulations."""
+    """Whether two relation clauses denote the same constraint.
+
+    Two layered criteria: surface equality (clause sides equivalent directly or
+    reversed), then an algebraic criterion on the homogeneous forms ``H = L - R``
+    dispatched by operator class (``_equalities_equivalent`` / ``_inequalities_equivalent``).
+    """
 
     if (
         left.operator == right.operator
@@ -2021,12 +2568,14 @@ def _relation_clause_equivalent(
             right.lhs_text,
             tolerance,
             alias_map=alias_map,
+            assumptions_map=assumptions_map,
         )
         and expressions_equivalent(
             left.rhs_text,
             right.rhs_text,
             tolerance,
             alias_map=alias_map,
+            assumptions_map=assumptions_map,
         )
     ):
         return True
@@ -2039,20 +2588,30 @@ def _relation_clause_equivalent(
             right.rhs_text,
             tolerance,
             alias_map=alias_map,
+            assumptions_map=assumptions_map,
         )
         and expressions_equivalent(
             left.rhs_text,
             right.lhs_text,
             tolerance,
             alias_map=alias_map,
+            assumptions_map=assumptions_map,
         )
     ):
         return True
 
-    left_lhs = parse_symbolic_expression(left.lhs_text, alias_map=alias_map)
-    left_rhs = parse_symbolic_expression(left.rhs_text, alias_map=alias_map)
-    right_lhs = parse_symbolic_expression(right.lhs_text, alias_map=alias_map)
-    right_rhs = parse_symbolic_expression(right.rhs_text, alias_map=alias_map)
+    left_lhs = parse_symbolic_expression(
+        left.lhs_text, alias_map=alias_map, assumptions_map=assumptions_map
+    )
+    left_rhs = parse_symbolic_expression(
+        left.rhs_text, alias_map=alias_map, assumptions_map=assumptions_map
+    )
+    right_lhs = parse_symbolic_expression(
+        right.lhs_text, alias_map=alias_map, assumptions_map=assumptions_map
+    )
+    right_rhs = parse_symbolic_expression(
+        right.rhs_text, alias_map=alias_map, assumptions_map=assumptions_map
+    )
     if left_lhs is None or left_rhs is None or right_lhs is None or right_rhs is None:
         return False
     if not all(
@@ -2063,17 +2622,67 @@ def _relation_clause_equivalent(
 
     left_residual = simplify(left_lhs - left_rhs)
     right_residual = simplify(right_lhs - right_rhs)
+
+    # Algebraic criterion on the homogeneous forms ``H = L - R``, by operator class.
+    if left.operator == "=" and right.operator == "=":
+        return _equalities_equivalent(left_residual, right_residual, tolerance)
+    return _inequalities_equivalent(
+        left_residual,
+        right_residual,
+        left.operator,
+        right.operator,
+        tolerance,
+    )
+
+
+def _equalities_equivalent(
+    left_residual: Any, right_residual: Any, tolerance: float
+) -> bool:
+    """Whether two equalities denote the same constraint.
+
+    The homogeneous form of ``L = R`` is ``H = L - R``. Two equalities are equivalent
+    iff their denominator-cleared numerators agree up to a nonzero *constant*: clearing
+    denominators admits cross-``=`` rearrangement (``F = m a`` vs ``a = F/m``), and the
+    constant -- rather than rational -- factor rejects spurious polynomial factors that
+    would enlarge the solution set (``x = 0`` vs ``x y = 0``). Tautologies (``0 = 0``)
+    are equivalent to one another and to nothing else.
+    """
+
+    left_zero = left_residual == 0 or left_residual.is_zero is True
+    right_zero = right_residual == 0 or right_residual.is_zero is True
+    if left_zero or right_zero:
+        return bool(left_zero and right_zero)
+
+    left_numerator = _relation_residual_numerator(left_residual)
+    right_numerator = _relation_residual_numerator(right_residual)
+    return (
+        left_numerator is not None
+        and right_numerator is not None
+        and _proportional_ratio(left_numerator, right_numerator, tolerance) is not None
+    )
+
+
+def _inequalities_equivalent(
+    left_residual: Any,
+    right_residual: Any,
+    left_operator: str,
+    right_operator: str,
+    tolerance: float,
+) -> bool:
+    """Whether two inequalities denote the same constraint.
+
+    The homogeneous forms must be a *signed constant* multiple of one another, and the
+    sign must be consistent with the operator directions: a positive factor preserves
+    the operator, a negative factor reverses it. Denominators are not cleared because an
+    unknown-sign denominator could silently flip the inequality.
+    """
+
     ratio = _proportional_ratio(left_residual, right_residual, tolerance)
     if ratio is None:
         return False
-
-    if left.operator == "=" and right.operator == "=":
+    if ratio > 0 and left_operator == right_operator:
         return True
-
-    if ratio > 0 and left.operator == right.operator:
-        return True
-
-    return ratio < 0 and left.operator == _RELATION_REVERSED.get(right.operator)
+    return ratio < 0 and left_operator == _RELATION_REVERSED.get(right_operator)
 
 
 def _proportional_ratio(
@@ -2108,6 +2717,28 @@ def _proportional_ratio(
     except Exception:
         return None
     return None
+
+
+def _relation_residual_numerator(residual: Any) -> Any | None:
+    """Clear denominators from a homogeneous relation form, returning its numerator.
+
+    Two equalities are equivalent when their homogeneous forms ``H = L - R`` agree up
+    to a nonzero rational-function multiple (e.g. ``F = m a`` vs ``a = F/m``). Comparing
+    the denominator-cleared numerators up to a nonzero *constant* admits that
+    rearrangement while rejecting spurious polynomial factors (``x = 0`` vs ``x y = 0``).
+    Returns ``None`` when the numerator is not a usable nonzero scalar expression.
+    """
+
+    try:
+        numerator, _denominator = fraction(together(residual))
+        numerator = simplify(numerator)
+    except Exception:
+        return None
+    if not _is_scalar_symbolic_object(numerator):
+        return None
+    if numerator == 0 or numerator.is_zero is True:
+        return None
+    return numerator
 
 
 def _strip_relation_condition_prefix(text: str) -> str:

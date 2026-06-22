@@ -12,9 +12,10 @@ from pathlib import Path
 from typing import Any
 
 from prkit.core import PRKitLogger
-from prkit.core.domain import PhysicalDataset, PhysicsDomain, PhysicsProblem
+from prkit.core.domain import PhysicsDataset, PhysicsDomain, PhysicsProblem
+from prkit.datasets.license_registry import get_license
 
-from .base_loader import BaseDatasetLoader, detect_answer_category
+from .base_loader import BaseDatasetLoader
 
 
 class PhysicsLoader(BaseDatasetLoader):
@@ -71,7 +72,8 @@ class PhysicsLoader(BaseDatasetLoader):
             "paper_url": "https://aclanthology.org/2025.findings-acl.610.pdf",
             "homepage": "https://github.com/yale-nlp/Physics",
             "repository_url": "https://github.com/yale-nlp/Physics",
-            "license": "MIT",
+            "license": get_license(self.name).to_info_dict(),
+            "license_spdx": get_license(self.name).spdx,
             "languages": ["en"],
             "variants": ["full", "hard", "textonly"],
             "splits": ["full", "test", "eval"],
@@ -103,7 +105,7 @@ class PhysicsLoader(BaseDatasetLoader):
         sample_size: int | None = None,
         decode_images: bool = True,
         **kwargs: Any,
-    ) -> PhysicalDataset:
+    ) -> PhysicsDataset:
         """
         Load the PHYSICS dataset.
 
@@ -116,7 +118,7 @@ class PhysicsLoader(BaseDatasetLoader):
             **kwargs: Additional loading parameters (ignored for compatibility)
 
         Returns:
-            PhysicalDataset instance
+            PhysicsDataset instance
         """
         del kwargs  # Unused, kept for loader API compatibility
 
@@ -179,7 +181,7 @@ class PhysicsLoader(BaseDatasetLoader):
             variant,
             split,
         )
-        return PhysicalDataset(problems, info, split=split)
+        return PhysicsDataset(problems, info, split=split)
 
     def _validate_variant_split_combo(self, variant: str, split: str) -> None:
         if (variant, split) not in self.FILE_PATTERNS:
@@ -255,7 +257,7 @@ class PhysicsLoader(BaseDatasetLoader):
         source_file: str,
         decode_images: bool,
     ) -> dict[str, Any]:
-        answer_value, answer_parts, answer_category = self._normalize_answers(
+        answer_value, answer_parts = self._normalize_answers(
             metadata.pop("final_answers", None)
         )
         graphs = metadata.pop("graphs", None)
@@ -289,7 +291,6 @@ class PhysicsLoader(BaseDatasetLoader):
             )
 
         metadata["answer"] = answer_value
-        metadata["answer_category"] = answer_category
         metadata["problem_type"] = "OE"
         metadata["domain"] = (
             self.DOMAIN_MAPPING.get(resolved_domain, PhysicsDomain.OTHER)
@@ -307,7 +308,7 @@ class PhysicsLoader(BaseDatasetLoader):
         metadata["source_file"] = source_file
         return metadata
 
-    def _normalize_answers(self, raw_answers: Any) -> tuple[str, list[str], str]:
+    def _normalize_answers(self, raw_answers: Any) -> tuple[str, list[str]]:
         if raw_answers is None:
             answer_parts: list[str] = []
         elif isinstance(raw_answers, list):
@@ -320,22 +321,15 @@ class PhysicsLoader(BaseDatasetLoader):
             )
 
         if not answer_parts:
-            return "", [], "text"
+            return "", []
 
         if len(answer_parts) == 1:
-            answer_value = answer_parts[0]
-            answer_category = detect_answer_category(answer_value).value
-            return answer_value, answer_parts, answer_category
+            return answer_parts[0], answer_parts
 
         answer_value = "\n".join(
             f"({index + 1}) {answer}" for index, answer in enumerate(answer_parts)
         )
-        detected_categories = [
-            detect_answer_category(answer) for answer in answer_parts
-        ]
-        if all(category.value == "text" for category in detected_categories):
-            return answer_value, answer_parts, "text"
-        return answer_value, answer_parts, "formula"
+        return answer_value, answer_parts
 
     def _decode_graphs(
         self,

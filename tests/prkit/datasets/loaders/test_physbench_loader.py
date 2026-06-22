@@ -123,7 +123,8 @@ class TestPhysBenchLoader:
         assert first_problem.problem_type == "MC"
         assert first_problem.correct_option == 2
         assert first_problem.answer is not None
-        assert first_problem.answer.is_option()
+        assert first_problem.answer.value == "C"
+        assert first_problem.answer.source_type is None
         assert len(first_problem.options) == 4
         assert len(first_problem.image_path) == 4
         assert Path(first_problem.image_path[0]).exists()

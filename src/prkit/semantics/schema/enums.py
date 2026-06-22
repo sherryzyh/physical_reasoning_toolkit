@@ -1,45 +1,40 @@
 """Enumerations for physics answer semantics.
 
-See ``TAXONOMY.md`` in this package for the full human-readable taxonomy.
+The answer *ontology* enums (:class:`AnswerObjectKind`, :class:`AnswerStructure`)
+and the :class:`_StrEnum` base now live in :mod:`prkit.core.domain.answer_taxonomy`
+as the toolkit's canonical taxonomy; they are re-exported here so existing
+``from prkit.semantics.schema import AnswerObjectKind`` import sites keep working.
+The *judgement-policy* enums below (unit policy, comparison mode, bridge tier, …)
+stay in semantics — they are mechanism, not ontology.
+
+See ``../comparison/EQUIVALENCE.md`` for the detailed equivalence-judgement reference
+(object kinds, structures, per-kind criteria, bridges, examples) and
+``../comparison/METHODOLOGY.md`` for the design discipline behind it.
 """
 
 from __future__ import annotations
 
-from enum import Enum
+# Re-exported canonical ontology enums (defined in prkit.core.domain). ``_StrEnum``
+# is the shared base for the judgement-policy enums defined in this module.
+from prkit.core.domain.answer_taxonomy import (
+    AnswerObjectKind,
+    AnswerStructure,
+    _StrEnum,
+)
 
-
-class _StrEnum(str, Enum):
-    """Enum subclass with string values and friendly ``str()`` output."""
-
-    def __str__(self) -> str:
-        return str(self.value)
-
-
-class AnswerObjectKind(_StrEnum):
-    """What kind of answer object the normalized final answer is."""
-
-    NUMBER = "number"
-    PHYSICAL_QUANTITY = "physical_quantity"
-    EXPRESSION = "expression"
-    RELATION = "relation"
-    QUALITATIVE_LABEL = "qualitative_label"
-    CHOICE = "choice"
-    BOOLEAN = "boolean"
-    SIGN_DIRECTION = "sign_direction"
-
-
-class AnswerStructure(_StrEnum):
-    """How the answer is structured."""
-
-    ATOMIC = "atomic"
-    MULTI_PART = "multi_part"
-    TUPLE = "tuple"
-    SET = "set"
-    INTERVAL = "interval"
-    VECTOR = "vector"
-    MATRIX = "matrix"
-    TENSOR = "tensor"
-    PIECEWISE = "piecewise"
+__all__ = [
+    # Re-exported canonical ontology (defined in prkit.core.domain)
+    "AnswerObjectKind",
+    "AnswerStructure",
+    # Judgement-policy enums (defined below)
+    "QuestionSymbolicMode",
+    "QuestionUnitPolicy",
+    "OrderingPolicy",
+    "ContractValidationStatus",
+    "ComparisonPolicyMode",
+    "BridgeTier",
+    "SymbolAssumption",
+]
 
 
 class QuestionSymbolicMode(_StrEnum):
@@ -89,3 +84,20 @@ class BridgeTier(_StrEnum):
     TIER1 = "tier1"
     TIER2 = "tier2"
     TIER3 = "tier3"
+
+
+class SymbolAssumption(_StrEnum):
+    """Real-domain a free symbol ranges over during symbolic comparison.
+
+    Physics answers denote real, often nonnegative, quantities; declaring this lets the
+    SymPy substrate decide equivalence over the *intended* domain instead of the generic
+    complex default (e.g. ``sqrt(a*b) == sqrt(a)*sqrt(b)`` holds for ``a, b >= 0`` but not
+    over the complex plane). The judgement stays exact -- it is decided over the declared
+    domain, not relaxed.
+    """
+
+    COMPLEX = "complex"
+    REAL = "real"
+    NONZERO = "nonzero"
+    NONNEGATIVE = "nonnegative"
+    POSITIVE = "positive"

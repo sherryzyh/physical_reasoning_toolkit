@@ -37,7 +37,8 @@ from pathlib import Path
 from typing import Any
 
 from prkit.core import PRKitLogger
-from prkit.core.domain import PhysicalDataset, PhysicsProblem
+from prkit.core.domain import PhysicsDataset, PhysicsProblem
+from prkit.datasets.license_registry import get_license
 
 from .base_loader import BaseDatasetLoader
 
@@ -71,7 +72,8 @@ class JEEBenchLoader(BaseDatasetLoader):
             "difficulty": "JEE Advanced level",
             "source": "JEE Advanced examination papers",
             "citation": "JEEBench dataset for JEE Advanced preparation",
-            "license": "Research use",
+            "license": get_license(self.name).to_info_dict(),
+            "license_spdx": get_license(self.name).spdx,
             "repository": "Local dataset under data/JEEBench/",
             "modalities": self.modalities,
         }
@@ -98,7 +100,7 @@ class JEEBenchLoader(BaseDatasetLoader):
         split: str | None = None,
         sample_size: int | None = None,
         **kwargs: Any,
-    ) -> PhysicalDataset:
+    ) -> PhysicsDataset:
         """
         Load the JEEBench dataset.
 
@@ -111,7 +113,7 @@ class JEEBenchLoader(BaseDatasetLoader):
             **kwargs: Additional loading parameters
 
         Returns:
-            PhysicalDataset instance
+            PhysicsDataset instance
 
         Raises:
             ValueError: If unsupported split or variant is requested
@@ -179,7 +181,7 @@ class JEEBenchLoader(BaseDatasetLoader):
             f"Successfully loaded {len(problems)} problems from JEEBench dataset"
         )
 
-        return PhysicalDataset(
+        return PhysicsDataset(
             problems,
             info,
             split=split,
@@ -238,13 +240,8 @@ class JEEBenchLoader(BaseDatasetLoader):
         # Set language to English (JEEBench is primarily in English)
         metadata["language"] = "en"
 
-        # Set answer category based on question type
-        if original_type in ["Integer", "Numeric"]:
-            metadata["answer_category"] = "number"
-        elif metadata["problem_type"] in ["MC", "MultipleMC"]:
-            metadata["answer_category"] = "option"
-        else:
-            metadata["answer_category"] = "text"
+        # source_type carries the dataset's own native type label verbatim
+        metadata["source_type"] = original_type or None
 
         return metadata
 

@@ -6,10 +6,10 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
-from prkit.core.domain import Answer, AnswerCategory, PhysicsProblem
+from prkit.core.domain import PhysicsAnswer, PhysicsProblem
 from prkit.core.model_clients import BaseModelClient
 from prkit.core.model_clients.structured_output import StructuredOutputPlan
-from prkit.semantics.inference.calls import (
+from prkit.semantics.build.calls import (
     _merge_question_semantics_fallbacks,
     _parse_response_model,
     _resolve_max_output_tokens,
@@ -18,11 +18,11 @@ from prkit.semantics.inference.calls import (
     infer_reference_semantics,
     resolve_prediction_response_model,
 )
-from prkit.semantics.inference.prompts import (
+from prkit.semantics.build.prompts import (
     build_prediction_semantics_prompt,
     build_reference_semantics_prompt,
 )
-from prkit.semantics.inference.strict_models import (
+from prkit.semantics.build.strict_models import (
     StrictPredictionFinalAnswerResponse,
     StrictPredictionSemanticsResponse,
     StrictReferenceSemanticsResponse,
@@ -68,11 +68,7 @@ def _build_problem() -> PhysicsProblem:
     problem = PhysicsProblem(
         problem_id="prob-1",
         question="What is the force?",
-        answer=Answer(
-            value="5",
-            unit="N",
-            answer_category=AnswerCategory.PHYSICAL_QUANTITY,
-        ),
+        answer=PhysicsAnswer(value="5", unit="N"),
         solution="Use Newton's second law.",
         domain="mechanics",
         image_path=["/tmp/img1.png", "/tmp/img2.png"],
@@ -115,7 +111,7 @@ def test_build_prediction_semantics_prompt_uses_answer_blind_question_draft() ->
     problem = PhysicsProblem(
         problem_id="prob-gold-split",
         question="Give both values: the displacement value and the time value.",
-        answer=Answer(value="F = ma", answer_category=AnswerCategory.EQUATION),
+        answer=PhysicsAnswer(value="F = ma"),
         additional_fields={
             "answer_parts": [
                 {"part_label": "speed_slot", "raw_text": "1 m"},
@@ -189,9 +185,9 @@ class _PredictionStubModelClient(BaseModelClient):
         )
 
 
-def test_infer_prediction_semantics_uses_native_json_schema_with_strict_response_model() -> (
-    None
-):
+def test_infer_prediction_semantics_isolated_uses_isolated_response_model() -> None:
+    # The default isolated solve requests the isolated response model (no question_semantics)
+    # and the solve prompt suppresses the embedded question-semantics draft.
     model_client = _PredictionStubModelClient()
 
     artifact = infer_prediction_semantics(
@@ -203,9 +199,35 @@ def test_infer_prediction_semantics_uses_native_json_schema_with_strict_response
     assert model_client.last_response_format is not None
     assert model_client.last_response_format["type"] == "json_schema"
     assert (
-        model_client.last_response_format["name"] == "StrictPredictionSemanticsResponse"
+        model_client.last_response_format["name"] == "StrictPredictionIsolatedResponse"
+    )
+    assert "Toolkit heuristic draft question semantics:" not in (
+        model_client.last_prompt or ""
     )
     assert "Return ONLY a JSON object matching this JSON Schema:" not in (
+        model_client.last_prompt or ""
+    )
+    # Prediction side authors no contract in the isolated artifact.
+    assert artifact.question_semantics == PhysicsQuestionSemantics()
+
+
+def test_infer_prediction_semantics_fused_uses_strict_response_model() -> None:
+    # The legacy fused path (isolated_solve=False) still uses the full response model and
+    # injects the question-semantics draft.
+    model_client = _PredictionStubModelClient()
+
+    artifact = infer_prediction_semantics(
+        _build_problem(),
+        model_client,
+        isolated_solve=False,
+    )
+
+    assert artifact.generator.structured_output_mode == "json_schema"
+    assert model_client.last_response_format is not None
+    assert (
+        model_client.last_response_format["name"] == "StrictPredictionSemanticsResponse"
+    )
+    assert "Toolkit heuristic draft question semantics:" in (
         model_client.last_prompt or ""
     )
 
@@ -734,20 +756,106 @@ class _NoStructuredOutputModelClient(BaseModelClient):
         **kwargs: Any,
     ) -> str:
         del input, image_paths, response_format, kwargs
-        raise AssertionError(
-            "chat should not be called when native json_schema is unsupported"
+        raise RuntimeError("stub model cannot produce any output")
+
+
+class _PlainTextPredictionStubModelClient(BaseModelClient):
+    """A provider that can chat (plain text) but cannot enforce native structured output.
+
+    Models the realistic "lacks native structured output" case from the three-step
+    ecosystem: the isolated solve should degrade to ``a_pred_ext`` (plain text -> deterministic
+    extraction), never fail.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(model="stub-model")
+        self.provider = "stub"
+
+    def _resolve_structured_output_plan(
+        self,
+        spec,
+        *,
+        structured_policy,
+    ) -> StructuredOutputPlan:
+        # Can enforce the simple compact schema natively, but NOT the complex isolated
+        # answer-semantics schema -> the isolated solve falls back to a_pred_ext only.
+        del structured_policy
+        if getattr(spec, "name", "") == "StrictPredictionFinalAnswerResponse":
+            return StructuredOutputPlan(
+                mode="json_schema",
+                strategy="stub_native",
+                native_schema_enforced=True,
+                accepted_artifact_modes=("json_schema",),
+                accepted_artifact_strategies=("stub_native",),
+                response_format={
+                    "type": "json_schema",
+                    "name": spec.name,
+                    "schema": spec.schema,
+                },
+                prompt_suffix=None,
+            )
+        return StructuredOutputPlan(
+            mode="prompt_only",
+            strategy="stub_prompt_only",
+            native_schema_enforced=False,
+            accepted_artifact_modes=("prompt_only",),
+            accepted_artifact_strategies=("stub_prompt_only",),
+            response_format=None,
+            prompt_suffix="",
+        )
+
+    def response(
+        self,
+        input: str,
+        image_paths: list[str] | None = None,
+        response_format: dict[str, Any] | type | None = None,
+        **kwargs: Any,
+    ) -> str:
+        del input, image_paths, response_format, kwargs
+        return json.dumps(
+            {"reasoning": "Use Newton's second law.", "final_answer": "5 N"}
         )
 
 
-def test_infer_prediction_semantics_requires_native_json_schema_support() -> None:
+def test_infer_prediction_semantics_isolated_degrades_to_extracted_without_native() -> (
+    None
+):
+    # Step 2 without native structured output: only a_pred_ext (plain -> deterministic
+    # extraction) is produced, never a failure.
+    artifact = infer_prediction_semantics(
+        _build_problem(), _PlainTextPredictionStubModelClient()
+    )
+
+    assert artifact.prediction_answer_semantics.canonical_text
+    assert artifact.build_report is not None
+    assert artifact.build_report.build_method == "prediction_isolated_extracted"
+    assert "a_pred_llm_unavailable" in artifact.build_report.flags
+
+
+def test_infer_prediction_semantics_fused_requires_native_json_schema_support() -> None:
+    # The legacy fused path still hard-requires native structured output.
     with pytest.raises(
         ValueError, match="requires native provider-enforced structured output support"
     ):
-        infer_prediction_semantics(_build_problem(), _NoStructuredOutputModelClient())
+        infer_prediction_semantics(
+            _build_problem(),
+            _NoStructuredOutputModelClient(),
+            isolated_solve=False,
+        )
 
 
-def test_infer_reference_semantics_requires_native_json_schema_support() -> None:
-    with pytest.raises(
-        ValueError, match="requires native provider-enforced structured output support"
-    ):
-        infer_reference_semantics(_build_problem(), _NoStructuredOutputModelClient())
+def test_infer_reference_semantics_degrades_without_native_structured_output() -> None:
+    # Step 1 (reference build) never fails on native-output lack. The advisory calls run
+    # best-effort; even when the provider can produce no parseable output at all, the
+    # deterministic backbone still yields a valid q_ref + a_ref. Lacking native structured
+    # output is a normal route (a Step-2 concern), not a defect — so it does NOT force review,
+    # though the unavailable advisory calls are recorded as informational flags.
+    artifact = infer_reference_semantics(
+        _build_problem(), _NoStructuredOutputModelClient()
+    )
+
+    assert artifact.reference_answer_semantics.canonical_text
+    assert artifact.build_report is not None
+    assert artifact.build_report.review_required is False
+    assert artifact.build_report.cross_checks_passed is True
+    assert any("unavailable" in flag for flag in artifact.build_report.flags)

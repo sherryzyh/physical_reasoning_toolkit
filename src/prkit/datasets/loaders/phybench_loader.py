@@ -12,8 +12,9 @@ import random
 from pathlib import Path
 from typing import Any
 
-from prkit.core.domain import PhysicalDataset, PhysicsProblem
+from prkit.core.domain import PhysicsDataset, PhysicsProblem
 from prkit.core.domain.physics_domain import PhysicsDomain
+from prkit.datasets.license_registry import get_license
 
 from .base_loader import BaseDatasetLoader
 
@@ -37,7 +38,8 @@ class PHYBenchLoader(BaseDatasetLoader):
             "paper_url": "https://arxiv.org/pdf/2504.16074",
             "homepage": "https://www.phybench.cn/",
             "repository_url": "https://huggingface.co/datasets/Eureka-Lab/PHYBench",
-            "license": "Research use",
+            "license": get_license(self.name).to_info_dict(),
+            "license_spdx": get_license(self.name).spdx,
             "domains": [
                 "mechanics",
                 "electricity",
@@ -78,11 +80,7 @@ class PHYBenchLoader(BaseDatasetLoader):
 
     def _process_metadata(self, metadata: dict[str, Any]) -> dict[str, Any]:
         """Process metadata to create standardized problem fields."""
-
-        metadata["answer_category"] = "formula"
-
         self._map_domain(metadata)
-
         return metadata
 
     def load(
@@ -92,7 +90,7 @@ class PHYBenchLoader(BaseDatasetLoader):
         sample_size: int | None = None,
         split: str | None = None,
         **kwargs: Any,
-    ) -> PhysicalDataset:
+    ) -> PhysicsDataset:
         """
         Load PHYBench dataset.
 
@@ -103,7 +101,7 @@ class PHYBenchLoader(BaseDatasetLoader):
             **kwargs: Additional loading parameters (unused, for compatibility)
 
         Returns:
-            PhysicalDataset containing PHYBench problems
+            PhysicsDataset containing PHYBench problems
         """
         # Use defaults if not provided
         if variant is None:
@@ -159,7 +157,7 @@ class PHYBenchLoader(BaseDatasetLoader):
         info = self.get_info()
         info["total_problems"] = len(problems)
 
-        return PhysicalDataset(
+        return PhysicsDataset(
             problems,
             info,
             split=split,

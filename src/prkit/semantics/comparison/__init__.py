@@ -24,6 +24,7 @@ from .contract import (
 )
 from .engine import (
     compare_physics_answers,
+    compare_predictions,
     compare_protocol_answers,
     compare_protocol_answers_legacy,
 )
@@ -35,6 +36,7 @@ __all__ = [
     "coerce_policy_mode",
     "coerce_question_semantics",
     "compare_physics_answers",
+    "compare_predictions",
     "compare_protocol_answers",
     "compare_protocol_answers_legacy",
     "validate_answer_against_contract",

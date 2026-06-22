@@ -1,0 +1,111 @@
+"""Convenience exports for the semantics-build layer.
+
+The :mod:`prkit.semantics.build` package *builds* the records the comparison engine
+judges — it creates references and generates predictions. It wraps:
+
+- building stable prompts for reference and prediction semantics calls,
+- creating/generating + validating + persisting the resulting artifacts, and
+- comparing saved artifacts with the protocol comparator.
+
+The public build actions are :func:`create_reference_semantics`,
+:func:`generate_prediction_semantics`, and :func:`extract_prediction_answer_semantics`
+(the deprecated ``infer_*`` names remain as aliases for one release).
+"""
+
+from .artifacts import (
+    PredictionSemanticsArtifact,
+    PredictionSemanticsResponse,
+    ProblemSemanticsArtifact,
+    ReferenceSemanticsArtifact,
+    ReferenceSemanticsResponse,
+    SemanticsArtifact,
+    SemanticsBuildReport,
+    SemanticsComparisonInputs,
+    SemanticsEvaluationRecord,
+    SemanticsGeneratorInfo,
+    SemanticsProblemRecord,
+    SymbolAssumptionProvenance,
+    load_prediction_semantics_artifact,
+    load_problem_semantics_artifact,
+    load_reference_semantics_artifact,
+    load_semantics_artifact,
+    load_semantics_evaluation_record,
+    save_semantics_json,
+)
+from .calls import (
+    PredictionSemanticsInferenceSpec,
+    build_extracted_prediction_semantics_artifact,
+    build_prediction_semantics_artifact,
+    build_problem_semantics,
+    build_reference_semantics,
+    compare_saved_semantics,
+    create_reference_semantics,
+    evaluate_saved_semantics,
+    extract_prediction_answer_semantics,
+    generate_prediction_semantics,
+    infer_prediction_semantics,
+    infer_reference_semantics,
+    parse_prediction_semantics_response_text,
+    parse_reference_semantics_response_text,
+    prepare_isolated_prediction_semantics_inference_spec,
+    prepare_prediction_semantics_inference_spec,
+    prepare_semantics_comparison,
+    resolve_isolated_prediction_response_model,
+    resolve_prediction_response_model,
+)
+from .prompts import (
+    PREDICTION_PROMPT_NAME,
+    PREDICTION_PROMPT_VERSION,
+    REFERENCE_PROMPT_NAME,
+    REFERENCE_PROMPT_VERSION,
+    answer_like_to_text,
+    build_prediction_semantics_prompt,
+    build_reference_semantics_prompt,
+)
+
+__all__ = [
+    "PREDICTION_PROMPT_NAME",
+    "PREDICTION_PROMPT_VERSION",
+    "PredictionSemanticsArtifact",
+    "PredictionSemanticsInferenceSpec",
+    "PredictionSemanticsResponse",
+    "ProblemSemanticsArtifact",
+    "REFERENCE_PROMPT_NAME",
+    "REFERENCE_PROMPT_VERSION",
+    "ReferenceSemanticsArtifact",
+    "ReferenceSemanticsResponse",
+    "SemanticsArtifact",
+    "SemanticsBuildReport",
+    "SemanticsComparisonInputs",
+    "SemanticsEvaluationRecord",
+    "SemanticsGeneratorInfo",
+    "SemanticsProblemRecord",
+    "SymbolAssumptionProvenance",
+    "answer_like_to_text",
+    "build_extracted_prediction_semantics_artifact",
+    "build_prediction_semantics_prompt",
+    "build_problem_semantics",
+    "build_reference_semantics",
+    "build_reference_semantics_prompt",
+    "build_prediction_semantics_artifact",
+    "compare_saved_semantics",
+    "create_reference_semantics",
+    "evaluate_saved_semantics",
+    "extract_prediction_answer_semantics",
+    "generate_prediction_semantics",
+    "infer_prediction_semantics",
+    "infer_reference_semantics",
+    "load_prediction_semantics_artifact",
+    "load_problem_semantics_artifact",
+    "load_reference_semantics_artifact",
+    "load_semantics_artifact",
+    "load_semantics_evaluation_record",
+    "parse_prediction_semantics_response_text",
+    "parse_reference_semantics_response_text",
+    "prepare_isolated_prediction_semantics_inference_spec",
+    "prepare_prediction_semantics_inference_spec",
+    "prepare_semantics_comparison",
+    "resolve_isolated_prediction_response_model",
+    "resolve_prediction_response_model",
+    "save_semantics_json",
+]

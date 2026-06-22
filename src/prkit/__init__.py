@@ -17,11 +17,14 @@ Subpackages:
     - :mod:`prkit.api` — frozen public contract (protocols + ``Verdict``).
     - :mod:`prkit.core` — domain models, model clients, logging.
     - :mod:`prkit.datasets` — dataset hub, loaders, downloaders.
-    - :mod:`prkit.scoring` — reference scorers (``SemanticsScorer``).
+    - :mod:`prkit.scoring` — reference scorers (``SemanticsScorer``; the
+      ``Eed``/``Seed`` edit-distance baselines + ``Semantics`` front-end variants;
+      ``LLMJudgeScorer``).
     - :mod:`prkit.testing` — conformance suite (``check_dataset``/``check_scorer``/…).
     - :mod:`prkit.semantics` — physics-aware answer normalization & comparison.
-    - :mod:`prkit.evaluation` — comparators, evaluators, LLM judge (deprecated;
-      superseded by :mod:`prkit.scoring`).
+    - :mod:`prkit.evaluation` — model-graded LLM judge (``llm_judge``). The legacy
+      comparator/evaluator stacks were removed while shaping the provisional
+      contract; use :mod:`prkit.scoring` for deterministic scoring.
     - :mod:`prkit.annotation` — human annotation tasks (gold, correctness).
 """
 
@@ -33,13 +36,20 @@ except PackageNotFoundError:  # running from a source tree without an installed 
     __version__ = "0.0.0.dev0"
 
 from .core import PRKitLogger
-from .core.domain import AnswerCategory, PhysicalDataset, PhysicsDomain, PhysicsProblem
+from .core.domain import (
+    AnswerObjectKind,
+    AnswerStructure,
+    PhysicsDataset,
+    PhysicsDomain,
+    PhysicsProblem,
+)
 
 __all__ = [
     "__version__",
     "PRKitLogger",
     "PhysicsProblem",
-    "PhysicalDataset",
+    "PhysicsDataset",
     "PhysicsDomain",
-    "AnswerCategory",
+    "AnswerObjectKind",
+    "AnswerStructure",
 ]

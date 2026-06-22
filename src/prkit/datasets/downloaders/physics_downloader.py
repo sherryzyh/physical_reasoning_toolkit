@@ -12,6 +12,8 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
+from prkit.datasets.license_registry import get_license
+
 from .base_downloader import BaseDownloader
 
 
@@ -54,7 +56,8 @@ class PhysicsDownloader(BaseDownloader):
             "format": "JSONL",
             "variants": ["full", "hard", "textonly"],
             "splits": ["full", "test", "eval"],
-            "license": "MIT",
+            "license": get_license(self.dataset_name).to_info_dict(),
+            "license_spdx": get_license(self.dataset_name).spdx,
             "download_method": "raw GitHub file download",
         }
 

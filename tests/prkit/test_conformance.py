@@ -14,8 +14,22 @@ from pydantic import ValidationError
 from prkit.api import Verdict
 from prkit.core.model_clients.base import BaseModelClient
 from prkit.datasets.hub import DatasetHub
-from prkit.scoring import SemanticsScorer
+from prkit.scoring import (
+    EedScorer,
+    SeedScorer,
+    SemanticsEedScorer,
+    SemanticsScorer,
+    SemanticsSeedScorer,
+)
 from prkit.testing import check_dataset, check_model_client, check_scorer
+
+#: Expression/number-only battery for the semantics edit-distance scorers (the
+#: default battery has a CHOICE case that normalizes to a not-applicable verdict).
+_SEMANTICS_EDIT_DISTANCE_CASES = [
+    ("3 m/s", "3 m/s", True),
+    ("x+1", "1+x", True),
+    ("x+1", "x+2", False),  # genuine expression mismatch (bare "x" alone is N/A)
+]
 
 
 class _StubClient(BaseModelClient):
@@ -40,6 +54,25 @@ def test_all_registered_loaders_conform_offline(name):
 
 def test_reference_scorer_conforms():
     check_scorer(SemanticsScorer())
+
+
+def test_semantics_eed_scorer_conforms():
+    check_scorer(SemanticsEedScorer(), cases=_SEMANTICS_EDIT_DISTANCE_CASES)
+
+
+def test_semantics_seed_scorer_conforms():
+    check_scorer(SemanticsSeedScorer(), cases=_SEMANTICS_EDIT_DISTANCE_CASES)
+
+
+def test_eed_scorer_conforms():
+    pytest.importorskip("latex2sympy2_extended")
+    check_scorer(EedScorer())
+
+
+def test_seed_scorer_conforms():
+    pytest.importorskip("latex2sympy2_extended")
+    pytest.importorskip("pint")
+    check_scorer(SeedScorer())
 
 
 def test_stub_model_client_conforms_offline():

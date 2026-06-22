@@ -8,9 +8,8 @@ from pathlib import Path
 from typing import Any
 
 from prkit.core import PRKitLogger
-from prkit.core.domain import PhysicalDataset, PhysicsProblem
-from prkit.core.domain.answer import Answer
-from prkit.core.domain.answer_category import AnswerCategory
+from prkit.core.domain import PhysicsDataset, PhysicsProblem
+from prkit.core.domain.answer import PhysicsAnswer
 
 # Try to import PIL/Pillow for image loading
 PILImageModule: Any | None
@@ -33,7 +32,7 @@ CORE_FIELDS = [
     "problem_type",  # problem type in OE, MC, MMC, etc.
     "domain",  # domain in physics
     "language",  # language
-    "answer_category",  # answer category for comparison
+    "source_type",  # dataset-native answer-type label (verbatim, may be None)
     "image_paths",  # paths to associated image files (for visual problems)
     "options",  # MC answer choices
     "correct_option",  # MC index or key (dataset-specific)
@@ -57,36 +56,6 @@ def raw_answer_to_text(value: Any) -> str:
         parts = [raw_answer_to_text(part) for part in value]
         return "; ".join(part for part in parts if part)
     return str(value).strip()
-
-
-def detect_answer_category(value: str) -> AnswerCategory:
-    """
-    Infer answer category from a string value when dataset does not specify it.
-
-    Strategy:
-    1. Try to parse as pure number first -> NUMBER
-    2. Check for mathematical expression patterns -> FORMULA
-    3. Fall back to TEXT if unclear
-    """
-    value = str(value).strip()
-
-    # remove \\boxed{} that wraps the value if present
-    value = re.sub(r"\\boxed\{([^}]+)\}", r"\1", value)
-
-    # remove $$ that wraps the value if present
-    value = re.sub(r"\$\$(.*?)\$\$", r"\1", value)
-    value = re.sub(r"\$([^$]+)\$", r"\1", value)
-
-    # Step 1: Check if it's a pure number (including scientific notation)
-    if is_pure_number(value):
-        return AnswerCategory.NUMBER
-
-    # Step 2: Check if it's a mathematical expression
-    if is_mathematical_expression(value):
-        return AnswerCategory.FORMULA
-
-    # Step 3: Default to text
-    return AnswerCategory.TEXT
 
 
 def is_pure_number(value: str) -> bool:
@@ -247,7 +216,7 @@ class BaseDatasetLoader(ABC):
         pass
 
     @abstractmethod
-    def load(self, data_dir: str | Path, **kwargs: Any) -> PhysicalDataset:
+    def load(self, data_dir: str | Path, **kwargs: Any) -> PhysicsDataset:
         """
         Load dataset from the specified directory.
 
@@ -256,7 +225,7 @@ class BaseDatasetLoader(ABC):
             **kwargs: Additional loading parameters
 
         Returns:
-            PhysicalDataset instance
+            PhysicsDataset instance
         """
         pass
 
@@ -572,59 +541,33 @@ class BaseDatasetLoader(ABC):
     def _create_answer_from_raw(
         self,
         metadata: dict[str, Any],
-    ) -> Answer | None:
+    ) -> PhysicsAnswer | None:
         answer = metadata.get("answer")
-        answer_category = str(metadata.get("answer_category", ""))
-        problem_type = str(metadata.get("problem_type", ""))
 
         if answer is None:
             return None
 
-        if "MC" in problem_type:
-            return Answer(
-                value=raw_answer_to_text(answer),
-                answer_category=AnswerCategory.OPTION,
-            )
-
-        if answer_category in ("number", "physical_quantity"):
-            if isinstance(answer, dict):
-                value = raw_answer_to_text(answer.get("value"))
-                unit = answer.get("unit", "") or ""
-            else:
-                value = raw_answer_to_text(answer)
-                unit = ""
-
-            # remove \\boxed{} that wraps the value if present
-            value = re.sub(r"\\boxed\{([^}]+)\}", r"\1", value)
-
-            # remove $$ that wraps the value if present
-            value = re.sub(r"\$\$(.*?)\$\$", r"\1", value)
-            value = re.sub(r"\$([^$]+)\$", r"\1", value)
-
-            category = (
-                AnswerCategory.PHYSICAL_QUANTITY if unit else AnswerCategory.NUMBER
-            )
-            return Answer(value=value, answer_category=category, unit=unit or None)
-        elif answer_category in ("formula", "equation"):
-            return Answer(
-                value=raw_answer_to_text(answer),
-                answer_category=AnswerCategory.FORMULA,
-            )
-        elif answer_category == "text":
-            return Answer(
-                value=raw_answer_to_text(answer),
-                answer_category=AnswerCategory.TEXT,
-            )
-        elif answer_category == "option":
-            return Answer(
-                value=raw_answer_to_text(answer),
-                answer_category=AnswerCategory.OPTION,
-            )
+        # Extract unit from dict-shaped answers; None otherwise
+        if isinstance(answer, dict):
+            raw_value = answer.get("value")
+            unit: str | None = answer.get("unit") or None
         else:
-            # fallback to auto-detect when answer_category not specified
-            answer_text = raw_answer_to_text(answer)
-            detected = detect_answer_category(answer_text)
-            return Answer(value=answer_text, answer_category=detected)
+            raw_value = answer
+            unit = None
+
+        value = raw_answer_to_text(raw_value)
+
+        # Strip LaTeX wrappers universally (\\boxed{}, $…$, $$…$$)
+        value = re.sub(r"\\boxed\{([^}]+)\}", r"\1", value)
+        value = re.sub(r"\$\$(.*?)\$\$", r"\1", value, flags=re.DOTALL)
+        value = re.sub(r"\$([^$]+)\$", r"\1", value)
+
+        # source_type is set by the loader from the dataset's native type field
+        source_type: str | None = metadata.get("source_type") or None
+        if source_type is not None:
+            source_type = str(source_type)
+
+        return PhysicsAnswer(value=value, unit=unit, source_type=source_type)
 
     def create_physics_problem(
         self,
@@ -711,10 +654,11 @@ class BaseDatasetLoader(ABC):
             if source_answer_text:
                 metadata["source_answer_text"] = source_answer_text
 
-        # Create Answer object from answer
+        # Create PhysicsAnswer object from answer
         answer_obj = self._create_answer_from_raw(metadata)
         metadata.pop("answer", None)
-        metadata.pop("answer_category", None)
+        metadata.pop("answer_category", None)  # defensive: loaders may still set it
+        metadata.pop("source_type", None)  # consumed into PhysicsAnswer; don't leak
         metadata.pop("unit", None)
 
         # collect all other fields as additional fields

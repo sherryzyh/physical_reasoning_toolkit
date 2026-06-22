@@ -8,8 +8,8 @@ PRKit applies a “unified interface” idea to the full physical-reasoning loop
 
 PRKit centers on **core components** that define the physical reasoning ontology. Three integrated subpackages build on this foundation:
 
-- **Core components**: `PhysicsDomain`, `AnswerCategory`, `PhysicsProblem`, `Answer`, `PhysicalDataset`, `PhysicsSolution`, `BaseModelClient`, `create_model_client`, `PRKitLogger`—the shared abstractions used across the toolkit.
-- **`prkit.datasets`**: A Datasets-like hub that downloads/loads benchmarks into the unified schema (`PhysicsProblem`, `PhysicalDataset`).
+- **Core components**: `PhysicsDomain`, `PhysicsProblem`, `PhysicsAnswer`, `PhysicsDataset`, `PhysicsSolution`, `BaseModelClient`, `create_model_client`, `PRKitLogger`—the shared abstractions used across the toolkit.
+- **`prkit.datasets`**: A Datasets-like hub that downloads/loads benchmarks into the unified schema (`PhysicsProblem`, `PhysicsDataset`).
 - **`prkit.annotation`**: Workflow-oriented tools for structured, lower-level labels (e.g., domain/subdomain, theorem usage).
 - **`prkit.evaluation`**: Evaluate-like components for physics-oriented scoring and comparison (e.g., symbolic/numerical answer matching).
 
@@ -19,7 +19,7 @@ PRKit centers on **core components** that define the physical reasoning ontology
 from prkit.datasets import DatasetHub
 from prkit.core.model_clients import create_model_client
 
-# Load any benchmark into the unified schema (PhysicsProblem, PhysicalDataset)
+# Load any benchmark into the unified schema (PhysicsProblem, PhysicsDataset)
 dataset = DatasetHub.load("physreason", variant="full", split="test")
 
 # Run inference with the unified model client (core component)
@@ -30,12 +30,45 @@ for problem in dataset[:3]:
 
 The same pattern works across different datasets and model providers—swap the dataset name or model identifier.
 
+#### Just verify an answer (`prkit.verify`)
+
+For the standalone "is this physics answer right?" use case, use the light-import
+verifier—a `math-verify`-shaped API that, unlike `math-verify`, is unit- and
+symbolic-aware and imports no model clients, dataset hub, or provider SDKs:
+
+```python
+from prkit.verify import verify
+
+v = verify("9.8 m/s^2", "9.8 m/s²")   # verify(gold, pred) -> Verdict
+v.correct          # True  — the unit suffix normalizes (math-verify strips units)
+v.units_ok         # True
+v.symbolic_equiv   # None  (numeric case); True for e.g. verify("v = a t", "v = t a")
+v.scorer_version   # stamped so a stored score is attributable to its scorer
+```
+
+#### Physics semantics (`prkit.semantics`)
+
+Underneath `verify` is the **physics-semantics** layer. It models a question's contract
+`q` and an answer's typed semantics `a`, and judges equivalence as a question-conditioned
+relation `Eq(a_pred, a_ref ; q)` — deterministically, not by string match. It exposes three
+build actions and two judge entry points, all importable from `prkit.semantics`:
+
+- `extract_prediction_answer_semantics(answer_text)` — deterministically type a prediction;
+- `create_reference_semantics(problem, model_client=None)` — build a reference `(q_ref, a_ref)`
+  (deterministic when `model_client` is omitted, LLM-assisted otherwise);
+- `generate_prediction_semantics(problem, solver_client, ...)` — solve, then type the answer;
+- `compare_protocol_answers(pred, ref, ...)` — reference-based judgement;
+- `compare_predictions(a_i, a_j, ...)` — reference-free (symmetric) judgement.
+
+See **[PHYSICS_SEMANTICS.md](docs/PHYSICS_SEMANTICS.md)** for the full story and doc map.
+
 ### 📖 Documentation
 
 **Quick Links:**
 - 🔧 **[CORE.md](docs/CORE.md)** - Core components: domain model, model client, logger, and definitions
 - 📚 **[DATASETS.md](docs/DATASETS.md)** - Complete guide to supported datasets and benchmarks
-- 📊 **[EVALUATION.md](docs/EVALUATION.md)** - Evaluation metrics and comparison strategies
+- 🧪 **[PHYSICS_SEMANTICS.md](docs/PHYSICS_SEMANTICS.md)** - Physics-semantics layer: `q`/`a`, the five build/judge steps, and the doc map
+- 📊 **[EVALUATION.md](docs/EVALUATION.md)** - The deterministic physics-semantics scorer (`verify` / `SemanticsScorer` → `Verdict`)
 - 🏷️ **[ANNOTATION.md](docs/ANNOTATION.md)** - Human annotation tasks (gold, correctness)
 - 📝 **[CHANGELOG.md](CHANGELOG.md)** - Version history and release notes
 
@@ -178,10 +211,9 @@ The toolkit is organized around **core components** and three subpackages that u
 The essential building blocks of the physical-reasoning-toolkit. All datasets, inference, evaluation, and annotation workflows use these components.
 
 * **PhysicsDomain** — Enumeration of physics subfields (mechanics, thermodynamics, quantum mechanics, optics, etc.) for problem classification. Aligned with UGPhysics, PHYBench, TPBench. Use `PhysicsDomain.from_string()` for flexible parsing.
-* **AnswerCategory** — Enumeration of answer types for normalization and evaluation: `NUMBER`, `PHYSICAL_QUANTITY`, `EQUATION`, `FORMULA`, `TEXT`, `OPTION`. Drives how answers are compared (numerical precision, symbolic equivalence, exact match).
-* **PhysicsProblem** — The canonical representation of a physics problem. Required: `problem_id`, `question`. Optional: `answer` (Answer), `solution`, `domain`, `image_path`, `problem_type` (MC/OE), `options`, `correct_option`. Supports dictionary-like access and `load_images()` for visual problems.
-* **Answer** — Unified answer model. `value` holds the number (NUMBER), numeric part (PHYSICAL_QUANTITY), option string (OPTION), or plain string (EQUATION, FORMULA, TEXT). `unit` is optional and used only for PHYSICAL_QUANTITY. Type checks, unit helpers, LaTeX handling, option indexing.
-* **PhysicalDataset** — Collection of `PhysicsProblem` instances. Indexing, slicing, `get_by_id()`, `filter_by_domain()`, `take()`, `sample()`, `save_to_json()` / `from_json()`. Provides `get_statistics()` for domain and problem-type distribution.
+* **PhysicsProblem** — The canonical representation of a physics problem. Required: `problem_id`, `question`. Optional: `answer` (PhysicsAnswer), `solution`, `domain`, `image_path`, `problem_type` (MC/OE), `options`, `correct_option`. Supports dictionary-like access and `load_images()` for visual problems.
+* **PhysicsAnswer** — Thin observation record: `value` (str, verbatim), optional `unit` (observed unit string), optional `source_type` (dataset-native type tag, verbatim), and `metadata` dict. The canonical answer kind (`AnswerObjectKind`, 9 object kinds) is derived on demand by the `prkit.semantics` layer — it is not stored on `PhysicsAnswer`.
+* **PhysicsDataset** — Collection of `PhysicsProblem` instances. Indexing, slicing, `get_by_id()`, `filter_by_domain()`, `take()`, `sample()`, `save_to_json()` / `from_json()`. Provides `get_statistics()` for domain and problem-type distribution.
 * **PhysicsSolution** — Bundles a `PhysicsProblem`, model `agent_answer`, and optional `intermediate_steps`. Captures the full solution trace for evaluation and analysis.
 * **BaseModelClient** — Abstract base for model clients. Subclasses implement `chat(user_prompt, image_paths=None)`.
 * **PRKitLogger** — Centralized logging with colored output, file logging, and env config (`PRKIT_LOG_LEVEL`, `PRKIT_LOG_FILE`, etc.).
@@ -189,10 +221,15 @@ The essential building blocks of the physical-reasoning-toolkit. All datasets, i
 📖 See [CORE.md](docs/CORE.md) for the full domain model, entity relationships, subpackage dependency diagram, and import reference.
 
 
-### prkit.evaluation 📈
-Answer comparators (symbolic, numerical, textual, option-based), accuracy evaluator, and physics-focused assessment protocols.
+### prkit.scoring / prkit.verify 📈
+The deterministic physics-semantics scorer: `prkit.verify.verify` (light-import, one-call)
+and the `prkit.scoring` family — `SemanticsScorer` (binary), the `EedScorer`/`SeedScorer`
+edit-distance baselines, the graded `SemanticsEedScorer`/`SemanticsSeedScorer`, and the
+model-graded `LLMJudgeScorer` — all returning the canonical `Verdict`. Wraps the
+`prkit.semantics.comparison` engine. (The legacy `prkit.evaluation` comparator/evaluator
+stack is deprecated; `prkit.evaluation.llm_judge` stays.)
 
-📖 [EVALUATION.md](docs/EVALUATION.md)
+📖 [EVALUATION.md](docs/EVALUATION.md) · [PHYSICS_SEMANTICS.md](docs/PHYSICS_SEMANTICS.md)
 
 ### prkit.datasets 📊
 Dataset hub with a Datasets-like interface: `DatasetHub.load()` for PHYBench, PhysReason, UGPhysics, SeePhys, PhyX (plus JEEBench, TPBench loaders). Auto-download, variant selection, and reproducible sampling.

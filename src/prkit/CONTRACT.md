@@ -4,10 +4,30 @@
 (eval harnesses, RL trainers, dataset hubs) should target. This document defines
 what is stable, how it is versioned, and how things get deprecated.
 
+## Headline entry point: `prkit.verify`
+
+If all you want is to verify a physics answer, use the light-import facade:
+
+```python
+from prkit.verify import verify
+v = verify("9.8 m/s^2", "9.8 m/s²")   # verify(gold, pred) -> Verdict
+v.correct        # True
+v.units_ok       # True  (the unit suffix normalizes; math-verify would strip it)
+```
+
+To turn a raw answer string into typed physics semantics (the former
+`prkit.verify.parse`), use `prkit.semantics.extract_prediction_answer_semantics`.
+
+`prkit.verify` imports **no** provider SDKs, dataset hub, `datasets`, or pandas —
+the boundary is enforced by `tests/prkit/verify/test_import_isolation.py`. It is a
+thin, `math-verify`-shaped wrapper over the reference `prkit.scoring.SemanticsScorer`
+and returns the same canonical `Verdict`.
+
 ## Stable surface
 
-- **Only names exported in `prkit.api.__all__` are stable.** Everything else —
-  module paths, private helpers, subpackage internals — may change without notice.
+- **Only names exported in `prkit.api.__all__` are stable**, plus the
+  `prkit.verify` facade (`verify`). Everything else — module paths,
+  private helpers, subpackage internals — may change without notice.
 - The conformance suite in `prkit.testing` (`check_dataset`, `check_scorer`,
   `check_model_client`, `ConformanceTestMixin`) is a stable companion: use it to
   verify your own loader/scorer/client satisfies the contract.
@@ -18,7 +38,7 @@ The contract pins four structural (`typing.Protocol`) nouns plus one result type
 |------|----------|--------------------------|
 | Dataset loader | `DatasetProvider` | `BaseDatasetLoader` subclasses |
 | Inference client | `ModelClient` | `BaseModelClient` subclasses |
-| Scorer | `Scorer` | `prkit.scoring.SemanticsScorer` |
+| Scorer | `Scorer` | `prkit.scoring.SemanticsScorer` (binary); `EedScorer`/`SeedScorer` (vendor edit-distance baselines); `SemanticsEedScorer`/`SemanticsSeedScorer` (our-semantics edit distance, graded); `LLMJudgeScorer` (model-graded) |
 | Runner | `Runner` | *(reserved; no implementation yet)* |
 | Result | `Verdict` | `prkit.core.verdict.Verdict` |
 
@@ -26,6 +46,27 @@ The contract pins four structural (`typing.Protocol`) nouns plus one result type
 > named methods/attributes *exist* — it does **not** check signatures or return
 > types. It is necessary but not sufficient; the behavioral gate is
 > `prkit.testing.check_*`, which actually calls the methods and asserts results.
+
+### The `Verdict` fields
+
+`Verdict` is frozen (`extra="forbid"`). The **core** fields are always populated;
+the **enriched** fields are derived losslessly from the comparison and are `None`
+when not applicable (or not yet produced):
+
+| Field | Kind | Meaning |
+|-------|------|---------|
+| `equivalent` / `correct` | core | primary pass/fail (`correct` mirrors `equivalent` by default) |
+| `score` | core | continuous score in `[0,1]`; binary scorers emit `1.0`/`0.0`; `-1.0` is the reserved not-applicable sentinel (`comparison_mode="not_applicable"`, emitted by the edit-distance scorers for kinds/structures with no SEED type) and MUST be excluded from aggregation (filter `score >= 0`) |
+| `comparison_mode` | core | how the verdict was reached (`number`, `expression`, …) |
+| `scorer_version` | core | Gymnasium-style stamp of the scorer revision |
+| `diagnostics` | core | machine-readable mismatch/fallback tags |
+| `details` | core | scorer-specific evidence (bridge ids, policy mode, …) |
+| `units_ok` | enriched | dimensional check satisfied; `None` when units don't participate |
+| `symbolic_equiv` | enriched | equivalence decided symbolically; `None` for non-symbolic modes |
+| `numeric_within_tol` | enriched | numeric/quantity match within tolerance; `None` otherwise |
+| `extracted_answer` | enriched | parsed prediction surface, when available |
+| `partial_credit` | enriched | continuous partial-credit signal; `None` from the binary `SemanticsScorer`, populated by the graded edit-distance scorers (`EedScorer`/`SeedScorer`/`SemanticsEedScorer`/`SemanticsSeedScorer`) — `verify(..., partial_credit=True)` uses `SemanticsSeedScorer` |
+| `rationale` | enriched | human-readable explanation; `None` from the deterministic engine, populated by the model-graded `LLMJudgeScorer` |
 
 ## Three independent version axes
 
@@ -44,15 +85,20 @@ hub backfills it in `DatasetHub.get_loader_info`).
 
 ## `API_VERSION` semver policy
 
+The contract is currently **provisional / pre-stable** at `1.0`. Breaking changes are
+allowed and are tracked in `internal/PAPER_V1_TO_V2_DELTA.md`, not by bumping a major
+version number. Once the surface stabilizes, semver bumps will follow this policy:
+
 - **PATCH** (`1.0` → `1.0.1`): documentation/typo only.
 - **MINOR** (`1.0` → `1.1`): purely additive — a new protocol, a new optional
   method, a new re-export. Backward compatible.
 - **MAJOR** (`1.0` → `2.0`): any removal or signature change to a name in
   `prkit.api.__all__`.
 
-Re-routing an existing implementation in a way that changes its observable
-behavior (e.g. switching `AccuracyEvaluator`'s default comparison semantics) is a
-**major** change and must bump `API_VERSION` accordingly.
+Re-routing an existing implementation **that is part of `prkit.api.__all__`** in a
+way that changes its observable behavior is a **major** change and must bump
+`API_VERSION`. This does **not** apply to names **outside** the contract surface;
+changes to those are documented in the package release notes, not the contract version.
 
 ## Deprecation policy
 
@@ -61,13 +107,31 @@ behavior (e.g. switching `AccuracyEvaluator`'s default comparison semantics) is 
 - Precedent: `BaseModelClient.chat()` / `chat_structured()` (see
   `core/model_clients/base.py`).
 
-### Current deprecations
+### Removed/renamed during provisional 1.0 shaping
 
-- **`prkit.evaluation.comparator.*`**, **`BaseComparator`**, **`BaseEvaluator`**,
-  **`AccuracyEvaluator`** are deprecated in favor of
-  `prkit.scoring.SemanticsScorer` (the `Scorer` / `Verdict` contract), which wraps
-  the deterministic semantics comparison engine. Constructing any of them emits a
-  `DeprecationWarning`. Their runtime behavior is unchanged in this release; they
-  will be removed no earlier than the next minor release.
-- `prkit.evaluation.llm_judge` (model-graded scoring) is **not** deprecated — it
-  is a distinct capability, not a duplicate of the deterministic scoring path.
+- **Domain classes renamed.** `Answer` → **`PhysicsAnswer`** and `PhysicalDataset` →
+  **`PhysicsDataset`** (the latter also resolves the `physics_dataset.py` file/class
+  stem mismatch). The other domain nouns (`PhysicsProblem`, `PhysicsSolution`,
+  `PhysicsDomain`, `AnswerObjectKind`, `AnswerStructure`, `LicenseSpec`) are unchanged.
+  Per the `API_VERSION` policy this breaking rename is **tracked in
+  `internal/PAPER_V1_TO_V2_DELTA.md`, not signalled by a major bump** — the contract
+  stays provisional at `1.0`. No deprecation alias is provided.
+- **`PhysicsAnswer` reshaped to a thin observation record.** `PhysicsAnswer` (formerly
+  `Answer`) now carries only `value: str`, `unit: str | None`, `source_type: str | None`,
+  and `metadata: dict`. The former `answer_kind: AnswerObjectKind` field (and all
+  predicate helpers such as `is_number()`, `is_option()`, `get_type()`, etc.) are
+  **removed**. The canonical answer ontology (`AnswerObjectKind` / `AnswerStructure`,
+  9 object kinds) lives only in `prkit.semantics` and is returned as `object_kind` on
+  `PhysicsAnswerSemantics` — it is never stored on `PhysicsAnswer`. `source_type` is the
+  dataset's verbatim native type label (e.g. `"MC"`, `"NV"`, `"EX"`, `"Integer"`); it is
+  never fabricated and never read by the semantics engine. Serialized answers migrate via:
+  `source_type = value.get("source_type") or value.get("answer_kind") or value.get("answer_category")`.
+- **Deprecated scoring stack deleted.** `prkit.evaluation.comparator.*`,
+  `prkit.evaluation.evaluator.*` (`BaseComparator`, `ExactMatchComparator`,
+  `BaseEvaluator`, `AccuracyEvaluator`, …) were removed. Use
+  `prkit.scoring.SemanticsScorer` (the `Scorer` / `Verdict` contract), or the
+  light-import facade `prkit.verify`, for deterministic scoring.
+- **`prkit.semantics.inference` alias removed.** The `prkit.semantics.inference`
+  compatibility shim is deleted; import from `prkit.semantics.build` directly.
+- `prkit.evaluation.llm_judge` (model-graded scoring) is **retained** — it is a distinct
+  capability, not a duplicate of the deterministic scoring path.

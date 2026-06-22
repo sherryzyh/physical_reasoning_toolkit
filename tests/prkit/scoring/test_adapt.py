@@ -6,8 +6,9 @@ import json
 
 from prkit.core.verdict import Verdict
 from prkit.scoring._adapt import verdict_from_comparison
-from prkit.semantics import AnswerComparison
+from prkit.semantics import AnswerComparison, PhysicsAnswerSemantics
 from prkit.semantics.schema.enums import (
+    AnswerObjectKind,
     BridgeTier,
     ComparisonPolicyMode,
     ContractValidationStatus,
@@ -18,6 +19,14 @@ def _comparison(**overrides) -> AnswerComparison:
     base = dict(equivalent=True, comparison_mode="number")
     base.update(overrides)
     return AnswerComparison(**base)
+
+
+def _quantity_sem(text: str, *, unit: str | None = "m/s") -> PhysicsAnswerSemantics:
+    return PhysicsAnswerSemantics(
+        canonical_text=text,
+        object_kind=AnswerObjectKind.PHYSICAL_QUANTITY,
+        unit=unit,
+    )
 
 
 class TestMapping:
@@ -66,3 +75,107 @@ class TestEnumCoercionInDetails:
         assert v.details["bridge_tier"] is None
         assert v.details["policy_mode"] is None
         assert v.details["validation_status"] is None
+
+
+class TestEnrichedFields:
+    def test_correct_mirrors_equivalent(self):
+        assert (
+            verdict_from_comparison(
+                _comparison(equivalent=True), scorer_version="x"
+            ).correct
+            is True
+        )
+        assert (
+            verdict_from_comparison(
+                _comparison(equivalent=False), scorer_version="x"
+            ).correct
+            is False
+        )
+
+    def test_symbolic_equiv_true_for_symbolic_mode(self):
+        v = verdict_from_comparison(
+            _comparison(equivalent=True, comparison_mode="expression"),
+            scorer_version="x",
+        )
+        assert v.symbolic_equiv is True
+        assert v.numeric_within_tol is None
+
+    def test_symbolic_equiv_false_when_symbolic_mode_not_equivalent(self):
+        v = verdict_from_comparison(
+            _comparison(equivalent=False, comparison_mode="relation"),
+            scorer_version="x",
+        )
+        assert v.symbolic_equiv is False
+
+    def test_symbolic_equiv_none_for_non_symbolic_mode(self):
+        v = verdict_from_comparison(
+            _comparison(comparison_mode="choice"), scorer_version="x"
+        )
+        assert v.symbolic_equiv is None
+
+    def test_numeric_within_tol_true_for_number_mode(self):
+        v = verdict_from_comparison(
+            _comparison(equivalent=True, comparison_mode="number"), scorer_version="x"
+        )
+        assert v.numeric_within_tol is True
+        assert v.symbolic_equiv is None
+
+    def test_numeric_within_tol_false_on_value_mismatch(self):
+        v = verdict_from_comparison(
+            _comparison(
+                equivalent=False,
+                comparison_mode="number",
+                diagnostics=("numeric_value_mismatch",),
+            ),
+            scorer_version="x",
+        )
+        assert v.numeric_within_tol is False
+
+    def test_units_ok_false_on_unit_fail_tag(self):
+        v = verdict_from_comparison(
+            _comparison(
+                equivalent=False,
+                comparison_mode="physical_quantity",
+                diagnostics=("unit_mismatch",),
+            ),
+            scorer_version="x",
+        )
+        assert v.units_ok is False
+
+    def test_units_ok_true_for_physical_quantity_with_sems(self):
+        v = verdict_from_comparison(
+            _comparison(equivalent=True, comparison_mode="physical_quantity"),
+            scorer_version="x",
+            pred_sem=_quantity_sem("3 m/s"),
+            ref_sem=_quantity_sem("3 m/s"),
+        )
+        assert v.units_ok is True
+
+    def test_units_ok_none_without_sems(self):
+        v = verdict_from_comparison(
+            _comparison(comparison_mode="number"), scorer_version="x"
+        )
+        assert v.units_ok is None
+
+    def test_extracted_answer_from_pred_sem(self):
+        v = verdict_from_comparison(
+            _comparison(), scorer_version="x", pred_sem=_quantity_sem("3 m/s")
+        )
+        assert v.extracted_answer == "3 m/s"
+
+    def test_extracted_answer_none_without_pred_sem(self):
+        v = verdict_from_comparison(_comparison(), scorer_version="x")
+        assert v.extracted_answer is None
+
+    def test_partial_credit_and_rationale_are_none(self):
+        v = verdict_from_comparison(_comparison(), scorer_version="x")
+        assert v.partial_credit is None
+        assert v.rationale is None
+
+    def test_enriched_verdict_is_json_serializable(self):
+        v = verdict_from_comparison(
+            _comparison(equivalent=True, comparison_mode="physical_quantity"),
+            scorer_version="x",
+            pred_sem=_quantity_sem("3 m/s"),
+        )
+        json.dumps(v.model_dump())

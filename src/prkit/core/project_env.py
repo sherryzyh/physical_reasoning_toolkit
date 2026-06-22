@@ -1,81 +1,47 @@
-"""Helpers for loading project-local environment files with deterministic precedence."""
+"""Helpers for loading the toolkit's own project ``.env`` with deterministic precedence.
+
+The toolkit loads only its *own* project ``.env`` — the one beside its
+``pyproject.toml``. It deliberately does **not** locate or read consumer repositories'
+environment files (that would violate toolkit-independence): a consumer is responsible
+for loading its own ``.env`` before calling into the toolkit (via each consumer's
+``scripts/project_env.py`` bridge).
+"""
 
 from __future__ import annotations
 
 import os
-from collections.abc import Iterator
 from os import PathLike
 from pathlib import Path
 
-_TOOLKIT_ENV_VAR = "PRKIT_TOOLKIT_ROOT"
 
-
-def _anchor_dir(anchor: str | PathLike[str] | Path | None = None) -> Path:
-    """Return the resolved directory for *anchor*, defaulting to this file's directory."""
-    target = Path(anchor).resolve() if anchor is not None else Path(__file__).resolve()
-    return target if target.is_dir() else target.parent
-
-
-def _iter_search_dirs(
+def _nearest_pyproject_dir(
     anchor: str | PathLike[str] | Path | None = None,
-) -> Iterator[Path]:
-    """Yield the anchor directory and all of its ancestors, bottom-up."""
-    start = _anchor_dir(anchor)
-    yield start
-    yield from start.parents
-
-
-def _resolve_env_root(env_var: str, *, marker_relpath: tuple[str, ...]) -> Path | None:
-    """Return the path in *env_var* if it exists and contains the marker file, else ``None``."""
-    raw = os.environ.get(env_var)
-    if not raw:
-        return None
-    candidate = Path(raw).expanduser().resolve()
-    if (candidate / Path(*marker_relpath)).exists():
-        return candidate
-    return None
-
-
-def _find_named_sibling(
-    anchor: str | PathLike[str] | Path | None,
-    sibling_name: str,
-    *,
-    marker_relpath: tuple[str, ...],
 ) -> Path | None:
-    """Walk up from *anchor* looking for a sibling directory named *sibling_name* that contains the marker path."""
-    for candidate in _iter_search_dirs(anchor):
-        sibling = candidate / sibling_name
-        if (sibling / Path(*marker_relpath)).exists():
-            return sibling
-    return None
+    """Return the nearest ancestor directory containing ``pyproject.toml``.
 
-
-def find_toolkit_root(anchor: str | PathLike[str] | Path | None = None) -> Path | None:
-    """Return the toolkit repo root for nested or sibling repo layouts."""
-    env_root = _resolve_env_root(_TOOLKIT_ENV_VAR, marker_relpath=("src", "prkit"))
-    if env_root is not None:
-        return env_root
-
-    for candidate in _iter_search_dirs(anchor):
-        if (candidate / "src" / "prkit").is_dir():
+    Resolves *anchor* (defaulting to this module's location) to a directory and walks
+    upward. Returns ``None`` when no ancestor holds a ``pyproject.toml`` (e.g. an
+    installed wheel), so off-repo callers get a best-effort empty result rather than
+    reaching into an unrelated directory.
+    """
+    target = Path(anchor).resolve() if anchor is not None else Path(__file__).resolve()
+    start = target if target.is_dir() else target.parent
+    for candidate in (start, *start.parents):
+        if (candidate / "pyproject.toml").is_file():
             return candidate
-
-    return _find_named_sibling(
-        anchor,
-        "physical_reasoning_toolkit",
-        marker_relpath=("src", "prkit"),
-    )
+    return None
 
 
 def project_dotenv_paths(
     anchor: str | PathLike[str] | Path | None = None,
 ) -> tuple[Path, ...]:
-    """Return the toolkit's own `.env` path, when present.
+    """Return the toolkit's own ``.env`` path, when present.
 
-    The toolkit loads only its own project `.env`. Consumer repositories are
-    responsible for locating and loading their own environment files.
+    The toolkit's project root is the nearest ancestor of *anchor* holding a
+    ``pyproject.toml``; its ``.env`` (when a file) is the only env file returned.
+    Consumer repositories load their own environment files themselves.
     """
-    toolkit_root = find_toolkit_root(anchor)
+    toolkit_root = _nearest_pyproject_dir(anchor)
     if toolkit_root is not None:
         repo_env = toolkit_root / ".env"
         if repo_env.is_file():
@@ -127,7 +93,6 @@ def ensure_openai_api_key(
 
 __all__ = [
     "ensure_openai_api_key",
-    "find_toolkit_root",
     "load_project_dotenv",
     "project_dotenv_paths",
 ]

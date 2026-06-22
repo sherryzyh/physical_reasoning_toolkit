@@ -14,12 +14,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from prkit.core.domain.answer import Answer
+from prkit.core.domain.answer import PhysicsAnswer
 from prkit.core.verdict import Verdict
 from prkit.semantics import (
     PREDICTION_PROMPT_VERSION,
     REFERENCE_PROMPT_VERSION,
     ComparisonPolicyMode,
+    PhysicsAnswerSemantics,
     PhysicsEvaluationContract,
     PhysicsQuestionSemantics,
     QuestionUnitPolicy,
@@ -46,11 +47,20 @@ _VERSION = (
 def _coerce_context(
     context: PhysicsQuestionSemantics | dict[str, Any] | None,
 ) -> PhysicsQuestionSemantics | None:
-    """Coerce an optional context into validated ``PhysicsQuestionSemantics``."""
+    """Coerce an optional context into validated ``PhysicsQuestionSemantics``.
+
+    A reference-built artifact (anything exposing ``.question_semantics``, e.g. a
+    ``ReferenceSemanticsArtifact``) is unwrapped to its ``q_ref`` — duck-typed so the
+    scorer does not depend on the heavy inference artifact type. A
+    ``PhysicsQuestionSemantics`` passes through; a mapping is validated.
+    """
     if context is None:
         return None
     if isinstance(context, PhysicsQuestionSemantics):
         return context
+    question_semantics = getattr(context, "question_semantics", None)
+    if isinstance(question_semantics, PhysicsQuestionSemantics):
+        return question_semantics
     return PhysicsQuestionSemantics.model_validate(context)
 
 
@@ -122,8 +132,8 @@ class SemanticsScorer:
 
     def score(
         self,
-        prediction: Answer | str,
-        reference: Answer | str,
+        prediction: PhysicsAnswer | str | PhysicsAnswerSemantics,
+        reference: PhysicsAnswer | str | PhysicsAnswerSemantics,
         *,
         context: PhysicsQuestionSemantics | dict[str, Any] | None = None,
         policy_mode: ComparisonPolicyMode | str | None = None,
@@ -131,13 +141,20 @@ class SemanticsScorer:
     ) -> Verdict:
         """Score ``prediction`` against ``reference`` and return a canonical Verdict.
 
+        ``prediction`` / ``reference`` may be raw strings, :class:`PhysicsAnswer` objects,
+        or already-normalized :class:`PhysicsAnswerSemantics` (e.g. from
+        :func:`prkit.semantics.extract_prediction_answer_semantics`); all three are
+        accepted by the normalizer. The
+        wider input type stays compatible with the narrower :class:`prkit.api.Scorer`
+        protocol by parameter contravariance.
+
         Per-call ``context`` / ``policy_mode`` override the instance defaults so a
         runner can pass question-conditioned semantics per problem.
         """
         effective_context = self._effective_context(context)
         effective_policy = policy_mode if policy_mode is not None else self._policy_mode
 
-        # normalize_physics_answer accepts str | Answer | PhysicsAnswerSemantics.
+        # normalize_physics_answer accepts str | PhysicsAnswer | PhysicsAnswerSemantics.
         pred_sem = normalize_physics_answer(prediction, context=effective_context)
         ref_sem = normalize_physics_answer(reference, context=effective_context)
 
@@ -148,7 +165,12 @@ class SemanticsScorer:
             context=effective_context,
             policy_mode=effective_policy,
         )
-        return verdict_from_comparison(comparison, scorer_version=self.version)
+        return verdict_from_comparison(
+            comparison,
+            scorer_version=self.version,
+            pred_sem=pred_sem,
+            ref_sem=ref_sem,
+        )
 
     def get_info(self) -> dict[str, Any]:
         """Return scorer metadata; always includes ``version``."""

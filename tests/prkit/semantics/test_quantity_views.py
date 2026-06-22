@@ -11,8 +11,7 @@ from cookbooks.enrich_quantity_views import (
     _backfill_evaluation_dir,
     _backfill_prediction_dir,
 )
-from prkit.semantics.comparison import build_evaluation_contract
-from prkit.semantics.inference.artifacts import (
+from prkit.semantics.build.artifacts import (
     PredictionSemanticsArtifact,
     SemanticsEvaluationRecord,
     SemanticsGeneratorInfo,
@@ -21,6 +20,7 @@ from prkit.semantics.inference.artifacts import (
     load_semantics_evaluation_record,
     save_semantics_json,
 )
+from prkit.semantics.comparison import build_evaluation_contract
 from prkit.semantics.normalization import (
     enrich_answer_quantity_views,
     materialize_quantity_view,

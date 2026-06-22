@@ -3,9 +3,9 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from prkit.semantics.inference.artifacts import PredictionSemanticsResponse
-from prkit.semantics.inference.calls import _response_schema_has_open_objects
-from prkit.semantics.inference.strict_models import (
+from prkit.semantics.build.artifacts import PredictionSemanticsResponse
+from prkit.semantics.build.calls import _response_schema_has_open_objects
+from prkit.semantics.build.strict_models import (
     StrictPhysicsAnswerSemantics,
     StrictPhysicsQuestionSemantics,
     StrictPredictionSemanticsResponse,

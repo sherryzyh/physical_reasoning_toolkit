@@ -1,250 +1,92 @@
 """
-Answer models for physical reasoning evaluation.
+Thin observation record for a physics problem's ground-truth answer.
 
-This module provides a unified Answer class that handles all answer categories
-through composition rather than inheritance.
+An ``PhysicsAnswer`` captures only what a dataset directly provides:
+
+* ``value``       — verbatim answer string (always ``str``)
+* ``unit``        — observed unit string when present (e.g. ``"m/s²"``, ``"N"``)
+* ``source_type`` — dataset-native answer-type label, verbatim (e.g. ``"MC"``,
+                    ``"NV"``, ``"Integer"``); ``None`` when the dataset provides
+                    none.  **Never fabricated from heuristics.**
+* ``metadata``    — arbitrary extra fields passed through from the loader.
+
+The canonical answer ontology (``AnswerObjectKind``) and structural
+classification live **only** in :mod:`prkit.semantics` (as ``object_kind`` on
+:class:`~prkit.semantics.schema.models.PhysicsAnswerSemantics`).  They are
+derived on demand by the semantics engine and are **not** stored here.
 """
 
 from dataclasses import dataclass, field
 from typing import Any
 
-from .answer_category import AnswerCategory
-
-AnswerValue = int | float | str
-
 
 @dataclass
-class Answer:
-    """Unified answer class that handles all answer categories through composition."""
+class PhysicsAnswer:
+    """Thin observed-data record for a physics answer.
 
-    value: AnswerValue  # NUMBER: number; PHYSICAL_QUANTITY/OPTION/EQUATION/FORMULA/TEXT: text
-    answer_category: AnswerCategory
-    unit: str | None = None  # Used only for PHYSICAL_QUANTITY (e.g., "m/s²", "N")
+    ``value`` is always a plain string — the verbatim answer text after
+    stripping LaTeX wrappers (``\\boxed{}``, ``$…$``, ``$$…$$``).
+
+    ``unit`` is first-class observed data consumed by the equivalence engine;
+    it lives *only* here, never duplicated in ``metadata``.
+
+    ``source_type`` is the dataset's own native answer-type label stored
+    verbatim (e.g. ``"MC"``, ``"NV"``, ``"EX"``, ``"Integer"``).  The
+    semantics engine does **not** read it.  ``None`` when the dataset provides
+    no such label.
+    """
+
+    value: str
+    unit: str | None = None
+    source_type: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        """Initialize metadata if not provided."""
         if self.metadata is None:
             self.metadata = {}
 
-    def validate(self) -> bool:
-        """Validate the answer based on its category."""
-        validators = {
-            AnswerCategory.NUMBER: self._validate_number,
-            AnswerCategory.EQUATION: self._validate_string,
-            AnswerCategory.PHYSICAL_QUANTITY: self._validate_string,
-            AnswerCategory.FORMULA: self._validate_string,
-            AnswerCategory.TEXT: self._validate_string,
-            AnswerCategory.OPTION: self._validate_option,
-        }
-        validator = validators.get(self.answer_category)
-        return validator() if validator else False
+    # ------------------------------------------------------------------
+    # Accessors (kept for convenience; no kind guards)
+    # ------------------------------------------------------------------
 
-    def _validate_number(self) -> bool:
-        """Validate number answers."""
-        return isinstance(self.value, (int, float)) and not isinstance(self.value, bool)
+    def get_value(self) -> str:
+        """Return the answer value string."""
+        return self.value
 
-    def _validate_string(self) -> bool:
-        """Validate string-based answers (equation, formula, physical_quantity, text)."""
-        return isinstance(self.value, str) and len(self.value.strip()) > 0
-
-    def _validate_option(self) -> bool:
-        """Validate option answers."""
-        return isinstance(self.value, str) and len(self.value.strip()) > 0
-
-    # Type checking methods
-    def is_number(self) -> bool:
-        """Check if this is a dimensionless number answer."""
-        return self.answer_category == AnswerCategory.NUMBER
-
-    def is_equation(self) -> bool:
-        """Check if this is an equation answer."""
-        return self.answer_category == AnswerCategory.EQUATION
-
-    def is_physical_quantity(self) -> bool:
-        """Check if this is a physical quantity (number + units) answer."""
-        return self.answer_category == AnswerCategory.PHYSICAL_QUANTITY
-
-    def is_formula(self) -> bool:
-        """Check if this is a formula answer."""
-        return self.answer_category == AnswerCategory.FORMULA
-
-    def is_text(self) -> bool:
-        """Check if this is a text answer."""
-        return self.answer_category == AnswerCategory.TEXT
-
-    def is_option(self) -> bool:
-        """Check if this is an option answer."""
-        return self.answer_category == AnswerCategory.OPTION
-
-    def is_numerical(self) -> bool:
-        """Check if this has a numeric component (number or physical_quantity)."""
-        return self.answer_category in (
-            AnswerCategory.NUMBER,
-            AnswerCategory.PHYSICAL_QUANTITY,
-        )
-
-    def is_symbolic(self) -> bool:
-        """Check if this is a symbolic/math answer (equation, formula, or physical_quantity)."""
-        return self.answer_category in (
-            AnswerCategory.EQUATION,
-            AnswerCategory.FORMULA,
-            AnswerCategory.PHYSICAL_QUANTITY,
-        )
-
-    # Numerical-specific methods
     def get_unit(self) -> str | None:
-        """Get the unit for numerical/physical quantity answers."""
-        return self.unit if self.is_numerical() else None
+        """Return the unit string, or ``None`` when absent."""
+        return self.unit
 
     def has_unit(self) -> bool:
-        """Check if the answer has a unit (physical quantity)."""
-        return self.is_physical_quantity() or (
-            self.is_number() and self.unit is not None
-        )
+        """Return ``True`` when a unit is present."""
+        return self.unit is not None
 
-    def is_integer(self) -> bool:
-        """Check if the numerical value is an integer."""
-        if not self.is_numerical():
-            return False
-        return isinstance(self.value, int) or (
-            isinstance(self.value, float) and self.value.is_integer()
-        )
+    # ------------------------------------------------------------------
+    # Dunder helpers
+    # ------------------------------------------------------------------
 
-    def is_positive(self) -> bool:
-        """Check if the numerical value is positive."""
-        if not self.is_numerical():
-            return False
-        return (
-            isinstance(self.value, (int, float))
-            and not isinstance(self.value, bool)
-            and self.value > 0
-        )
-
-    def is_negative(self) -> bool:
-        """Check if the numerical value is negative."""
-        if not self.is_numerical():
-            return False
-        return (
-            isinstance(self.value, (int, float))
-            and not isinstance(self.value, bool)
-            and self.value < 0
-        )
-
-    # Symbolic-specific methods
-    def is_latex(self) -> bool:
-        """Check if the symbolic answer contains LaTeX formatting."""
-        if not self.is_symbolic():
-            return False
-        value = str(self.value)
-        return "$" in value or "\\" in value
-
-    def get_clean_expression(self) -> str:
-        """Get the mathematical expression without LaTeX delimiters."""
-        if not self.is_symbolic():
-            return str(self.value)
-        clean = str(self.value).strip()
-        if clean.startswith("$$") and clean.endswith("$$"):
-            clean = clean[2:-2].strip()
-        elif clean.startswith("$") and clean.endswith("$"):
-            clean = clean[1:-1].strip()
-        return clean
-
-    # Textual-specific methods
-    def word_count(self) -> int:
-        """Get the number of words in the text."""
-        if not self.is_text():
-            return 0
-        return len(str(self.value).split())
-
-    def char_count(self) -> int:
-        """Get the number of characters in the text."""
-        if not self.is_text():
-            return 0
-        return len(str(self.value))
-
-    def is_short(self) -> bool:
-        """Check if the text is short (less than 10 words)."""
-        return self.word_count() < 10
-
-    def is_long(self) -> bool:
-        """Check if the text is long (more than 50 words)."""
-        return self.word_count() > 50
-
-    def contains_keywords(self, keywords: list[str]) -> bool:
-        """Check if the text contains any of the specified keywords."""
-        if not self.is_text():
-            return False
-        text_lower = str(self.value).lower()
-        return any(keyword.lower() in text_lower for keyword in keywords)
-
-    # Option-specific methods
-    def is_letter_option(self) -> bool:
-        """Check if the option is a letter (A, B, C, D, E)."""
-        if not self.is_option():
-            return False
-        return str(self.value).upper() in ["A", "B", "C", "D", "E"]
-
-    def is_yes_no(self) -> bool:
-        """Check if the option is Yes/No."""
-        if not self.is_option():
-            return False
-        return str(self.value).upper() in ["YES", "NO"]
-
-    def is_true_false(self) -> bool:
-        """Check if the option is True/False."""
-        if not self.is_option():
-            return False
-        return str(self.value).upper() in ["TRUE", "FALSE"]
-
-    def is_numeric_option(self) -> bool:
-        """Check if the option is a number (1, 2, 3, 4, 5)."""
-        if not self.is_option():
-            return False
-        return str(self.value) in ["1", "2", "3", "4", "5"]
-
-    def get_option_index(self) -> int | None:
-        """Get the numeric index of the option if applicable."""
-        if not self.is_option():
-            return None
-        value = str(self.value).upper()
-        if self.is_letter_option():
-            return ord(value) - ord("A")  # A=0, B=1, C=2, etc.
-        elif self.is_numeric_option():
-            return int(value) - 1  # 1=0, 2=1, 3=2, etc.
-        return None
-
-    # Utility methods
     def __str__(self) -> str:
-        """String representation of the answer."""
-        if self.is_numerical() and self.unit:
+        if self.unit:
             return f"{self.value} {self.unit}"
         return str(self.value)
 
     def __repr__(self) -> str:
-        """Detailed string representation for debugging."""
-        return f"Answer(value={repr(self.value)}, answer_category={self.answer_category.value}, unit={repr(self.unit)})"
+        return (
+            f"PhysicsAnswer(value={self.value!r}, unit={self.unit!r}, "
+            f"source_type={self.source_type!r})"
+        )
+
+    # ------------------------------------------------------------------
+    # Serialization
+    # ------------------------------------------------------------------
 
     def to_dict(self) -> dict[str, Any]:
-        """Convert to dictionary for serialization."""
-        result: dict[str, Any] = {
-            "value": self.value,
-            "answer_category": self.answer_category.value,
-        }
+        """Serialize to a JSON-safe dict (omits falsy optional fields)."""
+        result: dict[str, Any] = {"value": self.value}
         if self.unit:
             result["unit"] = self.unit
+        if self.source_type:
+            result["source_type"] = self.source_type
         if self.metadata:
             result["metadata"] = self.metadata
         return result
-
-    def get_value(self) -> AnswerValue:
-        """Get the answer value."""
-        return self.value
-
-    def get_type(self) -> AnswerCategory:
-        """Get the answer category."""
-        return self.answer_category
-
-    def get_type_name(self) -> str:
-        """Get the answer category as a string."""
-        return self.answer_category.value

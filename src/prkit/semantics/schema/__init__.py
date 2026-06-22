@@ -15,6 +15,7 @@ from .enums import (
     OrderingPolicy,
     QuestionSymbolicMode,
     QuestionUnitPolicy,
+    SymbolAssumption,
 )
 from .models import (
     DEFAULT_NUMERIC_TOLERANCE,
@@ -27,6 +28,7 @@ from .models import (
     PhysicsEvaluationContract,
     PhysicsQuestionSemantics,
     PhysicsSymbolAliasSemantics,
+    PhysicsSymbolAssumptionSemantics,
 )
 
 __all__ = [
@@ -46,6 +48,8 @@ __all__ = [
     "PhysicsEvaluationContract",
     "PhysicsQuestionSemantics",
     "PhysicsSymbolAliasSemantics",
+    "PhysicsSymbolAssumptionSemantics",
     "QuestionSymbolicMode",
     "QuestionUnitPolicy",
+    "SymbolAssumption",
 ]

@@ -10,6 +10,12 @@ It pins the four integration "nouns" as runtime-checkable structural
 *without subclassing*, and re-exports the existing concrete anchors the
 protocols are grounded in.
 
+For the headline "just verify a physics answer" use case, integrators should
+reach for the light-import facade :mod:`prkit.verify` (``verify``), which
+returns the same :class:`Verdict` without importing clients, the hub, or
+provider SDKs. Answer parsing is handled by
+:func:`prkit.semantics.extract_prediction_answer_semantics`.
+
 .. note::
    ``@runtime_checkable`` only verifies that the named **methods/attributes
    exist** on an instance — it does **not** check signatures or return types.
@@ -25,19 +31,23 @@ from typing import Any, Protocol, runtime_checkable
 
 # --- re-export EXISTING concrete contract anchors -------------------------
 from prkit.core.domain import (
-    AnswerCategory,
-    PhysicalDataset,
+    AnswerObjectKind,
+    AnswerStructure,
+    PhysicsDataset,
     PhysicsDomain,
     PhysicsProblem,
 )
-from prkit.core.domain.answer import Answer
+from prkit.core.domain.answer import PhysicsAnswer
 from prkit.core.model_clients import BaseModelClient, create_model_client
 from prkit.core.verdict import Verdict
 from prkit.datasets.hub import DatasetHub
 from prkit.datasets.loaders.base_loader import BaseDatasetLoader
 
 # --- contract version (independent of prkit.__version__) ------------------
-# Bump per CONTRACT.md: additive change -> minor, breaking change -> major.
+# The contract is PROVISIONAL at 1.0: breaking changes are allowed and are
+# tracked in src/prkit/CONTRACT.md and internal/PAPER_V1_TO_V2_DELTA.md rather
+# than via a major-version bump. When the contract stabilises, semver policy
+# (additive → minor, breaking → major) will apply.
 API_VERSION = "1.0"
 
 
@@ -46,7 +56,7 @@ API_VERSION = "1.0"
 class DatasetProvider(Protocol):
     """Loader noun. Satisfied today by :class:`BaseDatasetLoader` subclasses."""
 
-    def load(self, data_dir: Any = ..., **kwargs: Any) -> PhysicalDataset: ...
+    def load(self, data_dir: Any = ..., **kwargs: Any) -> PhysicsDataset: ...
 
     def get_info(self) -> dict[str, Any]: ...  # MUST include "version"
 
@@ -82,7 +92,10 @@ class Scorer(Protocol):
     version: str
 
     def score(
-        self, prediction: Answer | str, reference: Answer | str, **kwargs: Any
+        self,
+        prediction: PhysicsAnswer | str,
+        reference: PhysicsAnswer | str,
+        **kwargs: Any,
     ) -> Verdict: ...
 
     def get_info(self) -> dict[str, Any]: ...  # MUST include "version"
@@ -91,7 +104,7 @@ class Scorer(Protocol):
 @runtime_checkable
 class Runner(Protocol):
     """Orchestration noun: drive a :class:`ModelClient` over a
-    :class:`PhysicalDataset` and score with a :class:`Scorer`.
+    :class:`PhysicsDataset` and score with a :class:`Scorer`.
 
     No implementation ships today; the contract is reserved for a later
     orchestration item (roadmap N4).
@@ -99,7 +112,7 @@ class Runner(Protocol):
 
     def run(
         self,
-        dataset: PhysicalDataset,
+        dataset: PhysicsDataset,
         model: ModelClient,
         scorer: Scorer,
         **kwargs: Any,
@@ -114,12 +127,14 @@ __all__ = [
     "Scorer",
     "Runner",
     "Verdict",
+    # canonical answer ontology
+    "AnswerObjectKind",
+    "AnswerStructure",
     # re-exported concrete anchors
-    "Answer",
-    "AnswerCategory",
+    "PhysicsAnswer",
     "PhysicsDomain",
     "PhysicsProblem",
-    "PhysicalDataset",
+    "PhysicsDataset",
     "DatasetHub",
     "BaseDatasetLoader",
     "BaseModelClient",

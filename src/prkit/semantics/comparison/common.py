@@ -9,7 +9,19 @@ from ..schema import (
     PhysicsAnswerSemantics,
     PhysicsQuestionSemantics,
     QuestionUnitPolicy,
+    SymbolAssumption,
 )
+
+# SymPy ``Symbol`` assumption kwargs for each declared real-domain. These describe the
+# *real* domain the symbol ranges over; equivalence stays exact because it is decided over
+# the declared domain rather than the generic complex default.
+_SYMBOL_ASSUMPTION_KWARGS: Mapping[SymbolAssumption, Mapping[str, bool]] = {
+    SymbolAssumption.COMPLEX: {},
+    SymbolAssumption.REAL: {"real": True},
+    SymbolAssumption.NONZERO: {"real": True, "nonzero": True},
+    SymbolAssumption.NONNEGATIVE: {"nonnegative": True},
+    SymbolAssumption.POSITIVE: {"positive": True},
+}
 
 
 def available_texts(*texts: str | None) -> tuple[str, ...]:
@@ -93,6 +105,24 @@ def context_symbol_alias_map(context: PhysicsQuestionSemantics) -> Mapping[str, 
             if cleaned_alias:
                 alias_map[cleaned_alias] = canonical_symbol
     return alias_map
+
+
+def context_symbol_assumption_map(
+    context: PhysicsQuestionSemantics,
+) -> Mapping[str, Mapping[str, bool]]:
+    """Return question-declared SymPy assumption kwargs keyed by canonical symbol token.
+
+    This is the *authoritative* source for symbol assumptions: a declaration here always
+    wins over the conservative in-engine derivation. Keys are canonical (post-alias) tokens.
+    """
+
+    declared: dict[str, Mapping[str, bool]] = {}
+    for entry in context.symbol_assumptions:
+        symbol = entry.symbol.strip()
+        if not symbol:
+            continue
+        declared[symbol] = dict(_SYMBOL_ASSUMPTION_KWARGS.get(entry.assumption, {}))
+    return declared
 
 
 def resolved_unit(

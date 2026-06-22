@@ -192,6 +192,7 @@ AnswerObjectKind:
   choice
   boolean
   sign_direction
+  descriptive_text
 ```
 
 The answer-structure enum is:
@@ -291,6 +292,7 @@ PASEC-Base covers common final-answer forms in physics:
 - global side conditions using `subject_to`
 - multiple-choice labels and bounded discrete outcomes
 - booleans, signs, directions, and curated qualitative labels
+- free-form descriptive ("explain/why") answers, judged by conservative normalized-text equality
 - question-scoped symbol aliases and notation variants
 - coordinate-frame and sign-convention metadata
 
@@ -303,7 +305,7 @@ The smallest reproducible path is deterministic question inference, answer
 normalization, contract construction, and evaluation.
 
 ```python
-from prkit.core.domain import Answer, AnswerCategory, PhysicsProblem
+from prkit.core.domain import PhysicsAnswer, PhysicsProblem
 from prkit.semantics import (
     ComparisonPolicyMode,
     build_evaluation_contract,
@@ -315,7 +317,7 @@ from prkit.semantics import (
 problem = PhysicsProblem(
     problem_id="demo-speed",
     question="Find the speed in m/s.",
-    answer=Answer(value="18", unit="km/h", answer_category=AnswerCategory.PHYSICAL_QUANTITY),
+    answer=PhysicsAnswer(value="18", unit="km/h", source_type="physical_quantity"),
 )
 
 question_semantics = infer_reference_question_semantics(problem)
@@ -354,14 +356,15 @@ policy, and final result.
 
 ```python
 from prkit.semantics import (
+    create_reference_semantics,
     evaluate_saved_semantics,
-    infer_prediction_semantics,
-    infer_reference_semantics,
+    generate_prediction_semantics,
     save_semantics_json,
 )
 
-reference_artifact = infer_reference_semantics(problem, reference_model_client)
-prediction_artifact = infer_prediction_semantics(problem, solver_model_client)
+# create_reference_semantics is deterministic when model_client is omitted.
+reference_artifact = create_reference_semantics(problem, model_client=reference_model_client)
+prediction_artifact = generate_prediction_semantics(problem, solver_model_client)
 
 save_semantics_json(reference_artifact, "reference/demo-speed.json")
 save_semantics_json(prediction_artifact, "prediction/demo-speed.json")
@@ -476,8 +479,9 @@ from prkit.semantics import (
     normalize_problem_answer,
     build_evaluation_contract,
     compare_protocol_answers,
-    infer_reference_semantics,
-    infer_prediction_semantics,
+    create_reference_semantics,
+    generate_prediction_semantics,
+    extract_prediction_answer_semantics,
     evaluate_saved_semantics,
 )
 ```

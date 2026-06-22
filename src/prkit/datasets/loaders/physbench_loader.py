@@ -11,7 +11,8 @@ from pathlib import Path
 from typing import Any
 
 from prkit.core import PRKitLogger
-from prkit.core.domain import PhysicalDataset, PhysicsProblem
+from prkit.core.domain import PhysicsDataset, PhysicsProblem
+from prkit.datasets.license_registry import get_license
 
 from .base_loader import BaseDatasetLoader
 
@@ -65,7 +66,8 @@ class PhysBenchLoader(BaseDatasetLoader):
             "paper_url": "https://arxiv.org/pdf/2501.16411",
             "homepage": "https://physbench.github.io/",
             "repository_url": "https://huggingface.co/datasets/USC-PSI-Lab/PhysBench",
-            "license": "apache-2.0",
+            "license": get_license(self.name).to_info_dict(),
+            "license_spdx": get_license(self.name).spdx,
             "languages": ["en"],
             "variants": list(self.VARIANT_TO_MODE.keys()),
             "splits": ["full", "val", "test"],
@@ -103,7 +105,7 @@ class PhysBenchLoader(BaseDatasetLoader):
         split: str | None = None,
         sample_size: int | None = None,
         **kwargs: Any,
-    ) -> PhysicalDataset:
+    ) -> PhysicsDataset:
         """
         Load PhysBench from a local cache directory.
 
@@ -189,7 +191,7 @@ class PhysBenchLoader(BaseDatasetLoader):
             variant,
             split,
         )
-        return PhysicalDataset(problems, info, split=split)
+        return PhysicsDataset(problems, info, split=split)
 
     def _filter_records(
         self,
@@ -233,7 +235,6 @@ class PhysBenchLoader(BaseDatasetLoader):
         answer = metadata.get("answer")
         if isinstance(answer, str) and answer.strip().upper() in {"A", "B", "C", "D"}:
             metadata["correct_option"] = ord(answer.strip().upper()) - ord("A")
-            metadata["answer_category"] = "option"
 
         file_names = metadata.get("file_name") or []
         image_paths, video_paths, missing_media_count = self._resolve_media_paths(

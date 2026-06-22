@@ -13,7 +13,8 @@ from typing import Any
 import pandas as pd
 
 from prkit.core import PRKitLogger
-from prkit.core.domain import PhysicalDataset, PhysicsDomain, PhysicsProblem
+from prkit.core.domain import PhysicsDataset, PhysicsDomain, PhysicsProblem
+from prkit.datasets.license_registry import get_license
 from prkit.datasets.loaders.base_loader import BaseDatasetLoader
 
 
@@ -39,6 +40,8 @@ class TPBenchLoader(BaseDatasetLoader):
         """Get dataset information."""
         return {
             "name": self.name,
+            "license": get_license(self.name).to_info_dict(),
+            "license_spdx": get_license(self.name).spdx,
             "description": self.description,
             "domains": [
                 "quantum_mechanics",
@@ -87,9 +90,7 @@ class TPBenchLoader(BaseDatasetLoader):
 
     def _process_metadata(self, metadata: dict[str, Any]) -> dict[str, Any]:
         """Process metadata to create standardized problem fields."""
-        metadata["answer_category"] = "formula"
         self._map_domain(metadata)
-
         return metadata
 
     def load(
@@ -101,7 +102,7 @@ class TPBenchLoader(BaseDatasetLoader):
         per_domain: int | None = None,
         language: str = "en",
         **kwargs: Any,
-    ) -> PhysicalDataset:
+    ) -> PhysicsDataset:
         """
         Load the TPBench dataset.
 
@@ -114,7 +115,7 @@ class TPBenchLoader(BaseDatasetLoader):
             language: Language to load ("en" only)
 
         Returns:
-            PhysicalDataset instance
+            PhysicsDataset instance
 
         Raises:
             ValueError: If unsupported split, variant, or language is requested
@@ -206,7 +207,7 @@ class TPBenchLoader(BaseDatasetLoader):
             f"Successfully loaded {len(all_problems)} problems from TPBench dataset"
         )
 
-        return PhysicalDataset(
+        return PhysicsDataset(
             all_problems,
             info,
             split=split,

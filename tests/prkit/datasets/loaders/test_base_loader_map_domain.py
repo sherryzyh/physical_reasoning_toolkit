@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from prkit.core.domain import PhysicalDataset, PhysicsDomain
+from prkit.core.domain import PhysicsDataset, PhysicsDomain
 from prkit.datasets.loaders.base_loader import BaseDatasetLoader
 
 
@@ -13,8 +13,8 @@ class _LoaderNoDomainMapping(BaseDatasetLoader):
     def field_mapping(self) -> dict[str, str]:
         return {}
 
-    def load(self, data_dir, **kwargs) -> PhysicalDataset:  # type: ignore[override]
-        return PhysicalDataset(problems=[])
+    def load(self, data_dir, **kwargs) -> PhysicsDataset:  # type: ignore[override]
+        return PhysicsDataset(problems=[])
 
     def get_info(self) -> dict:
         return {}
@@ -34,8 +34,8 @@ class _LoaderWithDomainMapping(BaseDatasetLoader):
     def field_mapping(self) -> dict[str, str]:
         return {}
 
-    def load(self, data_dir, **kwargs) -> PhysicalDataset:  # type: ignore[override]
-        return PhysicalDataset(problems=[])
+    def load(self, data_dir, **kwargs) -> PhysicsDataset:  # type: ignore[override]
+        return PhysicsDataset(problems=[])
 
     def get_info(self) -> dict:
         return {}

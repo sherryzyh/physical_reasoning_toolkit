@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 _MapResult = TypeVar("_MapResult")
 
 
-class PhysicalDataset:
+class PhysicsDataset:
     """
     Base class for physical reasoning datasets with a unified interface.
 
@@ -49,16 +49,16 @@ class PhysicalDataset:
     def __getitem__(self, idx: int) -> PhysicsProblem: ...
 
     @overload
-    def __getitem__(self, idx: slice) -> "PhysicalDataset": ...
+    def __getitem__(self, idx: slice) -> "PhysicsDataset": ...
 
-    def __getitem__(self, idx: int | slice) -> Union[PhysicsProblem, "PhysicalDataset"]:
+    def __getitem__(self, idx: int | slice) -> Union[PhysicsProblem, "PhysicsDataset"]:
         """Get a problem by index or a slice of dataset."""
         if isinstance(idx, slice):
-            # Return a new PhysicalDataset with sliced problems
+            # Return a new PhysicsDataset with sliced problems
             sliced_problems = [
                 self._problems[i] for i in range(*idx.indices(len(self._problems)))
             ]
-            return PhysicalDataset(sliced_problems, self._info, self._split)
+            return PhysicsDataset(sliced_problems, self._info, self._split)
         return self._problems[idx]
 
     def __iter__(self) -> Iterator[PhysicsProblem]:
@@ -123,9 +123,7 @@ class PhysicalDataset:
         except KeyError:
             return None
 
-    def filter(
-        self, filter_func: Callable[[PhysicsProblem], bool]
-    ) -> "PhysicalDataset":
+    def filter(self, filter_func: Callable[[PhysicsProblem], bool]) -> "PhysicsDataset":
         """
         Filter problems using a filter function.
 
@@ -133,14 +131,14 @@ class PhysicalDataset:
             filter_func: Function that takes a PhysicsProblem and returns bool
 
         Returns:
-            New PhysicalDataset with filtered problems
+            New PhysicsDataset with filtered problems
         """
         filtered_problems = [p for p in self._problems if filter_func(p)]
-        return PhysicalDataset(filtered_problems, self._info, self._split)
+        return PhysicsDataset(filtered_problems, self._info, self._split)
 
     def filter_by_domains(
         self, domains: list[Union[str, "PhysicsDomain"]]
-    ) -> "PhysicalDataset":
+    ) -> "PhysicsDataset":
         """
         Filter problems by physics domains.
 
@@ -148,7 +146,7 @@ class PhysicalDataset:
             domains: List of domain names (strings) or PhysicsDomain enum values
 
         Returns:
-            New PhysicalDataset containing only problems from the specified domains
+            New PhysicsDataset containing only problems from the specified domains
 
         Example:
             # Filter by domain names
@@ -188,7 +186,7 @@ class PhysicalDataset:
                     filtered_problems.append(problem)
 
         # Create new dataset with filtered problems
-        filtered_dataset = PhysicalDataset(filtered_problems, self._info, self._split)
+        filtered_dataset = PhysicsDataset(filtered_problems, self._info, self._split)
 
         # Log filtering results
         logger = PRKitLogger.get_logger(__name__)
@@ -199,9 +197,7 @@ class PhysicalDataset:
 
         return filtered_dataset
 
-    def filter_by_domain(
-        self, domain: Union[str, "PhysicsDomain"]
-    ) -> "PhysicalDataset":
+    def filter_by_domain(self, domain: Union[str, "PhysicsDomain"]) -> "PhysicsDataset":
         """
         Filter problems by a single physics domain.
 
@@ -209,7 +205,7 @@ class PhysicalDataset:
             domain: Domain name (string) or PhysicsDomain enum value
 
         Returns:
-            New PhysicalDataset containing only problems from the specified domain
+            New PhysicsDataset containing only problems from the specified domain
 
         Example:
             # Filter by domain name
@@ -221,7 +217,7 @@ class PhysicalDataset:
         """
         return self.filter_by_domains([domain])
 
-    def select(self, indices: list[int]) -> "PhysicalDataset":
+    def select(self, indices: list[int]) -> "PhysicsDataset":
         """
         Select problems by indices.
 
@@ -229,14 +225,14 @@ class PhysicalDataset:
             indices: List of problem indices to select
 
         Returns:
-            New PhysicalDataset with selected problems
+            New PhysicsDataset with selected problems
         """
         selected_problems = [
             self._problems[i] for i in indices if 0 <= i < len(self._problems)
         ]
-        return PhysicalDataset(selected_problems, self._info, self._split)
+        return PhysicsDataset(selected_problems, self._info, self._split)
 
-    def take(self, n: int) -> "PhysicalDataset":
+    def take(self, n: int) -> "PhysicsDataset":
         """
         Take the first N problems from the dataset.
 
@@ -244,14 +240,14 @@ class PhysicalDataset:
             n: Number of problems to take
 
         Returns:
-            New PhysicalDataset with the first N problems
+            New PhysicsDataset with the first N problems
         """
         if n <= 0:
-            return PhysicalDataset([], self._info, self._split)
+            return PhysicsDataset([], self._info, self._split)
         n = min(n, len(self._problems))
-        return PhysicalDataset(self._problems[:n], self._info, self._split)
+        return PhysicsDataset(self._problems[:n], self._info, self._split)
 
-    def head(self, n: int = 5) -> "PhysicalDataset":
+    def head(self, n: int = 5) -> "PhysicsDataset":
         """
         Get the first N problems (similar to pandas head).
 
@@ -259,11 +255,11 @@ class PhysicalDataset:
             n: Number of problems to get (default: 5)
 
         Returns:
-            New PhysicalDataset with the first N problems
+            New PhysicsDataset with the first N problems
         """
         return self.take(n)
 
-    def tail(self, n: int = 5) -> "PhysicalDataset":
+    def tail(self, n: int = 5) -> "PhysicsDataset":
         """
         Get the last N problems (similar to pandas tail).
 
@@ -271,14 +267,14 @@ class PhysicalDataset:
             n: Number of problems to get (default: 5)
 
         Returns:
-            New PhysicalDataset with the last N problems
+            New PhysicsDataset with the last N problems
         """
         if n <= 0:
-            return PhysicalDataset([], self._info, self._split)
+            return PhysicsDataset([], self._info, self._split)
         n = min(n, len(self._problems))
-        return PhysicalDataset(self._problems[-n:], self._info, self._split)
+        return PhysicsDataset(self._problems[-n:], self._info, self._split)
 
-    def sample(self, n: int) -> "PhysicalDataset":
+    def sample(self, n: int) -> "PhysicsDataset":
         """
         Sample N problems from the dataset.
 
@@ -286,14 +282,12 @@ class PhysicalDataset:
             n: Number of problems to sample
 
         Returns:
-            New PhysicalDataset with sampled problems
+            New PhysicsDataset with sampled problems
         """
         if n <= 0:
-            return PhysicalDataset([], self._info, self._split)
+            return PhysicsDataset([], self._info, self._split)
         n = min(n, len(self._problems))
-        return PhysicalDataset(
-            random.sample(self._problems, n), self._info, self._split
-        )
+        return PhysicsDataset(random.sample(self._problems, n), self._info, self._split)
 
     def map(self, map_func: Callable[[PhysicsProblem], _MapResult]) -> list[_MapResult]:
         """
@@ -341,7 +335,7 @@ class PhysicalDataset:
             json.dump(data, f, indent=2, ensure_ascii=False)
 
     @classmethod
-    def from_json(cls, filepath: str | Path) -> "PhysicalDataset":
+    def from_json(cls, filepath: str | Path) -> "PhysicsDataset":
         """Load dataset from JSON file."""
         filepath = Path(filepath)
 
@@ -383,8 +377,8 @@ class PhysicalDataset:
         }
 
     def __repr__(self) -> str:
-        return f"PhysicalDataset({len(self._problems)} problems, split='{self._split}')"
+        return f"PhysicsDataset({len(self._problems)} problems, split='{self._split}')"
 
     def __str__(self) -> str:
         stats = self.get_statistics()
-        return f"PhysicalDataset with {stats['total_problems']} problems ({stats['split']} split)"
+        return f"PhysicsDataset with {stats['total_problems']} problems ({stats['split']} split)"

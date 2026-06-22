@@ -13,8 +13,9 @@ from pathlib import Path
 from typing import Any
 
 from prkit.core import PRKitLogger
-from prkit.core.domain import PhysicalDataset, PhysicsProblem
+from prkit.core.domain import PhysicsDataset, PhysicsProblem
 from prkit.core.domain.physics_domain import PhysicsDomain
+from prkit.datasets.license_registry import get_license
 
 from .base_loader import BaseDatasetLoader
 
@@ -48,7 +49,8 @@ class PhyXLoader(BaseDatasetLoader):
             "paper_url": "https://arxiv.org/pdf/2505.15929v2",
             "homepage": "https://phyx-bench.github.io/",
             "repository_url": "https://huggingface.co/datasets/Cloudriver/PhyX",
-            "license": "MIT",
+            "license": get_license(self.name).to_info_dict(),
+            "license_spdx": get_license(self.name).spdx,
             "domains": [
                 "mechanics",
                 "electromagnetism",
@@ -152,7 +154,7 @@ class PhyXLoader(BaseDatasetLoader):
         sample_size: int | None = None,
         split: str | None = None,
         **kwargs: Any,
-    ) -> PhysicalDataset:
+    ) -> PhysicsDataset:
         """
         Load PhyX dataset.
 
@@ -164,7 +166,7 @@ class PhyXLoader(BaseDatasetLoader):
             **kwargs: Additional loading parameters (unused, for compatibility)
 
         Returns:
-            PhysicalDataset containing PhyX problems
+            PhysicsDataset containing PhyX problems
         """
         # Use defaults if not provided
         if variant is None:
@@ -234,7 +236,7 @@ class PhyXLoader(BaseDatasetLoader):
         info["variant"] = variant
         info["split"] = split
 
-        return PhysicalDataset(
+        return PhysicsDataset(
             problems,
             info,
             split=split,
