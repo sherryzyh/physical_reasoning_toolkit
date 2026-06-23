@@ -17,7 +17,6 @@ from collections.abc import Iterator, Sequence
 from typing import Any
 
 from openai import OpenAI
-from pydantic import BaseModel
 
 from ..project_env import ensure_openai_api_key
 from .base import BaseModelClient
@@ -496,36 +495,6 @@ class OpenAIModel(BaseModelClient):
                 }
             ),
         )
-
-    def _build_batch_structured_request(
-        self,
-        *,
-        request_id: str,
-        user_prompt: str,
-        response_model: type[BaseModel],
-        image_paths: tuple[str, ...],
-        max_output_tokens: int | None,
-        plan: StructuredOutputPlan,
-        **kwargs: Any,
-    ) -> dict[str, Any]:
-        del response_model, kwargs
-        if plan.mode != "json_schema":
-            raise ValueError(
-                f"OpenAI batch structured requests require json_schema mode. Got {plan.mode!r}."
-            )
-        body = self._build_responses_body(
-            input=user_prompt,
-            instructions=None,
-            image_paths=image_paths,
-            max_output_tokens=max_output_tokens,
-            response_format=plan.response_format or {},
-        )
-        return {
-            "custom_id": request_id,
-            "method": "POST",
-            "url": "/v1/responses",
-            "body": body,
-        }
 
 
 def _iter_jsonl_lines(content: Any) -> Iterator[str]:

@@ -45,6 +45,12 @@ class BatchItemStatus(_StrEnum):
     ERRORED = "errored"
     EXPIRED = "expired"
     CANCELED = "canceled"
+    # prkit-synthesized (not a provider status): a record that has exhausted
+    # ``prkit.batch.MAX_ATTEMPTS`` total submissions (whole-minibatch + record-level
+    # retries) and is given up on as a terminal failure. Distinct from a transient
+    # ERRORED so a downstream scorer can tell "we gave up" from "errored". Mirrors
+    # the synthetic-ERRORED precedent in ``prkit.batch._iter_minibatch_results``.
+    MAX_ATTEMPTED = "max_attempted"
 
 
 @dataclass(frozen=True)

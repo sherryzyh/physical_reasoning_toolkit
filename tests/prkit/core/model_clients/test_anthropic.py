@@ -165,7 +165,8 @@ class TestAnthropicModel:
         assert response == '{"answer":"Response"}'
         call_kwargs = mock_client.messages.create.call_args.kwargs
         assert call_kwargs["output_config"]["format"]["type"] == "json_schema"
-        assert call_kwargs["output_config"]["format"]["name"] == "ExampleResponse"
+        # Anthropic forbids a ``name`` key in output_config.format (400 otherwise).
+        assert "name" not in call_kwargs["output_config"]["format"]
         assert call_kwargs["output_config"]["format"]["schema"]["type"] == "object"
         assert "tools" not in call_kwargs
 

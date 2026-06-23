@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any, TypeVar
 
 from pydantic import BaseModel, ValidationError
 
-from ..domain import PhysicsProblem
+from ..domain import PhysicsDataset, PhysicsProblem
 from ..logging_config import PRKitLogger
 from ..project_env import load_project_dotenv
 from .batch_types import BatchResult, BatchStatus
@@ -28,6 +28,9 @@ from .structured_output import (
 )
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
+    from prkit.batch import BatchSubmission
     from prkit.semantics.schema import PhysicsQuestionSemantics
 
 T = TypeVar("T", bound=BaseModel)
@@ -293,61 +296,6 @@ class BaseModelClient(ABC):
             **kwargs,
         )
 
-    def build_batch_structured_request(
-        self,
-        *,
-        request_id: str,
-        user_prompt: str,
-        response_model: type[T],
-        image_paths: Sequence[str] | None = None,
-        max_output_tokens: int | None = None,
-        structured_policy: StructuredOutputPolicy = "native_required",
-        **kwargs: Any,
-    ) -> dict[str, Any]:
-        """Build a provider-specific batch request dict for structured output."""
-        plan = self.resolve_structured_output_plan(
-            response_model,
-            structured_policy=structured_policy,
-        )
-        return self._build_batch_structured_request(
-            request_id=request_id,
-            user_prompt=user_prompt + (plan.prompt_suffix or ""),
-            response_model=response_model,
-            image_paths=tuple(image_paths or ()),
-            max_output_tokens=max_output_tokens,
-            plan=plan,
-            **kwargs,
-        )
-
-    def parse_batch_structured_response(
-        self,
-        *,
-        response_model: type[T],
-        raw_response_text: str,
-        structured_policy: StructuredOutputPolicy = "native_required",
-        structured_output_strategy: str | None = None,
-    ) -> StructuredCallResult[T]:
-        """Parse a raw batch response text into a typed ``StructuredCallResult``."""
-        plan = self.resolve_structured_output_plan(
-            response_model,
-            structured_policy=structured_policy,
-        )
-        if structured_output_strategy is not None:
-            plan = StructuredOutputPlan(
-                mode=plan.mode,
-                strategy=structured_output_strategy,
-                native_schema_enforced=plan.native_schema_enforced,
-                accepted_artifact_modes=plan.accepted_artifact_modes,
-                accepted_artifact_strategies=plan.accepted_artifact_strategies,
-                response_format=plan.response_format,
-                prompt_suffix=plan.prompt_suffix,
-            )
-        return self._build_structured_call_result(
-            response_model=response_model,
-            raw_text=raw_response_text,
-            plan=plan,
-        )
-
     # ------------------------------------------------------------------
     # Free-text batch requests + the asynchronous job lifecycle
     # ------------------------------------------------------------------
@@ -368,8 +316,7 @@ class BaseModelClient(ABC):
         no ``response_format``. Passing ``instructions=""`` suppresses the system
         prompt on every provider (see :meth:`_resolve_instructions`), so the
         resulting request matches a synchronous
-        ``response(input=..., instructions="")`` call. Use
-        :meth:`build_batch_structured_request` instead for schema-enforced output.
+        ``response(input=..., instructions="")`` call.
         """
         return self._build_batch_request(
             request_id=request_id,
@@ -380,6 +327,114 @@ class BaseModelClient(ABC):
             temperature=temperature,
             **kwargs,
         )
+
+    def build_problem_batch_request(
+        self,
+        problem: PhysicsProblem | str,
+        *,
+        request_id: str | None = None,
+        instructions: str | None = None,
+        max_output_tokens: int | None = None,
+        temperature: float | None = None,
+        **kwargs: Any,
+    ) -> dict[str, Any]:
+        """Build a free-text batch request line for *problem*.
+
+        Batch analogue of :meth:`solve_physics_problem`, dispatching on the
+        runtime type of *problem* the same way: a ``str`` is treated as the
+        question text (no images, and *request_id* is required since there is no
+        ``problem_id``); a :class:`~prkit.core.domain.PhysicsProblem` is rendered
+        with :func:`build_plain_question_prompt` and its ``image_path`` images,
+        defaulting *request_id* to ``problem.problem_id``. Reusing the same prompt
+        builder and image path as the synchronous solver guarantees batch ≡ sync
+        prompts. Free-text only, matching the ANSWER_TEXT-only sync path; delegates
+        to :meth:`build_batch_request`.
+        """
+        if isinstance(problem, str):
+            if request_id is None:
+                raise ValueError(
+                    "request_id is required when problem is a raw question string."
+                )
+            prompt = problem.strip()
+            image_paths: list[str] | None = None
+        elif isinstance(problem, PhysicsProblem):
+            prompt = build_plain_question_prompt(problem)
+            image_paths = problem.image_path or None
+            if request_id is None:
+                request_id = problem.problem_id
+        else:
+            raise TypeError(
+                f"Unsupported problem input type: {type(problem)!r}. Expected a "
+                "PhysicsProblem or a question string."
+            )
+
+        return self.build_batch_request(
+            request_id=request_id,
+            input=prompt,
+            instructions=instructions,
+            image_paths=image_paths,
+            max_output_tokens=max_output_tokens,
+            temperature=temperature,
+            **kwargs,
+        )
+
+    def submit_batch_physics_reasoning(
+        self,
+        problems: PhysicsDataset | Sequence[PhysicsProblem],
+        **kwargs: Any,
+    ) -> str:
+        """Submit *problems* as provider batch jobs; return the run-folder path.
+
+        Thin one-line facade mirroring :meth:`solve_physics_problem`: lazily imports
+        :mod:`prkit.batch` (kept off the import-light path, like the lazy
+        ``prkit.semantics`` import in :meth:`solve_physics_problem`) and delegates to
+        :func:`prkit.batch.submit_batch_physics_reasoning`. See that function for the
+        keyword arguments (``output_dir`` / ``run_name`` / ``minibatch_size`` / …).
+        The ledger is saved to ``<run_dir>/metadata.json``; reconstruct it later via
+        :meth:`fetch_batch_physics_reasoning` (or ``BatchSubmission.load(run_dir)``).
+        """
+        from prkit.batch import submit_batch_physics_reasoning as _submit_batch
+
+        return _submit_batch(self, problems, **kwargs)
+
+    def fetch_batch_physics_reasoning(
+        self,
+        run_dir_or_submission: BatchSubmission | str | Path,
+        **kwargs: Any,
+    ) -> BatchSubmission:
+        """Poll + download a submitted batch run; return the updated ledger.
+
+        Thin one-line facade mirroring :meth:`submit_batch_physics_reasoning`: lazily
+        imports :mod:`prkit.batch` and delegates to :func:`prkit.batch.fetch_batch`.
+        Typically called with the ``run_dir`` string that submit returned;
+        reconstructs the ledger via :meth:`BatchSubmission.load` and returns the
+        freshly-updated :class:`~prkit.batch.BatchSubmission`. See
+        :func:`prkit.batch.fetch_batch` for the keyword arguments (``wait`` /
+        ``poll_interval`` / ``timeout`` / ``outputs_dirname`` / ``progress``).
+        """
+        from prkit.batch import fetch_batch
+
+        return fetch_batch(self, run_dir_or_submission, **kwargs)
+
+    def resubmit_failures(
+        self,
+        run_dir_or_submission: BatchSubmission | str | Path,
+        **kwargs: Any,
+    ) -> BatchSubmission:
+        """Re-drive a terminal batch run's failures (minibatches + records); return it.
+
+        Thin one-line facade mirroring :meth:`fetch_batch_physics_reasoning`: lazily
+        imports :mod:`prkit.batch` and delegates to
+        :func:`prkit.batch.resubmit_failures`. Re-submits each
+        FAILED / SUBMIT_ERROR / EXPIRED / CANCELLED minibatch in place (re-reading its
+        persisted ``inputs/`` file) *and* drains the run's siphoned failed-records
+        accumulator into fresh minibatches; the run must be terminal first (run
+        :meth:`fetch_batch_physics_reasoning` until it is). Returns the updated
+        :class:`~prkit.batch.BatchSubmission`; fetch the new jobs next.
+        """
+        from prkit.batch import resubmit_failures
+
+        return resubmit_failures(self, run_dir_or_submission, **kwargs)
 
     def _build_batch_request(
         self,
@@ -528,27 +583,3 @@ class BaseModelClient(ABC):
     ) -> dict[str, Any] | list[Any] | None:
         del plan
         return extract_json_payload(raw_text)
-
-    def _build_batch_structured_request(
-        self,
-        *,
-        request_id: str,
-        user_prompt: str,
-        response_model: type[T],
-        image_paths: tuple[str, ...],
-        max_output_tokens: int | None,
-        plan: StructuredOutputPlan,
-        **kwargs: Any,
-    ) -> dict[str, Any]:
-        del (
-            request_id,
-            user_prompt,
-            response_model,
-            image_paths,
-            max_output_tokens,
-            plan,
-            kwargs,
-        )
-        raise NotImplementedError(
-            f"Batch structured requests are not implemented for provider={self._provider_name()!r}."
-        )

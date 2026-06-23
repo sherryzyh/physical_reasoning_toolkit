@@ -6,9 +6,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel
-
-from .openai import prepare_image_url_from_image_path
 from .openai_compatible_chat import OpenAICompatibleChatModel
 from .structured_output import (
     StructuredOutputPlan,
@@ -95,54 +92,3 @@ class XAIModel(OpenAICompatibleChatModel):
             accepted_artifact_strategies=("xai_chat_json_schema",),
             response_format=_xai_transformed_response_format(spec),
         )
-
-    def _build_batch_structured_request(
-        self,
-        *,
-        request_id: str,
-        user_prompt: str,
-        response_model: type[BaseModel],
-        image_paths: tuple[str, ...],
-        max_output_tokens: int | None,
-        plan: StructuredOutputPlan,
-        **kwargs: Any,
-    ) -> dict[str, Any]:
-        del response_model, kwargs
-        if plan.mode != "json_schema":
-            raise ValueError(
-                f"xAI batch structured requests require json_schema mode. Got {plan.mode!r}."
-            )
-
-        normalized = normalize_response_format(plan.response_format or {})
-        text_format: dict[str, Any] = {
-            "type": "json_schema",
-            "name": normalized["name"],
-            "schema": normalized["schema"],
-            "strict": normalized.get("strict", True),
-        }
-        if normalized.get("description") is not None:
-            text_format["description"] = normalized["description"]
-
-        content: list[dict[str, Any]] = [{"type": "input_text", "text": user_prompt}]
-        for image_path in image_paths:
-            content.append(
-                {
-                    "type": "input_image",
-                    "image_url": prepare_image_url_from_image_path(image_path),
-                }
-            )
-
-        body: dict[str, Any] = {
-            "model": self.model,
-            "input": [{"role": "user", "content": content}],
-            "text": {"format": text_format},
-        }
-        if max_output_tokens is not None:
-            body["max_output_tokens"] = max_output_tokens
-
-        return {
-            "custom_id": request_id,
-            "method": "POST",
-            "url": "/v1/responses",
-            "body": body,
-        }

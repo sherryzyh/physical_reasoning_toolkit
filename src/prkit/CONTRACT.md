@@ -32,14 +32,13 @@ and returns the same canonical `Verdict`.
   `check_model_client`, `ConformanceTestMixin`) is a stable companion: use it to
   verify your own loader/scorer/client satisfies the contract.
 
-The contract pins four structural (`typing.Protocol`) nouns plus one result type:
+The contract pins three structural (`typing.Protocol`) nouns plus one result type:
 
 | Noun | Protocol | Reference implementation |
 |------|----------|--------------------------|
 | Dataset loader | `DatasetProvider` | `BaseDatasetLoader` subclasses |
 | Inference client | `ModelClient` | `BaseModelClient` subclasses |
 | Scorer | `Scorer` | `prkit.scoring.SemanticsScorer` (binary); `EedScorer`/`SeedScorer` (vendor edit-distance baselines); `SemanticsEedScorer`/`SemanticsSeedScorer` (our-semantics edit distance, graded); `LLMJudgeScorer` (model-graded) |
-| Runner | `Runner` | *(reserved; no implementation yet)* |
 | Result | `Verdict` | `prkit.core.verdict.Verdict` |
 
 > **Note on `@runtime_checkable`:** `isinstance(x, Scorer)` only verifies that the
@@ -135,3 +134,10 @@ changes to those are documented in the package release notes, not the contract v
   compatibility shim is deleted; import from `prkit.semantics.build` directly.
 - `prkit.evaluation.llm_judge` (model-graded scoring) is **retained** — it is a distinct
   capability, not a duplicate of the deterministic scoring path.
+- **`Runner` Protocol removed.** The reserved `Runner` structural Protocol (it had no
+  implementation; its docstring reserved it "for roadmap N4") is removed from
+  `prkit.api` / `prkit.api.__all__`. Batch-mode runs (N4) ship as a bounded *submitter*
+  (`prkit.batch.submit_batch_physics_reasoning` + the `BaseModelClient` facade), not as a
+  `Runner` noun. The contract now pins **three** Protocol nouns plus `Verdict`. Per the
+  `API_VERSION` policy this provisional-1.0 removal is tracked here, **not** signalled by a
+  major bump.
