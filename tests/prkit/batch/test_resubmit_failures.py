@@ -1,12 +1,14 @@
-"""Tests for the finalize half: ``resubmit_failed_minibatches`` (Stage 3).
+"""Tests for the finalize half: ``resubmit_failures`` whole-minibatch path (Stage 3/4).
 
 Fully offline. Runs are built with an SDK-patched submit client then driven to
 terminal statuses by the duck-typed ``_FetchClient``; resubmit is then driven by
 a tiny duck-typed ``_Client`` whose ``submit_batch`` is a ``MagicMock``. Covers
 the happy path (requests re-read from the persisted input file + merged
-metadata, entries reset to SUBMITTED), CANCELLED exclusion + no-op, the terminal
-and capability preconditions, per-item failure + continue, submit-first ordering,
-the client facade, and the next-command prompt.
+metadata, entries reset to SUBMITTED, ``attempt`` bumped), CANCELLED now
+resubmitted (Stage 4 D1) + no-op, the terminal and capability preconditions,
+per-item failure + continue, submit-first ordering, the client facade, and the
+next-command prompt. The record-drain half of ``resubmit_failures`` is covered in
+``test_resubmit_records.py``.
 """
 
 from __future__ import annotations
@@ -17,7 +19,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from prkit.batch import (
-    CANCELLED,
     FETCHED,
     SUBMIT_ERROR,
     SUBMITTED,
@@ -25,7 +26,7 @@ from prkit.batch import (
     BatchNotTerminalError,
     BatchSubmission,
     fetch_batch,
-    resubmit_failed_minibatches,
+    resubmit_failures,
     submit_batch_physics_reasoning,
 )
 from prkit.core.domain import PhysicsDataset, PhysicsProblem
@@ -140,7 +141,7 @@ class TestHappyPath:
         client = _Client()
         client.submit_batch = MagicMock(side_effect=["new1", "new2"])
 
-        sub = resubmit_failed_minibatches(client, run_dir)
+        sub = resubmit_failures(client, run_dir)
 
         assert client.submit_batch.call_count == 2  # FAILED + EXPIRED only
         for call in client.submit_batch.call_args_list:
@@ -158,32 +159,39 @@ class TestHappyPath:
             assert mb["fetched_at"] is None
             assert mb["counts"] == {}
         assert sub.minibatches[0]["status"] == FETCHED  # the succeeded one is untouched
+        # Whole-minibatch resubmit bumps each entry's attempt (submit => 1, +1 here).
+        assert mb1["attempt"] == 2 and mb2["attempt"] == 2
         # Persisted to disk.
         assert BatchSubmission.load(run_dir).minibatches[1]["batch_id"] == "new1"
 
 
-class TestCancelledExcluded:
-    def test_cancelled_minibatch_not_resubmitted(self, tmp_path):
+class TestCancelledResubmitted:
+    """Stage 4 D1: CANCELLED is now resubmitted like any other failure (no dead-end)."""
+
+    def test_cancelled_minibatch_is_resubmitted(self, tmp_path):
         run_dir = _build_terminal_run(
             tmp_path, statuses=["fetched", "cancelled", "failed"]
         )
         client = _Client()
-        client.submit_batch = MagicMock(side_effect=["new2"])
-        sub = resubmit_failed_minibatches(client, run_dir)
-        assert client.submit_batch.call_count == 1  # only the FAILED one
-        assert sub.minibatches[1]["status"] == CANCELLED  # untouched dead-end
+        client.submit_batch = MagicMock(side_effect=["new1", "new2"])
+        sub = resubmit_failures(client, run_dir)
+        assert client.submit_batch.call_count == 2  # CANCELLED + FAILED both
+        assert sub.minibatches[1]["status"] == SUBMITTED  # cancelled re-driven
+        assert sub.minibatches[1]["batch_id"] == "new1"
+        assert sub.minibatches[1]["attempt"] == 2
         assert sub.minibatches[2]["status"] == SUBMITTED
 
-    def test_only_cancelled_is_logged_noop(self, tmp_path, caplog):
+    def test_only_cancelled_is_resubmitted_not_noop(self, tmp_path, caplog):
         run_dir = _build_terminal_run(tmp_path, statuses=["fetched", "cancelled"])
         client = _Client()
-        client.submit_batch = MagicMock()
+        client.submit_batch = MagicMock(side_effect=["new1"])
         with caplog.at_level(logging.INFO, logger="prkit.batch"):
             caplog.clear()
-            resubmit_failed_minibatches(client, run_dir)
-        client.submit_batch.assert_not_called()
+            sub = resubmit_failures(client, run_dir)
+        client.submit_batch.assert_called_once()
+        assert sub.minibatches[1]["status"] == SUBMITTED
         msgs = [r.getMessage() for r in caplog.records if r.name == "prkit.batch"]
-        assert any("Nothing to resubmit" in m and "CANCELLED" in m for m in msgs)
+        assert any("Resubmitted 1 minibatches (0 still failed)" in m for m in msgs)
 
 
 class TestPreconditions:
@@ -192,7 +200,7 @@ class TestPreconditions:
         client = _Client()
         client.submit_batch = MagicMock()
         with pytest.raises(BatchNotTerminalError):
-            resubmit_failed_minibatches(client, run_dir)
+            resubmit_failures(client, run_dir)
         client.submit_batch.assert_not_called()
 
     def test_non_batch_provider_raises_up_front(self, tmp_path):
@@ -200,7 +208,7 @@ class TestPreconditions:
         client = _Client("xai")
         client.submit_batch = MagicMock()
         with pytest.raises(BatchFetchUnsupportedError, match="xai"):
-            resubmit_failed_minibatches(client, run_dir)
+            resubmit_failures(client, run_dir)
         client.submit_batch.assert_not_called()
 
 
@@ -213,7 +221,7 @@ class TestPerItemFailure:
         )
         with caplog.at_level(logging.INFO, logger="prkit.batch"):
             caplog.clear()
-            sub = resubmit_failed_minibatches(client, run_dir)
+            sub = resubmit_failures(client, run_dir)
 
         assert (
             sub.minibatches[0]["status"] == SUBMITTED
@@ -233,7 +241,7 @@ class TestPerItemFailure:
         run_dir = _build_terminal_run(tmp_path, statuses=["failed"])
         client = _Client()
         client.submit_batch = MagicMock(side_effect=RuntimeError("boom"))
-        sub = resubmit_failed_minibatches(client, run_dir)
+        sub = resubmit_failures(client, run_dir)
         mb = sub.minibatches[0]
         # Submit-first / mutate-second: a raising submit must NOT yield SUBMITTED+"".
         assert not (mb["status"] == SUBMITTED and mb["batch_id"] == "")
@@ -243,9 +251,9 @@ class TestPerItemFailure:
 class TestFacade:
     def test_resubmit_facade_delegates_to_module(self):
         client = _openai_submit_client()
-        with patch("prkit.batch.resubmit_failed_minibatches") as mock_resub:
+        with patch("prkit.batch.resubmit_failures") as mock_resub:
             mock_resub.return_value = "LEDGER"
-            out = client.resubmit_failed_minibatches("run-dir")
+            out = client.resubmit_failures("run-dir")
         mock_resub.assert_called_once()
         args, _ = mock_resub.call_args
         assert args[0] is client and args[1] == "run-dir"
@@ -259,7 +267,7 @@ class TestNextCommand:
         client.submit_batch = MagicMock(side_effect=["new0"])
         with caplog.at_level(logging.INFO, logger="prkit.batch"):
             caplog.clear()
-            resubmit_failed_minibatches(client, run_dir)
+            resubmit_failures(client, run_dir)
         msgs = [r.getMessage() for r in caplog.records if r.name == "prkit.batch"]
         assert any(
             m.startswith("Resubmitted 1 minibatches (0 still failed)")

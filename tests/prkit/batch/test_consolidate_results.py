@@ -396,6 +396,50 @@ class TestEmptyLedger:
             consolidate_batch_results(str(tmp_path / "r"))
 
 
+class TestPendingFailedRecords:
+    """Stage 4 D4: a siphoned record keeps the manifest from reading 'done'."""
+
+    def _run_with_siphoned_record(self, tmp_path):
+        run_dir = _submit_dataset(
+            tmp_path, _dataset(2), minibatch_size=2, batch_ids=["b0"]
+        )
+        cids = list(BatchSubmission.load(run_dir).minibatches[0]["id_map"])
+        client = _FetchClient(
+            states={"b0": [BatchState.COMPLETED]},
+            results={
+                "b0": [
+                    BatchResult(cids[0], BatchItemStatus.ERRORED, error="boom"),
+                    BatchResult(cids[1], BatchItemStatus.SUCCEEDED, text="A1"),
+                ]
+            },
+        )
+        fetch_batch(client, run_dir, progress=False)
+        return run_dir
+
+    def test_manifest_gates_fully_consolidated_on_pending_records(self, tmp_path):
+        run_dir = self._run_with_siphoned_record(tmp_path)
+        consolidate_batch_results(run_dir)
+        manifest = json.loads((Path(run_dir) / "results_manifest.json").read_text())
+        # All minibatches consolidated, but a record is still pending recovery.
+        assert manifest["minibatches_consolidated"] == manifest["minibatches_total"]
+        assert manifest["pending_failed_records"] == 1
+        assert manifest["fully_consolidated"] is False
+        # The siphoned problem has no result file yet (siphoned-not-resubmitted).
+        assert not (Path(run_dir) / "results" / "p0.json").exists()
+        assert (Path(run_dir) / "results" / "p1.json").is_file()
+
+    def test_post_consolidate_hint_points_at_resubmit_failures(self, tmp_path, caplog):
+        run_dir = self._run_with_siphoned_record(tmp_path)
+        with caplog.at_level(logging.INFO, logger="prkit.batch"):
+            caplog.clear()
+            consolidate_batch_results(run_dir)
+        msgs = [r.getMessage() for r in caplog.records if r.name == "prkit.batch"]
+        assert any(
+            "records still failed" in m and "resubmit_failures" in m for m in msgs
+        )
+        assert not any(m.startswith("Done — results in") for m in msgs)
+
+
 class TestNextCommand:
     def test_done_line_when_fully_consolidated(self, tmp_path, caplog):
         run_dir = _build_run(tmp_path, statuses=["fetched"])

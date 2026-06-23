@@ -235,7 +235,9 @@ class TestNonTerminal:
 
 
 class TestExpired:
-    def test_expired_partial_subset_persisted_with_synthetic_missing(self, tmp_path):
+    def test_expired_partial_subset_siphons_missing_record(self, tmp_path):
+        # Stage 4: the missing record of an EXPIRED partial is now SIPHONED for retry
+        # (not left as a synthetic ERRORED read), so the minibatch reads all-success.
         run_dir = _submit_run(tmp_path, n=2, minibatch_size=2, batch_ids=["b0"])
         cids = _cids(BatchSubmission.load(run_dir))
         client = _FetchClient(
@@ -246,10 +248,17 @@ class TestExpired:
             },
         )
         sub = fetch_batch(client, run_dir, progress=False)
-        assert sub.minibatches[0]["status"] == FETCHED  # partial subset -> fetched
+        mb = sub.minibatches[0]
+        assert mb["status"] == FETCHED  # partial subset -> fetched
+        # The missing record was siphoned: pruned from id_map, num_requests in lockstep.
+        assert mb["num_requests"] == len(mb["id_map"]) == 1
+        assert [e["custom_id"] for e in mb["failed_records"]] == [cids[1]]
+        assert mb["failed_records"][0]["problem_id"] == "p1"
+        assert mb["failed_records"][0]["attempt"] == 1
+        # outputs/ holds the succeeded record only; the reader no longer yields p1.
         pairs = dict(iter_batch_results(run_dir))
+        assert set(pairs) == {"p0"}
         assert pairs["p0"].succeeded and pairs["p0"].text == "A0"
-        assert pairs["p1"].status == BatchItemStatus.ERRORED  # synthetic completeness
 
     def test_expired_with_nothing_marks_expired_terminal(self, tmp_path):
         run_dir = _submit_run(tmp_path, n=1, minibatch_size=1, batch_ids=["b0"])
@@ -348,7 +357,9 @@ class TestCorrelation:
 
 
 class TestCompleteness:
-    def test_one_result_per_id_in_order_extra_dropped_and_counted(self, tmp_path):
+    def test_missing_siphoned_extra_dropped_and_counted(self, tmp_path):
+        # Stage 4: a missing id is siphoned (not synthesized on read); an extra
+        # (uncorrelated) id is still dropped and counted.
         run_dir = _submit_run(tmp_path, n=3, minibatch_size=3, batch_ids=["b0"])
         cids = _cids(BatchSubmission.load(run_dir))  # [p0, p1, p2] in input order
         client = _FetchClient(
@@ -357,26 +368,23 @@ class TestCompleteness:
             results={
                 "b0": [
                     BatchResult(cids[0], BatchItemStatus.SUCCEEDED, text="A0"),
-                    # cids[1] omitted -> synthetic ERRORED
+                    # cids[1] omitted -> siphoned for retry (no longer in id_map)
                     BatchResult(cids[2], BatchItemStatus.SUCCEEDED, text="A2"),
                     BatchResult("ghost", BatchItemStatus.SUCCEEDED, text="X"),  # extra
                 ]
             },
         )
         sub = fetch_batch(client, run_dir, progress=False)
+        mb = sub.minibatches[0]
+        # The missing id was siphoned; the two succeeded stay; lockstep invariant.
+        assert mb["num_requests"] == len(mb["id_map"]) == 2
+        assert [e["problem_id"] for e in mb["failed_records"]] == ["p1"]
         pairs = list(
             iter_batch_results(sub)
         )  # pass the object to read uncorrelated_count
-        assert [pid for pid, _ in pairs] == [
-            "p0",
-            "p1",
-            "p2",
-        ]  # exactly one each, in order
+        assert [pid for pid, _ in pairs] == ["p0", "p2"]  # p1 siphoned out, in order
         by = dict(pairs)
         assert by["p0"].succeeded and by["p2"].succeeded
-        assert (
-            by["p1"].status == BatchItemStatus.ERRORED
-        )  # synthetic for the missing id
         assert sub.minibatches[0]["uncorrelated_count"] == 1  # ghost dropped + counted
 
 
@@ -603,6 +611,6 @@ class TestNextCommandAfterFetch:
             caplog.clear()
             fetch_batch(client, run_dir, progress=True)
         assert any(
-            "1 minibatches failed" in m and "resubmit_failed_minibatches" in m
+            "1 minibatches failed" in m and "resubmit_failures" in m
             for m in self._msgs(caplog)
         )

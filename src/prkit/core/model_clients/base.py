@@ -416,24 +416,25 @@ class BaseModelClient(ABC):
 
         return fetch_batch(self, run_dir_or_submission, **kwargs)
 
-    def resubmit_failed_minibatches(
+    def resubmit_failures(
         self,
         run_dir_or_submission: BatchSubmission | str | Path,
         **kwargs: Any,
     ) -> BatchSubmission:
-        """Re-submit a terminal batch run's failed minibatches; return the ledger.
+        """Re-drive a terminal batch run's failures (minibatches + records); return it.
 
         Thin one-line facade mirroring :meth:`fetch_batch_physics_reasoning`: lazily
         imports :mod:`prkit.batch` and delegates to
-        :func:`prkit.batch.resubmit_failed_minibatches`. Re-submits each
-        FAILED / SUBMIT_ERROR / EXPIRED minibatch (not CANCELLED) by re-reading its
-        persisted ``inputs/`` file; the run must be terminal first (run
+        :func:`prkit.batch.resubmit_failures`. Re-submits each
+        FAILED / SUBMIT_ERROR / EXPIRED / CANCELLED minibatch in place (re-reading its
+        persisted ``inputs/`` file) *and* drains the run's siphoned failed-records
+        accumulator into fresh minibatches; the run must be terminal first (run
         :meth:`fetch_batch_physics_reasoning` until it is). Returns the updated
         :class:`~prkit.batch.BatchSubmission`; fetch the new jobs next.
         """
-        from prkit.batch import resubmit_failed_minibatches
+        from prkit.batch import resubmit_failures
 
-        return resubmit_failed_minibatches(self, run_dir_or_submission, **kwargs)
+        return resubmit_failures(self, run_dir_or_submission, **kwargs)
 
     def _build_batch_request(
         self,

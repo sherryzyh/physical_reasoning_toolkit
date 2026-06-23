@@ -45,8 +45,9 @@ def test_batch_import_does_not_pull_heavy_deps():
             fetch_batch,
             iter_batch_results,
             consolidate_batch_results,
-            resubmit_failed_minibatches,
+            resubmit_failures,
             batch_fetch_supported,
+            MAX_ATTEMPTS,
         )
 
         forbidden = {_FORBIDDEN!r}

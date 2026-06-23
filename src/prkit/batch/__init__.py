@@ -46,7 +46,7 @@ import re
 import tempfile
 import time
 from collections.abc import Callable, Iterator, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -65,7 +65,7 @@ __all__ = [
     "fetch_batch",
     "iter_batch_results",
     "consolidate_batch_results",
-    "resubmit_failed_minibatches",
+    "resubmit_failures",
     "batch_fetch_supported",
     "dumps_batch_jsonl",
     "write_batch_jsonl",
@@ -120,10 +120,25 @@ _COMPLETE_STATUSES = frozenset(
 # gate on this so re-scoring still works after finalize.
 _HAS_OUTPUT_STATUSES = frozenset({FETCHED, CONSOLIDATED})
 
-# Minibatches that :func:`resubmit_failed_minibatches` re-submits: terminal, not
-# consolidatable, and NOT a deliberate CANCELLED (excluded by owner decision). This
-# is exactly ``_COMPLETE_STATUSES − {FETCHED, CONSOLIDATED, CANCELLED}``.
-_RESUBMIT_STATUSES = frozenset({FAILED, SUBMIT_ERROR, EXPIRED})
+# Minibatches that :func:`resubmit_failures` re-submits: every terminal,
+# non-consolidatable status — including CANCELLED (Stage 4 D1 reverses the Stage-3
+# CANCELLED exclusion, so a cancelled job is re-driven into the loop instead of
+# being a dead-end). This is exactly ``_COMPLETE_STATUSES − {FETCHED, CONSOLIDATED}``.
+_RESUBMIT_STATUSES = frozenset({FAILED, SUBMIT_ERROR, EXPIRED, CANCELLED})
+
+# Total submissions a single record gets — spanning BOTH whole-minibatch retries
+# (each bumps the minibatch ``attempt``) and record-level retries (carried in
+# ``record_attempts``) — before it is given up on. A record's submission count is
+# ``record_attempts.get(cid, 0) + minibatch_attempt``; it is siphoned for retry
+# while that is ``< MAX_ATTEMPTS`` and rewritten as MAX_ATTEMPTED once it reaches it.
+# A fixed module constant by design (Stage 4 D3), never a per-call argument.
+MAX_ATTEMPTS = 3
+
+# Per-record ``BatchItemStatus`` *string values* (not enum members — so the siphon
+# partition needs no ``batch_types`` import at module load, preserving leaf import
+# discipline) that mark a recoverable per-record failure. ``MAX_ATTEMPTED`` is
+# deliberately absent: an exhausted record is terminal and never re-siphoned.
+_SIPHON_RECORD_STATUSES = frozenset({"errored", "expired", "canceled"})
 
 # Providers with a full batch fetch lifecycle (poll + retrieve). Gemini's
 # provider string is "google" (not "gemini"); xAI / DeepSeek / Dashscope / Ollama
@@ -174,7 +189,22 @@ class BatchSubmission:
             "counts": dict[str, int],     # last poll's request_counts
             "endpoint": str | None,       # audit-only (provider parity)
             "completion_window": str | None,  # audit-only (provider parity)
+            # ---- Stage-4 additive keys (round-trip for free via dict(mb)) ----
+            "attempt": int,               # whole-minibatch submission count
+                                          # (submit => 1; whole-minibatch resubmit => +1)
+            "failed_records": list[dict], # pending siphoned per-record failures, each
+                                          # {custom_id, problem_id, error, attempt};
+                                          # present only when records have been siphoned
+            # ---- on RETRY minibatches only (built by resubmit_failures' drain) ----
+            "is_retry": bool,             # True for a record-drain minibatch
+            "retry_sources": list[int],   # source minibatch indices pooled into it
+            "record_attempts": dict[str, int],  # per-record prior submission count
+                                          # (custom_id -> count), carried forward
         }
+
+    Invariants: ``num_requests == len(id_map)`` on every minibatch (the siphon
+    decrements both in lockstep); a record's submission count is
+    ``record_attempts.get(custom_id, 0) + attempt``.
     """
 
     # ---- batch-level (stored once; never repeated per minibatch) ----
@@ -320,7 +350,7 @@ class BatchFetchUnsupportedError(BatchInputError):
 class BatchNotTerminalError(BatchInputError):
     """The ledger is not terminal, so a terminal-gated finalize step refuses.
 
-    Raised **up front** by :func:`resubmit_failed_minibatches` when some minibatch
+    Raised **up front** by :func:`resubmit_failures` when some minibatch
     is still ``SUBMITTED`` / ``RUNNING`` / ``COMPLETED`` / ``FETCH_ERROR``. Run
     :func:`fetch_batch` first to drive every minibatch terminal (which also resolves
     any transient ``FETCH_ERROR`` by re-downloading), then resubmit the failures.
@@ -562,6 +592,7 @@ def submit_batch_physics_reasoning(
                 "counts": {},
                 "endpoint": None,
                 "completion_window": None,
+                "attempt": 1,
             }
         )
 
@@ -694,7 +725,11 @@ def _run_fetch_pass(
             # EXPIRED persists only when it carried a partial subset.
             if results or st.state == batch_state.COMPLETED:
                 output_path = outputs_dir / f"minibatch_{index:04d}.jsonl"
-                _write_results(output_path, results)
+                # Stage 4: partition + siphon rides this one download pass — write
+                # succeeded-only (+ exhausted MAX_ATTEMPTED) to outputs/, siphon the
+                # recoverable failures onto the ledger (pruning id_map/num_requests
+                # in lockstep) and refresh the derived accumulator.
+                _siphon_minibatch(sub, mb, results, output_path)
                 sub.set_status(
                     index,
                     FETCHED,
@@ -749,6 +784,134 @@ def _write_results(path: Path, results: Sequence[BatchResult]) -> None:
         for r in results
     ]
     path.write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
+
+
+def _partition_results(
+    results: Sequence[BatchResult],
+    id_map: dict[str, str],
+) -> tuple[list[BatchResult], list[BatchResult], int]:
+    """Partition one retrieved minibatch into ``(succeeded, failed, uncorrelated)``.
+
+    Pure, in-memory (no I/O), and a structural mirror of the correlation in
+    :func:`_iter_minibatch_results` (synthetic-ERRORED completeness + uncorrelated
+    counting). For each ``custom_id`` in *id_map* (input order): the correlated
+    result is "succeeded" unless its status is a recoverable per-record failure
+    (:data:`_SIPHON_RECORD_STATUSES`); an id the provider never returned is
+    synthesized as an ERRORED "failed" record. Any returned id absent from *id_map*
+    is an uncorrelated extra — counted, not partitioned. ``batch_types`` is imported
+    lazily here to keep the leaf light (import discipline, §10).
+    """
+    from prkit.core.model_clients.batch_types import BatchItemStatus, BatchResult
+
+    results_by_cid: dict[str, BatchResult] = {}
+    uncorrelated = 0
+    for r in results:
+        if r.custom_id in id_map:
+            results_by_cid[r.custom_id] = r
+        else:
+            uncorrelated += 1
+
+    succeeded: list[BatchResult] = []
+    failed: list[BatchResult] = []
+    for cid in id_map:
+        correlated = results_by_cid.get(cid)
+        if correlated is None:
+            correlated = BatchResult(
+                custom_id=cid,
+                status=BatchItemStatus.ERRORED,
+                error="No result returned by the provider for this request.",
+            )
+        if str(correlated.status) in _SIPHON_RECORD_STATUSES:
+            failed.append(correlated)
+        else:
+            succeeded.append(correlated)
+    return succeeded, failed, uncorrelated
+
+
+def _siphon_minibatch(
+    sub: BatchSubmission,
+    mb: dict[str, Any],
+    results: Sequence[BatchResult],
+    output_path: Path,
+) -> None:
+    """Partition a retrieved minibatch, siphon recoverable failures, write outputs.
+
+    The Stage-4 record-recovery step that rides :func:`fetch_batch`'s single
+    poll-and-download pass (it adds no new sweep). Partition *results* in memory
+    (:func:`_partition_results`); write the succeeded records — plus any *exhausted*
+    failure rewritten as :class:`BatchItemStatus.MAX_ATTEMPTED` — to *output_path*
+    (succeeded-only on the wire). Each failure under the :data:`MAX_ATTEMPTS` bound
+    is **siphoned**: appended to ``mb["failed_records"]`` and pruned from
+    ``mb["id_map"]`` with ``mb["num_requests"]`` decremented in lockstep (so
+    ``num_requests == len(id_map)`` holds). A record whose submission count
+    (``record_attempts.get(cid, 0) + attempt``) has reached ``MAX_ATTEMPTS`` is NOT
+    re-siphoned — it is rewritten as MAX_ATTEMPTED and kept in ``id_map`` so it
+    consolidates terminally (distinct from a transient ERRORED). Finally refresh the
+    derived run-level accumulator (:func:`_rewrite_failed_records_input`); the ledger
+    ``failed_records`` key is the crash-safe source of truth.
+    """
+    from prkit.core.model_clients.batch_types import BatchItemStatus
+
+    succeeded, failed, uncorrelated = _partition_results(results, mb["id_map"])
+    if uncorrelated:
+        mb["uncorrelated_count"] = uncorrelated
+
+    output_records = list(succeeded)
+    attempt = mb.get("attempt", 1)
+    record_attempts: dict[str, int] = mb.get("record_attempts") or {}
+    for r in failed:
+        cid = r.custom_id
+        submissions = record_attempts.get(cid, 0) + attempt
+        if submissions < MAX_ATTEMPTS:
+            mb.setdefault("failed_records", []).append(
+                {
+                    "custom_id": cid,
+                    "problem_id": mb["id_map"][cid],
+                    "error": r.error,
+                    "attempt": submissions,
+                }
+            )
+            del mb["id_map"][cid]
+            mb["num_requests"] -= 1
+        else:
+            output_records.append(replace(r, status=BatchItemStatus.MAX_ATTEMPTED))
+
+    _write_results(output_path, output_records)
+    _rewrite_failed_records_input(sub)
+
+
+def _rewrite_failed_records_input(sub: BatchSubmission) -> None:
+    """Rewrite ``<run_dir>/failed-records-batch-input.jsonl`` from the ledger (derived).
+
+    The authoritative pending set is each minibatch's ``failed_records`` ledger key;
+    this file is a **derived** atomic full-rewrite of the provider request lines for
+    every pending failed record, re-read from each source minibatch's never-pruned
+    ``inputs/`` file and correlated by the provider id field (``key`` for Gemini,
+    else ``custom_id``) — never a positional zip, which would mis-correlate on order
+    drift. A full-rewrite (not append) keeps it crash-safe and idempotent: a re-run
+    can never double-count, and resubmit's correctness depends only on the ledger
+    plus the persisted ``inputs/`` files. When nothing is pending the stale file is
+    removed, so the artifact appears exactly when record recovery is in play.
+    """
+    id_field = "key" if sub.provider in _KEY_ID_PROVIDERS else "custom_id"
+    path = Path(sub.run_dir) / "failed-records-batch-input.jsonl"
+    lines: list[str] = []
+    for mb in sub.minibatches:
+        pending = mb.get("failed_records")
+        if not pending:
+            continue
+        lines_by_cid = {
+            json.loads(line)[id_field]: line
+            for line in _read_jsonl(mb["input_file_path"])
+        }
+        for entry in pending:
+            line = lines_by_cid.get(entry["custom_id"])
+            if line is not None:
+                lines.append(line)
+    if lines:
+        _atomic_write_text(path, "\n".join(lines) + "\n")
+    elif path.exists():
+        path.unlink()
 
 
 def iter_batch_results(
@@ -1074,9 +1237,19 @@ def _write_results_manifest(
     ``fully_consolidated`` are ledger-derived (cumulative); ``results_written`` /
     ``status_counts`` / ``uncorrelated_total`` reflect *this call's* newly
     consolidated minibatches (per the design's streaming counters). A failed or
-    CANCELLED minibatch keeps ``fully_consolidated`` false (see Known limitations).
+    CANCELLED minibatch keeps ``fully_consolidated`` false (it is not yet consolidated).
+
+    ``pending_failed_records`` (Stage 4 D4) is the run-wide count of siphoned records
+    still awaiting recovery (``Σ len(mb["failed_records"])``); ``fully_consolidated``
+    is gated on it being zero, so a ``while not fully_consolidated`` consumer keeps
+    looping until every record is recovered or exhausted. An exhausted MAX_ATTEMPTED
+    record is *not* in ``failed_records``, so a run with only permanent failures is
+    legitimately "done."
     """
     consolidated = sub.status_counts().get(CONSOLIDATED, 0)
+    pending_failed_records = sum(
+        len(mb.get("failed_records") or []) for mb in sub.minibatches
+    )
     manifest = {
         "run_name": sub.run_name,
         "provider": sub.provider,
@@ -1086,7 +1259,10 @@ def _write_results_manifest(
         "status_counts": status_counts,
         "minibatches_consolidated": consolidated,
         "minibatches_total": sub.minibatch_count,
-        "fully_consolidated": consolidated == sub.minibatch_count,
+        "pending_failed_records": pending_failed_records,
+        "fully_consolidated": (
+            consolidated == sub.minibatch_count and pending_failed_records == 0
+        ),
         "uncorrelated_total": uncorrelated_total,
         "consolidated_at": _now_iso(),
     }
@@ -1096,21 +1272,40 @@ def _write_results_manifest(
     )
 
 
-def resubmit_failed_minibatches(
+def resubmit_failures(
     client: Any,
     submission: BatchSubmission | str | Path,
 ) -> BatchSubmission:
-    """Re-submit each FAILED / SUBMIT_ERROR / EXPIRED minibatch (NOT CANCELLED).
+    """Re-drive a terminal batch run's failures: whole minibatches **and** records.
 
-    Re-reads each target minibatch's persisted ``inputs/minibatch_XXXX.jsonl`` and
-    calls ``client.submit_batch`` with the run's merged metadata, then — **only after
-    the submit returns a new ``batch_id``** — resets that ledger entry (status →
-    ``SUBMITTED``, new ``batch_id``, cleared ``output_path`` / ``fetched_at`` /
-    ``counts`` / ``error``) in memory and on disk. A single minibatch's submit
-    failure is recorded as ``SUBMIT_ERROR`` (``batch_id=""``, ``error`` set) and the
-    loop continues. CANCELLED minibatches are left untouched (a deliberate cancel is
-    not auto-resubmitted — a known dead-end). Returns the updated ledger; the
-    consumer then re-runs :func:`fetch_batch` on the new jobs.
+    Does both bounded-recovery jobs in one call (Stage 4 D5):
+
+    (a) **Whole-minibatch retries.** Re-submit each FAILED / SUBMIT_ERROR / EXPIRED /
+    **CANCELLED** minibatch in place — re-reading its persisted
+    ``inputs/minibatch_XXXX.jsonl`` and calling ``client.submit_batch`` with the run's
+    merged metadata, then — **only after** the submit returns a new ``batch_id`` —
+    resetting that ledger entry (status → ``SUBMITTED``, new ``batch_id``, cleared
+    ``output_path`` / ``fetched_at`` / ``counts`` / ``error``, ``attempt`` bumped) in
+    memory and on disk. A single minibatch's submit failure is recorded as
+    ``SUBMIT_ERROR`` (``batch_id=""``, ``error`` set) and the loop continues. CANCELLED
+    is now resubmitted like any other failure (Stage 4 D1 reverses the Stage-3
+    exclusion), so a cancelled job is no longer a dead-end.
+
+    (b) **Record drain.** Drain the run-level failed-records accumulator into fresh
+    minibatch(es): each chunk of ``<= minibatch_size`` pending siphoned records is
+    re-read from its source ``inputs/`` file (correlated by the provider id field, not
+    a positional zip), validated, written to a fresh ``inputs/minibatch_XXXX.jsonl``,
+    submitted, and appended to the ledger as a SUBMITTED retry minibatch (fresh
+    monotonic ``index``, ``is_retry=True``, ``attempt=1``, ``retry_sources``, and a
+    ``record_attempts`` carrying each record's prior submission count). ``minibatch_count``
+    is bumped per appended retry minibatch; the consumed entries are removed from their
+    source ``failed_records`` in the same atomic save; the derived accumulator file is
+    refreshed last.
+
+    Returns the updated ledger; the consumer then re-runs :func:`fetch_batch` on the
+    new jobs (and re-consolidates). The recovery loop terminates because every record
+    either succeeds or reaches :data:`MAX_ATTEMPTS` and is consolidated as a terminal
+    MAX_ATTEMPTED result, so the pending count strictly decreases to zero.
 
     Raises:
         BatchFetchUnsupportedError: up front, for a provider with no batch lifecycle.
@@ -1136,16 +1331,19 @@ def resubmit_failed_minibatches(
         )
 
     targets = [mb for mb in sub.minibatches if mb["status"] in _RESUBMIT_STATUSES]
-    if not targets:
+    has_pending = any(mb.get("failed_records") for mb in sub.minibatches)
+    if not targets and not has_pending:
         _log_next_after_resubmit(sub, resubmitted=0, still_failed=0)
         return sub
 
     # The ledger stores the un-merged user metadata + display_name separately, so
-    # reconstruct the provider-side merged metadata exactly as submit did (:486).
+    # reconstruct the provider-side merged metadata exactly as submit did.
     merged_metadata = {**sub.metadata, "display_name": sub.display_name}
     outputs_dir = Path(sub.run_dir) / "outputs"
     resubmitted = 0
     still_failed = 0
+
+    # (a) Whole-minibatch failures — now incl. CANCELLED (D1); each bumps ``attempt``.
     for mb in targets:
         index = mb["index"]
         old_status = mb["status"]
@@ -1180,13 +1378,114 @@ def resubmit_failed_minibatches(
             output_path=None,
             fetched_at=None,
             counts={},
+            attempt=mb.get("attempt", 1) + 1,
         )
         resubmitted += 1
         _log_transition(index, old_status, SUBMITTED)
         sub.save()  # crash-safe per minibatch
 
+    # (b) Drain the run-level failed-records accumulator into fresh minibatch(es).
+    resub_drain, drain_failed = _drain_failed_records(client, sub, merged_metadata)
+    resubmitted += resub_drain
+    still_failed += drain_failed
+
     _log_next_after_resubmit(sub, resubmitted=resubmitted, still_failed=still_failed)
     return sub
+
+
+def _drain_failed_records(
+    client: Any,
+    sub: BatchSubmission,
+    merged_metadata: dict[str, str],
+) -> tuple[int, int]:
+    """Drain pending siphoned records into fresh retry minibatches; return Δ counts.
+
+    Reuse, not re-derive: each pending record's provider request line is re-read from
+    its source minibatch's never-pruned ``inputs/`` file (correlated by the id field,
+    not a positional zip — blocker #1). Each chunk of ``<= minibatch_size`` records
+    becomes a fresh SUBMITTED retry minibatch appended to the ledger with a monotonic
+    ``index``, rebuilt ``id_map`` / ``record_attempts``, and ``minibatch_count`` bumped;
+    the drained entries are consumed from their source ``failed_records`` in the same
+    crash-safe save. Returns ``(submitted_count, submit_error_count)``.
+    """
+    pending = [
+        (mb, entry)
+        for mb in sub.minibatches
+        for entry in list(mb.get("failed_records") or [])
+    ]
+    if not pending:
+        return 0, 0
+
+    id_field = "key" if sub.provider in _KEY_ID_PROVIDERS else "custom_id"
+    inputs_dir = Path(sub.run_dir) / "inputs"
+    # Cache each source minibatch's never-pruned input lines, keyed by wire id.
+    source_lines: dict[int, dict[str, str]] = {}
+    for mb in sub.minibatches:
+        if mb.get("failed_records"):
+            source_lines[mb["index"]] = {
+                json.loads(line)[id_field]: line
+                for line in _read_jsonl(mb["input_file_path"])
+            }
+
+    resubmitted = 0
+    still_failed = 0
+    for chunk in _chunked(pending, sub.minibatch_size):
+        new_index = max(m["index"] for m in sub.minibatches) + 1
+        requests: list[dict[str, Any]] = []
+        id_map: dict[str, str] = {}
+        record_attempts: dict[str, int] = {}
+        retry_sources: set[int] = set()
+        for src_mb, entry in chunk:
+            cid = entry["custom_id"]
+            requests.append(json.loads(source_lines[src_mb["index"]][cid]))
+            id_map[cid] = entry["problem_id"]
+            record_attempts[cid] = entry["attempt"]
+            retry_sources.add(src_mb["index"])
+
+        validate_batch_requests(requests, provider=sub.provider)
+        retry_input_path = inputs_dir / f"minibatch_{new_index:04d}.jsonl"
+        write_batch_jsonl(requests, retry_input_path)
+
+        batch_id = ""
+        error: str | None = None
+        try:
+            batch_id = client.submit_batch(requests, metadata=merged_metadata)
+        except Exception as exc:  # noqa: BLE001 - recorded on the ledger; loop goes on
+            error = f"{type(exc).__name__}: {exc}"
+
+        sub.minibatches.append(
+            {
+                "index": new_index,
+                "batch_id": batch_id,
+                "status": SUBMITTED if batch_id else SUBMIT_ERROR,
+                "input_file_path": str(retry_input_path),
+                "num_requests": len(requests),
+                "id_map": id_map,
+                "submitted_at": _now_iso(),
+                "error": error,
+                "output_path": None,
+                "fetched_at": None,
+                "counts": {},
+                "endpoint": None,
+                "completion_window": None,
+                "attempt": 1,
+                "is_retry": True,
+                "retry_sources": sorted(retry_sources),
+                "record_attempts": record_attempts,
+            }
+        )
+        sub.minibatch_count += 1  # counts submit + retry minibatch jobs
+        if batch_id:
+            resubmitted += 1
+        else:
+            still_failed += 1
+        # Consume the drained entries from their source ledger lists in the same save.
+        for src_mb, entry in chunk:
+            src_mb["failed_records"].remove(entry)
+        sub.save()  # crash-safe per chunk
+
+    _rewrite_failed_records_input(sub)  # now empty / shrunk (derived)
+    return resubmitted, still_failed
 
 
 # --------------------------------------------------------------------------- #
@@ -1231,43 +1530,24 @@ def _log_next_after_fetch(sub: BatchSubmission) -> None:
         )
         return
 
-    # Terminal, some failed.
+    # Terminal, some failed. Every terminal-not-good status (incl. CANCELLED, D1) is
+    # resubmittable, so there is no dead-end branch.
     failed_total = n - succeeded
-    resubmittable = sum(counts.get(s, 0) for s in _RESUBMIT_STATUSES)
-    if resubmittable:
-        if succeeded:
-            _logger.info(
-                '%d minibatches failed. Next: client.resubmit_failed_minibatches("%s"),'
-                " then fetch again. (%d already succeeded — consolidate_batch_results"
-                " can capture them now.)",
-                failed_total,
-                sub.run_dir,
-                succeeded,
-            )
-        else:
-            _logger.info(
-                '%d minibatches failed. Next: client.resubmit_failed_minibatches("%s"),'
-                " then fetch again.",
-                failed_total,
-                sub.run_dir,
-            )
-        return
-
-    # All failures are CANCELLED dead-ends (none resubmittable; see Known limitations).
     if succeeded:
         _logger.info(
-            "%d minibatches were CANCELLED — a dead-end (not auto-resubmitted; see "
-            'Known limitations). consolidate_batch_results("%s") can still capture '
-            "the %d succeeded.",
+            '%d minibatches failed. Next: client.resubmit_failures("%s"),'
+            " then fetch again. (%d already succeeded — consolidate_batch_results"
+            " can capture them now.)",
             failed_total,
             sub.run_dir,
             succeeded,
         )
     else:
         _logger.info(
-            "%d minibatches were CANCELLED — a dead-end (not auto-resubmitted; see "
-            "Known limitations); nothing left to fetch or consolidate.",
+            '%d minibatches failed. Next: client.resubmit_failures("%s"),'
+            " then fetch again.",
             failed_total,
+            sub.run_dir,
         )
 
 
@@ -1276,21 +1556,11 @@ def _log_next_after_resubmit(
 ) -> None:
     """After resubmit: the K-resubmitted / M-failed summary + the fetch-next hint."""
     if resubmitted == 0 and still_failed == 0:
-        cancelled = sub.status_counts().get(CANCELLED, 0)
-        if cancelled:
-            _logger.info(
-                "Nothing to resubmit: %d CANCELLED minibatch(es) are a dead-end (not "
-                "auto-resubmitted) and the rest already succeeded. Run "
-                'consolidate_batch_results("%s") to capture the succeeded subset.',
-                cancelled,
-                sub.run_dir,
-            )
-        else:
-            _logger.info(
-                "Nothing to resubmit — all minibatches already succeeded. "
-                'Next: consolidate_batch_results("%s").',
-                sub.run_dir,
-            )
+        _logger.info(
+            "Nothing to resubmit — all minibatches already succeeded and no records "
+            'are pending. Next: consolidate_batch_results("%s").',
+            sub.run_dir,
+        )
         return
     _logger.info(
         "Resubmitted %d minibatches (%d still failed). "
@@ -1302,11 +1572,22 @@ def _log_next_after_resubmit(
 
 
 def _log_next_after_consolidate(sub: BatchSubmission, results_dirname: str) -> None:
-    """After consolidate: 'done' when fully consolidated, else the resume hint."""
+    """After consolidate: 'done', the record-recovery hint (D4), or the resume hint."""
     consolidated = sub.status_counts().get(CONSOLIDATED, 0)
     n = sub.minibatch_count
-    if consolidated == n:
+    pending_failed = sum(len(mb.get("failed_records") or []) for mb in sub.minibatches)
+    if consolidated == n and pending_failed == 0:
         _logger.info("Done — results in %s/%s/.", sub.run_dir, results_dirname)
+    elif pending_failed:
+        # D4: minibatch-completeness alone is blind to pending siphoned records, so a
+        # `while not fully_consolidated` consumer would stop without record-retry.
+        _logger.info(
+            "Done consolidating %d minibatches, but %d records still failed — run "
+            'client.resubmit_failures("%s"), then fetch + consolidate again.',
+            consolidated,
+            pending_failed,
+            sub.run_dir,
+        )
     else:
         _logger.info(
             "Consolidated %d/%d minibatches; the rest are not yet succeeded — "
