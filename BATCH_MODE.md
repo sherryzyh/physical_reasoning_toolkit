@@ -1,7 +1,7 @@
 # Batch Mode (N4) — Design & Usage Reference
 
 **Single source of truth** for prkit's discounted provider **batch lane**. This doc is the rolled-up,
-up-to-date design: it supersedes the per-stage design notes in `internal/N4_BATCH_DESIGN_STAGE_{1,2,3}.md`
+up-to-date design: it supersedes the per-stage design notes in `internal/N4_BATCH_DESIGN_STAGE_{1,2,3,4}.md`
 (kept only as historical rationale). When a future stage is designed, **roll its committed decisions into this
 file** rather than leaving them stranded in a stage doc — see [Maintaining this doc](#maintaining-this-doc).
 
@@ -11,23 +11,30 @@ file** rather than leaving them stranded in a stage doc — see [Maintaining thi
 |---|---|---|---|
 | **1 — Submit** | preprocess → split → write JSONL → submit → ledger | ✅ **Implemented & usable** | `submit_batch_physics_reasoning`, `build_problem_batch_request` |
 | **2 — Fetch** | poll → download → correlate → resume | ✅ **Implemented & usable** | `fetch_batch`, `iter_batch_results`, `batch_fetch_supported` |
-| **3 — Finalize** | consolidate per-problem results · resubmit failed minibatches | ✅ **Implemented & usable** | `consolidate_batch_results`, `resubmit_failed_minibatches` |
+| **3 — Finalize** | consolidate per-problem results · resubmit failed minibatches | ✅ **Implemented & usable** | `consolidate_batch_results`, `resubmit_failures` |
+| **4 — Record recovery** | siphon per-record failures at fetch · drain them into fresh minibatches · `MAX_ATTEMPTS` bound | ✅ **Implemented & usable** | siphon inside `fetch_batch`, drain inside `resubmit_failures`, `BatchItemStatus.MAX_ATTEMPTED` |
 
-> **All three stages are implemented and callable** as of 2026-06-22 (104 batch tests pass on
-> `feat/n4-batch-mode`). Everything below describes the live API.
+> **All four stages are implemented and callable** as of 2026-06-22 (120 batch tests pass on
+> `feat/n4-batch-mode`). Everything below describes the live API. Stage 4 reuses the same two finalize
+> verbs — there is no new public function; `fetch_batch` gained an internal siphon and `resubmit_failures`
+> (renamed from Stage 3's `resubmit_failed_minibatches`) gained a record-drain.
 
 ---
 
 ## Concepts & vocabulary
 
-The vocabulary was fixed in Stage 2 (it renamed Stage 1's terms — see [Design evolution](#design-evolution)).
+The vocabulary was fixed in Stage 2 (it renamed Stage 1's terms — see [Design evolution](#design-evolution));
+Stage 4 added **record** as a recoverable unit.
 
 - **batch** — the *whole thing* a user triggers over a dataset. One `submit_batch_physics_reasoning(...)` call
   → one **run folder** → one `BatchSubmission` **ledger** (`metadata.json`).
 - **minibatch** — one `minibatch_size`-problem group = one provider batch job = one `minibatch_XXXX.jsonl` =
-  one element of `BatchSubmission.minibatches`. **The minibatch is the unit of success**: it either succeeded
-  (`FETCHED`) or failed as a whole. (Record-level failures within a fetched minibatch surface as `ERRORED`
-  results, not as minibatch failures.)
+  one element of `BatchSubmission.minibatches`. The minibatch is the unit for **whole-job** failures
+  (`FAILED` / `EXPIRED` / `CANCELLED` / `SUBMIT_ERROR`).
+- **record** — one problem's single request inside a minibatch, correlated by its wire id
+  (`custom_id`, or `key` for Gemini) back to its `problem_id` via the minibatch `id_map`. **Since Stage 4 the
+  record is recoverable**: an individual failed record is *siphoned* out of an otherwise-good minibatch and
+  retried on its own (bounded by `MAX_ATTEMPTS`), rather than riding as a permanent `ERRORED` outcome.
 - **run folder** — the consumer-owned directory holding the ledger, the input JSONL, and (after fetch) the
   output JSONL. **Disk is the source of truth** across the provider's ~24h window.
 - The names `prkit.batch` / `submit_batch_*` / `fetch_batch` keep the word "batch" because it names the
@@ -42,7 +49,8 @@ hub should own once — preprocessing parity, splitting, JSONL writing, submissi
 It deliberately does **not** own:
 
 - **An end-to-end runner / outer loop.** No dataset loading, no inference orchestration, no auto-chaining. The
-  consumer drives `submit → fetch → [resubmit → fetch]* → consolidate`.
+  consumer drives `submit → fetch → consolidate → [resubmit → fetch → consolidate]*` (the siphon happens
+  *inside* the fetch pass — it adds no new sweep).
 - **Scoring.** No scorer adapter. Batch mode stops at correlated `BatchResult`s; the consumer calls
   `prkit.api.Scorer` / `Verdict` directly (see [Scoring seam](#scoring-seam)).
 - **Pricing.** That is N6's job (the cost meter). Batch mode forks no pricing and imports no `prkit.cost`. The
@@ -101,12 +109,15 @@ print(sub.is_complete(), sub.status_counts())
 for problem_id, result in iter_batch_results(run_dir):           # accepts run_dir or the ledger
     if result.succeeded:
         verdict = scorer.score(result.text, gold[problem_id])    # consumer's scoring seam (no adapter)
-    # non-success: result.status is ERRORED/EXPIRED/CANCELED, result.text is None, result.error set
+    # non-success: result.status is ERRORED/EXPIRED/CANCELED/MAX_ATTEMPTED, result.text is None, result.error set
 ```
 
 `fetch_batch` without `wait=True` does **one** poll-and-download pass and returns — ideal for a cron / `/loop`
 driver that re-invokes until `sub.is_complete()`. Each pass logs a one-line INFO summary on the `prkit.batch`
 logger (suppress with `progress=False`).
+
+To recover individual failed records (not just whole failed minibatches) and reach genuine 100%, drive the
+Stage-4 loop in [Stage 4 — Record recovery](#stage-4--record-recovery) instead of stopping at step 3.
 
 ---
 
@@ -172,9 +183,15 @@ prkit.batch.fetch_batch(
 client.fetch_batch_physics_reasoning(run_dir_or_submission, **kwargs) -> BatchSubmission
 ```
 
-- Polls each non-final minibatch once; on `COMPLETED`/`EXPIRED` it downloads results to
-  `outputs/minibatch_XXXX.jsonl` and marks the minibatch `FETCHED`. The ledger is saved after **every** change
-  (crash-safe).
+- Polls each non-final minibatch once; on `COMPLETED`/`EXPIRED` it downloads results, **siphons** any
+  per-record failures (Stage 4 — see below), writes succeeded-only to `outputs/minibatch_XXXX.jsonl`, and marks
+  the minibatch `FETCHED`. The ledger is saved after **every** change (crash-safe).
+- **Stage-4 siphon (internal, no signature change):** when a minibatch is retrieved, each failed record (real
+  `ERRORED`/`EXPIRED`/`CANCELED`, or a synthetic-missing id) under `MAX_ATTEMPTS` is recorded on the minibatch's
+  `failed_records`, pruned from its `id_map`, and `num_requests` is decremented — so the minibatch reads as
+  *fully successful*. A record that has hit `MAX_ATTEMPTS` is instead kept and written with status
+  `MAX_ATTEMPTED` (a permanent give-up). The run-level `failed-records-batch-input.jsonl` accumulator is
+  refreshed; `resubmit_failures` later drains it.
 - **Idempotent/resumable:** `FETCHED` / `SUBMIT_ERROR` / `FAILED` / `CANCELLED` (and `CONSOLIDATED`) minibatches
   are skipped, so re-runs never re-hit the network for finished work. `EXPIRED` is still *re-polled* (cheap) and
   still *retrieved* (it can carry a completed subset).
@@ -188,9 +205,13 @@ prkit.batch.iter_batch_results(submission) -> Iterator[tuple[str, BatchResult]]
 
 - Pure offline reader (no network, re-runnable for re-scoring). Accepts a `BatchSubmission` or a `run_dir`.
 - For every minibatch with a downloaded output file, correlates each line's `custom_id` → `problem_id` via the
-  minibatch's `id_map`, yielding **one `(problem_id, BatchResult)` per submitted problem in input order**.
-- **Completeness:** any submitted id the provider never returned yields a synthetic `ERRORED` `BatchResult`;
-  extra/uncorrelated ids are dropped and counted on the minibatch (`uncorrelated_count`).
+  minibatch's `id_map`, yielding **one `(problem_id, BatchResult)` per remaining `id_map` entry in input order**.
+- **Completeness:** any id still in `id_map` that the provider never returned yields a synthetic `ERRORED`
+  `BatchResult`; extra/uncorrelated ids are dropped and counted on the minibatch (`uncorrelated_count`).
+- **After the Stage-4 siphon**, a fetched minibatch's failed records have been *pruned from `id_map`* (they now
+  live in the accumulator), so this reader yields them as results only once they are drained, retried, and
+  re-fetched in a new minibatch. Records that exhausted `MAX_ATTEMPTS` stay in `id_map` and yield a terminal
+  `MAX_ATTEMPTED` result. Net effect: every submitted problem yields **exactly one** final result.
 
 ### Capability check
 
@@ -204,12 +225,15 @@ prkit.batch.batch_fetch_supported(client) -> bool   # True for openai / anthropi
 @dataclass(frozen=True)
 class BatchResult:
     custom_id: str
-    status: BatchItemStatus          # SUCCEEDED | ERRORED | EXPIRED | CANCELED
+    status: BatchItemStatus          # SUCCEEDED | ERRORED | EXPIRED | CANCELED | MAX_ATTEMPTED
     text: str | None = None          # the model's free-text output on success; None otherwise
     error: str | None = None         # failure description on any non-success outcome
     @property
     def succeeded(self) -> bool: ...
 ```
+
+`MAX_ATTEMPTED` (value `"max_attempted"`) is the one prkit-synthesized status — a record that exhausted
+`MAX_ATTEMPTS`, distinct from a transient `ERRORED` so a downstream scorer can tell "we gave up" from "errored."
 
 ### Errors
 
@@ -217,7 +241,7 @@ class BatchResult:
 |---|---|---|
 | `BatchInputError` | `ValueError` | empty input, duplicate/illegal id, pre-existing non-empty run folder without `overwrite` |
 | `BatchFetchUnsupportedError` | `BatchInputError` | `fetch_batch` (or resubmit) called on a non-batch provider |
-| `BatchNotTerminalError` | `BatchInputError` | *(Stage 3)* `resubmit_failed_minibatches` called on a non-terminal ledger |
+| `BatchNotTerminalError` | `BatchInputError` | `resubmit_failures` called on a non-terminal ledger |
 
 ---
 
@@ -279,24 +303,37 @@ Each `minibatches[i]` dict:
     "endpoint": str | None,       # audit-only (provider parity)
     "completion_window": str | None,  # audit-only
     # "uncorrelated_count": int   # added by iter_batch_results when extra ids were dropped
+    # ---- Stage-4 additive keys (round-trip for free via dict(mb)) ----
+    "attempt": int,               # whole-minibatch submission count (submit => 1; resubmit => +1)
+    "failed_records": list[dict], # pending siphoned failures: {custom_id, problem_id, error, attempt}
+    # ---- on RETRY minibatches only (built by resubmit_failures' record-drain) ----
+    "is_retry": bool,             # True for a record-drain minibatch
+    "retry_sources": list[int],   # source minibatch indices pooled into it
+    "record_attempts": dict[str, int],  # per-record prior submission count, carried forward
 }
 ```
+
+**Invariant:** `num_requests == len(id_map)` on every minibatch (the siphon decrements both in lockstep). A
+record's total submission count is `record_attempts.get(custom_id, 0) + attempt`; it is siphoned only while that
+is `< MAX_ATTEMPTS`. `minibatch_count == len(minibatches)` counts submit **+** appended retry minibatches;
+`total_problems` is unchanged (a retried problem is the same problem).
 
 ### Run-folder layout
 
 ```
 <output_dir>/<run_name>/
-    metadata.json                 # the BatchSubmission ledger (mutable; advanced by fetch)
+    metadata.json                     # the BatchSubmission ledger (mutable; advanced by fetch)
     inputs/
-        minibatch_0000.jsonl      # one provider-correct request line per problem
+        minibatch_0000.jsonl          # one provider-correct request line per problem (never pruned)
         minibatch_0001.jsonl
         ...
-    outputs/                      # written by fetch: one normalized-BatchResult JSONL per fetched minibatch
-        minibatch_0000.jsonl      # lines: {"custom_id", "status", "text", "error"}
+    outputs/                          # written by fetch: succeeded-only (+ MAX_ATTEMPTED) per fetched minibatch
+        minibatch_0000.jsonl          # lines: {"custom_id", "status", "text", "error"}
         ...
-    results/                      # written by consolidate (Stage 3): one file per problem
-        <problem_id>.json
-    results_manifest.json         # written by consolidate (Stage 3): consolidation summary
+    results/                          # written by consolidate (Stage 3): one file per problem
+        <problem_id>.json             #   a recovered (Stage-4) result supersedes a stale one for the same problem
+    results_manifest.json             # written by consolidate: summary + pending_failed_records + fully_consolidated
+    failed-records-batch-input.jsonl  # Stage 4: derived accumulator — request lines of every pending failed record
 ```
 
 ---
@@ -308,16 +345,20 @@ Minibatch status constants (`prkit.batch`, plain strings):
 `SUBMIT_ERROR`, `FETCH_ERROR`.
 
 ```
+# minibatch level
 SUBMITTED ─poll→ RUNNING ─poll→ COMPLETED ─retrieve→ FETCHED ─consolidate→ CONSOLIDATED   (terminal-good)
                           └poll→ EXPIRED(partial+results) → FETCHED                       (counts as success)
-                          └poll→ EXPIRED(empty) ─────────┐
-                          └poll→ FAILED ─────────────────┤ resubmit (Stage 3) ─→ SUBMITTED  (re-enters loop)
-SUBMIT_ERROR ────────────────────────────────────────────┘
-                          └poll→ CANCELLED         (terminal; NOT auto-resubmitted — see Stage 3 limitation)
-FETCH_ERROR (non-terminal) ─re-run fetch_batch→ ...
+                          └poll→ EXPIRED(empty)/FAILED/CANCELLED ┐
+SUBMIT_ERROR ──────────────────────────────────────────────────┤ resubmit_failures ─→ SUBMITTED (re-enters loop)
+FETCH_ERROR (non-terminal) ─re-run fetch_batch→ ...             ┘  (CANCELLED is now resubmitted too — Stage 4 D1)
+
+# record level (Stage 4)
+record fail (errored/expired/canceled/synthetic) ─ submissions < MAX_ATTEMPTS ─ siphon → accumulator → new minibatch
+                                                 └ submissions ≥ MAX_ATTEMPTS ─ written as MAX_ATTEMPTED (terminal)
 ```
 
-**Poll state → minibatch status** (the fetch-pass mapping):
+**Poll state → minibatch status** (the fetch-pass mapping; on `COMPLETED`/`EXPIRED` the retrieved records are
+additionally partitioned and per-record failures siphoned):
 
 | `BatchState` from poll | fetch action | resulting status |
 |---|---|---|
@@ -337,6 +378,8 @@ Key status sets (internal, but they explain behavior):
 - `_COMPLETE_STATUSES = {FETCHED, CONSOLIDATED, FAILED, CANCELLED, SUBMIT_ERROR, EXPIRED}` — `is_complete()` /
   `wait=True` stop once every minibatch is one of these.
 - `_HAS_OUTPUT_STATUSES = {FETCHED, CONSOLIDATED}` — minibatches with a readable `outputs/` file.
+- `_RESUBMIT_STATUSES = {FAILED, SUBMIT_ERROR, EXPIRED, CANCELLED}` — re-submitted by `resubmit_failures`
+  (Stage 4 added `CANCELLED`). `MAX_ATTEMPTS = 3` bounds total submissions per record.
 
 ---
 
@@ -365,51 +408,106 @@ prkit.batch.consolidate_batch_results(
 - **Filename safety:** `problem_id` is sanitized to a filesystem-safe name; a collision (two problems mapping to
   the same file) raises `BatchInputError` rather than silently overwriting.
 
-### `resubmit_failed_minibatches` (needs client, terminal-gated)
+### `resubmit_failures` (needs client, terminal-gated)
 
 ```python
-prkit.batch.resubmit_failed_minibatches(client, submission) -> BatchSubmission
-client.resubmit_failed_minibatches(run_dir_or_submission, **kwargs) -> BatchSubmission   # facade
+prkit.batch.resubmit_failures(client, submission) -> BatchSubmission
+client.resubmit_failures(run_dir_or_submission, **kwargs) -> BatchSubmission   # facade
 ```
 
-- Re-submits each `FAILED` / `SUBMIT_ERROR` / `EXPIRED` minibatch (`_RESUBMIT_STATUSES`) by re-reading its
-  persisted `inputs/minibatch_XXXX.jsonl` and calling `client.submit_batch`, resetting the ledger entry to
-  `SUBMITTED` with a new `batch_id` **only after submit succeeds** (a failed submit → `SUBMIT_ERROR`, loop
-  continues). The consumer then re-runs `fetch_batch` on the new jobs.
-- **Excludes `CANCELLED`** (a cancel can be deliberate; auto-resubmit would fight intent).
+> Renamed from Stage 3's `resubmit_failed_minibatches` (the old name is gone — N4 is unmerged, no external
+> consumers). One call now does **both** of the jobs below.
+
+- **(a) Whole-minibatch resubmit.** Re-submits each `FAILED` / `SUBMIT_ERROR` / `EXPIRED` / **`CANCELLED`**
+  minibatch (`_RESUBMIT_STATUSES`) by re-reading its persisted `inputs/minibatch_XXXX.jsonl` and calling
+  `client.submit_batch`, resetting the ledger entry to `SUBMITTED` with a new `batch_id` **only after submit
+  succeeds** (a failed submit → `SUBMIT_ERROR`, loop continues) and bumping its `attempt`.
+- **(b) Record-drain (Stage 4).** Drains the run-level failed-records accumulator into **fresh** minibatches —
+  one chunk of ≤ `minibatch_size` per submit, with a new monotonic `index`, rebuilt `id_map` + `record_attempts`,
+  `is_retry=True` and `retry_sources`, appended to the ledger as `SUBMITTED` (`minibatch_count++`). The consumed
+  `failed_records` entries are cleared in the same atomic save.
+- **`CANCELLED` is now resubmitted** (Stage 4 reversed Stage 3's exclusion — see [Design evolution](#design-evolution)),
+  so a cancelled minibatch is no longer a dead-end.
 - Requires a terminal ledger (`is_complete()`), else raises `BatchNotTerminalError` (run `fetch_batch` first);
-  raises `BatchFetchUnsupportedError` up front for a non-batch provider.
-
-### Intended end-to-end loop (consumer-driven)
-
-```python
-run_dir = client.submit_batch_physics_reasoning(dataset)
-sub = client.fetch_batch_physics_reasoning(run_dir, wait=True)
-while not all(mb["status"] in ("fetched", "consolidated") for mb in sub.minibatches):
-    sub = client.resubmit_failed_minibatches(run_dir)            # Stage 3
-    sub = client.fetch_batch_physics_reasoning(run_dir, wait=True)
-sub = consolidate_batch_results(run_dir)                          # Stage 3 -> results/<problem_id>.json
-for problem_id, result in iter_batch_results(run_dir):
-    if result.succeeded:
-        verdict = scorer.score(result.text, gold[problem_id])
-```
-
-### Known limitation (Stage 3)
-
-A `CANCELLED` minibatch is neither resubmitted nor consolidatable, so a batch containing one can never reach
-"fully consolidated" and a naïve `while not all-done` loop would spin. Surfaced via the manifest's
-`fully_consolidated` flag and the next-command guidance; a future stage may add an opt-in
-`force_resubmit_cancelled` path.
+  raises `BatchFetchUnsupportedError` up front for a non-batch provider. The consumer then re-runs `fetch_batch`
+  on the new jobs.
 
 ### Status → finalize action (single source of truth)
 
-| minibatch `status` | consolidate | resubmit |
+| minibatch `status` | `consolidate_batch_results` | `resubmit_failures` |
 |---|---|---|
-| `FETCHED` | write `results/<problem_id>.json` → `CONSOLIDATED` | skip |
-| `CONSOLIDATED` | skip (done) | skip |
-| `FAILED` / `SUBMIT_ERROR` / `EXPIRED` | skip + warn | re-read input → `submit_batch` → `SUBMITTED` (or `SUBMIT_ERROR`) |
-| `CANCELLED` | skip + warn (dead-end) | skip (known limitation) |
+| `FETCHED` | write `results/<problem_id>.json` → `CONSOLIDATED` | skip (but its pending `failed_records` are drained) |
+| `CONSOLIDATED` | skip (done) | skip (but its pending `failed_records` are drained) |
+| `FAILED` / `SUBMIT_ERROR` / `EXPIRED` / **`CANCELLED`** | skip + warn | re-read input → `submit_batch` → `SUBMITTED` (`attempt++`) |
 | `RUNNING` / `SUBMITTED` / `COMPLETED` / `FETCH_ERROR` | skip + warn | precondition `is_complete()` fails → raise |
+
+---
+
+## Stage 4 — Record recovery
+
+Stages 1–3 close the lane at **minibatch** granularity: only a whole failed minibatch could be retried, so an
+individual `ERRORED` record inside an otherwise-good minibatch stranded that one problem below 100% (and a
+`CANCELLED` minibatch was a dead-end). Stage 4 adds **record-level** recovery without a new public function: a
+siphon inside `fetch_batch` and a record-drain inside `resubmit_failures` (above).
+
+### The siphon (inside `fetch_batch`)
+
+When a minibatch is retrieved, its records are partitioned into succeeded vs failed:
+
+- **Succeeded** records are written to `outputs/minibatch_XXXX.jsonl` as before.
+- **Failed** records (real `ERRORED`/`EXPIRED`/`CANCELED`, or a synthetic-missing id) with total submissions
+  `< MAX_ATTEMPTS` are **siphoned**: appended to the minibatch's `failed_records`, pruned from its `id_map`, and
+  `num_requests` decremented. The minibatch is then `FETCHED` and reads as fully successful.
+- Failed records that have hit `MAX_ATTEMPTS` (= 3) are **not** re-siphoned — they are written to `outputs/`
+  with the terminal status `MAX_ATTEMPTED`, kept in `id_map`, and consolidate normally.
+- The derived `failed-records-batch-input.jsonl` accumulator (the failed records' original *input* lines) is
+  refreshed. Failures are correlated back to their input line by **parsing the provider id field** (`custom_id`,
+  or `key` for Gemini), never positional zip.
+
+`MAX_ATTEMPTS` is a fixed module constant (`prkit.batch.MAX_ATTEMPTS = 3`), not a per-call argument. A record's
+count spans **both** whole-minibatch retries and record-level retries:
+`submissions = record_attempts.get(custom_id, 0) + attempt`.
+
+### Record outcome → action (single source of truth)
+
+| record outcome on a `FETCHED` minibatch | `submissions` | action |
+|---|---|---|
+| `SUCCEEDED` | — | write to `outputs/`; stays in `id_map`; consolidates normally |
+| `ERRORED`/`EXPIRED`/`CANCELED`/synthetic-missing | `< MAX_ATTEMPTS` | **siphon** → `failed_records`; prune `id_map` + `num_requests--`; refresh accumulator |
+| `ERRORED`/`EXPIRED`/`CANCELED`/synthetic-missing | `≥ MAX_ATTEMPTS` | write to `outputs/` as `MAX_ATTEMPTED`; **keep** in `id_map`; consolidates terminally |
+
+### Manifest gating & loop termination
+
+`consolidate_batch_results` writes `pending_failed_records = Σ len(mb["failed_records"])` into
+`results_manifest.json` and sets `fully_consolidated = (every minibatch CONSOLIDATED) and pending_failed_records
+== 0`. An exhausted `MAX_ATTEMPTED` record is **not** in `failed_records`, so a run with only permanent failures
+is legitimately "done." The post-consolidate log points at `resubmit_failures` while records are still pending.
+
+The recovery loop **terminates**: every record either succeeds or reaches `MAX_ATTEMPTS` and becomes a terminal
+`MAX_ATTEMPTED` result (no longer pending), so `pending_failed_records` strictly decreases to 0 — no spin.
+
+### End-to-end loop (consumer-driven, reaches genuine 100%)
+
+```python
+import json
+from pathlib import Path
+
+run_dir = client.submit_batch_physics_reasoning(dataset)
+sub = client.fetch_batch_physics_reasoning(run_dir, wait=True)   # siphons per-record failures
+consolidate_batch_results(run_dir)                               # writes results_manifest.json
+manifest = json.loads((Path(run_dir) / "results_manifest.json").read_text())
+while not manifest["fully_consolidated"]:                        # False while minibatches OR records are pending
+    client.resubmit_failures(run_dir)                            # whole-minibatch retries + drain failed records
+    client.fetch_batch_physics_reasoning(run_dir, wait=True)
+    consolidate_batch_results(run_dir)
+    manifest = json.loads((Path(run_dir) / "results_manifest.json").read_text())
+
+for problem_id, result in iter_batch_results(run_dir):           # offline, exactly one result per problem
+    if result.succeeded:
+        verdict = scorer.score(result.text, gold[problem_id])    # consumer's scoring seam (no adapter)
+    elif str(result.status) == "max_attempted":
+        ...                                                      # a record we permanently gave up on
+```
 
 ---
 
@@ -419,7 +517,9 @@ Batch mode stops at correlated `BatchResult`s. The consumer scores by reading `o
 `iter_batch_results` (or the per-problem `results/<problem_id>.json` files after consolidation) and calling
 `prkit.api.Scorer.score(prediction, reference) -> Verdict` directly. The reference/gold answers live on the
 consumer's `PhysicsProblem`s, not in the ledger. `prkit.batch` imports no `prkit.api`, accepts no `Scorer`, and
-owns no references — scoring is genuinely the consumer's.
+owns no references — scoring is genuinely the consumer's. A record may consolidate with status `max_attempted`
+(a permanent give-up after `MAX_ATTEMPTS`) — the consumer can treat it distinctly from `errored`/`expired`
+(e.g. report the give-up rate, or exclude it from scoring) without any prkit policy.
 
 ## Cost-meter (N6) seam
 
@@ -453,6 +553,11 @@ Decisions that changed across stages — recorded so the renames and contract sh
 | xAI = "build-only" batch | xAI = **no batch surface** | Stage-1 cleanup deleted its only (unused, structured) batch method |
 | `iter_batch_results` gates on `== FETCHED` | *(Stage 3)* widens to `_HAS_OUTPUT_STATUSES` so re-scoring still works after consolidation | consolidate keeps `outputs/` files |
 | `submit(overwrite=True)` clears `inputs/`+`outputs/` | *(Stage 3)* also clears `results/`+`results_manifest.json` | a reused folder must not leave a stale results set |
+| *(Stage 3)* `resubmit_failed_minibatches` **excludes** `CANCELLED` (a "dead-end" known limitation) | *(Stage 4)* `resubmit_failures` **includes** `CANCELLED` (`_RESUBMIT_STATUSES += CANCELLED`) | always-resubmit removes the dead-end; loops can reach 100% |
+| *(Stage 3)* verb `resubmit_failed_minibatches` | *(Stage 4)* renamed `resubmit_failures` (+ facade); old name removed | it now drains record failures too, not just whole minibatches |
+| *(Stage 3)* "the minibatch is the unit of success"; a failed record is permanently `ERRORED` | *(Stage 4)* **record-level recovery** — `fetch` siphons failed records, `resubmit_failures` drains them | reach genuine 100% without re-running 499 good records to recover 1 |
+| *(Stage 3)* `fully_consolidated` = every minibatch `CONSOLIDATED` | *(Stage 4)* also requires `pending_failed_records == 0` | a `while not fully_consolidated` loop must keep going while records are pending |
+| *(Stage 3)* `BatchItemStatus` = provider set only | *(Stage 4)* adds `MAX_ATTEMPTED` (record exhausted `MAX_ATTEMPTS=3`) | distinguish "we gave up" from a transient `errored` |
 
 Also removed during Stage 1 (no longer part of the contract): the reserved `api.Runner` Protocol, and the
 unused structured-batch request/response wrappers. The structured-output *engine* (`StructuredOutputPlan` /
@@ -477,6 +582,8 @@ This file is the rollup. When a new stage is designed and its decisions are owne
 - `internal/N4_BATCH_DESIGN_STAGE_1.md` — submit half; Q1–Q6; `Runner` + structured-batch cleanup.
 - `internal/N4_BATCH_DESIGN_STAGE_2.md` — fetch half; ledger reshape; Stage-1 amendments.
 - `internal/N4_BATCH_DESIGN_STAGE_3.md` — finalize (consolidate + resubmit); Stage-1/2 amendments.
+- `internal/N4_BATCH_DESIGN_STAGE_4.md` — record recovery (siphon-at-fetch + record-drain); CANCELLED reversal;
+  `resubmit_failures` rename; `MAX_ATTEMPTED`; Stage-1/2/3 amendments.
 - Code: `src/prkit/batch/__init__.py`, `src/prkit/core/model_clients/base.py` (facades),
   `src/prkit/core/model_clients/batch_types.py` (`BatchResult` / `BatchItemStatus` / `BatchState`).
 - Roadmap: `internal/DEVELOPMENT_ROADMAP.md` §N4, §N6.
