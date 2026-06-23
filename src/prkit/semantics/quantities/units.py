@@ -3,21 +3,8 @@
 from __future__ import annotations
 
 import re
-from typing import Any
 
-from sympy import Float, Integer, N, Rational, Symbol, pi, simplify
-from sympy.parsing.sympy_parser import (
-    convert_xor,
-    implicit_multiplication_application,
-    parse_expr,
-    standard_transformations,
-)
-
-_TRANSFORMATIONS = standard_transformations + (
-    implicit_multiplication_application,
-    convert_xor,
-)
-_PARSE_GLOBALS = {"Integer": Integer, "Float": Float, "Rational": Rational}
+from sympy import Float, Integer, Rational, Symbol, pi
 
 _TEXT_WRAPPER_RE = re.compile(r"\\(?:mathrm|text|operatorname)\{([^{}]+)\}")
 _BOXED_RE = re.compile(r"^\\boxed\{(.+)\}$", re.DOTALL)
@@ -517,17 +504,12 @@ def unit_conversion_factor(from_unit: str | None, to_unit: str | None) -> float 
     normalized_to = normalize_unit_text(to_unit)
     if normalized_from == normalized_to:
         return 1.0
-    from_expr = _parse_unit_expression(normalized_from)
-    to_expr = _parse_unit_expression(normalized_to)
-    if from_expr is None or to_expr is None:
-        return None
-    ratio = simplify(from_expr / to_expr)
-    if ratio.free_symbols:
-        return None
-    try:
-        return float(N(ratio))
-    except (TypeError, ValueError):
-        return None
+    # Imported lazily so the conversion front-end stays pint-free until a real
+    # (non-identity) conversion is needed -- keeps the light prkit.verify path
+    # off pint (see tests/prkit/verify/test_import_isolation.py).
+    from . import _pint_backend
+
+    return _pint_backend.unit_conversion_factor(normalized_from, normalized_to)
 
 
 def convert_numeric_value(
@@ -535,29 +517,13 @@ def convert_numeric_value(
 ) -> float | None:
     """Convert a numeric value between units when the conversion is dimensionally valid."""
 
-    factor = unit_conversion_factor(from_unit, to_unit)
-    if factor is None:
-        return None
-    return value * factor
+    normalized_from = normalize_unit_text(from_unit)
+    normalized_to = normalize_unit_text(to_unit)
+    if normalized_from == normalized_to:
+        return value
+    from . import _pint_backend
 
-
-def _parse_unit_expression(text: str) -> Any | None:
-    """Parse a canonicalized unit expression into a simplified SymPy quantity."""
-
-    if not text:
-        return Integer(1)
-    try:
-        return simplify(
-            parse_expr(
-                text,
-                local_dict=dict(UNIT_NAMESPACE),
-                global_dict=_PARSE_GLOBALS,
-                transformations=_TRANSFORMATIONS,
-                evaluate=True,
-            )
-        )
-    except Exception:
-        return None
+    return _pint_backend.convert_numeric_value(value, normalized_from, normalized_to)
 
 
 __all__ = [

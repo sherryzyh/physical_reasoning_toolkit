@@ -36,9 +36,7 @@ project owner (see the dedicated tests at the bottom of this module):
 from __future__ import annotations
 
 import math
-import re
 
-import pint
 import pytest
 from sympy import Float, Integer, N, Rational, simplify
 from sympy.parsing.sympy_parser import (
@@ -48,6 +46,13 @@ from sympy.parsing.sympy_parser import (
     standard_transformations,
 )
 
+from prkit.semantics.quantities._pint_backend import (
+    _PRKIT_TO_PINT,
+    _prkit_token_to_pint,
+)
+from prkit.semantics.quantities._pint_backend import (
+    unit_conversion_factor as _pint_unit_conversion_factor,
+)
 from prkit.semantics.quantities.units import (
     UNIT_NAMESPACE,
     UNIT_TO_BASE,
@@ -104,57 +109,11 @@ def _legacy_unit_conversion_factor(
         return None
 
 
-# ---------------------------------------------------------------------------
-# Backend under test. The next phase replaces this block with imports from
-# ``prkit.semantics.quantities._pint_backend`` (same names/signatures); the
-# corpus and assertions below stay as-is.
-# ---------------------------------------------------------------------------
-
-_UREG = pint.UnitRegistry()
-# SI-convention gauss (1 G = 1e-4 T). pint's built-in ``gauss`` is CGS-Gaussian
-# and dimensionally incompatible with tesla, so we define our own.
-_UREG.define("prkit_gauss = 1e-4 * tesla = _prkit_gauss")
-
-# Irregular prkit-canonical token -> pint name. Values are chosen so the pint
-# definition matches the legacy numeric value exactly (parity by alias).
-_PRKIT_TO_PINT: dict[str, str] = {
-    "mmHg": "torr",  # both == 101325/760 Pa exactly; pint "mmHg" differs
-    "torr": "torr",
-    "G": "prkit_gauss",  # 1e-4 T, see registry definition above
-}
-
-
-def _prkit_token_to_pint(token: str | None) -> str | None:
-    """Translate a ``normalize_unit_text`` output token to a pint-parseable one."""
-
-    if token is None:
-        return None
-    stripped = token.strip()
-    if not stripped:
-        return None
-    if stripped in _PRKIT_TO_PINT:
-        return _PRKIT_TO_PINT[stripped]
-    # pint does not accept ASCII ``u`` for the micro prefix; map a leading ``u``
-    # of any unit-letter run to ``µ`` (um -> µm, uA -> µA, kg*um/s -> kg*µm/s).
-    return re.sub(r"(?<![A-Za-zµ])u(?=[A-Za-z])", "µ", stripped)
-
-
-def _pint_unit_conversion_factor(
-    from_unit: str | None, to_unit: str | None
-) -> float | None:
-    from_pint = _prkit_token_to_pint(from_unit)
-    to_pint = _prkit_token_to_pint(to_unit)
-    if from_pint is None or to_pint is None:
-        return None
-    try:
-        factor = _UREG.Quantity(1.0, from_pint).to(to_pint).magnitude
-        offset = _UREG.Quantity(0.0, from_pint).to(to_pint).magnitude
-    except Exception:
-        return None
-    # Offset (affine) units such as degC cannot be expressed as a single factor.
-    if abs(offset) > 1e-12 * (abs(factor) + 1.0):
-        return None
-    return float(factor)
+# The backend under test is imported above:
+# ``_pint_unit_conversion_factor`` is the production
+# ``_pint_backend.unit_conversion_factor``, and ``_prkit_token_to_pint`` /
+# ``_PRKIT_TO_PINT`` are its translation map. Both consume normalized prkit
+# tokens, so the corpus passes ``normalize_unit_text`` output to them.
 
 
 # ---------------------------------------------------------------------------
@@ -313,3 +272,17 @@ def test_unparseable_or_empty_tokens_return_none() -> None:
     assert _pint_unit_conversion_factor("", "m") is None
     assert _pint_unit_conversion_factor("m", "") is None
     assert _pint_unit_conversion_factor("definitely_not_a_unit", "m") is None
+
+
+def test_token_translation_handles_micro_prefix_and_aliases() -> None:
+    # Micro prefix: ASCII ``u`` leading a unit-letter run becomes ``µ``.
+    assert _prkit_token_to_pint("um") == "µm"
+    assert _prkit_token_to_pint("uA") == "µA"
+    assert _prkit_token_to_pint("kg*um/s") == "kg*µm/s"
+    # Irregular tokens route through the alias map.
+    assert _prkit_token_to_pint("mmHg") == _PRKIT_TO_PINT["mmHg"] == "torr"
+    assert _prkit_token_to_pint("G") == _PRKIT_TO_PINT["G"] == "prkit_gauss"
+    # Empty / whitespace-only input is guarded before pint sees it.
+    assert _prkit_token_to_pint("") is None
+    assert _prkit_token_to_pint("   ") is None
+    assert _prkit_token_to_pint(None) is None
