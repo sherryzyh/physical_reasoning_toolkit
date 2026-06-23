@@ -10,7 +10,7 @@ from sympy import simplify
 
 import re
 
-from prkit.evaluation.edit_distance.timeout import SimplifyTimeout, run_with_timeout
+from prkit.evaluation._timeout import SimplifyTimeout, run_with_timeout
 
 def convert_caret_to_derivative(latex_str):
     # Match multiple consecutive ^ after variable names (2 or more)

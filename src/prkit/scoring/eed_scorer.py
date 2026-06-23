@@ -24,19 +24,10 @@ from typing import Any
 from prkit.core.domain.answer import PhysicsAnswer
 from prkit.core.verdict import Verdict
 
+from ._internal.shared import _as_text
+
 #: Provenance stamp: ``<algorithm>/<source>@<commit>+frontend-<vendor>+wrap<N>``.
 _VERSION = "eed/phybench@706feb4+frontend-vendor+wrap1"
-
-
-def _as_text(value: PhysicsAnswer | str | Any) -> str:
-    """Render an ``PhysicsAnswer``/string answer as the raw text the front-end expects.
-
-    ``PhysicsAnswer.__str__`` appends the unit when present (``"3 m/s"``), which is exactly
-    the surface the vendored LaTeX front-end parses.
-    """
-    if isinstance(value, str):
-        return value
-    return str(value)
 
 
 class EedScorer:

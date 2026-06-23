@@ -5,8 +5,8 @@ into the ``Scorer`` / ``Verdict`` contract:
 
 * :mod:`prkit.evaluation.llm_judge` — the model-graded OpenAI physics judge,
   wrapped by :class:`prkit.scoring.LLMJudgeScorer`.
-* :mod:`prkit.evaluation.edit_distance` — the pure (front-end-free) tree-edit
-  core used by the EED/SEED edit-distance scorers.
+* :mod:`prkit.evaluation._timeout` — thread-safe timeout shim shared by the
+  vendored EED/SEED pure cores (replaces the upstream SIGALRM decorator).
 
 This package is deliberately import-light: importing it pulls no provider SDK or
 heavy dependency. The legacy comparator/evaluator stacks were removed while

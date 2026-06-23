@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 
 from prkit.core.verdict import Verdict
-from prkit.scoring._adapt import verdict_from_comparison
+from prkit.scoring._internal.adapt import verdict_from_comparison
 from prkit.semantics import AnswerComparison, PhysicsAnswerSemantics
 from prkit.semantics.schema.enums import (
     AnswerObjectKind,

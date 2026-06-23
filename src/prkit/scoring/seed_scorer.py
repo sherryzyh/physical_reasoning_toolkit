@@ -29,6 +29,8 @@ from typing import Any
 from prkit.core.domain.answer import PhysicsAnswer
 from prkit.core.verdict import Verdict
 
+from ._internal.shared import _as_text
+
 #: Provenance stamp: ``<algorithm>/<source>@<commit>+frontend-<vendor>+wrap<N>``.
 _VERSION = "seed/cmphysbench@b2cd857+frontend-vendor+wrap1"
 
@@ -41,13 +43,6 @@ SEED_ANSWER_TYPES: tuple[str, ...] = (
     "Numeric",
 )
 _SEED_TYPE_SET = frozenset(SEED_ANSWER_TYPES)
-
-
-def _as_text(value: PhysicsAnswer | str | Any) -> str:
-    """Render an ``PhysicsAnswer``/string answer as the raw text the front-end expects."""
-    if isinstance(value, str):
-        return value
-    return str(value)
 
 
 class SeedScorer:

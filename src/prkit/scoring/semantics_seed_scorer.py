@@ -36,36 +36,10 @@ from prkit.semantics import (
     normalize_physics_answer,
 )
 
+from ._internal.shared import _coerce_context, _merge_context, _policy_to_str
+
 #: Provenance stamp: ``<algorithm>/<source>@<commit>+frontend-<semantics>+wrap<N>``.
 _VERSION = "seed/cmphysbench@b2cd857+frontend-semantics+wrap1"
-
-
-def _coerce_context(
-    context: PhysicsQuestionSemantics | dict[str, Any] | None,
-) -> PhysicsQuestionSemantics | None:
-    """Coerce an optional context into validated ``PhysicsQuestionSemantics``.
-
-    Mirrors :class:`SemanticsScorer` so both scorers accept the same context kinds: a
-    reference-built artifact (anything exposing ``.question_semantics``) is unwrapped,
-    a ``PhysicsQuestionSemantics`` passes through, and a mapping is validated.
-    """
-    if context is None:
-        return None
-    if isinstance(context, PhysicsQuestionSemantics):
-        return context
-    question_semantics = getattr(context, "question_semantics", None)
-    if isinstance(question_semantics, PhysicsQuestionSemantics):
-        return question_semantics
-    return PhysicsQuestionSemantics.model_validate(context)
-
-
-def _policy_to_str(policy_mode: ComparisonPolicyMode | str | None) -> str | None:
-    """Render a policy mode as a plain string for ``get_info()`` (or ``None``)."""
-    if policy_mode is None:
-        return None
-    if isinstance(policy_mode, ComparisonPolicyMode):
-        return str(policy_mode)
-    return str(ComparisonPolicyMode(policy_mode))
 
 
 class SemanticsSeedScorer:
@@ -111,16 +85,7 @@ class SemanticsSeedScorer:
         self, call_context: PhysicsQuestionSemantics | dict[str, Any] | None
     ) -> PhysicsQuestionSemantics | None:
         """Merge instance knob overrides over the per-call or base context."""
-        base = (
-            _coerce_context(call_context)
-            if call_context is not None
-            else self._base_context
-        )
-        if base is None:
-            if not self._context_overrides:
-                return None
-            base = PhysicsQuestionSemantics()
-        return base.merged(self._context_overrides)
+        return _merge_context(self._base_context, call_context, self._context_overrides)
 
     def score(
         self,
@@ -139,7 +104,7 @@ class SemanticsSeedScorer:
         """
         # Lazy: keeps the vendored core (and pint, via its lazy unit path) off
         # ``import prkit.scoring``.
-        from ._edit_distance_adapt import (
+        from ._internal.edit_distance_adapt import (
             not_applicable_verdict,
             score_seed,
             seed_type,

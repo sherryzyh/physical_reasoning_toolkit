@@ -12,7 +12,7 @@ import numpy as np
 from .extended_zss import ext_distance
 from sympy.simplify import *
 
-from prkit.evaluation.edit_distance.timeout import SimplifyTimeout, run_with_timeout
+from prkit.evaluation._timeout import SimplifyTimeout, run_with_timeout
 """
 Guide:
 You only need to use EED and install the following packages:
