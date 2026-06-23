@@ -9,6 +9,15 @@ from typing import Any
 from prkit.core.domain import PhysicsAnswer, PhysicsProblem
 
 from ..part_labels import canonicalize_part_label, infer_multi_part_part_labels
+from ..quantities.surface import (
+    _format_numeric_value,
+    extract_relation_wrapped_quantity_target,
+    synthesize_quantity_latex,
+)
+from ..quantities.views import (
+    canonicalize_quantity_answer,
+    enrich_answer_quantity_views,
+)
 from ..schema import (
     AnswerObjectKind,
     AnswerStructure,
@@ -24,12 +33,6 @@ from .math_text_normalization import (
     _extract_math_content,
     normalize_text,
 )
-from .physical_quantity_normalization import (
-    _format_numeric_value,
-    extract_relation_wrapped_quantity_target,
-    synthesize_quantity_latex,
-)
-from .quantity_views import canonicalize_quantity_answer, enrich_answer_quantity_views
 from .question_inference import (
     _answer_to_raw_text,
     _extract_equation_lhs,

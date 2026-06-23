@@ -26,7 +26,7 @@ from prkit.semantics.normalization import (
     materialize_quantity_view,
     normalize_physics_answer,
 )
-from prkit.semantics.normalization.quantity_views import build_quantity_view
+from prkit.semantics.quantities.views import build_quantity_view
 from prkit.semantics.schema import (
     AnswerComparison,
     ComparisonPolicyMode,

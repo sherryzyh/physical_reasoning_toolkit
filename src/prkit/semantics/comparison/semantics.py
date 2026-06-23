@@ -57,10 +57,10 @@ from sympy.parsing.sympy_parser import (
     standard_transformations,
 )
 
-from ..units import UNIT_NAMESPACE as _SHARED_UNIT_NAMESPACE
-from ..units import convert_numeric_value as _shared_convert_numeric_value
-from ..units import normalize_unit_text as _shared_normalize_unit_text
-from ..units import unit_conversion_factor as _shared_unit_conversion_factor
+from ..quantities.units import UNIT_NAMESPACE as _SHARED_UNIT_NAMESPACE
+from ..quantities.units import convert_numeric_value as _shared_convert_numeric_value
+from ..quantities.units import normalize_unit_text as _shared_normalize_unit_text
+from ..quantities.units import unit_conversion_factor as _shared_unit_conversion_factor
 from .common import context_symbol_assumption_map
 
 _TRANSFORMATIONS = standard_transformations + (

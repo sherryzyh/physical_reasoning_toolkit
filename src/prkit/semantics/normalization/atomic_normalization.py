@@ -5,6 +5,12 @@ from __future__ import annotations
 import functools
 import math
 
+from ..quantities.surface import (
+    _normalize_physical_quantity,
+    _try_parse_number_only,
+    _try_parse_physical_quantity,
+    normalize_number,
+)
 from .atomic_kinds import NormalizedAtomicKind
 from .expression_normalization import (
     _normalize_symbolic_expression,
@@ -17,12 +23,6 @@ from .math_text_normalization import (
     _starts_with_latex_delimiter,
     _unicode_math_to_latex,
     normalize_text,
-)
-from .physical_quantity_normalization import (
-    _normalize_physical_quantity,
-    _try_parse_number_only,
-    _try_parse_physical_quantity,
-    normalize_number,
 )
 
 

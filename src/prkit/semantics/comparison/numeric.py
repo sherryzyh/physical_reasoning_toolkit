@@ -9,6 +9,7 @@ from typing import Any
 from sympy import simplify
 
 from ..normalization import materialize_quantity_view
+from ..quantities.units import normalize_dimension_name, preferred_unit_for_dimension
 from ..schema import (
     AnswerComparison,
     AnswerObjectKind,
@@ -18,7 +19,6 @@ from ..schema import (
     PhysicsQuestionSemantics,
     QuestionUnitPolicy,
 )
-from ..units import normalize_dimension_name, preferred_unit_for_dimension
 from .common import available_texts, context_symbol_alias_map, resolved_unit
 from .semantics import (
     convert_numeric_value,

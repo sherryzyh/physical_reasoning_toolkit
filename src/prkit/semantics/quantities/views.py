@@ -4,6 +4,10 @@ from __future__ import annotations
 
 import re
 
+from ..normalization.math_text_normalization import (
+    _UNICODE_WHITESPACE,
+    _extract_math_content,
+)
 from ..schema import (
     AnswerObjectKind,
     AnswerStructure,
@@ -13,15 +17,7 @@ from ..schema import (
     PhysicsAnswerSemantics,
     PhysicsQuestionSemantics,
 )
-from ..units import (
-    UNIT_TO_BASE,
-    convert_numeric_value,
-    normalize_dimension_name,
-    normalize_unit_text,
-    preferred_unit_for_dimension,
-)
-from .math_text_normalization import _UNICODE_WHITESPACE, _extract_math_content
-from .physical_quantity_normalization import (
+from .surface import (
     _NUMERIC_PREFIX_RE,
     _SIGNED_NUM_OR_E_TOKEN,
     _canonicalize_quantity_string,
@@ -30,6 +26,13 @@ from .physical_quantity_normalization import (
     _is_valid_unit_string,
     _normalize_unit_expression,
     _strip_quantity_approximation_prefix,
+)
+from .units import (
+    UNIT_TO_BASE,
+    convert_numeric_value,
+    normalize_dimension_name,
+    normalize_unit_text,
+    preferred_unit_for_dimension,
 )
 
 _DIRECT_SCI_10_RE = re.compile(

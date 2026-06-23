@@ -9,8 +9,8 @@ helper for saved artifacts or externally supplied semantics records that
 need quantity backfill.
 """
 
+from ..quantities.views import enrich_answer_quantity_views, materialize_quantity_view
 from .answer_normalization import normalize_physics_answer, normalize_problem_answer
-from .quantity_views import enrich_answer_quantity_views, materialize_quantity_view
 from .question_inference import (
     infer_prediction_question_semantics,
     infer_question_semantics,

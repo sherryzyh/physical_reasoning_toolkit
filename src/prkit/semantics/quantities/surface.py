@@ -5,10 +5,13 @@ from __future__ import annotations
 import math
 import re
 
-from ..units import UNIT_ALIASES as _UNIT_ALIASES
-from ..units import UNIT_TO_BASE as _UNIT_TO_BASE
-from ..units import canonicalize_unit_alias
-from .math_text_normalization import _UNICODE_WHITESPACE, _extract_math_content
+from ..normalization.math_text_normalization import (
+    _UNICODE_WHITESPACE,
+    _extract_math_content,
+)
+from .units import UNIT_ALIASES as _UNIT_ALIASES
+from .units import UNIT_TO_BASE as _UNIT_TO_BASE
+from .units import canonicalize_unit_alias
 
 _FRAC_LATEX_PATTERN = re.compile(
     r"^\s*\\frac\s*\{(-?\d+(?:\.\d+)?)\}\s*\{(-?\d+(?:\.\d+)?)\}\s*$"

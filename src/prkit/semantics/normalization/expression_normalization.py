@@ -6,14 +6,14 @@ import re
 
 from latex2sympy2_extended import latex2sympy
 
-from .atomic_kinds import NormalizedAtomicKind
-from .math_text_normalization import _LATEX_BINARY_RELATION_MARKERS
-from .physical_quantity_normalization import (
+from ..quantities.surface import (
     _QUANTITY_PATTERN,
     _canonicalize_quantity_string,
     _try_parse_physical_quantity,
     _try_parse_relation_wrapped_quantity,
 )
+from .atomic_kinds import NormalizedAtomicKind
+from .math_text_normalization import _LATEX_BINARY_RELATION_MARKERS
 
 _PROTECTED_PHYSICS_SYMBOLS = {
     r"\hbar": "hbar",

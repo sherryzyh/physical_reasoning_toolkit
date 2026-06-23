@@ -12,6 +12,10 @@ from ..part_labels import (
     has_named_part_labels,
     infer_named_part_labels_from_question,
 )
+from ..quantities.surface import (
+    _parse_unit_expression,
+)
+from ..quantities.units import UNIT_TO_BASE, canonicalize_unit_alias
 from ..schema import (
     AnswerObjectKind,
     AnswerStructure,
@@ -22,13 +26,9 @@ from ..schema import (
     QuestionSymbolicMode,
     QuestionUnitPolicy,
 )
-from ..units import UNIT_TO_BASE, canonicalize_unit_alias
 from .atomic_kinds import NormalizedAtomicKind
 from .atomic_normalization import normalize_answer
 from .math_text_normalization import _extract_math_content
-from .physical_quantity_normalization import (
-    _parse_unit_expression,
-)
 
 _FIXED_UNIT_RE = re.compile(
     r"\b(?:in|expressed in)\s+([A-Za-zΩμµ°/%][A-Za-z0-9Ωμµ°/%^*\-]*)\b"
