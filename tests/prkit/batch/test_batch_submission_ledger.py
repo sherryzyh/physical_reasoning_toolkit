@@ -8,7 +8,7 @@ round-trip, including the timezone-by-equality contract for ``created_at``.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -50,7 +50,7 @@ def _ledger(statuses: list[str], *, run_dir: str = "/tmp/run") -> BatchSubmissio
         run_name="run",
         provider="openai",
         model="gpt-5.1",
-        created_at=datetime(2026, 6, 22, 1, 2, 3, 456789, tzinfo=timezone.utc),
+        created_at=datetime(2026, 6, 22, 1, 2, 3, 456789, tzinfo=UTC),
         minibatch_size=2,
         minibatch_count=len(statuses),
         total_problems=2 * len(statuses),
@@ -116,7 +116,7 @@ class TestSerialization:
         assert rebuilt == sub
         # created_at survives by value with tz compared by equality, not identity.
         assert rebuilt.created_at == sub.created_at
-        assert rebuilt.created_at.tzinfo == timezone.utc
+        assert rebuilt.created_at.tzinfo == UTC
 
     def test_save_load_round_trip_equal(self, tmp_path):
         sub = _ledger([SUBMITTED, RUNNING], run_dir=str(tmp_path / "run"))
@@ -144,4 +144,4 @@ class TestSerialization:
         assert data["created_at"].endswith("+00:00")
         rebuilt = BatchSubmission.from_dict(data)
         # fromisoformat yields timezone(timedelta(0)) which == utc but is not it.
-        assert rebuilt.created_at.tzinfo == timezone.utc
+        assert rebuilt.created_at.tzinfo == UTC

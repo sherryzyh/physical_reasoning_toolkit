@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from enum import Enum
-from typing import Any, TypeVar, overload
+from typing import Any, overload
 
 from ..schema import (
     AnswerObjectKind,
@@ -35,7 +35,6 @@ _LEGACY_ANSWER_FIELDS = frozenset(
         "value",
     }
 )
-_EnumT = TypeVar("_EnumT", bound=Enum)
 
 
 def coerce_question_semantics(
@@ -633,9 +632,9 @@ def _format_number(value: float) -> str:
     return format(float(value), ".15g")
 
 
-def _enum_tuple(
-    enum_cls: type[_EnumT], raw_value: Any, default: tuple[_EnumT, ...]
-) -> tuple[_EnumT, ...]:
+def _enum_tuple[EnumT: Enum](
+    enum_cls: type[EnumT], raw_value: Any, default: tuple[EnumT, ...]
+) -> tuple[EnumT, ...]:
     """Coerce a sequence of raw values into a tuple of enum members."""
 
     if raw_value is None:
@@ -644,7 +643,7 @@ def _enum_tuple(
         raw_items = [raw_value]
     else:
         raw_items = list(raw_value)
-    values: list[_EnumT] = []
+    values: list[EnumT] = []
     for item in raw_items:
         if item is None:
             continue
@@ -675,18 +674,20 @@ def _shape_tuple(raw_value: Any) -> tuple[int, ...]:
 
 
 @overload
-def _enum_value(enum_cls: type[_EnumT], raw_value: Any, default: _EnumT) -> _EnumT: ...
+def _enum_value[EnumT: Enum](
+    enum_cls: type[EnumT], raw_value: Any, default: EnumT
+) -> EnumT: ...
 
 
 @overload
-def _enum_value(
-    enum_cls: type[_EnumT], raw_value: Any, default: None
-) -> _EnumT | None: ...
+def _enum_value[EnumT: Enum](
+    enum_cls: type[EnumT], raw_value: Any, default: None
+) -> EnumT | None: ...
 
 
-def _enum_value(
-    enum_cls: type[_EnumT], raw_value: Any, default: _EnumT | None
-) -> _EnumT | None:
+def _enum_value[EnumT: Enum](
+    enum_cls: type[EnumT], raw_value: Any, default: EnumT | None
+) -> EnumT | None:
     """Coerce one raw value into an enum member, with a default fallback."""
 
     if raw_value is None:
@@ -700,7 +701,7 @@ def _enum_value(
         return member if member is not None else default
 
 
-def _optional_enum(enum_cls: type[_EnumT], raw_value: Any) -> _EnumT | None:
+def _optional_enum[EnumT: Enum](enum_cls: type[EnumT], raw_value: Any) -> EnumT | None:
     """Coerce a raw value into an enum member or ``None``."""
 
     return _enum_value(enum_cls, raw_value, None)

@@ -11,7 +11,7 @@ import json
 import re
 from collections.abc import Iterator
 from dataclasses import dataclass
-from typing import Any, Generic, Literal, TypeVar
+from typing import Any, Literal
 
 from pydantic import BaseModel
 
@@ -20,8 +20,6 @@ StructuredOutputMode = Literal["json_schema", "json_object", "prompt_only"]
 StructuredOutputPolicy = Literal["native_required", "best_effort"]
 
 _JSON_FENCE_RE = re.compile(r"```(?:json)?\s*(.*?)\s*```", re.DOTALL)
-
-T = TypeVar("T", bound=BaseModel)
 
 
 @dataclass(frozen=True)
@@ -95,7 +93,7 @@ class StructuredOutputPlan:
 
 
 @dataclass(frozen=True)
-class StructuredCallResult(Generic[T]):
+class StructuredCallResult[T: BaseModel]:
     """Outcome of a structured inference call, including both parsed and raw data.
 
     Attributes:

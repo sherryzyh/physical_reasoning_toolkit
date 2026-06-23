@@ -47,7 +47,7 @@ import tempfile
 import time
 from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass, field, replace
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -495,7 +495,7 @@ def submit_batch_physics_reasoning(
     if not problem_list:
         raise BatchInputError("No problems to submit (empty dataset/sequence).")
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     timestamp = now.strftime("%Y%m%d-%H%M%S")
     if run_name is None:
         base = (
@@ -570,7 +570,7 @@ def submit_batch_physics_reasoning(
     minibatches: list[dict[str, Any]] = []
     for index, chunk in enumerate(request_chunks):
         id_map = dict(zip(rid_chunks[index], pid_chunks[index]))
-        submitted_at = datetime.now(timezone.utc)
+        submitted_at = datetime.now(UTC)
         batch_id = ""
         error: str | None = None
         try:
@@ -1005,7 +1005,7 @@ def _read_jsonl(path: str | Path) -> Iterator[str]:
 
 def _now_iso() -> str:
     """Current UTC time as an ISO 8601 string."""
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _atomic_write_text(path: str | Path, text: str) -> None:

@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Literal, TypeVar
+from typing import Any, Literal
 
 from pydantic import BaseModel, ValidationError
 
@@ -103,7 +103,6 @@ _STRICT_ANSWER_FIELDS = frozenset(StrictPhysicsAnswerSemantics.model_fields)
 _STRICT_CASE_FIELDS = frozenset(StrictPhysicsAnswerCaseSemantics.model_fields)
 _VALID_ALLOWED_OBJECT_KINDS = frozenset(kind.value for kind in AnswerObjectKind)
 _VALID_ALLOWED_STRUCTURES = frozenset(kind.value for kind in AnswerStructure)
-ResponseModelT = TypeVar("ResponseModelT", bound=BaseModel)
 
 
 @dataclass(frozen=True)
@@ -317,7 +316,7 @@ _ANSWER_SURFACE_FILL_FIELDS = (
 )
 
 
-def _advisory_inference(
+def _advisory_inference[ResponseModelT: BaseModel](
     model_client: BaseModelClient | None,
     *,
     prompt: str,
@@ -1342,7 +1341,7 @@ def compare_saved_semantics(
     ).comparison
 
 
-def _run_structured_inference(
+def _run_structured_inference[ResponseModelT: BaseModel](
     model_client: BaseModelClient,
     *,
     prompt: str,
@@ -1448,7 +1447,7 @@ def ensure_semantics_native_json_schema_support(model_client: BaseModelClient) -
     )
 
 
-def _parse_response_model(
+def _parse_response_model[ResponseModelT: BaseModel](
     response_model: type[ResponseModelT], raw_response: str
 ) -> ResponseModelT:
     """Validate a raw model response against the expected Pydantic schema."""

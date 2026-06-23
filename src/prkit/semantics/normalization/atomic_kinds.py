@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 
 
-class NormalizedAtomicKind(str, Enum):
+class NormalizedAtomicKind(StrEnum):
     """Atomic answer kinds used by semantics-local normalization."""
 
     NUMBER = "number"

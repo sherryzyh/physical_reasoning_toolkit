@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -379,7 +379,7 @@ class TestEmptyLedger:
             run_name="r",
             provider="openai",
             model="m",
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
             minibatch_size=1,
             minibatch_count=0,
             total_problems=0,

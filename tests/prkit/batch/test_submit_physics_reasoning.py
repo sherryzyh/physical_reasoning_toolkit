@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -136,7 +136,7 @@ class TestSubmission:
         assert sub.provider == "openai"
         assert sub.model == "gpt-5.1"
         assert isinstance(sub.created_at, datetime)
-        assert sub.created_at.tzinfo == timezone.utc
+        assert sub.created_at.tzinfo == UTC
         (mb,) = sub.minibatches
         assert mb["batch_id"] == "batch_abc"
         assert mb["num_requests"] == 2

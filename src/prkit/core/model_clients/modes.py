@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 
 
-class _StrEnum(str, Enum):
+class _StrEnum(StrEnum):
     """Enum subclass with string values and friendly ``str()`` output."""
 
     def __str__(self) -> str:

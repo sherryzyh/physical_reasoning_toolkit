@@ -15,16 +15,13 @@ from __future__ import annotations
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as _FuturesTimeout
-from typing import TypeVar
-
-_T = TypeVar("_T")
 
 
 class SimplifyTimeout(Exception):
     """Raised when a bounded computation exceeds its wall-clock deadline."""
 
 
-def run_with_timeout(func: Callable[[], _T], *, timeout_s: float) -> _T:
+def run_with_timeout[T](func: Callable[[], T], *, timeout_s: float) -> T:
     """Run ``func()`` with a wall-clock deadline.
 
     Args:
