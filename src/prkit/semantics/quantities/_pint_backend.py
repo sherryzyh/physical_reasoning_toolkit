@@ -167,9 +167,77 @@ def _warm_known_vocabulary() -> None:
 _warm_known_vocabulary()
 
 
+# Authoritative denylist of pint-recognized tokens that prkit must NOT treat as
+# units when widening parse recognition beyond ``UNIT_TO_BASE``. Two families:
+#
+# * Ambiguous single letters that double as symbolic variables / physics
+#   constants (``c``, ``e``, ``k``, ...) -- pint reads them as units (``c`` =
+#   speed-of-light unit, ``e`` = elementary charge, ``M`` = molar, ...), but in
+#   free-form physics answers they are far more often variables, so accepting
+#   them would hijack symbolic answers into spurious quantities.
+# * The revolution family (``rpm``/``rps``/``revolution``/``cycle``/``turn``),
+#   which pint couples to radians through a 2pi factor -- a conversion trap.
+#
+# This is the *authoritative constant*; the Phase-4 contract test derives the
+# equivalent set from the installed pint + ``UNIT_TO_BASE`` (literal membership)
+# and asserts equality, so a pint upgrade that shifts single-letter recognition
+# fails loudly in CI rather than silently changing parse behavior.
+PARSE_DENYLIST: frozenset[str] = frozenset(
+    {
+        # lowercase single letters
+        "a",
+        "b",
+        "c",
+        "d",
+        "e",
+        "k",
+        "l",
+        "t",
+        "u",
+        # uppercase single letters
+        "B",
+        "D",
+        "M",
+        "P",
+        "R",
+        "S",
+        "U",
+        # revolution family (2pi rev<->rad trap)
+        "rpm",
+        "rps",
+        "revolution",
+        "cycle",
+        "turn",
+    }
+)
+
+
+def is_recognized_unit_for_parse(token: str | None) -> bool:
+    """Guarded-full recognition gate deciding whether ``token`` may parse as a unit.
+
+    A token is accepted iff it is a known prkit unit (``UNIT_TO_BASE``) or pint
+    recognizes it *and* it is not denylisted. Inputs are normalized prkit tokens
+    (the output of ``normalize_unit_text`` / ``canonicalize_unit_alias``).
+
+    The ``UNIT_TO_BASE`` fast path means callers that have already cleared known
+    units never reach pint; this keeps the light ``prkit.verify`` path off pint
+    for the common case (see ``tests/prkit/verify/test_import_isolation.py``).
+    """
+
+    if token is None:
+        return False
+    from .units import UNIT_TO_BASE
+
+    if token in UNIT_TO_BASE:
+        return True
+    return is_recognized_unit(token) and token not in PARSE_DENYLIST
+
+
 __all__ = [
+    "PARSE_DENYLIST",
     "convert_numeric_value",
     "is_recognized_unit",
+    "is_recognized_unit_for_parse",
     "unit_conversion_factor",
     "warm",
 ]

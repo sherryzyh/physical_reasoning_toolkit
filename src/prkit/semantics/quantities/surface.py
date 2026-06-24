@@ -424,6 +424,23 @@ def extract_relation_wrapped_quantity_target(text: str) -> str | None:
     return parsed[1]
 
 
+def _recognized_for_parse(symbol: str) -> bool:
+    """Return whether a canonical unit symbol is recognized for parse acceptance.
+
+    Known prkit units short-circuit on ``UNIT_TO_BASE`` membership without
+    importing the pint backend (keeps the light ``prkit.verify`` path pint-free
+    for the common case). Only tokens outside ``UNIT_TO_BASE`` consult pint's
+    guarded-full recognition, which widens coverage to any pint-recognized unit
+    that is not denylisted (``daN``, ``ft``, ``°C``, ...).
+    """
+
+    if symbol in _UNIT_TO_BASE:
+        return True
+    from . import _pint_backend
+
+    return _pint_backend.is_recognized_unit_for_parse(symbol)
+
+
 def _is_valid_unit_string(unit_raw: str) -> bool:
     """Return whether a unit string can be parsed without symbolic leftovers."""
 
@@ -433,7 +450,7 @@ def _is_valid_unit_string(unit_raw: str) -> bool:
     if not terms:
         return False
     return all(
-        re.fullmatch(r"[A-Za-zΩμµ°/%]+", symbol) and symbol in _UNIT_TO_BASE
+        re.fullmatch(r"[A-Za-zΩμµ°/%]+", symbol) and _recognized_for_parse(symbol)
         for _sign, symbol, _exp in terms
     )
 

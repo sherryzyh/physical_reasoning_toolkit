@@ -189,7 +189,16 @@ def _is_supported_question_unit(value: str) -> bool:
         return False
     for _sign, symbol, _exp in terms:
         canonical_symbol = canonicalize_unit_alias(symbol)
-        if canonical_symbol not in _SUPPORTED_QUESTION_UNIT_SYMBOLS:
+        # Fast path: prkit's known vocabulary (plus ``percent``) is accepted
+        # without touching pint. Anything else falls to the guarded-full
+        # recognition gate, widening question-stated units (``daN``, ``°C``, ...)
+        # in lockstep with the answer parser while the shared denylist keeps
+        # ambiguous single letters / the revolution family symbolic.
+        if canonical_symbol in _SUPPORTED_QUESTION_UNIT_SYMBOLS:
+            continue
+        from ..quantities import _pint_backend
+
+        if not _pint_backend.is_recognized_unit_for_parse(canonical_symbol):
             return False
     return True
 
