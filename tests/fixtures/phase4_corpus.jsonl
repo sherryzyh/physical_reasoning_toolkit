@@ -1,0 +1,279 @@
+{"category": "A", "expectation": "SYMBOLIC", "id": "A-001", "input": "5c", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "A-002", "input": "5 c", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "A-003", "input": "3u", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "A-004", "input": "3 u", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "A-005", "input": "2a", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "A-006", "input": "7 d", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "A-007", "input": "4b", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "A-008", "input": "9 e", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "A-009", "input": "6k", "kind": "single"}
+{"category": "A", "expectation": "QUANTITY", "id": "A-010", "input": "8 l", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "A-011", "input": "5 t", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "A-012", "input": "2 B", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "A-013", "input": "3 M", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "A-014", "input": "4 P", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "A-015", "input": "5 R", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "A-016", "input": "6 S", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "A-017", "input": "7 U", "kind": "single"}
+{"category": "A", "expectation": "QUANTITY", "id": "A-018", "input": "5 m", "kind": "single"}
+{"category": "A", "expectation": "QUANTITY", "id": "A-019", "input": "5 s", "kind": "single"}
+{"category": "A", "expectation": "QUANTITY", "id": "A-020", "input": "5 g", "kind": "single"}
+{"category": "A", "expectation": "QUANTITY", "id": "A-021", "input": "5 A", "kind": "single"}
+{"category": "A", "expectation": "QUANTITY", "id": "A-022", "input": "5 N", "kind": "single"}
+{"category": "A", "expectation": "QUANTITY", "id": "A-023", "input": "5 J", "kind": "single"}
+{"category": "A", "expectation": "QUANTITY", "id": "A-024", "input": "5 V", "kind": "single"}
+{"category": "A", "expectation": "QUANTITY", "id": "A-025", "input": "5 K", "kind": "single"}
+{"category": "A", "expectation": "QUANTITY", "id": "A-026", "input": "5 T", "kind": "single"}
+{"category": "B", "expectation": "SYMBOLIC", "id": "B-001", "input": "v = 5a", "kind": "single"}
+{"category": "B", "expectation": "SYMBOLIC", "id": "B-002", "input": "E = m c^2", "kind": "single"}
+{"category": "B", "expectation": "SYMBOLIC", "id": "B-003", "input": "F = q v B", "kind": "single"}
+{"category": "B", "expectation": "SYMBOLIC", "id": "B-004", "input": "x = 5 d + 2", "kind": "single"}
+{"category": "B", "expectation": "SYMBOLIC", "id": "B-005", "input": "a = b c", "kind": "single"}
+{"category": "B", "expectation": "SYMBOLIC", "id": "B-006", "input": "P = I V", "kind": "single"}
+{"category": "B", "expectation": "SYMBOLIC", "id": "B-007", "input": "5 a + 3 b", "kind": "single"}
+{"category": "B", "expectation": "SYMBOLIC", "id": "B-008", "input": "omega = 2 c", "kind": "single"}
+{"category": "B", "expectation": "SYMBOLIC", "id": "B-009", "input": "k = 1/2 m v^2", "kind": "single"}
+{"category": "B", "expectation": "SYMBOLIC", "id": "B-010", "input": "2 u + 5", "kind": "single"}
+{"category": "B", "expectation": "SYMBOLIC", "id": "B-011", "input": "E_k = 1/2 M u^2", "kind": "single"}
+{"category": "C", "expectation": "SYMBOLIC", "id": "C-001", "input": "c", "kind": "single"}
+{"category": "C", "expectation": "SYMBOLIC", "id": "C-002", "input": "e", "kind": "single"}
+{"category": "C", "expectation": "SYMBOLIC", "id": "C-003", "input": "k", "kind": "single"}
+{"category": "C", "expectation": "SYMBOLIC", "id": "C-004", "input": "R", "kind": "single"}
+{"category": "C", "expectation": "SYMBOLIC", "id": "C-005", "input": "answer is c", "kind": "single"}
+{"category": "C", "expectation": "SYMBOLIC", "id": "C-006", "input": "P = nRT/V", "kind": "single"}
+{"category": "D", "expectation": "OBSERVE", "id": "D-001", "input": "5 au", "kind": "single"}
+{"category": "D", "expectation": "OBSERVE", "id": "D-002", "input": "3 year", "kind": "single"}
+{"category": "D", "expectation": "OBSERVE", "id": "D-003", "input": "2 barn", "kind": "single"}
+{"category": "D", "expectation": "OBSERVE", "id": "D-004", "input": "5 are", "kind": "single"}
+{"category": "D", "expectation": "OBSERVE", "id": "D-005", "input": "7 day", "kind": "single"}
+{"category": "D", "expectation": "OBSERVE", "id": "D-006", "input": "5 cycle", "kind": "single"}
+{"category": "D", "expectation": "OBSERVE", "id": "D-007", "input": "2 week", "kind": "single"}
+{"category": "D", "expectation": "OBSERVE", "id": "D-008", "input": "1 month", "kind": "single"}
+{"category": "D", "expectation": "OBSERVE", "id": "D-009", "input": "4 sr", "kind": "single"}
+{"category": "D", "expectation": "OBSERVE", "id": "D-010", "input": "3 dB", "kind": "single"}
+{"category": "D", "expectation": "OBSERVE", "id": "D-011", "input": "2 Np", "kind": "single"}
+{"category": "D", "expectation": "OBSERVE", "id": "D-012", "input": "5 gal", "kind": "single"}
+{"category": "D", "expectation": "OBSERVE", "id": "D-013", "input": "3 cup", "kind": "single"}
+{"category": "D", "expectation": "OBSERVE", "id": "D-014", "input": "6 pt", "kind": "single"}
+{"category": "E", "expectation": "SYMBOLIC", "id": "E-001", "input": "5 rpm", "kind": "single"}
+{"category": "E", "expectation": "SYMBOLIC", "id": "E-002", "input": "60 rpm", "kind": "single"}
+{"category": "E", "expectation": "SYMBOLIC", "id": "E-003", "input": "3 rps", "kind": "single"}
+{"category": "E", "expectation": "SYMBOLIC", "id": "E-004", "input": "2 revolution", "kind": "single"}
+{"category": "E", "expectation": "SYMBOLIC", "id": "E-005", "input": "omega = 5 rpm", "kind": "single"}
+{"category": "E", "expectation": "SYMBOLIC", "id": "E-006", "input": "1 turn", "kind": "single"}
+{"category": "E", "expectation": "SYMBOLIC", "id": "E-007", "input": "4 cycle", "kind": "single"}
+{"category": "F", "expectation": "QUANTITY", "id": "F-001", "input": "1 km", "kind": "single"}
+{"category": "F", "expectation": "QUANTITY", "id": "F-002", "input": "1.1 kΩ", "kind": "single"}
+{"category": "F", "expectation": "QUANTITY", "id": "F-003", "input": "2.8e-4 Pa", "kind": "single"}
+{"category": "F", "expectation": "QUANTITY", "id": "F-004", "input": "3e-4 N/m^2", "kind": "single"}
+{"category": "F", "expectation": "QUANTITY", "id": "F-005", "input": "0.11°", "kind": "single"}
+{"category": "F", "expectation": "QUANTITY", "id": "F-006", "input": "16 rad s^-1", "kind": "single"}
+{"category": "F", "expectation": "QUANTITY", "id": "F-007", "input": "3.20×10^2 cm s^-2", "kind": "single"}
+{"category": "F", "expectation": "QUANTITY", "id": "F-008", "input": "530 pF", "kind": "single"}
+{"category": "F", "expectation": "QUANTITY", "id": "F-009", "input": "9.81 m/s^2", "kind": "single"}
+{"category": "F", "expectation": "QUANTITY", "id": "F-010", "input": "5 eV", "kind": "single"}
+{"category": "F", "expectation": "QUANTITY", "id": "F-011", "input": "2 kcal", "kind": "single"}
+{"category": "F", "expectation": "QUANTITY", "id": "F-012", "input": "760 mmHg", "kind": "single"}
+{"category": "F", "expectation": "QUANTITY", "id": "F-013", "input": "1000 Å", "kind": "single"}
+{"category": "F", "expectation": "QUANTITY", "id": "F-014", "input": "4.5×10^3 N", "kind": "single"}
+{"category": "F", "expectation": "QUANTITY", "id": "F-015", "input": "1.752 m", "kind": "single"}
+{"category": "F", "expectation": "QUANTITY", "id": "F-016", "input": "5\\,\\mathrm{m}", "kind": "single"}
+{"category": "F", "expectation": "QUANTITY", "id": "F-017", "input": "1.2\\times10^{3}\\,\\mathrm{J}", "kind": "single"}
+{"category": "F", "expectation": "QUANTITY", "id": "F-018", "input": "30^\\circ", "kind": "single"}
+{"category": "F", "expectation": "QUANTITY", "id": "F-019", "input": "2.5×10⁻³ m", "kind": "single"}
+{"category": "G", "expectation": "QUANTITY", "id": "G-001", "input": "20 °C", "kind": "single"}
+{"category": "G", "expectation": "QUANTITY", "id": "G-002", "input": "20 degC", "kind": "single"}
+{"category": "G", "expectation": "QUANTITY", "id": "G-003", "input": "-40 °C", "kind": "single"}
+{"category": "G", "expectation": "QUANTITY", "id": "G-004", "input": "100 °C", "kind": "single"}
+{"category": "G", "expectation": "QUANTITY", "id": "G-005", "input": "0 °C", "kind": "single"}
+{"category": "G", "expectation": "QUANTITY", "id": "G-006", "input": "98.6 °F", "kind": "single"}
+{"category": "G", "expectation": "QUANTITY", "id": "G-007", "input": "37 ^\\circ C", "kind": "single"}
+{"category": "G", "expectation": "MATCH", "id": "G-P001", "kind": "pair", "pred": "20 °C", "ref": "293.15 K"}
+{"category": "G", "expectation": "NOMATCH", "id": "G-P002", "kind": "pair", "pred": "20 °C", "ref": "300 K"}
+{"category": "G", "expectation": "MATCH", "id": "G-P003", "kind": "pair", "pred": "100 °C", "ref": "373.15 K"}
+{"category": "G", "expectation": "MATCH", "id": "G-P004", "kind": "pair", "pred": "-40 °C", "ref": "-40 °F"}
+{"category": "H", "expectation": "QUANTITY", "id": "H-001", "input": "5 daN", "kind": "single"}
+{"category": "H", "expectation": "QUANTITY", "id": "H-002", "input": "2 cN", "kind": "single"}
+{"category": "H", "expectation": "QUANTITY", "id": "H-003", "input": "3 dL", "kind": "single"}
+{"category": "H", "expectation": "QUANTITY", "id": "H-004", "input": "10 ft", "kind": "single"}
+{"category": "H", "expectation": "QUANTITY", "id": "H-005", "input": "30 mph", "kind": "single"}
+{"category": "H", "expectation": "QUANTITY", "id": "H-006", "input": "5 lbf", "kind": "single"}
+{"category": "H", "expectation": "QUANTITY", "id": "H-007", "input": "2 Mg", "kind": "single"}
+{"category": "H", "expectation": "QUANTITY", "id": "H-008", "input": "7 nN", "kind": "single"}
+{"category": "H", "expectation": "QUANTITY", "id": "H-009", "input": "4 µPa", "kind": "single"}
+{"category": "H", "expectation": "QUANTITY", "id": "H-010", "input": "1 in", "kind": "single"}
+{"category": "H", "expectation": "QUANTITY", "id": "H-011", "input": "12 in", "kind": "single"}
+{"category": "H", "expectation": "QUANTITY", "id": "H-012", "input": "3 yd", "kind": "single"}
+{"category": "H", "expectation": "QUANTITY", "id": "H-013", "input": "2 mile", "kind": "single"}
+{"category": "H", "expectation": "QUANTITY", "id": "H-014", "input": "5 hp", "kind": "single"}
+{"category": "H", "expectation": "QUANTITY", "id": "H-015", "input": "1 cal_th", "kind": "single"}
+{"category": "I", "expectation": "SYMBOLIC", "id": "I-001", "input": "5 S", "kind": "single"}
+{"category": "I", "expectation": "SYMBOLIC", "id": "I-002", "input": "2 M", "kind": "single"}
+{"category": "I", "expectation": "SYMBOLIC", "id": "I-003", "input": "4 P", "kind": "single"}
+{"category": "I", "expectation": "SYMBOLIC", "id": "I-004", "input": "3 R", "kind": "single"}
+{"category": "I", "expectation": "SYMBOLIC", "id": "I-005", "input": "7 B", "kind": "single"}
+{"category": "I", "expectation": "SYMBOLIC", "id": "I-006", "input": "2 D", "kind": "single"}
+{"category": "I", "expectation": "SYMBOLIC", "id": "I-007", "input": "5 U", "kind": "single"}
+{"category": "I", "expectation": "OBSERVE", "id": "I-P001", "kind": "pair", "pred": "5 S", "ref": "5 siemens"}
+{"category": "I", "expectation": "OBSERVE", "id": "I-P002", "kind": "pair", "pred": "2 M", "ref": "2 mol/L"}
+{"category": "C", "expectation": "SYMBOLIC", "id": "C-101", "input": "5\\omega", "kind": "single"}
+{"category": "C", "expectation": "SYMBOLIC", "id": "C-102", "input": "5\\theta", "kind": "single"}
+{"category": "C", "expectation": "SYMBOLIC", "id": "C-103", "input": "5\\alpha", "kind": "single"}
+{"category": "C", "expectation": "SYMBOLIC", "id": "C-104", "input": "5\\beta", "kind": "single"}
+{"category": "C", "expectation": "SYMBOLIC", "id": "C-105", "input": "5\\gamma", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-5x-a", "input": "5a", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-bare-a", "input": "a", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-sq-a", "input": "2a^2", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-5x-b", "input": "5b", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-bare-b", "input": "b", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-sq-b", "input": "2b^2", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-5x-c", "input": "5c", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-bare-c", "input": "c", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-sq-c", "input": "2c^2", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-5x-d", "input": "5d", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-bare-d", "input": "d", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-sq-d", "input": "2d^2", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-5x-e", "input": "5e", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-bare-e", "input": "e", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-sq-e", "input": "2e^2", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-5x-f", "input": "5f", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-bare-f", "input": "f", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-sq-f", "input": "2f^2", "kind": "single"}
+{"category": "F", "expectation": "QUANTITY", "id": "SWEEP-5x-g", "input": "5g", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-bare-g", "input": "g", "kind": "single"}
+{"category": "F", "expectation": "QUANTITY", "id": "SWEEP-sq-g", "input": "2g^2", "kind": "single"}
+{"category": "F", "expectation": "QUANTITY", "id": "SWEEP-5x-h", "input": "5h", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-bare-h", "input": "h", "kind": "single"}
+{"category": "F", "expectation": "QUANTITY", "id": "SWEEP-sq-h", "input": "2h^2", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-5x-i", "input": "5i", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-bare-i", "input": "i", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-sq-i", "input": "2i^2", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-5x-j", "input": "5j", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-bare-j", "input": "j", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-sq-j", "input": "2j^2", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-5x-k", "input": "5k", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-bare-k", "input": "k", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-sq-k", "input": "2k^2", "kind": "single"}
+{"category": "F", "expectation": "QUANTITY", "id": "SWEEP-5x-l", "input": "5l", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-bare-l", "input": "l", "kind": "single"}
+{"category": "F", "expectation": "QUANTITY", "id": "SWEEP-sq-l", "input": "2l^2", "kind": "single"}
+{"category": "F", "expectation": "QUANTITY", "id": "SWEEP-5x-m", "input": "5m", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-bare-m", "input": "m", "kind": "single"}
+{"category": "F", "expectation": "QUANTITY", "id": "SWEEP-sq-m", "input": "2m^2", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-5x-n", "input": "5n", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-bare-n", "input": "n", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-sq-n", "input": "2n^2", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-5x-o", "input": "5o", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-bare-o", "input": "o", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-sq-o", "input": "2o^2", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-5x-p", "input": "5p", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-bare-p", "input": "p", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-sq-p", "input": "2p^2", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-5x-q", "input": "5q", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-bare-q", "input": "q", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-sq-q", "input": "2q^2", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-5x-r", "input": "5r", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-bare-r", "input": "r", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-sq-r", "input": "2r^2", "kind": "single"}
+{"category": "F", "expectation": "QUANTITY", "id": "SWEEP-5x-s", "input": "5s", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-bare-s", "input": "s", "kind": "single"}
+{"category": "F", "expectation": "QUANTITY", "id": "SWEEP-sq-s", "input": "2s^2", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-5x-t", "input": "5t", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-bare-t", "input": "t", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-sq-t", "input": "2t^2", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-5x-u", "input": "5u", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-bare-u", "input": "u", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-sq-u", "input": "2u^2", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-5x-v", "input": "5v", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-bare-v", "input": "v", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-sq-v", "input": "2v^2", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-5x-w", "input": "5w", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-bare-w", "input": "w", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-sq-w", "input": "2w^2", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-5x-x", "input": "5x", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-bare-x", "input": "x", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-sq-x", "input": "2x^2", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-5x-y", "input": "5y", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-bare-y", "input": "y", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-sq-y", "input": "2y^2", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-5x-z", "input": "5z", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-bare-z", "input": "z", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-sq-z", "input": "2z^2", "kind": "single"}
+{"category": "F", "expectation": "QUANTITY", "id": "SWEEP-5x-A", "input": "5A", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-bare-A", "input": "A", "kind": "single"}
+{"category": "F", "expectation": "QUANTITY", "id": "SWEEP-sq-A", "input": "2A^2", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-5x-B", "input": "5B", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-bare-B", "input": "B", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-sq-B", "input": "2B^2", "kind": "single"}
+{"category": "F", "expectation": "QUANTITY", "id": "SWEEP-5x-C", "input": "5C", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-bare-C", "input": "C", "kind": "single"}
+{"category": "F", "expectation": "QUANTITY", "id": "SWEEP-sq-C", "input": "2C^2", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-5x-D", "input": "5D", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-bare-D", "input": "D", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-sq-D", "input": "2D^2", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-5x-E", "input": "5E", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-bare-E", "input": "E", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-sq-E", "input": "2E^2", "kind": "single"}
+{"category": "F", "expectation": "QUANTITY", "id": "SWEEP-5x-F", "input": "5F", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-bare-F", "input": "F", "kind": "single"}
+{"category": "F", "expectation": "QUANTITY", "id": "SWEEP-sq-F", "input": "2F^2", "kind": "single"}
+{"category": "F", "expectation": "QUANTITY", "id": "SWEEP-5x-G", "input": "5G", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-bare-G", "input": "G", "kind": "single"}
+{"category": "F", "expectation": "QUANTITY", "id": "SWEEP-sq-G", "input": "2G^2", "kind": "single"}
+{"category": "F", "expectation": "QUANTITY", "id": "SWEEP-5x-H", "input": "5H", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-bare-H", "input": "H", "kind": "single"}
+{"category": "F", "expectation": "QUANTITY", "id": "SWEEP-sq-H", "input": "2H^2", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-5x-I", "input": "5I", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-bare-I", "input": "I", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-sq-I", "input": "2I^2", "kind": "single"}
+{"category": "F", "expectation": "QUANTITY", "id": "SWEEP-5x-J", "input": "5J", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-bare-J", "input": "J", "kind": "single"}
+{"category": "F", "expectation": "QUANTITY", "id": "SWEEP-sq-J", "input": "2J^2", "kind": "single"}
+{"category": "F", "expectation": "QUANTITY", "id": "SWEEP-5x-K", "input": "5K", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-bare-K", "input": "K", "kind": "single"}
+{"category": "F", "expectation": "QUANTITY", "id": "SWEEP-sq-K", "input": "2K^2", "kind": "single"}
+{"category": "F", "expectation": "QUANTITY", "id": "SWEEP-5x-L", "input": "5L", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-bare-L", "input": "L", "kind": "single"}
+{"category": "F", "expectation": "QUANTITY", "id": "SWEEP-sq-L", "input": "2L^2", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-5x-M", "input": "5M", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-bare-M", "input": "M", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-sq-M", "input": "2M^2", "kind": "single"}
+{"category": "F", "expectation": "QUANTITY", "id": "SWEEP-5x-N", "input": "5N", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-bare-N", "input": "N", "kind": "single"}
+{"category": "F", "expectation": "QUANTITY", "id": "SWEEP-sq-N", "input": "2N^2", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-5x-O", "input": "5O", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-bare-O", "input": "O", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-sq-O", "input": "2O^2", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-5x-P", "input": "5P", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-bare-P", "input": "P", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-sq-P", "input": "2P^2", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-5x-Q", "input": "5Q", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-bare-Q", "input": "Q", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-sq-Q", "input": "2Q^2", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-5x-R", "input": "5R", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-bare-R", "input": "R", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-sq-R", "input": "2R^2", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-5x-S", "input": "5S", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-bare-S", "input": "S", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-sq-S", "input": "2S^2", "kind": "single"}
+{"category": "F", "expectation": "QUANTITY", "id": "SWEEP-5x-T", "input": "5T", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-bare-T", "input": "T", "kind": "single"}
+{"category": "F", "expectation": "QUANTITY", "id": "SWEEP-sq-T", "input": "2T^2", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-5x-U", "input": "5U", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-bare-U", "input": "U", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-sq-U", "input": "2U^2", "kind": "single"}
+{"category": "F", "expectation": "QUANTITY", "id": "SWEEP-5x-V", "input": "5V", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-bare-V", "input": "V", "kind": "single"}
+{"category": "F", "expectation": "QUANTITY", "id": "SWEEP-sq-V", "input": "2V^2", "kind": "single"}
+{"category": "F", "expectation": "QUANTITY", "id": "SWEEP-5x-W", "input": "5W", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-bare-W", "input": "W", "kind": "single"}
+{"category": "F", "expectation": "QUANTITY", "id": "SWEEP-sq-W", "input": "2W^2", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-5x-X", "input": "5X", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-bare-X", "input": "X", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-sq-X", "input": "2X^2", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-5x-Y", "input": "5Y", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-bare-Y", "input": "Y", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-sq-Y", "input": "2Y^2", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-5x-Z", "input": "5Z", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-bare-Z", "input": "Z", "kind": "single"}
+{"category": "A", "expectation": "SYMBOLIC", "id": "SWEEP-sq-Z", "input": "2Z^2", "kind": "single"}
