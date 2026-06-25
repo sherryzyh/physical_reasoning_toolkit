@@ -28,12 +28,18 @@ def _compare(pred: str, ref: str, *, policy: ComparisonPolicyMode | None = None)
 @pytest.mark.parametrize(
     ("pred", "ref"),
     [
+        # Case 1: the bare token did not parse (descriptive_text).
         ("5 S", "5 siemens"),  # bare uppercase S -> siemens
         ("5 siemens", "5 S"),  # symmetric: terse gold
         ("5 S", "5 seconds"),  # same token, reference = second (case-folded)
         ("5 S", "5 s"),
         ("2 M", "2 mol/L"),  # M -> mol/L
         ("2 M", "2 molar"),
+        ("5 P", "5 poise"),  # new entry: dynamic viscosity
+        ("5 D", "5 debye"),  # new entry: dipole moment
+        # Case 2: both parse as quantities with incompatible dimensions.
+        ("5 s", "5 siemens"),  # "s" parses as second; rescued to siemens
+        ("5.0 s", "5 siemens"),  # numeric precision handled
     ],
 )
 def test_alias_rescues_bare_token(pred: str, ref: str) -> None:
@@ -44,8 +50,29 @@ def test_alias_rescues_bare_token(pred: str, ref: str) -> None:
     assert any(diag.startswith("implicit_unit_alias:") for diag in result.diagnostics)
 
 
-def test_numeric_gate_still_rejects_value_mismatch() -> None:
-    result = _compare("5 S", "3 siemens")
+@pytest.mark.parametrize(
+    ("pred", "ref"),
+    [
+        ("5 S", "3 siemens"),  # Case 1 value mismatch
+        ("5 s", "3 siemens"),  # Case 2 value mismatch
+    ],
+)
+def test_numeric_gate_still_rejects_value_mismatch(pred: str, ref: str) -> None:
+    result = _compare(pred, ref)
+    assert result.equivalent is False
+
+
+@pytest.mark.parametrize(
+    ("pred", "ref"),
+    [
+        ("5 sec", "5 siemens"),  # original surface "sec" is not a siemens alias
+        ("5 siemens", "5 s"),  # asymmetric: the reference's unit is authoritative
+    ],
+)
+def test_same_kind_alias_is_asymmetric_and_uses_original_surface(
+    pred: str, ref: str
+) -> None:
+    result = _compare(pred, ref)
     assert result.equivalent is False
 
 

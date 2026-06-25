@@ -7,9 +7,11 @@ prediction like ``"5 S"`` is compared against a *reference* of ``"5 siemens"``, 
 reference fixes the unit and ``"5 S"`` almost certainly means 5 siemens.
 
 This module supplies the small, curated, **case-insensitive** alias map (keyed by
-the reference's canonical unit) and the helpers the comparison bridge
-(``different_object_kind._compare_implicit_unit_alias``) uses to recover that
-recall at comparison time only. Standalone parsing is never affected.
+each unit's full name, normalized to the gold's canonical form) and the helpers the
+two comparison bridges use to recover that recall at comparison time only --
+``different_object_kind._compare_implicit_unit_alias`` (one side is descriptive
+text) and ``same_object_kind.compare_quantity_implicit_unit_alias`` (both parse as
+quantities with incompatible dimensions). Standalone parsing is never affected.
 """
 
 from __future__ import annotations
@@ -18,17 +20,37 @@ import re
 
 from ..quantities.units import canonicalize_unit_alias
 
-# Curated alias map: reference canonical unit -> bare tokens that may denote it in
-# a prediction. Matching is **case-insensitive** (listing ``"s"`` covers ``"s"``
-# and ``"S"``), and the *reference's* unit selects the target, so a bare ``S``
-# resolves to siemens next to a siemens reference and to second next to a second
-# reference. Opt-in: only units listed here are ever rescued. The owner curates
-# this; pint can bootstrap-suggest a unit's symbols.
+# Curated alias map: reference unit -> bare tokens that may denote it in a
+# prediction. Keys are the unit's **full name** for readability; they are
+# normalized through ``canonicalize_unit_alias`` at import (see
+# ``_NORMALIZED_ALIASES``) so a full-name key matches however the gold parses
+# (e.g. ``"5 seconds"`` parses to unit ``"s"``, and ``"seconds"`` canonicalizes
+# to ``"s"``). Values are matched **case-insensitively** (listing ``"s"`` covers
+# ``"s"`` and ``"S"``), and the *reference's* unit selects the entry, so a bare
+# ``S`` resolves to siemens next to a siemens reference and to second next to a
+# second reference. Opt-in: only units listed here are ever rescued.
+#
+# To extend: add ``"<full unit name>": {<short/symbol surfaces>}``. List only
+# short/symbol forms a prediction might write (including the symbol itself, e.g.
+# ``seconds <- {sec, s}``); never list full words (``"second"`` under
+# ``siemens``) -- they are unambiguous and would wrongly rescue ``"5 second"``
+# against a siemens gold. pint can bootstrap-suggest a unit's symbol
+# (``ureg.get_name``). High-ambiguity letters (``c`` speed-of-light, ``k``
+# Boltzmann/kilo, ``a`` are/annum) are intentionally excluded.
 IMPLICIT_UNIT_ALIASES: dict[str, frozenset[str]] = {
-    "siemens": frozenset({"s"}),  # bare S/s -> siemens (conductance)
-    "s": frozenset({"s"}),  # bare S/s -> second (time); canonical unit token "s"
-    "molar": frozenset({"m"}),  # bare M/m -> molar (concentration)
-    "mol/L": frozenset({"m"}),  # bare M/m -> mol/L (concentration)
+    "seconds": frozenset({"sec", "s"}),  # time: S/s/sec written for seconds
+    "siemens": frozenset({"s"}),  # conductance: bare S/s
+    "molar": frozenset({"m"}),  # concentration (molarity): bare M/m
+    "mol/L": frozenset({"m"}),
+    "poise": frozenset({"p"}),  # dynamic viscosity: bare P/p
+    "debye": frozenset({"d"}),  # dipole moment: bare D/d
+}
+
+# Built once at import, keyed by the canonical form of each full-name key, so a
+# lookup on the gold's parsed unit (also canonicalized) matches.
+_NORMALIZED_ALIASES: dict[str, frozenset[str]] = {
+    canonicalize_unit_alias(key): tokens
+    for key, tokens in IMPLICIT_UNIT_ALIASES.items()
 }
 
 # A single ``<number> <bare-token>`` surface (e.g. ``"5 S"``). The token is a run
@@ -53,16 +75,15 @@ def split_number_and_token(raw_text: str | None) -> tuple[str, str] | None:
 def resolve_alias_unit(token: str, ref_unit: str | None) -> str | None:
     """Return ``ref_unit`` when ``token`` is a case-insensitive alias of it.
 
-    The reference unit is canonicalized to the alias-map key, so ``"siemens"`` and
-    a stored ``"siemens"`` agree. Returns ``None`` when the reference unit is not
-    in the map or the token is not one of its aliases.
+    The reference unit is canonicalized to the (also-canonicalized) alias-map key,
+    so a full-name key such as ``"seconds"`` matches a gold answer that parses to
+    ``"s"``. Returns ``None`` when the reference unit is not in the map or the
+    token is not one of its aliases.
     """
 
     if not ref_unit:
         return None
-    aliases = IMPLICIT_UNIT_ALIASES.get(canonicalize_unit_alias(ref_unit))
-    if aliases is None:
-        aliases = IMPLICIT_UNIT_ALIASES.get(ref_unit)
+    aliases = _NORMALIZED_ALIASES.get(canonicalize_unit_alias(ref_unit))
     if not aliases:
         return None
     folded = token.casefold()
