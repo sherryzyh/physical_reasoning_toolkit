@@ -214,6 +214,12 @@ _J_PAIRS: list[tuple[str, str, str]] = [
     ("5 S", "3 siemens", "NOMATCH"),  # numeric gate
     ("5 X", "5 siemens", "OBSERVE"),  # token not in alias map -> declines
     ("5 c", "5 m/s", "OBSERVE"),  # reference unit not in map -> declines
+    # Phase 5b: same-kind (both parse) + new dictionary entries (poise, debye).
+    ("5 s", "5 siemens", "MATCH"),  # "s" parses as second; rescued to siemens
+    ("5 sec", "5 siemens", "OBSERVE"),  # original surface "sec" -> declines
+    ("5 siemens", "5 s", "OBSERVE"),  # asymmetric: reference unit authoritative
+    ("5 P", "5 poise", "MATCH"),  # new entry: dynamic viscosity
+    ("5 D", "5 debye", "MATCH"),  # new entry: dipole moment
 ]
 
 # Greek-letter controls (all SYMBOLIC).

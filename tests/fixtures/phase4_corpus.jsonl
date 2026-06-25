@@ -123,6 +123,11 @@
 {"category": "J", "expectation": "NOMATCH", "id": "J-P005", "kind": "pair", "pred": "5 S", "ref": "3 siemens"}
 {"category": "J", "expectation": "OBSERVE", "id": "J-P006", "kind": "pair", "pred": "5 X", "ref": "5 siemens"}
 {"category": "J", "expectation": "OBSERVE", "id": "J-P007", "kind": "pair", "pred": "5 c", "ref": "5 m/s"}
+{"category": "J", "expectation": "MATCH", "id": "J-P008", "kind": "pair", "pred": "5 s", "ref": "5 siemens"}
+{"category": "J", "expectation": "OBSERVE", "id": "J-P009", "kind": "pair", "pred": "5 sec", "ref": "5 siemens"}
+{"category": "J", "expectation": "OBSERVE", "id": "J-P010", "kind": "pair", "pred": "5 siemens", "ref": "5 s"}
+{"category": "J", "expectation": "MATCH", "id": "J-P011", "kind": "pair", "pred": "5 P", "ref": "5 poise"}
+{"category": "J", "expectation": "MATCH", "id": "J-P012", "kind": "pair", "pred": "5 D", "ref": "5 debye"}
 {"category": "C", "expectation": "SYMBOLIC", "id": "C-101", "input": "5\\omega", "kind": "single"}
 {"category": "C", "expectation": "SYMBOLIC", "id": "C-102", "input": "5\\theta", "kind": "single"}
 {"category": "C", "expectation": "SYMBOLIC", "id": "C-103", "input": "5\\alpha", "kind": "single"}
