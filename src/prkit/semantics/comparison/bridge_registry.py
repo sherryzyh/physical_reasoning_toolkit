@@ -187,6 +187,13 @@ BRIDGE_REGISTRY: dict[str, BridgeSpec] = {
         description="Reconcile a global sign flip between directional answers that declare "
         "opposite conventions, only when the question fixes none.",
     ),
+    "implicit_unit_alias": BridgeSpec(
+        bridge_id="implicit_unit_alias",
+        tier=BridgeTier.TIER3,
+        predicate=_always,
+        description="Rescue a bare '<number> <token>' answer against a unitful reference when "
+        "the token is a curated case-insensitive alias of the reference's unit.",
+    ),
 }
 
 
@@ -250,6 +257,11 @@ def _bridge_candidate_ids_for_atomic_kinds(
         {AnswerObjectKind.PHYSICAL_QUANTITY, AnswerObjectKind.QUALITATIVE_LABEL},
     ):
         candidates.append("qualitative_zero")
+    if kinds == {
+        AnswerObjectKind.PHYSICAL_QUANTITY,
+        AnswerObjectKind.DESCRIPTIVE_TEXT,
+    }:
+        candidates.append("implicit_unit_alias")
     return tuple(dict.fromkeys(candidates))
 
 

@@ -18,6 +18,7 @@ from .common import (
     preferred_symbolic_compare_text,
     symbolic_coercion_sources,
 )
+from .implicit_unit_alias import resolve_alias_unit, split_number_and_token
 from .numeric import compare_numeric_like_answers, quantity_numeric_magnitude
 from .semantics import (
     canonicalize_choice_label,
@@ -181,7 +182,75 @@ def compare_different_object_kinds(
         ):
             return AnswerComparison(True, "qualitative_zero")
 
+    if kinds == {
+        AnswerObjectKind.PHYSICAL_QUANTITY,
+        AnswerObjectKind.DESCRIPTIVE_TEXT,
+    }:
+        alias = _compare_implicit_unit_alias(pred, ref, context=context)
+        if alias is not None:
+            return alias
+
     return None
+
+
+def _compare_implicit_unit_alias(
+    pred: PhysicsAnswerSemantics,
+    ref: PhysicsAnswerSemantics,
+    *,
+    context: PhysicsQuestionSemantics,
+) -> AnswerComparison | None:
+    """Rescue a bare ``<number> <token>`` answer against the other side's unit.
+
+    One side is a clean physical quantity (the *anchor*, supplying the unit); the
+    other is descriptive text whose raw surface is a single ``<number> <token>``.
+    When the token is a curated, case-insensitive alias of the anchor's unit, the
+    descriptive side is repaired to that unit and compared numerically (reusing
+    the standard quantity criterion, so a value mismatch still fails). Declines
+    (``None``) when the side is not numberish or the token is not a known alias,
+    leaving the verdict to ``object_kind_mismatch``.
+    """
+
+    anchor = pred if pred.object_kind == AnswerObjectKind.PHYSICAL_QUANTITY else ref
+    descriptive = ref if anchor is pred else pred
+
+    parts = split_number_and_token(descriptive.raw_text)
+    if parts is None:
+        return None
+    number_text, token = parts
+
+    resolved_unit_text = resolve_alias_unit(token, anchor.unit)
+    if resolved_unit_text is None:
+        return None
+
+    repaired = PhysicsAnswerSemantics(
+        structure=AnswerStructure.ATOMIC,
+        object_kind=AnswerObjectKind.PHYSICAL_QUANTITY,
+        raw_text=f"{number_text} {resolved_unit_text}",
+        canonical_text=f"{number_text} {resolved_unit_text}",
+        numeric_value=float(number_text),
+        numeric_text=number_text,
+        unit=resolved_unit_text,
+        dimension=anchor.dimension,
+    )
+    repaired_pred = repaired if descriptive is pred else pred
+    repaired_ref = repaired if descriptive is ref else ref
+
+    result = compare_numeric_like_answers(
+        repaired_pred,
+        repaired_ref,
+        context=context,
+        comparison_mode="implicit_unit_alias",
+    )
+    if result is None:
+        return None
+    return result.model_copy(
+        update={
+            "diagnostics": (
+                *result.diagnostics,
+                f"implicit_unit_alias:{token}->{resolved_unit_text}",
+            )
+        }
+    )
 
 
 def _cross_kind_numeric_mode(
