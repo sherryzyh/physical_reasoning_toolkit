@@ -37,7 +37,7 @@ _OUT_JSONL = _REPO / "internal" / "PHASE4_BEHAVIOR_DIFF.jsonl"
 
 # Precision-contract categories first (any diff there is a regression), then the
 # intended-change categories.
-_CATEGORY_ORDER = ["A", "B", "C", "E", "F", "I", "D", "G", "H"]
+_CATEGORY_ORDER = ["A", "B", "C", "E", "F", "I", "D", "G", "H", "J"]
 _PRECISION_CONTRACT = {"A", "B", "C", "E", "F", "I"}
 
 

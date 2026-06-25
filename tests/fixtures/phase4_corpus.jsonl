@@ -116,6 +116,13 @@
 {"category": "I", "expectation": "SYMBOLIC", "id": "I-007", "input": "5 U", "kind": "single"}
 {"category": "I", "expectation": "OBSERVE", "id": "I-P001", "kind": "pair", "pred": "5 S", "ref": "5 siemens"}
 {"category": "I", "expectation": "OBSERVE", "id": "I-P002", "kind": "pair", "pred": "2 M", "ref": "2 mol/L"}
+{"category": "J", "expectation": "MATCH", "id": "J-P001", "kind": "pair", "pred": "5 siemens", "ref": "5 S"}
+{"category": "J", "expectation": "MATCH", "id": "J-P002", "kind": "pair", "pred": "5 S", "ref": "5 seconds"}
+{"category": "J", "expectation": "MATCH", "id": "J-P003", "kind": "pair", "pred": "5 S", "ref": "5 s"}
+{"category": "J", "expectation": "MATCH", "id": "J-P004", "kind": "pair", "pred": "2 M", "ref": "2 molar"}
+{"category": "J", "expectation": "NOMATCH", "id": "J-P005", "kind": "pair", "pred": "5 S", "ref": "3 siemens"}
+{"category": "J", "expectation": "OBSERVE", "id": "J-P006", "kind": "pair", "pred": "5 X", "ref": "5 siemens"}
+{"category": "J", "expectation": "OBSERVE", "id": "J-P007", "kind": "pair", "pred": "5 c", "ref": "5 m/s"}
 {"category": "C", "expectation": "SYMBOLIC", "id": "C-101", "input": "5\\omega", "kind": "single"}
 {"category": "C", "expectation": "SYMBOLIC", "id": "C-102", "input": "5\\theta", "kind": "single"}
 {"category": "C", "expectation": "SYMBOLIC", "id": "C-103", "input": "5\\alpha", "kind": "single"}

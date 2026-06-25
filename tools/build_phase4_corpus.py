@@ -203,6 +203,19 @@ _I_SINGLES: list[tuple[str, str]] = [
 ]
 _I_PAIRS: list[tuple[str, str]] = [("5 S", "5 siemens"), ("2 M", "2 mol/L")]
 
+# J: implicit unit-alias pairs (Phase 5). MATCH/NOMATCH are the intended bridge
+# gains; OBSERVE rows are decline cases. These are *not* precision-contract rows --
+# the bridge flips former object_kind_mismatch verdicts, recorded for owner review.
+_J_PAIRS: list[tuple[str, str, str]] = [
+    ("5 siemens", "5 S", "MATCH"),  # symmetric: terse gold
+    ("5 S", "5 seconds", "MATCH"),  # same token, reference = second
+    ("5 S", "5 s", "MATCH"),
+    ("2 M", "2 molar", "MATCH"),
+    ("5 S", "3 siemens", "NOMATCH"),  # numeric gate
+    ("5 X", "5 siemens", "OBSERVE"),  # token not in alias map -> declines
+    ("5 c", "5 m/s", "OBSERVE"),  # reference unit not in map -> declines
+]
+
 # Greek-letter controls (all SYMBOLIC).
 _GREEK: list[str] = ["5\\omega", "5\\theta", "5\\alpha", "5\\beta", "5\\gamma"]
 
@@ -257,6 +270,8 @@ def _build_rows() -> list[dict[str, object]]:
         add_single("I", i, text, _single_letter_expectation(letter))
     for i, (pred, ref) in enumerate(_I_PAIRS, 1):
         add_pair("I", i, pred, ref, "OBSERVE")
+    for i, (pred, ref, exp) in enumerate(_J_PAIRS, 1):
+        add_pair("J", i, pred, ref, exp)
     for i, text in enumerate(_GREEK, 1):
         add_single("C", 100 + i, text, "SYMBOLIC")
 
