@@ -80,7 +80,14 @@ def test_parse_denylist_matches_installed_pint() -> None:
     key (only ``"L"`` is) even though it aliases to liter.
     """
 
-    rev = {"rpm", "rps", "revolution", "cycle", "turn"}
+    # Gate the revolution family on installed pint too, so a pint that drops one
+    # fails the assertion loudly rather than passing vacuously against itself.
+    rev = frozenset(
+        u
+        for u in ("rpm", "rps", "revolution", "cycle", "turn")
+        if _pint_backend.is_recognized_unit(u) and u not in UNIT_TO_BASE
+    )
+    assert rev == {"rpm", "rps", "revolution", "cycle", "turn"}
     derived = frozenset(
         {
             ch
@@ -93,3 +100,33 @@ def test_parse_denylist_matches_installed_pint() -> None:
     assert _pint_backend.PARSE_DENYLIST == frozenset(
         set("abcdekltu") | set("BDMPRSU") | rev
     )
+
+
+def test_dimensionality_gate_rejects_pint_recognized_non_physics() -> None:
+    """Multi-character non-physics tokens are rejected by the dimensionality gate.
+
+    The denylist contract only pins single ASCII letters; this pins the *category*
+    gate that keeps pint-recognized-but-non-physics tokens (constants, counting /
+    ratio, printing, CGS-Gaussian electromagnetic) out of quantity parsing. Each is
+    asserted to still be pint-recognized so a pint vocabulary change that
+    reclassifies it fails loudly here rather than silently widening parsing.
+    """
+
+    non_physics = [
+        "pi",
+        "count",
+        "bit",
+        "byte",
+        "dot",
+        "pixel",
+        "maxwell",
+        "oersted",
+        "statC",
+    ]
+    for token in non_physics:
+        assert _pint_backend.is_recognized_unit(
+            token
+        ), f"{token!r} expected pint-recognized (contract premise)"
+        assert not _pint_backend.is_recognized_unit_for_parse(
+            token
+        ), f"{token!r} should be rejected by the dimensionality gate"

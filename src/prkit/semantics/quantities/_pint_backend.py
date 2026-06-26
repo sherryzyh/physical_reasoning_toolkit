@@ -46,8 +46,17 @@ _PRKIT_TO_PINT: dict[str, str] = {
     # is 133.322387 Pa and would diverge, so route both to pint ``torr``.
     "mmHg": "torr",
     "torr": "torr",
-    # SI-convention gauss, see registry definition above.
+    # SI-convention gauss, see registry definition above. ``G`` and the full word
+    # ``gauss`` both resolve to the SI-dimensioned ``prkit_gauss`` so they convert
+    # against tesla; pint's native CGS-Gaussian ``gauss`` would otherwise be
+    # rejected by the fractional-dimension parse gate. (``Gs``/``Mx``/``Oe`` and
+    # the electrostatic ``stat*`` family stay on pint, where the parse gate keeps
+    # their CGS-Gaussian fractional dimensions out of quantity parsing.)
     "G": "prkit_gauss",
+    "gauss": "prkit_gauss",
+    # Physics answers write ``ton`` for the metric tonne (1000 kg); pint's bare
+    # ``ton`` is the US short ton (907 kg). Pin it to the SI convention.
+    "ton": "metric_ton",
 }
 
 # Matches a micro-prefix ``u`` that leads a unit-letter run (``um`` -> ``µm``,
@@ -182,6 +191,16 @@ _warm_known_vocabulary()
 # equivalent set from the installed pint + ``UNIT_TO_BASE`` (literal membership)
 # and asserts equality, so a pint upgrade that shifts single-letter recognition
 # fails loudly in CI rather than silently changing parse behavior.
+#
+# The denylist covers *dimensioned* ambiguous tokens (``S`` siemens, ``M`` molar,
+# ``P`` poise, ...) that the dimensionality gate below cannot catch. Non-physical
+# tokens -- pint constants/counting/ratio units (``pi``, ``count``, ``bit``,
+# ``byte``, ``percent``-like ratios), printing/information units (``dot``,
+# ``pixel``), and CGS-Gaussian fractional-dimension units (``gauss``, ``maxwell``,
+# ``oersted``, ``stat*``) -- are rejected by category, not enumerated here.
+# Note: ``l`` is inert at runtime -- ``canonicalize_unit_alias('l') -> 'L'`` hits
+# the ``UNIT_TO_BASE`` fast path before the gate sees it -- and is kept only for
+# defense-in-depth and the literal-membership symmetry the contract test asserts.
 PARSE_DENYLIST: frozenset[str] = frozenset(
     {
         # lowercase single letters
@@ -212,12 +231,54 @@ PARSE_DENYLIST: frozenset[str] = frozenset(
 )
 
 
+# Legitimate dimensionless quantities that the dimensionality gate would otherwise
+# reject -- kept recognized for parsing. Both the ``%`` symbol surface and the
+# ``percent`` word reach the gate (alias canonicalization preserves ``%``). Angles
+# (``rad``/``deg``/``mrad``) need not be listed; they reach the ``UNIT_TO_BASE``
+# fast path.
+_PARSE_ALLOWLIST: frozenset[str] = frozenset({"percent", "%"})
+
+# pint base dimensions that are not physical quantities prkit should grade
+# (``dot``/``pixel`` -> ``[printing_unit]``). Information units (``bit``/``byte``)
+# are pint-dimensionless and handled by the dimensionless check.
+_EXCLUDED_PARSE_DIMENSIONS: frozenset[str] = frozenset(
+    {"[printing_unit]", "[information]"}
+)
+
+
+def _is_acceptable_parse_dimensionality(dimensionality: object) -> bool:
+    """Return whether a pint dimensionality is a genuine physical quantity to parse.
+
+    Rejects (a) dimensionless tokens -- pint constants/counting/ratio units such as
+    ``pi``, ``count``, ``bit``, ``byte``; (b) non-physical base dimensions such as
+    ``[printing_unit]`` (``dot``/``pixel``); and (c) any fractional dimension
+    exponent -- the CGS-Gaussian signature (``gauss``/``maxwell``/``oersted``/
+    ``stat*``) whose half-integer powers are dimensionally incompatible with SI.
+    """
+
+    items = getattr(dimensionality, "items", None)
+    if items is None:
+        return False
+    entries = list(items())
+    if not entries:  # dimensionless
+        return False
+    for base, exponent in entries:
+        if base in _EXCLUDED_PARSE_DIMENSIONS:
+            return False
+        if float(exponent) != int(float(exponent)):
+            return False
+    return True
+
+
 def is_recognized_unit_for_parse(token: str | None) -> bool:
     """Guarded-full recognition gate deciding whether ``token`` may parse as a unit.
 
-    A token is accepted iff it is a known prkit unit (``UNIT_TO_BASE``) or pint
-    recognizes it *and* it is not denylisted. Inputs are normalized prkit tokens
-    (the output of ``normalize_unit_text`` / ``canonicalize_unit_alias``).
+    A token is accepted iff it is a known prkit unit (``UNIT_TO_BASE``) or an
+    explicitly allowlisted dimensionless unit, and is neither denylisted (a
+    dimensioned ambiguous letter) nor rejected by the dimensionality gate (pint
+    dimensionless / non-physical / CGS-Gaussian fractional dimensions). Inputs are
+    normalized prkit tokens (the output of ``normalize_unit_text`` /
+    ``canonicalize_unit_alias``).
 
     The ``UNIT_TO_BASE`` fast path means callers that have already cleared known
     units never reach pint; this keeps the light ``prkit.verify`` path off pint
@@ -228,9 +289,18 @@ def is_recognized_unit_for_parse(token: str | None) -> bool:
         return False
     from .units import UNIT_TO_BASE
 
-    if token in UNIT_TO_BASE:
+    if token in UNIT_TO_BASE or token in _PARSE_ALLOWLIST:
         return True
-    return is_recognized_unit(token) and token not in PARSE_DENYLIST
+    if token in PARSE_DENYLIST:
+        return False
+    pint_token = _prkit_token_to_pint(token)
+    if pint_token is None:
+        return False
+    try:
+        dimensionality = _UREG.Unit(pint_token).dimensionality
+    except Exception:
+        return False
+    return _is_acceptable_parse_dimensionality(dimensionality)
 
 
 __all__ = [

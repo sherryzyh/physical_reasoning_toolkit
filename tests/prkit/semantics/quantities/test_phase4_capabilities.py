@@ -157,11 +157,53 @@ def test_widened_unit_compares_against_si() -> None:
     assert result.equivalent is True
 
 
+def test_si_aliased_gauss_and_metric_ton_convert() -> None:
+    # gauss is CGS-Gaussian in pint; prkit pins ``gauss``/``G`` to the SI gauss so
+    # 10000 G = 1 T. ``ton`` is pinned to the metric tonne (1000 kg).
+    gauss = compare_protocol_answers(
+        _quantity_answer(
+            numeric_value=10000.0, unit="gauss", dimension="magnetic_flux_density"
+        ),
+        _quantity_answer(
+            numeric_value=1.0, unit="T", dimension="magnetic_flux_density"
+        ),
+    )
+    assert gauss.equivalent is True
+    ton = compare_protocol_answers(
+        _quantity_answer(numeric_value=1.0, unit="ton", dimension="mass"),
+        _quantity_answer(numeric_value=1000.0, unit="kg", dimension="mass"),
+    )
+    assert ton.equivalent is True
+
+
 # --- CHANGE 1: the guard still rejects ambiguous tokens (sanity) ---
 
 
 @pytest.mark.parametrize("surface", ["5 c", "5 rpm", "2 M", "5 S", "3 u"])
 def test_guard_keeps_ambiguous_tokens_symbolic(surface: str) -> None:
+    assert _try_parse_physical_quantity(surface) is None
+
+
+@pytest.mark.parametrize(
+    "surface",
+    [
+        # pint-dimensionless constants / counting / ratio units.
+        "5 pi",
+        "5 count",
+        "1 bit",
+        "1 byte",
+        # non-physical printing-unit dimension.
+        "5 dot",
+        "2 pixel",
+        # CGS-Gaussian fractional-dimension electromagnetic units.
+        "5 maxwell",
+        "5 oersted",
+        "5 statC",
+    ],
+)
+def test_dimensionality_gate_rejects_non_physics_tokens(surface: str) -> None:
+    # pint recognizes all of these, but they are not physical quantities prkit
+    # should grade; the dimensionality gate keeps them out of quantity parsing.
     assert _try_parse_physical_quantity(surface) is None
 
 
