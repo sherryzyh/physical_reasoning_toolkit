@@ -37,10 +37,7 @@ from .contract import (
 )
 from .different_object_kind import compare_different_object_kinds
 from .label_family_fallback import compare_label_family_fallback
-from .same_object_kind import (
-    compare_quantity_implicit_unit_alias,
-    compare_same_object_kind,
-)
+from .same_object_kind import compare_same_object_kind
 from .semantics import (
     canonicalize_qualitative_label,
     normalize_plain_text,
@@ -502,18 +499,6 @@ def _compare_atomic(
         strict = compare_same_object_kind(pred, ref, context=context)
         if strict.equivalent:
             return strict
-        if pred.object_kind == AnswerObjectKind.PHYSICAL_QUANTITY:
-            unit_alias = compare_quantity_implicit_unit_alias(
-                pred, ref, context=context
-            )
-            if unit_alias is not None:
-                return _apply_bridge_policy(
-                    unit_alias,
-                    pred=pred,
-                    ref=ref,
-                    contract=contract,
-                    policy_mode=policy_mode,
-                )
         fallback = compare_label_family_fallback(pred, ref, context=context)
         if fallback is not None:
             return _apply_bridge_policy(

@@ -16,8 +16,7 @@ from .common import (
     preferred_symbolic_compare_text,
     symbolic_coercion_sources,
 )
-from .implicit_unit_alias import resolve_alias_unit, split_number_and_token
-from .numeric import compare_numeric_like_answers, extract_numeric_comparable_answer
+from .numeric import compare_numeric_like_answers
 from .semantics import (
     build_symbol_assumption_map,
     canonicalize_boolean_value,
@@ -27,7 +26,6 @@ from .semantics import (
     canonicalize_sign_direction,
     equality_like_rhs_expression_text,
     expressions_equivalent,
-    numbers_match_with_reference_precision,
     qualitative_label_candidates,
     relation_compare_candidates,
     relations_equivalent,
@@ -336,59 +334,6 @@ def _compare_quantities(
             False, "physical_quantity", ("unparsable_quantity_value",)
         )
     return numeric
-
-
-def compare_quantity_implicit_unit_alias(
-    pred: PhysicsAnswerSemantics,
-    ref: PhysicsAnswerSemantics,
-    *,
-    context: PhysicsQuestionSemantics,
-) -> AnswerComparison | None:
-    """Rescue a quantity whose unit dimensionally mismatches the reference's.
-
-    Asymmetric and reference-authoritative: when the numeric coefficients agree,
-    the prediction's *original* unit surface (read from ``raw_text``, not the
-    parsed unit) is looked up in the curated alias map keyed by the reference's
-    unit. On a hit the answers are equivalent. Used only after the strict
-    quantity comparison fails (incompatible units); the reference's confidently
-    parsed unit is never reinterpreted. Returns ``None`` to decline.
-    """
-
-    pred_numeric = extract_numeric_comparable_answer(pred, context=context)
-    ref_numeric = extract_numeric_comparable_answer(ref, context=context)
-    if pred_numeric is None or ref_numeric is None:
-        return None
-    if (
-        pred_numeric.symbolic_factor_text != "1"
-        or ref_numeric.symbolic_factor_text != "1"
-    ):
-        return None
-    if not numbers_match_with_reference_precision(
-        pred_value=pred_numeric.coefficient_value,
-        pred_text=pred_numeric.coefficient_text,
-        ref_value=ref_numeric.coefficient_value,
-        ref_text=ref_numeric.coefficient_text,
-        tolerance=context.tolerance,
-        allow_decimal_place_fallback=(
-            pred_numeric.allow_decimal_place_fallback
-            and ref_numeric.allow_decimal_place_fallback
-        ),
-    ):
-        return None
-
-    parts = split_number_and_token(pred.raw_text)
-    if parts is None:
-        return None
-    _number_text, pred_token = parts
-
-    resolved = resolve_alias_unit(pred_token, ref.unit)
-    if resolved is None:
-        return None
-    return AnswerComparison(
-        True,
-        "implicit_unit_alias",
-        (f"implicit_unit_alias:{pred_token}->{resolved}",),
-    )
 
 
 def _qualitative_labels_equivalent(left_text: str, right_text: str) -> bool:

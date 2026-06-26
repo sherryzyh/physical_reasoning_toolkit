@@ -182,9 +182,14 @@ def compare_different_object_kinds(
         ):
             return AnswerComparison(True, "qualitative_zero")
 
-    if kinds == {
-        AnswerObjectKind.PHYSICAL_QUANTITY,
+    # Reference-authoritative implicit-unit-alias rescue: only when the *reference*
+    # is a clean physical quantity and the *prediction* did not parse as one (a bare
+    # ambiguous token, possibly signed/wrapped -> descriptive_text or expression).
+    # The reverse (a clean-quantity prediction against a bare-token gold) is never
+    # rescued, so the gold's confidently parsed unit is never reinterpreted.
+    if ref.object_kind == AnswerObjectKind.PHYSICAL_QUANTITY and pred.object_kind in {
         AnswerObjectKind.DESCRIPTIVE_TEXT,
+        AnswerObjectKind.EXPRESSION,
     }:
         alias = _compare_implicit_unit_alias(pred, ref, context=context)
         if alias is not None:
@@ -199,27 +204,29 @@ def _compare_implicit_unit_alias(
     *,
     context: PhysicsQuestionSemantics,
 ) -> AnswerComparison | None:
-    """Rescue a bare ``<number> <token>`` answer against the other side's unit.
+    """Rescue a bare ``<number> <token>`` prediction against the reference's unit.
 
-    One side is a clean physical quantity (the *anchor*, supplying the unit); the
-    other is descriptive text whose raw surface is a single ``<number> <token>``.
-    When the token is a curated, case-insensitive alias of the anchor's unit, the
-    descriptive side is repaired to that unit and compared numerically (reusing
-    the standard quantity criterion, so a value mismatch still fails). Declines
-    (``None``) when the side is not numberish or the token is not a known alias,
-    leaving the verdict to ``object_kind_mismatch``.
+    The reference is the clean physical quantity (authoritative, supplying the
+    unit); the prediction is a bare ``<number> <token>`` surface that did not parse
+    as a quantity. When the token is a curated, case-insensitive alias of the
+    reference's unit, the prediction is repaired to that unit and compared
+    numerically (reusing the standard quantity criterion, so a value mismatch still
+    fails). Declines (``None``) when the prediction is not a bare numberish token or
+    the token is not a known alias, leaving the verdict to ``object_kind_mismatch``.
     """
 
-    anchor = pred if pred.object_kind == AnswerObjectKind.PHYSICAL_QUANTITY else ref
-    descriptive = ref if anchor is pred else pred
-
-    parts = split_number_and_token(descriptive.raw_text)
+    parts = split_number_and_token(pred.raw_text)
     if parts is None:
         return None
     number_text, token = parts
 
-    resolved_unit_text = resolve_alias_unit(token, anchor.unit)
+    resolved_unit_text = resolve_alias_unit(token, ref.unit)
     if resolved_unit_text is None:
+        return None
+
+    try:
+        numeric_value = float(number_text)
+    except ValueError:
         return None
 
     repaired = PhysicsAnswerSemantics(
@@ -227,17 +234,15 @@ def _compare_implicit_unit_alias(
         object_kind=AnswerObjectKind.PHYSICAL_QUANTITY,
         raw_text=f"{number_text} {resolved_unit_text}",
         canonical_text=f"{number_text} {resolved_unit_text}",
-        numeric_value=float(number_text),
+        numeric_value=numeric_value,
         numeric_text=number_text,
         unit=resolved_unit_text,
-        dimension=anchor.dimension,
+        dimension=ref.dimension,
     )
-    repaired_pred = repaired if descriptive is pred else pred
-    repaired_ref = repaired if descriptive is ref else ref
 
     result = compare_numeric_like_answers(
-        repaired_pred,
-        repaired_ref,
+        repaired,
+        ref,
         context=context,
         comparison_mode="implicit_unit_alias",
     )

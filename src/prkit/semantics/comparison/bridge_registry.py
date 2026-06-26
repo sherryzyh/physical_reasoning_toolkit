@@ -257,10 +257,10 @@ def _bridge_candidate_ids_for_atomic_kinds(
         {AnswerObjectKind.PHYSICAL_QUANTITY, AnswerObjectKind.QUALITATIVE_LABEL},
     ):
         candidates.append("qualitative_zero")
-    if kinds == {
-        AnswerObjectKind.PHYSICAL_QUANTITY,
-        AnswerObjectKind.DESCRIPTIVE_TEXT,
-    }:
+    if kinds in (
+        {AnswerObjectKind.PHYSICAL_QUANTITY, AnswerObjectKind.DESCRIPTIVE_TEXT},
+        {AnswerObjectKind.PHYSICAL_QUANTITY, AnswerObjectKind.EXPRESSION},
+    ):
         candidates.append("implicit_unit_alias")
     return tuple(dict.fromkeys(candidates))
 

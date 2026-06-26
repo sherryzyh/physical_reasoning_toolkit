@@ -1,9 +1,12 @@
-"""Phase-5 implicit-unit-alias bridge: reference-conditioned recall of bare tokens.
+"""Implicit-unit-alias bridge: reference-authoritative recall of bare tokens.
 
-A denylisted bare token (``"5 S"``) stays ``descriptive_text`` in isolation, but when
-compared against a unitful reference (``"5 siemens"``) the reference fixes the unit and
-the answers should reconcile -- through the curated, case-insensitive alias map, at
-comparison time only. Standalone parsing (the Phase-4 precision contract) is untouched.
+A denylisted bare token (``"5 S"``) stays ``descriptive_text`` in isolation, but
+when compared against a unitful *reference* (``"5 siemens"``) the reference fixes
+the unit and the prediction is reconciled through the curated, case-insensitive
+alias map -- at comparison time only. The bridge is strictly directional: it only
+ever repairs the *prediction* (the side that did not parse as a quantity), never
+the reference, and never a prediction that already parsed as a clean quantity.
+Standalone parsing (the Phase-4 precision contract) is untouched.
 """
 
 from __future__ import annotations
@@ -28,21 +31,18 @@ def _compare(pred: str, ref: str, *, policy: ComparisonPolicyMode | None = None)
 @pytest.mark.parametrize(
     ("pred", "ref"),
     [
-        # Case 1: the bare token did not parse (descriptive_text).
+        # Prediction is a bare, denylisted token (descriptive_text); reference is a
+        # clean quantity that fixes the unit case-insensitively.
         ("5 S", "5 siemens"),  # bare uppercase S -> siemens
-        ("5 siemens", "5 S"),  # symmetric: terse gold
         ("5 S", "5 seconds"),  # same token, reference = second (case-folded)
-        ("5 S", "5 s"),
+        ("5 S", "5 s"),  # reference parsed to symbol "s" (second)
         ("2 M", "2 mol/L"),  # M -> mol/L
-        ("2 M", "2 molar"),
-        ("5 P", "5 poise"),  # new entry: dynamic viscosity
-        ("5 D", "5 debye"),  # new entry: dipole moment
-        # Case 2: both parse as quantities with incompatible dimensions.
-        ("5 s", "5 siemens"),  # "s" parses as second; rescued to siemens
-        ("5.0 s", "5 siemens"),  # numeric precision handled
+        ("2 M", "2 molar"),  # M -> molar
+        ("5 P", "5 poise"),  # dynamic viscosity
+        ("5 D", "5 debye"),  # dipole moment
     ],
 )
-def test_alias_rescues_bare_token(pred: str, ref: str) -> None:
+def test_alias_rescues_bare_token_prediction(pred: str, ref: str) -> None:
     result = _compare(pred, ref)
     assert result.equivalent is True
     assert result.comparison_mode == "implicit_unit_alias"
@@ -50,30 +50,43 @@ def test_alias_rescues_bare_token(pred: str, ref: str) -> None:
     assert any(diag.startswith("implicit_unit_alias:") for diag in result.diagnostics)
 
 
-@pytest.mark.parametrize(
-    ("pred", "ref"),
-    [
-        ("5 S", "3 siemens"),  # Case 1 value mismatch
-        ("5 s", "3 siemens"),  # Case 2 value mismatch
-    ],
-)
-def test_numeric_gate_still_rejects_value_mismatch(pred: str, ref: str) -> None:
-    result = _compare(pred, ref)
+def test_value_mismatch_still_fails() -> None:
+    # The numeric coefficient must still match at reference precision.
+    result = _compare("5 S", "3 siemens")
     assert result.equivalent is False
 
 
 @pytest.mark.parametrize(
     ("pred", "ref"),
     [
-        ("5 sec", "5 siemens"),  # original surface "sec" is not a siemens alias
-        ("5 siemens", "5 s"),  # asymmetric: the reference's unit is authoritative
+        ("5 m", "5 molar"),  # 5 metres (a real length) is NOT 5 molar
+        ("5 m", "5 mol/L"),
+        ("5 s", "5 siemens"),  # 5 seconds (a real time) is NOT 5 siemens
+        ("5 sec", "5 siemens"),  # "sec" canonicalizes to second -> a real quantity
     ],
 )
-def test_same_kind_alias_is_asymmetric_and_uses_original_surface(
-    pred: str, ref: str
-) -> None:
+def test_clean_quantity_prediction_is_not_reinterpreted(pred: str, ref: str) -> None:
+    # A prediction that already parses as a genuine (dimensionally distinct)
+    # quantity is never rescued -- this is the precision boundary.
     result = _compare(pred, ref)
     assert result.equivalent is False
+    assert result.comparison_mode != "implicit_unit_alias"
+
+
+@pytest.mark.parametrize(
+    ("pred", "ref"),
+    [
+        ("5 siemens", "5 S"),  # bare gold token -> never reinterpreted
+        ("5 debye", "5 d"),
+        ("5 molar", "5 m"),
+    ],
+)
+def test_bare_reference_token_is_not_reinterpreted(pred: str, ref: str) -> None:
+    # Reference-authoritative: the bridge only repairs the prediction, so a clean
+    # quantity prediction against a bare-token gold is left to the kind mismatch.
+    result = _compare(pred, ref)
+    assert result.equivalent is False
+    assert result.comparison_mode != "implicit_unit_alias"
 
 
 @pytest.mark.parametrize(
