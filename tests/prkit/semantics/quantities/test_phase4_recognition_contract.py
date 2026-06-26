@@ -10,6 +10,7 @@ asserted here.
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import string
 from pathlib import Path
@@ -21,6 +22,7 @@ from prkit.semantics.quantities.surface import _try_parse_physical_quantity
 from prkit.semantics.quantities.units import UNIT_TO_BASE
 
 _FIXTURE = Path(__file__).resolve().parents[3] / "fixtures" / "phase4_corpus.jsonl"
+_GENERATOR = Path(__file__).resolve().parents[4] / "tools" / "build_phase4_corpus.py"
 _PRECISION_CONTRACT = frozenset({"A", "B", "C", "E", "F", "I"})
 
 
@@ -43,6 +45,20 @@ def test_corpus_fixture_shape() -> None:
     assert len(_ROWS) >= 250
     assert _PRECISION_CONTRACT <= {row["category"] for row in _ROWS}
     assert _CONTRACT_SINGLES, "no precision-contract single rows loaded"
+
+
+def test_corpus_fixture_matches_generator() -> None:
+    """The committed fixture must equal its generator output (no hand-edit drift)."""
+
+    spec = importlib.util.spec_from_file_location("build_phase4_corpus", _GENERATOR)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    expected = module._serialize(module._build_rows())
+    assert _FIXTURE.read_text(encoding="utf-8") == expected, (
+        "phase4_corpus.jsonl is out of sync with tools/build_phase4_corpus.py; "
+        "regenerate with `python tools/build_phase4_corpus.py`"
+    )
 
 
 @pytest.mark.parametrize(

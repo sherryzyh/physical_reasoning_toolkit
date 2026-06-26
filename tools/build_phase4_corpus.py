@@ -26,8 +26,10 @@ Run from the repo root:  ``.venv/bin/python tools/build_phase4_corpus.py``
 
 from __future__ import annotations
 
+import argparse
 import json
 import string
+import sys
 from pathlib import Path
 
 from prkit.semantics.quantities.units import UNIT_TO_BASE, normalize_unit_text
@@ -307,14 +309,39 @@ def _build_rows() -> list[dict[str, object]]:
     return rows
 
 
-def main() -> None:
-    rows = _build_rows()
+def _serialize(rows: list[dict[str, object]]) -> str:
+    return "".join(
+        json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n" for row in rows
+    )
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="verify the committed fixture matches the generator; exit 1 on drift",
+    )
+    args = parser.parse_args()
+
+    rendered = _serialize(_build_rows())
+    if args.check:
+        current = _FIXTURE.read_text(encoding="utf-8") if _FIXTURE.exists() else ""
+        if current != rendered:
+            print(
+                f"phase4 corpus fixture is stale -- run `python {Path(__file__).name}`"
+                " to regenerate",
+                file=sys.stderr,
+            )
+            return 1
+        print(f"phase4 corpus fixture is up to date ({_FIXTURE})")
+        return 0
+
     _FIXTURE.parent.mkdir(parents=True, exist_ok=True)
-    with _FIXTURE.open("w", encoding="utf-8") as handle:
-        for row in rows:
-            handle.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n")
-    print(f"wrote {len(rows)} rows -> {_FIXTURE}")
+    _FIXTURE.write_text(rendered, encoding="utf-8")
+    print(f"wrote {rendered.count(chr(10))} rows -> {_FIXTURE}")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

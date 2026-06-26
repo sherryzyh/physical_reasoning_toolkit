@@ -155,8 +155,40 @@ def warm(tokens: Iterable[str | None]) -> None:
             continue
 
 
+# Common pint-recognized units *outside* ``UNIT_TO_BASE`` that the widened parse
+# gate accepts. Pre-warmed alongside the known vocabulary so the shared parse cache
+# is primed for them too, before any concurrent worker first touches a widened unit
+# (which would otherwise mutate the undocumented-thread-safe cache on the hot path).
+_WIDENED_WARMUP: tuple[str, ...] = (
+    # imperial / US length and speed
+    "ft",
+    "in",
+    "mi",
+    "yd",
+    "mil",
+    "mph",
+    "knot",
+    # force
+    "daN",
+    "cN",
+    "lbf",
+    # volume / prefixed SI not in the table
+    "dL",
+    "cL",
+    "pW",
+    "Mg",
+    "nN",
+    "uPa",
+    # temperature scales and pinned-convention units
+    "degC",
+    "degF",
+    "gauss",
+    "ton",
+)
+
+
 def _warm_known_vocabulary() -> None:
-    """Warm the registry over prkit's known unit vocabulary (best-effort).
+    """Warm the registry over prkit's known + widened unit vocabulary (best-effort).
 
     Runs in this module's body, which Python's import lock executes exactly once
     before any worker can race on the (undocumented-thread-safety) parse cache.
@@ -171,6 +203,7 @@ def _warm_known_vocabulary() -> None:
     except Exception:
         return
     warm(normalize_unit_text(token) for token in UNIT_TO_BASE)
+    warm(_WIDENED_WARMUP)
 
 
 _warm_known_vocabulary()

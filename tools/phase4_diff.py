@@ -30,7 +30,6 @@ import tempfile
 from pathlib import Path
 
 _REPO = Path(__file__).resolve().parents[1]
-_DEFAULT_PRE = "69a2303"
 _CORPUS = _REPO / "tests" / "fixtures" / "phase4_corpus.jsonl"
 _OUT_MD = _REPO / "internal" / "PHASE4_BEHAVIOR_DIFF.md"
 _OUT_JSONL = _REPO / "internal" / "PHASE4_BEHAVIOR_DIFF.jsonl"
@@ -293,13 +292,35 @@ def _write_artifacts(
             handle.write(json.dumps(d, ensure_ascii=False, sort_keys=True) + "\n")
 
 
+def _default_pre_commit() -> str:
+    """Resolve the PRE baseline to this branch's point off ``main``.
+
+    Using the ``git merge-base`` keeps the default stable as history advances,
+    rather than rotting against a hardcoded SHA.
+    """
+
+    result = subprocess.run(
+        ["git", "merge-base", "HEAD", "main"],
+        cwd=_REPO,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return result.stdout.strip()
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--capture", action="store_true", help="internal capture mode")
     parser.add_argument("--corpus", type=Path, default=_CORPUS)
     parser.add_argument("--out", type=Path)
     parser.add_argument("--expect-root", type=str, default=None)
-    parser.add_argument("--pre", type=str, default=_DEFAULT_PRE)
+    parser.add_argument(
+        "--pre",
+        type=str,
+        default=None,
+        help="PRE commit (default: git merge-base HEAD main)",
+    )
     args = parser.parse_args()
 
     if args.capture:
@@ -307,7 +328,7 @@ def main() -> int:
             parser.error("--capture requires --out")
         _capture(args.corpus, args.out, args.expect_root)
         return 0
-    return _orchestrate(args.pre)
+    return _orchestrate(args.pre or _default_pre_commit())
 
 
 if __name__ == "__main__":
