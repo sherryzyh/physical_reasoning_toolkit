@@ -332,6 +332,28 @@ _RELATION_WRAPPED_TARGET_RE = re.compile(
 )
 
 
+# Degree-Celsius/Fahrenheit, in any of the LaTeX/Unicode degree surfaces, collapsed
+# to ``degC``/``degF`` BEFORE the bare-angle ``^\circ -> deg`` rewrite so the scale
+# letter stays attached (otherwise ``20^\circ C`` becomes ``C*deg`` = coulomb*degree).
+# The degree mark covers ``^\circ`` / ``^{\circ}`` / ``{}^\circ`` / bare ``°``; the gap
+# absorbs LaTeX spacing macros; the scale letter may be bare, brace-wrapped, or inside
+# ``\mathrm{}``/``\text{}``; case-insensitive on C/F (``°c`` -> ``degC``).
+_DEGREE_TEMP_RE = re.compile(
+    r"(?:\{\s*\}\s*)?\^?\s*\{?\s*(?:\\circ|°)\s*\}?"  # degree mark
+    r"(?:\s|~|\\[,;:!]|\\ |\\q?quad)*"  # LaTeX spacing gap
+    r"(?:"
+    r"\\(?:mathrm|textrm|text|operatorname)\s*\{\s*([CcFf])\s*\}"  # \mathrm{C}
+    r"|\{\s*([CcFf])\s*\}"  # {C}
+    r"|([CcFf])"  # bare C
+    r")(?![A-Za-z])"
+)
+
+
+def _degree_temperature_repl(match: re.Match[str]) -> str:
+    letter = (match.group(1) or match.group(2) or match.group(3) or "").upper()
+    return f"deg{letter}"
+
+
 def _canonicalize_quantity_unit_text(
     text: str,
     *,
@@ -351,9 +373,18 @@ def _canonicalize_quantity_unit_text(
     normalized = re.sub(r"\\Omega\b", ohm_surface, normalized)
     normalized = re.sub(r"\\ohm\b", ohm_surface, normalized)
     normalized = normalized.replace("Ω", ohm_surface)
+    normalized = _DEGREE_TEMP_RE.sub(_degree_temperature_repl, normalized)
     normalized = re.sub(r"\^\s*\\circ\b", " deg", normalized)
     normalized = re.sub(r"\^\s*\{\\circ\}", " deg", normalized)
     normalized = re.sub(r"\\circ\b", " deg", normalized)
+    # Catch-all: an already-resolved ``deg`` immediately preceding a bare ``C``/``F``
+    # (e.g. when an upstream pass turned ``^\circ`` into ``deg`` before this one ran)
+    # is the temperature scale, not angle*coulomb/farad. Collapse it to degC/degF.
+    normalized = re.sub(
+        r"\bdeg\s*([CcFf])(?![A-Za-z])",
+        lambda m: f"deg{m.group(1).upper()}",
+        normalized,
+    )
     normalized = re.sub(r"\\(?:,|;|:|!| |quad|qquad)\s*", " ", normalized)
     normalized = normalized.replace("~", " ")
     normalized = re.sub(r"\\mu(?=\s*[A-Za-z])", "μ", normalized)

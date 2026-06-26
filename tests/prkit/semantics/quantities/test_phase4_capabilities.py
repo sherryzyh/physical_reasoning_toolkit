@@ -91,6 +91,54 @@ def test_celsius_matches_kelvin_reference(
     assert result.comparison_mode == "physical_quantity"
 
 
+@pytest.mark.parametrize(
+    "raw_text",
+    [
+        # LaTeX degree marks (separated/braced/empty-brace forms that used to
+        # mis-split into coulomb*degree) across \mathrm / \text / bare wrappers.
+        "20^\\circ C",
+        "20 ^\\circ C",
+        "20^{\\circ} C",
+        "20^\\circ\\,C",
+        "20\\,^\\circ C",
+        "20^{\\circ}C",
+        "20^\\circ\\mathrm{C}",
+        "20^\\circ\\text{C}",
+        # Unicode degree, with lowercase scale letter (case-insensitive).
+        "20 °C",
+        "20 °c",
+        "20°C",
+    ],
+)
+def test_celsius_latex_and_unicode_surfaces_reach_kelvin(raw_text: str) -> None:
+    unit, value = _canonical_temperature_kelvin(raw_text)
+    assert unit == "K"
+    assert value == pytest.approx(293.15, abs=1e-6)
+
+
+@pytest.mark.parametrize(
+    "raw_text",
+    ["68^\\circ F", "68^\\circ\\mathrm{F}", "68^{\\circ}F", "68 °F", "68 °f"],
+)
+def test_fahrenheit_latex_and_unicode_surfaces_reach_kelvin(raw_text: str) -> None:
+    unit, value = _canonical_temperature_kelvin(raw_text)
+    assert unit == "K"
+    assert value == pytest.approx(293.15, abs=1e-6)
+
+
+def test_latex_and_unicode_degree_surfaces_agree() -> None:
+    # The same temperature written as Unicode or LaTeX must canonicalize identically.
+    assert _canonical_temperature_kelvin("20 °C") == _canonical_temperature_kelvin(
+        "20^\\circ C"
+    )
+
+
+def test_bare_circ_angle_is_not_treated_as_temperature() -> None:
+    # The degree-temperature collapse must not hijack a plain angle (no C/F scale).
+    assert _try_parse_physical_quantity("30^\\circ") == "30 deg"
+    assert _try_parse_physical_quantity("30^{\\circ}") == "30 deg"
+
+
 # --- CHANGE 1: widened unit vocabulary parses and converts ---
 
 

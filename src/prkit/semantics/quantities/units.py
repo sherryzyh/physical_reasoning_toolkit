@@ -480,8 +480,11 @@ def normalize_unit_text(text: str | None) -> str:
     normalized = _TEXT_WRAPPER_RE.sub(r"\1", normalized)
     # Resolve degree-Celsius/Fahrenheit before the bare ``°`` -> ``deg`` rule so
     # the unit head stays attached to the temperature scale (``degC``/``degF``)
-    # rather than degenerating into a bare ``deg`` next to ``C`` (coulomb).
-    normalized = normalized.replace("°C", "degC").replace("°F", "degF")
+    # rather than degenerating into a bare ``deg`` next to ``C`` (coulomb). The
+    # scale letter is matched case-insensitively (``°c`` -> ``degC``) but emitted
+    # in pint's canonical case.
+    normalized = re.sub(r"°\s*([cC])\b", "degC", normalized)
+    normalized = re.sub(r"°\s*([fF])\b", "degF", normalized)
     normalized = (
         normalized.replace("Ω", "ohm").replace("°", "deg").replace("Å", "angstrom")
     )
