@@ -4,6 +4,7 @@ Dataset hub for managing and loading physical reasoning datasets.
 This module provides a clean, simple interface for loading physical reasoning datasets.
 """
 
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
@@ -181,6 +182,8 @@ class DatasetHub:
         sample_size: int | None = None,
         auto_download: bool = False,
         allow_nonredistributable: bool = False,
+        contamination_check: bool = False,
+        contamination_refs: Sequence[str] | None = None,
         **kwargs: Any,
     ) -> PhysicsDataset:
         """
@@ -323,6 +326,10 @@ class DatasetHub:
         # Try to load the dataset
         try:
             dataset = loader.load(**load_kwargs)
+            cls._stamp_provenance(dataset, loader)
+            cls._maybe_overlap_check(
+                dataset, dataset_name, contamination_check, contamination_refs, data_dir
+            )
             return dataset
         except FileNotFoundError as e:
             # If dataset doesn't exist and auto_download is enabled, try to download
@@ -392,6 +399,14 @@ class DatasetHub:
                     # Retry loading after download
                     load_kwargs["data_dir"] = download_path
                     dataset = loader.load(**load_kwargs)
+                    cls._stamp_provenance(dataset, loader)
+                    cls._maybe_overlap_check(
+                        dataset,
+                        dataset_name,
+                        contamination_check,
+                        contamination_refs,
+                        data_dir,
+                    )
                     return dataset
                 except Exception as download_error:
                     cls._logger.error(
@@ -403,6 +418,84 @@ class DatasetHub:
             else:
                 # Re-raise the original FileNotFoundError
                 raise
+
+    @classmethod
+    def _stamp_provenance(
+        cls, dataset: PhysicsDataset, loader: BaseDatasetLoader
+    ) -> None:
+        """Attach best-effort dataset provenance and back-fill per-problem provenance.
+
+        Always-on and cheap (metadata only): stamps ``info['provenance']`` from
+        ``loader.get_provenance()`` and gives each problem a
+        :class:`~prkit.contamination.provenance.ProblemProvenance` carrying the
+        source dataset + inherited release date (only when it has none already).
+        A no-op when the loader yields no provenance; never raises — a provenance
+        failure must not break a load.
+        """
+        try:
+            from prkit.contamination.provenance import (
+                PROVENANCE_KEY,
+                ProblemProvenance,
+                attach_problem_provenance,
+                get_problem_provenance,
+            )
+
+            provenance = loader.get_provenance()
+            if provenance is None:
+                return
+            dataset._info[PROVENANCE_KEY] = provenance.to_dict()
+            for problem in dataset:
+                if get_problem_provenance(problem) is None:
+                    attach_problem_provenance(
+                        problem,
+                        ProblemProvenance(
+                            source_dataset=provenance.name,
+                            release_date=provenance.release_date,
+                        ),
+                    )
+        except Exception as exc:  # never break a load on provenance
+            cls._logger.warning("Provenance stamping skipped: %s", exc)
+
+    @classmethod
+    def _maybe_overlap_check(
+        cls,
+        dataset: PhysicsDataset,
+        dataset_name: str,
+        contamination_check: bool,
+        contamination_refs: Sequence[str] | None,
+        data_dir: str | Path | None,
+    ) -> None:
+        """Optionally attach an n-gram overlap report to ``info['overlap_report']``.
+
+        Default OFF: when *contamination_check* is False this is a no-op and the
+        load is behaviorally identical to today. When enabled, computes an
+        overlap report against *contamination_refs* (loaded by name) or, when no
+        refs are given, against the dataset itself (intra-dataset duplicates).
+        """
+        if not contamination_check:
+            return
+        from prkit.contamination.overlap import compute_overlap_report
+
+        references: list[PhysicsDataset] | None = None
+        if contamination_refs:
+            loaded: list[PhysicsDataset] = []
+            for ref_name in contamination_refs:
+                try:
+                    loaded.append(cls.load(ref_name, data_dir=data_dir))
+                except Exception as exc:  # a missing ref must not fail the target load
+                    cls._logger.warning(
+                        "Skipping contamination reference '%s': %s", ref_name, exc
+                    )
+            references = loaded or None
+
+        report = compute_overlap_report(dataset, references)
+        dataset._info["overlap_report"] = report.to_dict()
+        cls._logger.info(
+            "Contamination check for '%s': %d flagged pair(s) across %s.",
+            dataset_name,
+            report.n_flagged,
+            report.reference_datasets,
+        )
 
     @classmethod
     def list_available(cls) -> list[str]:

@@ -5,11 +5,14 @@ import os
 import re
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from prkit.core import PRKitLogger
 from prkit.core.domain import PhysicsDataset, PhysicsProblem
 from prkit.core.domain.answer import PhysicsAnswer
+
+if TYPE_CHECKING:
+    from prkit.contamination.provenance import DatasetProvenance
 
 # Try to import PIL/Pillow for image loading
 PILImageModule: Any | None
@@ -186,6 +189,49 @@ class BaseDatasetLoader(ABC):
         ``return {**self.base_info(), ...}`` from their ``get_info()``.
         """
         return {"version": self.version}
+
+    def get_provenance(self) -> "DatasetProvenance | None":
+        """Best-effort dataset provenance derived from existing ``get_info()`` keys.
+
+        Reads the metadata loaders already expose — ``name``, ``repository_url``
+        / ``source_url``, ``paper_url``, ``license_spdx`` (falling back to a
+        string ``license``), ``citation_key``, ``year`` — and normalizes them
+        into a :class:`~prkit.contamination.provenance.DatasetProvenance`.
+        A bare ``year`` becomes a year-precision ``release_date`` (Jan 1).
+        Subclasses may override to supply an exact ``release_date`` or
+        ``snapshot_version``. Returns ``None`` when there is no ``name`` to
+        anchor on. Never raises.
+        """
+        from datetime import date
+
+        from prkit.contamination.provenance import DatasetProvenance
+
+        info = self.get_info()
+        name = info.get("name")
+        if not name:
+            return None
+
+        release_date: date | None = None
+        year = info.get("year")
+        if isinstance(year, int):
+            release_date = date(year, 1, 1)
+        elif isinstance(year, str) and year.strip().isdigit():
+            release_date = date(int(year.strip()), 1, 1)
+
+        license_value = info.get("license_spdx")
+        if not isinstance(license_value, str):
+            raw_license = info.get("license")
+            license_value = raw_license if isinstance(raw_license, str) else None
+
+        return DatasetProvenance(
+            name=str(name),
+            release_date=release_date,
+            source_url=info.get("repository_url") or info.get("source_url"),
+            paper_url=info.get("paper_url"),
+            license=license_value,
+            citation_key=info.get("citation_key"),
+            snapshot_version=info.get("snapshot_version"),
+        )
 
     @property
     def name(self) -> str:

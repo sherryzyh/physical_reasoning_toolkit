@@ -77,8 +77,13 @@ annotation = [
 baselines = [
     "pint>=0.25",
 ]
+freshness = [
+    # Embedding-recall stage of the contamination/overlap report (X3 sub-feature B).
+    # Optional: the n-gram stage and provenance/variant paths need only core deps.
+    "sentence-transformers>=2.2.0",
+]
 all = [
-    "physical-reasoning-toolkit[dev,docs,annotation,baselines]",
+    "physical-reasoning-toolkit[dev,docs,annotation,baselines,freshness]",
 ]
 
 [project.urls]
@@ -160,6 +165,8 @@ module = [
     "pyarrow.*",
     "requests",
     "requests.*",
+    "sentence_transformers",
+    "sentence_transformers.*",
     "streamlit",
     "streamlit.*",
     "sympy",
