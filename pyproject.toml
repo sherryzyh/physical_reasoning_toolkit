@@ -157,6 +157,8 @@ ignore_errors = true
 module = [
     "datasets",
     "datasets.*",
+    "inspect_ai",
+    "inspect_ai.*",
     "latex2sympy2_extended",
     "latex2sympy2_extended.*",
     "pandas",
