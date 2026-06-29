@@ -73,6 +73,16 @@ class TestVerify:
         assert v.partial_credit == 1.0
         assert v.correct is True
 
+    def test_binary_path_leaves_partial_credit_and_rationale_none(self):
+        # The default (binary) deterministic engine never emits a graded
+        # partial-credit signal or a natural-language rationale; those stay None
+        # so a near-miss reads as a hard 0.0, not a soft score. (X1 contract.)
+        v = verify("2*m*g + 2*m*v0**2/l", "2*m*g + 4*m*v0**2/l")
+        assert v.correct is False
+        assert v.score == 0.0
+        assert v.partial_credit is None
+        assert v.rationale is None
+
     def test_partial_credit_unknown_unit_policy_raises(self):
         with pytest.raises(ValueError, match="unit_policy"):
             verify("a", "b", partial_credit=True, unit_policy="bogus")
