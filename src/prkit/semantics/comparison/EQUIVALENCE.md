@@ -93,6 +93,36 @@ stable (all in `preprocess_symbolic_text` / `parse_relation_clauses`):
 | Big-operator limits | fold `\sum_{n=1}^{N}` so its `=` can't corrupt parsing | `_normalize_big_operator_bounds` |
 | Compact products | `NmV_r → N*m*V_r` | `_normalize_symbol_products` |
 
+### Which stored surface is trusted
+
+An answer carries up to three surfaces: `canonical_latex` (the raw LaTeX), `canonical_text`
+(a normalized rendering) and `raw_text`. Symbolic comparison tries `canonical_latex` first
+and `canonical_text` as a fallback, so a `canonical_text` shared by two *different* answers
+can only add accepts.
+
+`canonical_text` is written at build time by `latex2sympy`, which is **not** the parser that
+reads it back. That parser folds uppercase symbols onto their lowercase twins
+(`\frac{Q}{M}` → `q/m`) and resolves `\gamma`, `\Gamma`, `e` and `I` to SymPy singletons
+before it looks at casing at all (`\gamma` and `\Gamma` both → `EulerGamma`). So the stored
+surface can stop denoting the answer, and `$I^2 R$` compared equal to `$I R$`.
+
+`effective_canonical_text` ([common.py](common.py)) is the single trust boundary. When the
+stored text shows singleton capture or a case collapse against its own LaTeX, it is
+**recomputed** from `canonical_latex` with this package's own substrate
+(`preprocess_symbolic_text` → `parse_symbolic_expression`, falling back to the preprocessed
+text for relations, which are not bare expressions). Every consumer that compares, keys or
+dedupes on the text surface goes through it, including the `identical_text` shortcut and the
+set/tuple element key — otherwise a corrupted surface simply reaches the verdict by another
+route. A comparison that used a repaired surface reports `canonical_text_repaired` in its
+diagnostics.
+
+The repair is scoped to `expression` and `relation` answers, the only kinds whose
+`canonical_text` is `latex2sympy` output; numbers, quantities and labels are written by
+other paths and are never probed. `NORMALIZATION_VERSION`
+(`prkit.semantics.normalization`) stamps the revision of this canonicalization onto build
+artifacts and `Verdict.scorer_version`, so a record built under an older revision is
+identifiable rather than silently reused.
+
 ---
 
 ## 4. Stage 2 — contract gate & policy

@@ -27,6 +27,7 @@ from prkit.semantics import (
     compare_physics_answers,
     normalize_physics_answer,
 )
+from prkit.semantics.normalization import NORMALIZATION_VERSION
 
 from ._internal.adapt import verdict_from_comparison
 from ._internal.shared import _coerce_context, _merge_context, _policy_to_str
@@ -42,6 +43,7 @@ ENGINE_VERSION = "1"
 _VERSION = (
     f"pasec-base/engine{ENGINE_VERSION}"
     f"+pred-{PREDICTION_PROMPT_VERSION}+ref-{REFERENCE_PROMPT_VERSION}"
+    f"+norm-{NORMALIZATION_VERSION}"
 )
 
 

@@ -17,7 +17,15 @@ from .question_inference import (
     infer_reference_question_semantics,
 )
 
+#: Revision of the deterministic surface canonicalization that writes ``canonical_text``.
+#: Bump when a change alters the stored canonical surface, so an artifact built by an older
+#: revision is identifiable rather than silently reused. Records written at ``"1"`` carry
+#: latex2sympy singleton capture and are repaired at read time by
+#: ``prkit.semantics.comparison.common.effective_canonical_text``.
+NORMALIZATION_VERSION = "1"
+
 __all__ = [
+    "NORMALIZATION_VERSION",
     "enrich_answer_quantity_views",
     "infer_prediction_question_semantics",
     "infer_question_semantics",

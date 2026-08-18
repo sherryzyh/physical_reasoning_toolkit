@@ -1,0 +1,41 @@
+{"category": "CASE", "expectation": "NOMATCH", "id": "CASE-energy-vs-charge", "kind": "pair", "pred": "$\\frac{E}{T}$", "ref": "$\\frac{e}{t}$"}
+{"category": "CASE", "expectation": "NOMATCH", "id": "CASE-charge-mass-ratio", "kind": "pair", "pred": "$\\frac{Q}{M}$", "ref": "$\\frac{q}{m}$"}
+{"category": "CASE", "expectation": "NOMATCH", "id": "CASE-boltzmann", "kind": "pair", "pred": "$N k_B T$", "ref": "$n k_B t$"}
+{"category": "CASE", "expectation": "NOMATCH", "id": "CASE-capacitance", "kind": "pair", "pred": "$\\frac{Q}{V}$", "ref": "$\\frac{q}{v}$"}
+{"category": "SINGLETON", "expectation": "NOMATCH", "id": "SINGLETON-gamma-vs-Gamma", "kind": "pair", "pred": "$\\Gamma$", "ref": "$\\gamma$"}
+{"category": "SINGLETON", "expectation": "NOMATCH", "id": "SINGLETON-adiabatic-index", "kind": "pair", "pred": "$P V^{\\gamma}$", "ref": "$P V^{\\Gamma}$"}
+{"category": "SINGLETON", "expectation": "NOMATCH", "id": "SINGLETON-lorentz-vs-reflection", "kind": "pair", "pred": "$\\gamma m c^2$", "ref": "$\\Gamma m c^2$"}
+{"category": "EXPONENT", "expectation": "NOMATCH", "id": "EXPONENT-joule-heating", "kind": "pair", "pred": "$I^2 R$", "ref": "$I R$"}
+{"category": "EXPONENT", "expectation": "NOMATCH", "id": "EXPONENT-current-cubed", "kind": "pair", "pred": "$I^3 R$", "ref": "$I R$"}
+{"category": "RELATION", "expectation": "NOMATCH", "id": "RELATION-ohm-vs-joule", "kind": "pair", "pred": "$V = I R$", "ref": "$V = I^2 R$"}
+{"category": "RELATION", "expectation": "NOMATCH", "id": "RELATION-coulomb-distinct-charges", "kind": "pair", "pred": "$F = \\frac{Q q}{4\\pi\\epsilon_0 r^2}$", "ref": "$F = \\frac{q^2}{4\\pi\\epsilon_0 r^2}$"}
+{"category": "PRESERVE", "expectation": "MATCH", "id": "PRESERVE-latex-vs-plain", "kind": "pair", "pred": "$\\frac{E}{T}$", "ref": "E/T"}
+{"category": "PRESERVE", "expectation": "MATCH", "id": "PRESERVE-factor-order", "kind": "pair", "pred": "$\\frac{1}{2}mv^2$", "ref": "$\\frac{mv^2}{2}$"}
+{"category": "PRESERVE", "expectation": "MATCH", "id": "PRESERVE-lorentz-commuted", "kind": "pair", "pred": "$\\gamma m c^2$", "ref": "$m c^2 \\gamma$"}
+{"category": "PRESERVE", "expectation": "MATCH", "id": "PRESERVE-lorentz-spacing", "kind": "pair", "pred": "$\\gamma m c^2$", "ref": "$\\gamma\\, m c^{2}$"}
+{"category": "PRESERVE", "expectation": "MATCH", "id": "PRESERVE-joule-commuted", "kind": "pair", "pred": "$I^2 R$", "ref": "$R I^2$"}
+{"category": "PRESERVE", "expectation": "MATCH", "id": "PRESERVE-joule-spacing", "kind": "pair", "pred": "$I^{2}R$", "ref": "$I^{2}\\,R$"}
+{"category": "PRESERVE", "expectation": "MATCH", "id": "PRESERVE-boltzmann-commuted", "kind": "pair", "pred": "$N k_B T$", "ref": "$k_B N T$"}
+{"category": "PRESERVE", "expectation": "MATCH", "id": "PRESERVE-boltzmann-spacing", "kind": "pair", "pred": "$N k_B T$", "ref": "$N\\,k_{B}\\,T$"}
+{"category": "PRESERVE", "expectation": "MATCH", "id": "PRESERVE-adiabatic-spacing", "kind": "pair", "pred": "$P V^{\\gamma}$", "ref": "$PV^{\\gamma}$"}
+{"category": "PRESERVE", "expectation": "MATCH", "id": "PRESERVE-gamma-ratio", "kind": "pair", "pred": "$\\frac{\\gamma}{\\Gamma}$", "ref": "$\\gamma / \\Gamma$"}
+{"category": "PRESERVE", "expectation": "MATCH", "id": "PRESERVE-gamma-identical", "kind": "pair", "pred": "$\\gamma$", "ref": "$\\gamma$"}
+{"category": "PRESERVE", "expectation": "MATCH", "id": "PRESERVE-euler-vs-exp", "kind": "pair", "pred": "$e^{-t/\\tau}$", "ref": "$\\exp(-t/\\tau)$"}
+{"category": "PRESERVE", "expectation": "MATCH", "id": "PRESERVE-euler-imaginary", "kind": "pair", "pred": "$e^{i\\theta}$", "ref": "$\\exp{(i\\theta)}$"}
+{"category": "PRESERVE", "expectation": "MATCH", "id": "PRESERVE-coulomb-varepsilon", "kind": "pair", "pred": "$\\frac{e^2}{4\\pi\\epsilon_0 r}$", "ref": "$\\frac{e^2}{4\\pi \\varepsilon_0 r}$"}
+{"category": "PRESERVE", "expectation": "MATCH", "id": "PRESERVE-lorentz-half", "kind": "pair", "pred": "$\\frac{1}{2}\\gamma m v^2$", "ref": "$\\frac{\\gamma m v^{2}}{2}$"}
+{"category": "PRESERVE", "expectation": "MATCH", "id": "PRESERVE-mass-energy", "kind": "pair", "pred": "$E = mc^2$", "ref": "$E = m c^{2}$"}
+{"category": "PRESERVE", "expectation": "MATCH", "id": "PRESERVE-mass-energy-commuted", "kind": "pair", "pred": "$E = mc^2$", "ref": "$E = c^{2} m$"}
+{"category": "PRESERVE", "expectation": "MATCH", "id": "PRESERVE-ohm-commuted", "kind": "pair", "pred": "$V = I R$", "ref": "$V = R I$"}
+{"category": "PRESERVE", "expectation": "MATCH", "id": "PRESERVE-adiabatic-relation-flip", "kind": "pair", "pred": "$P V^{\\gamma} = C$", "ref": "$C = P V^{\\gamma}$"}
+{"category": "PRESERVE", "expectation": "MATCH", "id": "PRESERVE-coulomb-varepsilon-relation", "kind": "pair", "pred": "$F = \\frac{Q q}{4\\pi\\epsilon_0 r^2}$", "ref": "$F = \\frac{Q q}{4\\pi \\varepsilon_0 r^{2}}$"}
+{"category": "ROUNDTRIP", "expectation": "ROUNDTRIP", "id": "ROUNDTRIP-lorentz", "input": "$\\gamma m c^2$", "kind": "single"}
+{"category": "ROUNDTRIP", "expectation": "ROUNDTRIP", "id": "ROUNDTRIP-adiabatic", "input": "$P V^{\\gamma}$", "kind": "single"}
+{"category": "ROUNDTRIP", "expectation": "ROUNDTRIP", "id": "ROUNDTRIP-joule", "input": "$I^2 R$", "kind": "single"}
+{"category": "ROUNDTRIP", "expectation": "ROUNDTRIP", "id": "ROUNDTRIP-energy-period", "input": "$\\frac{E}{T}$", "kind": "single"}
+{"category": "ROUNDTRIP", "expectation": "ROUNDTRIP", "id": "ROUNDTRIP-boltzmann", "input": "$N k_B T$", "kind": "single"}
+{"category": "ROUNDTRIP", "expectation": "ROUNDTRIP", "id": "ROUNDTRIP-charge-mass", "input": "$\\frac{Q}{M}$", "kind": "single"}
+{"category": "ROUNDTRIP", "expectation": "ROUNDTRIP", "id": "ROUNDTRIP-coulomb", "input": "$\\frac{Q q}{4\\pi\\epsilon_0 r^2}$", "kind": "single"}
+{"category": "ROUNDTRIP", "expectation": "ROUNDTRIP", "id": "ROUNDTRIP-capital-gamma", "input": "$\\Gamma$", "kind": "single"}
+{"category": "ROUNDTRIP", "expectation": "ROUNDTRIP", "id": "ROUNDTRIP-kinetic", "input": "$\\frac{1}{2}mv^2$", "kind": "single"}
+{"category": "ROUNDTRIP", "expectation": "ROUNDTRIP", "id": "ROUNDTRIP-decay", "input": "$e^{-t/\\tau}$", "kind": "single"}

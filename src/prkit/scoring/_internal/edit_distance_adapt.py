@@ -41,7 +41,10 @@ from prkit.semantics import (
     PhysicsQuestionSemantics,
     QuestionUnitPolicy,
 )
-from prkit.semantics.comparison.common import context_symbol_alias_map
+from prkit.semantics.comparison.common import (
+    context_symbol_alias_map,
+    effective_canonical_text,
+)
 from prkit.semantics.comparison.numeric import (
     NumericComparableAnswer,
     extract_numeric_comparable_answer,
@@ -166,9 +169,16 @@ class CoreScore:
 # Front-end parsing (our SymPy parser; never latex2sympy2).
 # --------------------------------------------------------------------------- #
 def _texts(sem: PhysicsAnswerSemantics) -> tuple[str, ...]:
-    """Surfaces to parse, in preference order: canonical_text → latex → raw."""
+    """Surfaces to parse, in preference order: canonical_text → latex → raw.
+
+    ``canonical_text`` is preferred but is itself latex2sympy2 output, so it is taken via
+    ``effective_canonical_text``: a surface that parser collapsed (``\\gamma`` → ``EulerGamma``)
+    is recomputed with our own parser before it becomes the *first* thing we parse.
+    """
     return tuple(
-        t for t in (sem.canonical_text, sem.canonical_latex, sem.raw_text) if t
+        t
+        for t in (effective_canonical_text(sem), sem.canonical_latex, sem.raw_text)
+        if t
     )
 
 

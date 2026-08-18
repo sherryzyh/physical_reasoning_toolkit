@@ -82,6 +82,14 @@ class SemanticsGeneratorInfo(_InferenceModel):
     )
     prompt_name: str = Field(description="Prompt family name used for the call.")
     prompt_version: str = Field(description="Prompt version string.")
+    normalization_version: str | None = Field(
+        default=None,
+        description=(
+            "Revision of the deterministic surface canonicalization that produced the "
+            "stored canonical_text. Optional so artifacts written before the stamp existed "
+            "still load; None means 'unknown, predates the stamp'."
+        ),
+    )
     structured_output_mode: str = Field(
         description="json_schema, json_object, or prompt_only.",
     )

@@ -29,7 +29,13 @@ from .coercion import (
     coerce_protocol_answer,
     coerce_question_semantics,
 )
-from .common import available_texts, context_symbol_alias_map, reparse_sources
+from .common import (
+    _needs_surface_repair,
+    available_texts,
+    context_symbol_alias_map,
+    effective_canonical_text,
+    reparse_sources,
+)
 from .contract import (
     build_evaluation_contract,
     coerce_policy_mode,
@@ -477,6 +483,37 @@ def _compare_atomic(
     policy_mode: ComparisonPolicyMode,
     allow_cross_kind_identical_text: bool,
 ) -> AnswerComparison:
+    """Compare two atomic answers, flagging any surface this engine had to recompute.
+
+    The verdict itself comes from :func:`_compare_atomic_surfaces`. This wrapper only adds
+    the ``canonical_text_repaired`` diagnostic, so an audit replay can measure how often a
+    stored ``canonical_text`` was corrupt without re-deriving the condition.
+    """
+
+    result = _compare_atomic_surfaces(
+        pred,
+        ref,
+        context=context,
+        contract=contract,
+        policy_mode=policy_mode,
+        allow_cross_kind_identical_text=allow_cross_kind_identical_text,
+    )
+    if not (_needs_surface_repair(pred) or _needs_surface_repair(ref)):
+        return result
+    return result.model_copy(
+        update={"diagnostics": (*result.diagnostics, "canonical_text_repaired")}
+    )
+
+
+def _compare_atomic_surfaces(
+    pred: PhysicsAnswerSemantics,
+    ref: PhysicsAnswerSemantics,
+    *,
+    context: PhysicsQuestionSemantics,
+    contract: PhysicsEvaluationContract,
+    policy_mode: ComparisonPolicyMode,
+    allow_cross_kind_identical_text: bool,
+) -> AnswerComparison:
     """Compare two atomic answers using strict, bridged, and fallback logic."""
 
     if pred.object_kind == ref.object_kind:
@@ -552,10 +589,15 @@ def _compare_identical_atomic_text(
     pred: PhysicsAnswerSemantics,
     ref: PhysicsAnswerSemantics,
 ) -> AnswerComparison | None:
-    """Rescue exact canonical-text matches regardless of auxiliary metadata."""
+    """Rescue exact canonical-text matches regardless of auxiliary metadata.
 
-    pred_text = pred.canonical_text
-    ref_text = ref.canonical_text
+    Compares the *repaired* surface: a stored ``canonical_text`` corrupted by latex2sympy
+    singleton capture would otherwise make distinct answers identical here (``$I^2 R$`` and
+    ``$I R$`` both store ``I*r``), and this shortcut accepts without consulting any criterion.
+    """
+
+    pred_text = effective_canonical_text(pred)
+    ref_text = effective_canonical_text(ref)
     if pred_text and pred_text == ref_text:
         return AnswerComparison(True, "identical_text", surface_shortcut_used=True)
     return None
@@ -592,7 +634,8 @@ def _exact_element_key(answer: PhysicsAnswerSemantics) -> tuple:
 
     Numbers use their parsed value so ``1/2`` and ``0.5`` match exactly while ``1/3`` and
     ``0.3333`` do not (exact float equality, never a tolerance window). Everything else uses
-    normalized canonical text.
+    the repaired canonical text, so set and tuple elements are never merged on a surface that
+    latex2sympy collapsed (``{Q/M, q/m}`` must stay two elements, not one).
     """
 
     if answer.object_kind in {
@@ -604,7 +647,7 @@ def _exact_element_key(answer: PhysicsAnswerSemantics) -> tuple:
             value = parse_numeric_value(answer.numeric_text or answer.canonical_text)
         if value is not None:
             return ("num", value, answer.unit or "")
-    return ("text", normalize_plain_text(answer.canonical_text or ""))
+    return ("text", normalize_plain_text(effective_canonical_text(answer) or ""))
 
 
 def _compare_ordered_children(

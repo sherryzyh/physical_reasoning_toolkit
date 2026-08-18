@@ -123,6 +123,11 @@ Three levers, all stable:
 Catalogued from real false negatives. Each is addressed by a canonical form or a
 criterion (not a rescue); the last is deferred pending a justified, gated criterion.
 
+Note the asymmetry this inventory used to imply. Recall is the engine's measured weakness,
+so every entry below is a false *negative* — but the surface layer has produced a false
+*positive* class too, catalogued separately in "Precision defects" after this table. Both
+are canonicalization failures; they differ only in which way the error points.
+
 | Gap | Example | Mechanism |
 |---|---|---|
 | **Algebraic rearrangement** | `F=ma` ↔ `a=F/m`, `E=mc²` ↔ `m=E/c²`, `1/f=1/u+1/v` ↔ `f=uv/(u+v)` | equality **criterion**: homogeneous numerators equal up to a nonzero constant — implemented |
@@ -134,6 +139,35 @@ criterion (not a rescue); the last is deferred pending a justified, gated criter
 | **`simplify` incompleteness** | nested-radical / transcendental identities `simplify` cannot crack | **criterion**: domain-honoring numeric identity testing (`_numeric_identity_equivalent`), exact on rejection — implemented |
 | **Solved radical** | `E=mc²` ↔ `c=√(E/m)`, `v²=u²+2as` ↔ `v=√(u²+2as)` | canonical **normalization**: de-radicalize when the non-radical side is nonnegative (`_deradicalize_clause`), gated on `q.symbol_assumptions` — implemented |
 | **Sign convention** | a directional answer flipped by a global `−` under an opposite, unstated axis choice (`−20 m/s` right-as-positive ↔ `+20 m/s` left-as-positive; a vector ↔ its negation) | **criterion** reconciling two *stated* conventions to a common frame (`sign_convention`, `_compare_sign_convention`); gated on the question fixing none, both answers declaring **opposite** conventions, and a provable global `−1` — implemented (audited bridge, see below) |
+
+### Precision defects in the surface layer
+
+A canonicalization bug does not only *lose* accepts. If it maps two different answers onto
+one string, and that string is consulted as an OR-branch, it **manufactures** them.
+
+| Defect | Example | Mechanism |
+|---|---|---|
+| **Symbol-case collapse** | `$\frac{Q}{M}$` and `$\frac{q}{m}$` both stored `q/m`; `$N k_B T$` and `$n k_B t$` both `k_b*n*t` | `latex2sympy`'s `lowercase_symbols` default folded every uppercase physics symbol onto its lowercase twin — repaired at read time (`effective_canonical_text`) |
+| **Singleton capture** | `\gamma` *and* `\Gamma` → `EulerGamma`, so the Lorentz factor and a reflection coefficient compared equal; `e` → Euler's number, `I` → the imaginary unit | `latex2sympy` resolves these to SymPy singletons *before* it looks at casing, so the conversion config cannot switch it off — repaired at read time |
+| **Dropped exponent** | `$I^2 R$` and `$I R$` both stored `I*r`, accepting Joule heating against a plain product | a captured `I` loses an unparenthesized exponent inside `latex2sympy` — repaired at read time |
+| **Writer/reader parser split** | stored `EulerGamma` reparsed by our own substrate into `E*G*a**2*e*l*m**2*r*u`, nine invented symbols | `canonical_text` was written by `latex2sympy` but is read back by `parse_symbolic_expression`; the repair recomputes it with the substrate that reads it |
+
+The lever is the same as for a recall gap — **canonical normalization** — but the ordering
+argument is the reverse: a recall gap is safe to leave alone, whereas a precision defect
+in a canonical form is live the moment the form is consulted. Two rules follow.
+
+**Repair the surface; do not merely distrust it.** Suppressing a corrupted surface closes
+the leak, but leaves the engine with strictly less information and no canonical form at all
+for those answers. Recomputing it is the same lever applied honestly, and it is what the
+build path will do directly (see `NORMALIZATION_VERSION`).
+
+**Ship the over-blocking lock with the reject battery.** A guard that suppresses too much
+passes every adversarial reject. Rule 4 (adversarial rejects) is necessary but not
+sufficient here; the matched accept battery and a writer/reader round-trip assertion are
+what distinguish a repair from a blunt suppression. See
+`tests/prkit/semantics/test_surface_repair.py` and its corpus
+`tests/fixtures/latex_surface_corpus.jsonl` — the phase-4 corpus cannot cover this lane,
+because its rows are plain text and never reach the LaTeX writer at all.
 
 ### Why positivity is declared, not derived from surface form
 

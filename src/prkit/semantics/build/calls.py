@@ -29,6 +29,7 @@ from ..comparison import (
 from ..comparison.contract import coerce_policy_mode, validate_answer_against_contract
 from ..comparison.structure_canonicalization import canonicalize_structure
 from ..normalization import (
+    NORMALIZATION_VERSION,
     enrich_answer_quantity_views,
     infer_prediction_question_semantics,
     infer_reference_question_semantics,
@@ -1888,6 +1889,7 @@ def _generator_info_from_metadata(
         prompt_version=prompt_version,
         structured_output_mode=structured_output_mode,
         structured_output_strategy=structured_output_strategy,
+        normalization_version=NORMALIZATION_VERSION,
     )
 
 
