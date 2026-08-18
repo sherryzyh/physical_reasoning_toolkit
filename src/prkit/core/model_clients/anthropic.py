@@ -59,7 +59,7 @@ _ANTHROPIC_ITEM_STATUS_MAP = {
 
 
 def _detect_image_media_type(image_path: str) -> str:
-    """Detect media type for image file path."""
+    """Detect media type for an image file path, from its bytes or extension."""
     return detect_image_mime_type(image_path)
 
 

@@ -1,4 +1,7 @@
-"""Shared utility helpers for model client implementations (image encoding, MIME detection)."""
+"""Shared utility helpers for model client implementations (image encoding, MIME detection).
+
+MIME detection prefers the file's magic bytes and falls back to its extension.
+"""
 
 import base64
 import os
@@ -18,15 +21,54 @@ def encode_image_to_base64(image_path: str) -> str:
         return base64.b64encode(image_file.read()).decode("utf-8")
 
 
-def detect_image_mime_type(image_path: str) -> str:
-    """Detect an image MIME type from a file path extension.
+def sniff_image_media_type(image_path: str) -> str | None:
+    """Detect an image MIME type from the file's magic bytes.
 
     Args:
-        image_path: Image file path or filename.
+        image_path: Image file path. The file is opened and its first 12 bytes read.
 
     Returns:
-        MIME type string. Unknown extensions default to ``image/jpeg``.
+        MIME type string when the signature is recognized, otherwise ``None`` --
+        including when the file cannot be read at all, so callers can fall back to
+        the extension.
     """
+    try:
+        with open(image_path, "rb") as handle:
+            header = handle.read(12)
+    except OSError:
+        return None
+
+    if header.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png"
+    if header.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg"
+    if header[:6] in (b"GIF87a", b"GIF89a"):
+        return "image/gif"
+    if header[:4] == b"RIFF" and header[8:12] == b"WEBP":
+        return "image/webp"
+    return None
+
+
+def detect_image_mime_type(image_path: str) -> str:
+    """Detect an image MIME type, preferring the file's bytes over its extension.
+
+    Some dataset images carry a mismatched extension (PNG or GIF bytes in a ``.jpg``
+    file). Providers validate the declared media type against the actual bytes and
+    reject the request when the two disagree, so the file signature wins when it is
+    recognizable.
+
+    Args:
+        image_path: Image file path or filename. A filename that names no readable
+            file is still accepted; only the extension is consulted then.
+
+    Returns:
+        MIME type string, resolved from the magic bytes when they are recognized,
+        then from the extension, defaulting to ``image/jpeg``.
+    """
+    sniffed = sniff_image_media_type(image_path)
+    if sniffed is not None:
+        return sniffed
+
     ext = os.path.splitext(image_path)[1].lower()
     mime_types = {
         ".jpg": "image/jpeg",

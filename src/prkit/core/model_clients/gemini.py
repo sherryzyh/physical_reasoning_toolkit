@@ -329,7 +329,7 @@ def _extract_gemini_error_details(response: object) -> str | None:
 
 
 def _guess_mime_type(path: str) -> str:
-    """Return the MIME type for the image at *path* based on its extension."""
+    """Return the MIME type for the image at *path*, from its bytes or extension."""
     return detect_image_mime_type(path)
 
 

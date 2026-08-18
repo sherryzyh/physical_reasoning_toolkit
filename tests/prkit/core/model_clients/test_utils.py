@@ -11,6 +11,7 @@ from prkit.core.model_clients.utils import (
     encode_image_to_base64,
     parse_data_url,
     prepare_image_url_from_path,
+    sniff_image_media_type,
 )
 
 
@@ -150,7 +151,67 @@ class TestImageHelpers:
         ],
     )
     def test_detect_image_mime_type(self, filename, expected):
+        # No file exists at these names, so only the extension can be consulted.
         assert detect_image_mime_type(filename) == expected
+
+    # Magic-byte signatures, each written under a deliberately wrong extension so the
+    # test fails if the extension were still winning.
+    @pytest.mark.parametrize(
+        ("filename", "header", "expected"),
+        [
+            ("actually_png.jpg", b"\x89PNG\r\n\x1a\n", "image/png"),
+            ("actually_gif.jpg", b"GIF89a", "image/gif"),
+            ("actually_gif87.png", b"GIF87a", "image/gif"),
+            ("actually_webp.jpg", b"RIFF\x24\x00\x00\x00WEBP", "image/webp"),
+            ("actually_jpeg.png", b"\xff\xd8\xff\xe0\x00\x10JFIF", "image/jpeg"),
+        ],
+    )
+    def test_detect_image_mime_type_prefers_bytes_over_extension(
+        self, tmp_path, filename, header, expected
+    ):
+        image_file = tmp_path / filename
+        image_file.write_bytes(header + b"\x00" * 64)
+
+        assert detect_image_mime_type(str(image_file)) == expected
+
+    def test_detect_image_mime_type_falls_back_to_extension_for_unknown_bytes(
+        self, tmp_path
+    ):
+        # Unrecognized signature: the extension still decides, so the change is a
+        # strict widening -- behaviour only differs when the bytes are identifiable.
+        image_file = tmp_path / "mystery.png"
+        image_file.write_bytes(b"not a real image at all")
+
+        assert detect_image_mime_type(str(image_file)) == "image/png"
+
+    def test_detect_image_mime_type_falls_back_when_file_is_unreadable(self, tmp_path):
+        # A directory, and a path that does not exist: both raise OSError in the sniff.
+        directory = tmp_path / "some.png"
+        directory.mkdir()
+
+        assert detect_image_mime_type(str(directory)) == "image/png"
+        assert detect_image_mime_type(str(tmp_path / "missing.gif")) == "image/gif"
+
+    def test_sniff_image_media_type_returns_none_when_unrecognized(self, tmp_path):
+        empty = tmp_path / "empty.png"
+        empty.write_bytes(b"")
+        truncated = tmp_path / "truncated.png"
+        truncated.write_bytes(b"\x89PN")
+
+        assert sniff_image_media_type(str(empty)) is None
+        assert sniff_image_media_type(str(truncated)) is None
+        assert sniff_image_media_type(str(tmp_path / "missing.png")) is None
+
+    def test_prepare_image_url_from_path_declares_the_sniffed_type(self, tmp_path):
+        # The end-to-end shape of the bug: a PNG named .jpg must not be declared JPEG.
+        image_file = tmp_path / "mislabelled.jpg"
+        payload = b"\x89PNG\r\n\x1a\n" + b"\x00" * 32
+        image_file.write_bytes(payload)
+
+        image_url = prepare_image_url_from_path(str(image_file))
+
+        assert image_url.startswith("data:image/png;base64,")
+        assert base64.b64decode(image_url.split(",", 1)[1]) == payload
 
     def test_parse_data_url(self):
         assert parse_data_url("data:image/png;base64,ZmFrZQ==") == {
