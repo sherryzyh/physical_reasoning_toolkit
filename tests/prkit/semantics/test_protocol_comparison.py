@@ -770,7 +770,10 @@ def test_protocol_expression_comparison_extracts_prediction_rhs_from_approx_text
     )
 
     assert result.equivalent is True
-    assert result.comparison_mode == "expression"
+    # "d ~ <expr>" states a relation, and is now classified as one rather than as a bare
+    # expression, so the verdict is reached through the relation-to-expression bridge.
+    # The accept is unchanged; only the reported mode is more accurate.
+    assert result.comparison_mode == "relation_to_expression"
 
 
 def test_protocol_expression_comparison_extracts_prediction_rhs_from_approx_latex() -> (
@@ -3237,3 +3240,69 @@ def test_protocol_functional_form_lhs_survives_the_paren_product_rewrite() -> No
     )
     assert result.equivalent is True
     assert result.comparison_mode == "relation"
+
+
+@pytest.mark.parametrize(
+    ("pred", "ref"),
+    [
+        # A braced subscript's closing brace is what separates the symbol from the next
+        # factor; dropping it merged them into one identifier.
+        (r"Q_{0}R^{4}", r"Q_{0} \cdot R^{4}"),
+        (r"x_{1}y_{2}", r"x_{1} \cdot y_{2}"),
+        (r"\varepsilon_{0}E_{0}a", r"\varepsilon_0 \cdot E_0 \cdot a"),
+        # A digit followed by e/E/j/J opens a Python numeric literal, so the product had
+        # to be made explicit before the expression could parse at all.
+        ("2E+m", r"2 \cdot E + m"),
+        (r"\frac{2E}{mc^2}", r"\frac{2 \cdot E}{m \cdot c^2}"),
+    ],
+)
+def test_protocol_expression_token_boundary_canonicalization_accepts(
+    pred: str, ref: str
+) -> None:
+    result = compare_protocol_answers(_expression(pred), _expression(ref))
+    assert result.equivalent is True, (pred, ref)
+
+
+@pytest.mark.parametrize(
+    ("pred", "ref"),
+    [
+        # Scientific notation is a number, not a product, and must stay one.
+        ("1.5e-3", "1.5 * e - 3"),
+        ("2E3", "2 * E * 3"),
+        # A multi-character subscript is one symbol, not a product of its characters.
+        (r"A_{ij}B", r"A \cdot i \cdot j \cdot B"),
+        # Restoring the boundary must not also equate different subscripts.
+        (r"x_{1}y_{2}", r"x_{2} \cdot y_{1}"),
+    ],
+)
+def test_protocol_expression_token_boundary_canonicalization_rejects(
+    pred: str, ref: str
+) -> None:
+    result = compare_protocol_answers(_expression(pred), _expression(ref))
+    assert result.equivalent is False, (pred, ref)
+
+
+def test_protocol_approximate_equality_is_a_relation() -> None:
+    # "x ~ <expr>" asserts a relation; classifying it as a bare expression left the
+    # subject glued to the right-hand side so it could never match an equality that
+    # states the same thing. The operator is equality-like everywhere else in the
+    # module, so the two surfaces below are the same claim.
+    result = compare_protocol_answers(
+        _relation(
+            r"\Delta A \approx \frac{m A_0}{4M}\left(\frac{\gamma_1-1}{3}+\gamma_2\right)"
+        ),
+        _relation(
+            r"\Delta A = A_0\left(\frac{\gamma_1-1}{12}+\frac{\gamma_2}{4}\right)\frac{m}{M}"
+        ),
+    )
+    assert result.equivalent is True
+    assert result.comparison_mode == "relation"
+
+
+def test_protocol_approximate_equality_still_rejects_a_different_relation() -> None:
+    # Reading "~" as equality-like must not make every approximate claim match.
+    result = compare_protocol_answers(
+        _relation(r"\Delta A \approx \frac{m A_0}{4M}"),
+        _relation(r"\Delta A = \frac{m A_0}{5M}"),
+    )
+    assert result.equivalent is False

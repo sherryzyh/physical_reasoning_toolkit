@@ -183,6 +183,9 @@ _LATEX_SPACING_RE = re.compile(
 _LATEX_SUBSCRIPT_BRACED_RE = re.compile(
     r"(?P<base>\\[A-Za-z]+|[A-Za-z][A-Za-z0-9_]*)\s*_\s*\{\s*(?P<sub>[^{}]+)\s*\}"
 )
+_BRACED_SUBSCRIPT_BOUNDARY_RE = re.compile(
+    r"(_\s*\{[^{}]*\})(?=\s*(?:[A-Za-z]|\\[A-Za-z]))"
+)
 _LATEX_SUBSCRIPT_PLAIN_RE = re.compile(
     r"(?P<base>\\[A-Za-z]+|[A-Za-z][A-Za-z0-9_]*)\s*_\s*(?P<sub>[A-Za-z0-9]+)"
 )
@@ -250,6 +253,14 @@ _FUNCTION_COMMANDS = frozenset(_BARE_FUNCTION_NAMES) | {"ln"}
 # Look behind for a letter or underscore instead: a digit may precede a compact
 # product, but a letter means the run started earlier and an underscore means the
 # characters are subscript content that must stay attached.
+# A digit followed by e/E/j/J is a Python numeric-literal prefix: ``2E`` opens a float
+# exponent and ``2j`` is a complex literal, so ``2E + mc^2`` fails to parse outright
+# rather than reading as the product it plainly is. Genuine scientific notation is
+# excluded by requiring that no digits follow, and a longer identifier (``2Ex``) is left
+# for the ordinary implicit-product handling.
+_NUMERIC_LITERAL_TRAP_RE = re.compile(
+    r"(?<=[0-9])(?=[eEjJ](?![+-]?[0-9])(?![A-Za-z0-9_]))"
+)
 _JUXTAPOSED_PAREN_PRODUCT_RE = re.compile(
     r"(?P<lead>[A-Za-z0-9_\)\]\}]\s*)"
     r"(?<![A-Za-z_])(?P<name>[A-Za-z][A-Za-z0-9]*)\s*\("
@@ -1841,7 +1852,12 @@ def preprocess_symbolic_text(
     normalized = normalized.replace("\\infty", "oo")
     normalized = normalized.replace("\\cdot", "*").replace("\\times", "*")
     normalized = normalized.replace("\\neq", "!=").replace("\\ne", "!=")
-    normalized = normalized.replace("\\approx", "~=").replace("\\sim", "~")
+    # ``\approx`` is an equality-like marker everywhere else in this module (see
+    # _TOP_LEVEL_EQUALITY_LIKE_MARKERS); rewriting it to ``~=`` produced an operator the
+    # relation grammar does not know, which silently absorbed the ``~`` into the
+    # left-hand side ("Delta A~") instead of splitting the clause.
+    normalized = normalized.replace("\\approx", "=").replace("\\simeq", "=")
+    normalized = normalized.replace("\u2248", "=").replace("\\sim", "~")
     normalized = normalized.replace("\\pm", " pm ").replace("\\mp", " mp ")
     normalized = normalized.replace("\\to", " -> ")
     normalized = _IMPLICIT_COMMAND_PRODUCT_RE.sub(
@@ -1862,6 +1878,7 @@ def preprocess_symbolic_text(
     normalized = _canonicalize_symbol_aliases(normalized, alias_map=alias_map)
     normalized = _normalize_symbol_products(normalized)
     normalized = _normalize_juxtaposed_paren_products(normalized)
+    normalized = _NUMERIC_LITERAL_TRAP_RE.sub("*", normalized)
     normalized = _normalize_bare_function_calls(normalized)
     return re.sub(r"\s+", " ", normalized).strip()
 
@@ -2020,7 +2037,12 @@ def _normalize_alias_surface(text: str | None) -> str:
     normalized = normalized.replace("\\infty", "oo")
     normalized = normalized.replace("\\cdot", "*").replace("\\times", "*")
     normalized = normalized.replace("\\neq", "!=").replace("\\ne", "!=")
-    normalized = normalized.replace("\\approx", "~=").replace("\\sim", "~")
+    # ``\approx`` is an equality-like marker everywhere else in this module (see
+    # _TOP_LEVEL_EQUALITY_LIKE_MARKERS); rewriting it to ``~=`` produced an operator the
+    # relation grammar does not know, which silently absorbed the ``~`` into the
+    # left-hand side ("Delta A~") instead of splitting the clause.
+    normalized = normalized.replace("\\approx", "=").replace("\\simeq", "=")
+    normalized = normalized.replace("\u2248", "=").replace("\\sim", "~")
     normalized = normalized.replace("\\pm", " pm ").replace("\\mp", " mp ")
     normalized = normalized.replace("\\to", " -> ")
     normalized = _IMPLICIT_COMMAND_PRODUCT_RE.sub(
@@ -2465,7 +2487,11 @@ def _rewrite_latex_accent(match: re.Match[str]) -> str:
 def _normalize_latex_subscripts(text: str) -> str:
     """Rewrite simple LaTeX subscripts into ``base_sub`` identifiers."""
 
-    normalized = _LATEX_SUBSCRIPT_BRACED_RE.sub(_rewrite_subscript_token, text)
+    # The closing brace is what separates a subscripted symbol from the factor after it.
+    # Dropping it merges the two into one identifier -- ``qQ_{0}R^{4}`` became the single
+    # symbol ``Q_0R`` -- so make the boundary explicit before the braces disappear.
+    normalized = _BRACED_SUBSCRIPT_BOUNDARY_RE.sub(r"\1*", text)
+    normalized = _LATEX_SUBSCRIPT_BRACED_RE.sub(_rewrite_subscript_token, normalized)
     return _LATEX_SUBSCRIPT_PLAIN_RE.sub(_rewrite_subscript_token, normalized)
 
 

@@ -1580,6 +1580,13 @@ def _looks_like_symbolic_identifier(
     return bool(_SYMBOLIC_IDENTIFIER_RE.fullmatch(stripped))
 
 
+# Equality-like markers other than a bare ``=``. An answer written ``\Delta A \approx
+# <expr>`` states a relation just as much as one written with ``=``; classifying it as a
+# bare expression leaves the subject glued to the right-hand side, so it can never match
+# a reference that states the same relation.
+_APPROXIMATE_EQUALITY_MARKERS = ("\\approx", "\\simeq", "\\cong", "\u2248", "\u2243")
+
+
 def _looks_like_relation_text(text: str) -> bool:
     """Detect relation-like surface forms before symbolic parsing succeeds."""
 
@@ -1587,6 +1594,8 @@ def _looks_like_relation_text(text: str) -> bool:
     if stripped.startswith(("Eq(", "Le(", "Lt(", "Ge(", "Gt(", "And(")):
         return True
     if re.search(r"(?<![<>])=(?![=>])", stripped):
+        return True
+    if any(marker in stripped for marker in _APPROXIMATE_EQUALITY_MARKERS):
         return True
     return any(operator in stripped for operator in ("<=", ">=", "<", ">"))
 
