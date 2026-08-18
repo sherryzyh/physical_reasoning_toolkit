@@ -46,6 +46,20 @@ class TestVerify:
         assert v.symbolic_equiv is True
         assert v.comparison_mode == "relation"
 
+    def test_compact_product_with_coefficient_equivalent(self):
+        # The reference states a product compactly; the prediction commutes one factor.
+        # Both sides must survive preprocessing intact for SymPy to see them as equal.
+        v = verify(r"\gamma B\left(2JS+\gamma B\right)", r"\gamma B(\gamma B+2JS)")
+        assert v.correct is True
+        assert v.symbolic_equiv is True
+        assert v.comparison_mode == "expression"
+
+    def test_thin_space_and_function_argument_equivalent(self):
+        # Typographic spacing and a braced function argument are surface, not meaning.
+        v = verify(r"\frac{V_0}{\ln(x)}", r"V_0\,\frac{1}{\ln x}")
+        assert v.correct is True
+        assert v.symbolic_equiv is True
+
     def test_number_vs_fraction_equivalent(self):
         v = verify("0.5", "1/2")
         assert v.correct is True

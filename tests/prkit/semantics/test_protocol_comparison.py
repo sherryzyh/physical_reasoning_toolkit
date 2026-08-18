@@ -3158,3 +3158,82 @@ def test_protocol_sign_convention_symbolic_vector_partial_flip_rejects() -> None
     )
     assert result.equivalent is False
     assert result.comparison_mode == "sign_convention"
+
+
+# --------------------------------------------------------------------------------------
+# Surface-form canonicalization defects.
+#
+# Each case below is a *parser* defect, not a missing equivalence rule: the two sides were
+# already the same expression, and ``preprocess_symbolic_text`` was corrupting one or both
+# of them before SymPy ever saw them. The fixes are meaning-restoring and applied to both
+# sides, so they widen the accepted set without loosening any criterion. Every accept is
+# paired with the near-miss it must still reject.
+# --------------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("pred", "ref"),
+    [
+        # Thin spaces are typography. ``\,`` was never stripped when followed by another
+        # command, because the pattern demanded a word boundary after a comma.
+        (r"V_0\,\frac{a}{b}", r"\frac{V_0 a}{b}"),
+        (r"a\;b\quad c", "a b c"),
+        # An implicit product must not be inserted after a function command: ``\tan\frac``
+        # became ``tan *(...)``, i.e. a free symbol multiplied by its own argument.
+        (r"\tan\frac{\alpha}{2}", r"\tan(\alpha/2)"),
+        (r"\ln\frac{x}{y}", r"\ln(x/y)"),
+        # ...but it must still be inserted before a *subscripted* command, where a
+        # trailing word boundary fails against the following underscore.
+        (r"2c\varepsilon_0 m", r"2 \cdot c \cdot \varepsilon_0 \cdot m"),
+        (r"6\pi\varepsilon_0", r"6 \cdot \pi \cdot \epsilon_{0}"),
+        # An unbraced exponent is one token: R^3 E_0^2, not R^(3E_0).
+        ("R^3E_0^2", r"R^{3}E_{0}^{2}"),
+        ("x^2y", r"x^{2} y"),
+        # A digit coefficient hid a compact product from the splitter, and ``2J`` is a
+        # Python complex literal, so the run had to be split with an explicit product.
+        ("2JS", "2*J*S"),
+        ("3ABc", "3*A*B*c"),
+        # A name directly followed by a parenthesis is a product unless it is a known
+        # function -- otherwise the whole expression fails to parse.
+        (r"\gamma B(2JS+\gamma B)", r"\gamma B(\gamma B+2JS)"),
+        ("2B(x+1)", "2*B*x+2*B"),
+    ],
+)
+def test_protocol_expression_surface_canonicalization_accepts(
+    pred: str, ref: str
+) -> None:
+    result = compare_protocol_answers(_expression(pred), _expression(ref))
+    assert result.equivalent is True, (pred, ref)
+
+
+@pytest.mark.parametrize(
+    ("pred", "ref"),
+    [
+        # Restoring the function call must not make the function disappear: tan(a/2) is
+        # not the product tan*a/2.
+        (r"\tan\frac{\alpha}{2}", r"\tan \cdot \alpha/2"),
+        # Splitting a compact run must not equate different symbol sets.
+        ("2JS", "2*J*T"),
+        ("R^3E_0^2", "R^3E_0^3"),
+        # The paren-product rewrite must not erase a genuine coefficient.
+        ("2B(x+1)", "B(x+1)"),
+        # A protected multi-letter run stays one symbol, so it is not equal to a product
+        # of its letters.
+        (r"2c\varepsilon_0 m", r"2c\varepsilon_0"),
+    ],
+)
+def test_protocol_expression_surface_canonicalization_rejects(
+    pred: str, ref: str
+) -> None:
+    result = compare_protocol_answers(_expression(pred), _expression(ref))
+    assert result.equivalent is False, (pred, ref)
+
+
+def test_protocol_functional_form_lhs_survives_the_paren_product_rewrite() -> None:
+    # The paren-product rewrite requires a preceding factor precisely so a relation
+    # subject stated as a function of its variable is left intact for the LHS collapse.
+    result = compare_protocol_answers(
+        _relation("V(alpha) = a alpha + b"), _relation("V = a alpha + b")
+    )
+    assert result.equivalent is True
+    assert result.comparison_mode == "relation"

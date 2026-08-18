@@ -109,8 +109,76 @@ _INDEXED_SQRT_RE = re.compile(r"\\sqrt\[(?P<index>[^\[\]{}]+)\]\{(?P<body>[^{}]+
 _TEXT_WRAPPER_RE = re.compile(r"\\(?:mathrm|text|operatorname)\{([^{}]+)\}")
 _BOXED_RE = re.compile(r"^\\boxed\{(.+)\}$", re.DOTALL)
 _DOLLAR_RE = re.compile(r"^\$(.*)\$$", re.DOTALL)
+# LaTeX commands that take an argument rather than standing for a value. An implicit
+# multiplication must never be inserted after one of these: ``\tan\frac{a}{b}`` is the
+# tangent *of* a fraction, and rewriting it as ``tan*((a)/(b))`` silently turns the
+# function into a free symbol multiplied by its own argument.
+_LATEX_FUNCTION_COMMANDS = frozenset(
+    {
+        "arccos",
+        "arcsin",
+        "arctan",
+        "arg",
+        "cos",
+        "cosh",
+        "cot",
+        "coth",
+        "csc",
+        "deg",
+        "det",
+        "dim",
+        "exp",
+        "gcd",
+        "hom",
+        "inf",
+        "ker",
+        "lg",
+        "lim",
+        "liminf",
+        "limsup",
+        "ln",
+        "log",
+        "max",
+        "min",
+        "sec",
+        "sin",
+        "sinh",
+        "sup",
+        "tan",
+        "tanh",
+        "sqrt",
+        "frac",
+        "dfrac",
+        "tfrac",
+        "cfrac",
+    }
+)
+# Insert an implicit ``*`` before a LaTeX command, except where the preceding token is
+# itself a function command consuming what follows as its argument.
+# The command name is delimited by "next character is not a letter", not by ``\b``: a
+# trailing word boundary fails whenever the command is followed by ``_``, which is the
+# common case for a subscripted constant. That left ``2c\varepsilon_0`` collapsing into
+# the single token ``2cvarepsilon0``, so it never matched a spelled-out ``2*c*eps0``.
+_IMPLICIT_COMMAND_PRODUCT_RE = re.compile(
+    r"(?P<prev>\\[A-Za-z]+|[A-Za-z0-9_\)\}])(?=\\[A-Za-z]+(?![A-Za-z]))"
+)
+
+
+def _insert_implicit_command_product(match: re.Match[str]) -> str:
+    """Return the matched token with a ``*`` appended unless it is a function name."""
+
+    previous = match.group("prev")
+    if previous.startswith("\\") and previous[1:] in _LATEX_FUNCTION_COMMANDS:
+        return previous
+    return previous + "*"
+
+
+# Typographic spacing carries no meaning and must not survive into the parse. The
+# punctuation forms take no trailing ``\b``: ``,;:!`` are non-word characters, so a
+# word boundary after them holds only when the next character is a word character --
+# which left ``\,`` unstripped in exactly the common case ``V_0\,\frac{a}{b}``.
 _LATEX_SPACING_RE = re.compile(
-    r"\\(?:,|;|:|!|quad|qquad|enspace|thinspace|medspace|thickspace)\b"
+    r"\\(?:[,;:!]|(?:quad|qquad|enspace|thinspace|medspace|thickspace)\b)"
 )
 _LATEX_SUBSCRIPT_BRACED_RE = re.compile(
     r"(?P<base>\\[A-Za-z]+|[A-Za-z][A-Za-z0-9_]*)\s*_\s*\{\s*(?P<sub>[^{}]+)\s*\}"
@@ -126,7 +194,10 @@ _COMPACT_DECORATED_TOKEN_RE = re.compile(
     r"\b(?P<base>[A-Za-z][A-Za-z0-9]*?)(?P<decor>ddot|dot|hat|vec|bar|tilde)\b"
 )
 _SUPERSCRIPT_BRACED_RE = re.compile(r"\^\{([^{}]+)\}")
-_SUPERSCRIPT_PLAIN_RE = re.compile(r"\^(?P<exp>[A-Za-z0-9_]+)")
+# An unbraced exponent is one token, not a greedy alphanumeric run: in ``R^3E_0^2``
+# the exponent of R is 3, and the E_0 that follows is a separate factor. Letting the
+# run continue produced ``R^(3E0)^(2)`` -- a different expression entirely.
+_SUPERSCRIPT_PLAIN_RE = re.compile(r"\^(?P<exp>[0-9]+|[A-Za-z][A-Za-z0-9]*)")
 _COMMAND_TOKEN_RE = re.compile(r"\\([A-Za-z]+)\b")
 _TOP_LEVEL_AND_RE = re.compile(r"\band\b", re.IGNORECASE)
 _SIMPLE_SYMBOLIC_LABEL_RE = re.compile(r"[^\W\d]\w*", re.UNICODE)
@@ -174,8 +245,18 @@ _BARE_FUNCTION_ARG_RE = re.compile(
     r"\s+(?P<arg>\{[^{}]+\}|[A-Za-z0-9_]+)"
 )
 _FUNCTION_COMMANDS = frozenset(_BARE_FUNCTION_NAMES) | {"ln"}
+# A leading ``\b`` also refuses a run that follows a digit, so the coefficient in
+# ``2JS`` hid the ``JS`` product from the splitter while a bare ``JS`` was expanded.
+# Look behind for a letter or underscore instead: a digit may precede a compact
+# product, but a letter means the run started earlier and an underscore means the
+# characters are subscript content that must stay attached.
+_JUXTAPOSED_PAREN_PRODUCT_RE = re.compile(
+    r"(?P<lead>[A-Za-z0-9_\)\]\}]\s*)"
+    r"(?<![A-Za-z_])(?P<name>[A-Za-z][A-Za-z0-9]*)\s*\("
+)
 _SHORT_SYMBOL_RUN_RE = re.compile(
-    r"(?<!\\)\b(?P<run>[A-Za-z]{2,})(?P<sub>_[A-Za-z0-9]+)?\b"
+    r"(?<!\\)(?P<lead>[0-9]|(?<![A-Za-z0-9_]))"
+    r"(?P<run>[A-Za-z]{2,})(?P<sub>_[A-Za-z0-9]+)?\b"
 )
 _TRIG_FUNCTION_RE = re.compile(r"\b(?:sin|cos|tan|asin|acos|atan|sinh|cosh|tanh)\b")
 # Explicit imaginary-unit markers. Lower-case ``i``/``j`` are intentionally *not* markers:
@@ -1763,7 +1844,9 @@ def preprocess_symbolic_text(
     normalized = normalized.replace("\\approx", "~=").replace("\\sim", "~")
     normalized = normalized.replace("\\pm", " pm ").replace("\\mp", " mp ")
     normalized = normalized.replace("\\to", " -> ")
-    normalized = re.sub(r"(?<=[A-Za-z0-9_\)\}])(?=\\[A-Za-z]+\b)", "*", normalized)
+    normalized = _IMPLICIT_COMMAND_PRODUCT_RE.sub(
+        _insert_implicit_command_product, normalized
+    )
     normalized = _LATEX_SPACING_RE.sub(" ", normalized)
     normalized = normalized.replace(" true", " True").replace(" false", " False")
     normalized = normalized.replace("true", "True").replace("false", "False")
@@ -1778,6 +1861,7 @@ def preprocess_symbolic_text(
     normalized = _canonicalize_symbol_alias_surfaces(normalized, alias_map=alias_map)
     normalized = _canonicalize_symbol_aliases(normalized, alias_map=alias_map)
     normalized = _normalize_symbol_products(normalized)
+    normalized = _normalize_juxtaposed_paren_products(normalized)
     normalized = _normalize_bare_function_calls(normalized)
     return re.sub(r"\s+", " ", normalized).strip()
 
@@ -1939,7 +2023,9 @@ def _normalize_alias_surface(text: str | None) -> str:
     normalized = normalized.replace("\\approx", "~=").replace("\\sim", "~")
     normalized = normalized.replace("\\pm", " pm ").replace("\\mp", " mp ")
     normalized = normalized.replace("\\to", " -> ")
-    normalized = re.sub(r"(?<=[A-Za-z0-9_\)\}])(?=\\[A-Za-z]+\b)", "*", normalized)
+    normalized = _IMPLICIT_COMMAND_PRODUCT_RE.sub(
+        _insert_implicit_command_product, normalized
+    )
     normalized = _LATEX_SPACING_RE.sub(" ", normalized)
     normalized = normalized.replace(" true", " True").replace(" false", " False")
     normalized = normalized.replace("true", "True").replace("false", "False")
@@ -2036,6 +2122,31 @@ def _canonicalize_notation_safe_symbol_token(token: str) -> str:
     return base_token + decoration_suffix
 
 
+def _normalize_juxtaposed_paren_products(text: str) -> str:
+    r"""Read ``B(x)`` as a product when ``B`` is a factor rather than a function.
+
+    ``\gamma B(2JS + \gamma B)`` is a product of three factors, but ``B(`` parses as
+    an application of an undefined function ``B`` and the whole expression is then
+    unparseable. A name is treated as applied only when it is a known function; any
+    other name directly followed by a parenthesis is a product.
+
+    The rewrite requires a preceding factor, which is what keeps a genuine functional
+    form intact: in ``V(alpha) = ...`` the ``V`` heads its term, so it is left alone
+    for :func:`_collapse_functional_form_lhs` to handle as a relation subject.
+    """
+
+    return _JUXTAPOSED_PAREN_PRODUCT_RE.sub(_rewrite_juxtaposed_paren_product, text)
+
+
+def _rewrite_juxtaposed_paren_product(match: re.Match[str]) -> str:
+    """Insert the implied ``*`` unless the name is a recognized function."""
+
+    name = match.group("name")
+    if name in _FUNCTION_COMMANDS or name in _LATEX_FUNCTION_COMMANDS:
+        return match.group(0)
+    return f"{match.group('lead')}*{name}*("
+
+
 def _normalize_symbol_products(text: str) -> str:
     """Insert explicit multiplication for compact symbol runs like ``AB``."""
 
@@ -2052,11 +2163,16 @@ def _rewrite_symbol_run(match: re.Match[str]) -> str:
 
     run = match.group("run")
     subscript = match.group("sub") or ""
+    lead = match.group("lead") or ""
     if run in _PROTECTED_SYMBOL_RUNS or run.lower() in _PROTECTED_SYMBOL_RUNS:
-        return run + subscript
+        return lead + run + subscript
     if run[0].islower() and len(run) > 3:
-        return run + subscript
-    return "*".join(run) + subscript
+        return lead + run + subscript
+    # A digit coefficient needs the explicit ``*`` too: Python tokenizes ``2J`` as the
+    # complex literal 2j, so ``2JS`` -> ``2J*S`` would parse as an imaginary number
+    # rather than a product. ``2*J*S`` is unambiguous.
+    separator = "*" if lead else ""
+    return lead + separator + "*".join(run) + subscript
 
 
 def _normalize_bare_function_calls(text: str) -> str:
