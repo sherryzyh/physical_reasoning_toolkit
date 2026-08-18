@@ -128,6 +128,8 @@ criterion (not a rescue); the last is deferred pending a justified, gated criter
 | **Algebraic rearrangement** | `F=ma` ↔ `a=F/m`, `E=mc²` ↔ `m=E/c²`, `1/f=1/u+1/v` ↔ `f=uv/(u+v)` | equality **criterion**: homogeneous numerators equal up to a nonzero constant — implemented |
 | **Functional-form LHS** | `r(t)=…` ↔ `r=…` | canonical **normalization** of the relation clause (numeric args like `f(2)` excluded) — implemented |
 | **Parser corruption** | `=` inside `\sum_{n=1}^{N}`; compact products `NmV_r` | canonical **normalization** in `preprocess_symbolic_text` (parsing correctness) — implemented |
+| **Token-boundary loss** | `2c\varepsilon_0` glued to one token; `\tan\frac{a}{b}` turned into `tan*((a)/(b))`; `R^3E_0^2` scoped as `R^(3E_0)`; `Q_{0}R^4` merged to `Q_0R`; `2JS`/`2E` hitting Python numeric-literal syntax; `B(x)` read as an undefined function | canonical **normalization** in `preprocess_symbolic_text`: these were parse *corruptions*, so restoring them is meaning-preserving and symmetric — implemented |
+| **Approximate equality** | `\Delta A \approx <expr>` classified as a bare expression rather than a relation | relation **classification**: `\approx`/`\simeq`/`≈` are equality-like markers elsewhere in the module, so the detector now recognizes them — implemented |
 | **Real-only identities** | `sqrt(a·b)`↔`√a·√b`, `sqrt(x²)`↔`\|x\|`, `log(ab)`↔`log a+log b` | **domain enrichment**: carry the symbols' real domain into the parse (`build_symbol_assumption_map`); positivity from `q.symbol_assumptions`, realness derived — implemented |
 | **`simplify` incompleteness** | nested-radical / transcendental identities `simplify` cannot crack | **criterion**: domain-honoring numeric identity testing (`_numeric_identity_equivalent`), exact on rejection — implemented |
 | **Solved radical** | `E=mc²` ↔ `c=√(E/m)`, `v²=u²+2as` ↔ `v=√(u²+2as)` | canonical **normalization**: de-radicalize when the non-radical side is nonnegative (`_deradicalize_clause`), gated on `q.symbol_assumptions` — implemented |
@@ -201,7 +203,30 @@ intent is *declared, not derived* (§4), exactly as positivity is.
 5. **Confirm the hot path** isn't materially slowed and the full suite stays green.
 6. **Note the residual limit** so the next gap is discoverable.
 
-The §4 recall-gap inventory is now fully addressed. The known residual frontier for the
+The §4 recall-gap inventory is addressed for every gap listed there. It is an inventory of
+gaps found so far, not a proof of completeness: a 2026-08 replay of a 100-problem audited
+PhyBench cell still showed a recall of 50% at 100% precision, and the residual false
+negatives below were each traced to a distinct cause rather than to a missing equivalence
+rule. Naming them here so the next one is discoverable:
+
+- **Differently-named relation subjects.** The two sides state the same right-hand side
+  under different subjects (`Q_tot = …` vs `Q = …`, `varphi = …` vs `Δφ = …`). Stripping
+  the subject would be a widening on authority rather than on proof, and the reference
+  gives no evidence the two names denote the same quantity. Deliberately not done.
+- **Unmatched side conditions.** The prediction states a domain restriction the reference
+  leaves implicit, so `subject_to` counts differ. Dismissing an extra side condition is a
+  judgement about the problem, not a symbolic fact.
+- **Chained equalities.** A prediction stating `v = A = B` entails the reference's `v = A`
+  but carries an extra clause with no partner. Entailment rather than clause-set equality
+  is a defensible criterion, but it is a change of relation and wants its own precision
+  measurement.
+- **Structure mismatch across a piecewise answer.** Unrecoverable by design; see
+  `STRUCTURE.md`.
+
+Bounded cost is also not yet guaranteed: two records in that cell do not terminate within
+150 s, so a caller on the hot path needs its own budget.
+
+The known residual frontier for the
 sign-convention lane: (a) only a *global* axis reversal is reconciled — a single-axis frame
 difference (which would flip one vector component) is deliberately rejected, pending a sound
 per-axis frame algebra; and (b) for a *vector* answer a **one-sided** convention (declared on
