@@ -17,6 +17,7 @@ from .common import (
     symbolic_coercion_sources,
 )
 from .numeric import compare_numeric_like_answers
+from .relation_subject import relation_subjects_bridge
 from .semantics import (
     build_symbol_assumption_map,
     canonicalize_boolean_value,
@@ -37,8 +38,17 @@ def compare_same_object_kind(
     ref: PhysicsAnswerSemantics,
     *,
     context: PhysicsQuestionSemantics,
+    question_target: str | None = None,
 ) -> AnswerComparison:
-    """Compare two atomic answers with the same object kind."""
+    """Compare two atomic answers with the same object kind.
+
+    ``question_target`` is the target variable the *question record* declared, as opposed
+    to ``context.target_variable``, which the contract backfills from the reference
+    answer's own subject when the question declared none. Only the relation-subject
+    bridge reads it, and only the declared value can license it; see
+    [relation_subject.py](relation_subject.py). It defaults to ``None`` so a caller that
+    cannot vouch for a declared target leaves the bridge off.
+    """
 
     kind = pred.object_kind
 
@@ -53,6 +63,7 @@ def compare_same_object_kind(
             pred,
             ref,
             context=context,
+            question_target=question_target,
             mode="expression",
         )
 
@@ -61,6 +72,7 @@ def compare_same_object_kind(
             pred,
             ref,
             context=context,
+            question_target=question_target,
             mode="relation",
         )
 
@@ -106,6 +118,7 @@ def _compare_symbolic_answers(
     ref: PhysicsAnswerSemantics,
     *,
     context: PhysicsQuestionSemantics,
+    question_target: str | None = None,
     mode: str,
 ) -> AnswerComparison:
     """Compare same-kind symbolic answers using primary and fallback surfaces."""
@@ -167,6 +180,19 @@ def _compare_symbolic_answers(
         assumptions_map=assumptions_map,
     ):
         return AnswerComparison(True, mode)
+
+    # Last, and only once every strict path has failed: two relations that state the same
+    # answer under different subject names. See relation_subject.py -- the mirror of the
+    # label stripping already applied above when the *reference* is a bare expression.
+    if mode == "relation" and relation_subjects_bridge(
+        pred,
+        ref,
+        context=context,
+        question_target=question_target,
+        alias_map=alias_map,
+        assumptions_map=assumptions_map,
+    ):
+        return AnswerComparison(True, mode, ("relation_subject_bridged",))
 
     return AnswerComparison(False, mode)
 

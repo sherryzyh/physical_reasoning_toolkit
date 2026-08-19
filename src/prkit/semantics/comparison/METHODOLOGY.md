@@ -138,6 +138,7 @@ are canonicalization failures; they differ only in which way the error points.
 | **Real-only identities** | `sqrt(a·b)`↔`√a·√b`, `sqrt(x²)`↔`\|x\|`, `log(ab)`↔`log a+log b` | **domain enrichment**: carry the symbols' real domain into the parse (`build_symbol_assumption_map`); positivity from `q.symbol_assumptions`, realness derived — implemented |
 | **`simplify` incompleteness** | nested-radical / transcendental identities `simplify` cannot crack | **criterion**: domain-honoring numeric identity testing (`_numeric_identity_equivalent`), exact on rejection — implemented |
 | **Solved radical** | `E=mc²` ↔ `c=√(E/m)`, `v²=u²+2as` ↔ `v=√(u²+2as)` | canonical **normalization**: de-radicalize when the non-radical side is nonnegative (`_deradicalize_clause`), gated on `q.symbol_assumptions` — implemented |
+| **Differently-named relation subjects** | `Q_tot = <answer>` ↔ `Q = <answer>`; `varphi = <answer>` ↔ `Δφ = <answer>` | **criterion** comparing two single equalities on their solved sides when each subject is a bare name disjoint from both solved sides and one of them is the question's *declared* `target_variable` (`relation_subject.py`) — implemented |
 | **Sign convention** | a directional answer flipped by a global `−` under an opposite, unstated axis choice (`−20 m/s` right-as-positive ↔ `+20 m/s` left-as-positive; a vector ↔ its negation) | **criterion** reconciling two *stated* conventions to a common frame (`sign_convention`, `_compare_sign_convention`); gated on the question fixing none, both answers declaring **opposite** conventions, and a provable global `−1` — implemented (audited bridge, see below) |
 
 ### Precision defects in the surface layer
@@ -160,6 +161,39 @@ in a canonical form is live the moment the form is consulted. Two rules follow.
 the leak, but leaves the engine with strictly less information and no canonical form at all
 for those answers. Recomputing it is the same lever applied honestly, and it is what the
 build path will do directly (see `NORMALIZATION_VERSION`).
+
+### Why the writer was not reparented (measured, 2026-08-18)
+
+Repairing the surface at read time is the *second*-best fix; writing it correctly at build
+time is the first. That change was implemented and then **withdrawn**, and the measurement
+is worth keeping so the next attempt starts from it rather than from the same hope.
+
+Routing the `canonical_text` writer through the substrate that reads it does work: it
+removes the writer/reader split at its source, and it collapses the *rendering*
+inconsistency, where a relation reached disk in three shapes depending on which
+normalization path it took (`Eq(e, c**2*m)` from latex2sympy, verbatim LaTeX when
+latex2sympy raised, the untouched source when no LaTeX was detected). One shape per kind,
+verified.
+
+It is still the wrong trade, because the reading substrate carries defects of its own.
+They are harmless *inside* a comparison — both sides get the same treatment, so the
+comparison stays consistent — and permanent once written to disk. Measured over the 1,438
+symbolic answers in the artifact cache that carry a LaTeX surface:
+
+| Defect | Rendered as | Incidence |
+|---|---|---|
+| `\mu` split into two symbols | `\mu^2 \omega h g` → `g*h*m*omega*u**2` | 41 (2.85%) |
+| Python-keyword sanitization leaking | `\lambda` → `lambda_symbol` | 35 (2.43%) |
+| Bare function argument mis-associated | `\cos \omega t` → `t*cos(omega)` | ≤17 (1.18%) |
+
+and 246 of 777 expressions (32%) lose their SymPy canonical form entirely, because the
+substrate cannot parse what latex2sympy can and falls back to preprocessed text.
+
+Each is a *reader* defect, so repairing it means changing `preprocess_symbolic_text` — and
+that moves comparison verdicts across the whole corpus, which needs its own precision
+measurement rather than a ride on a surface change. **Fix the reader first, measure it,
+then reparent the writer.** Until then, a defect that lives in the reader is recoverable
+by changing the reader; one written into a write-once artifact is not.
 
 **Ship the over-blocking lock with the reject battery.** A guard that suppresses too much
 passes every adversarial reject. Rule 4 (adversarial rejects) is necessary but not
@@ -239,14 +273,20 @@ intent is *declared, not derived* (§4), exactly as positivity is.
 
 The §4 recall-gap inventory is addressed for every gap listed there. It is an inventory of
 gaps found so far, not a proof of completeness: a 2026-08 replay of a 100-problem audited
-PhyBench cell still showed a recall of 50% at 100% precision, and the residual false
-negatives below were each traced to a distinct cause rather than to a missing equivalence
-rule. Naming them here so the next one is discoverable:
+PhyBench cell shows a recall of 62.5% at 100% precision (20 TP / 68 TN / 0 FP / 12 FN;
+56.2% before the relation-subject criterion), and the residual false negatives below were
+each traced to a distinct cause rather than to a missing equivalence rule. Naming them
+here so the next one is discoverable:
 
-- **Differently-named relation subjects.** The two sides state the same right-hand side
-  under different subjects (`Q_tot = …` vs `Q = …`, `varphi = …` vs `Δφ = …`). Stripping
-  the subject would be a widening on authority rather than on proof, and the reference
-  gives no evidence the two names denote the same quantity. Deliberately not done.
+- ~~**Differently-named relation subjects.**~~ **Closed** (`relation_subject.py`). The
+  earlier reading — that stripping the subject is a widening on authority rather than on
+  proof — missed that the engine *already* strips any simple label off a prediction when
+  the reference is a bare expression (`_prediction_rhs_matches_expression`). Refusing the
+  same strip when the reference happens to name its subject was not a stricter rule, it
+  was a **direction-dependent** one. The authority the earlier reading wanted is the
+  question record's *declared* `target_variable`: it must be read from the question, not
+  from `context.target_variable`, which the contract backfills from the reference's own
+  subject and which would make the guard vacuous.
 - **Unmatched side conditions.** The prediction states a domain restriction the reference
   leaves implicit, so `subject_to` counts differ. Dismissing an extra side condition is a
   judgement about the problem, not a symbolic fact.

@@ -93,6 +93,30 @@ stable (all in `preprocess_symbolic_text` / `parse_relation_clauses`):
 | Big-operator limits | fold `\sum_{n=1}^{N}` so its `=` can't corrupt parsing | `_normalize_big_operator_bounds` |
 | Compact products | `NmV_r → N*m*V_r` | `_normalize_symbol_products` |
 
+### Relation subjects vs solved sides
+
+Two relations that state the same answer under different subject names
+(`Q_tot = <answer>` vs `Q = <answer>`, `varphi = <answer>` vs `\Delta\phi = <answer>`) are
+compared on their solved sides by `relation_subjects_bridge`
+([relation_subject.py](relation_subject.py)), as a fallback after strict relation
+comparison has failed — so it can add an acceptance and never remove one.
+
+It exists to make the relation **symmetric**. The engine already strips *any* simple label
+off a prediction when the reference is a bare expression
+(`_prediction_rhs_matches_expression` → `equality_like_rhs_expression_text`); refusing the
+same strip when the reference named its subject made the verdict depend on which side
+happened to spell out a name.
+
+The guards, in the order they fire: both answers are a **single** equality; each splits
+into a *name* (a run of symbol tokens with no arithmetic content — LaTeX lowers a decorated
+name such as `\Delta\phi` to an implicit product, so a name can be several tokens) and a
+solved side; neither name shares a symbol with either solved side; both solved sides carry
+at least one free symbol; and at least one name is the target variable the **question
+record declared**. That last one is load-bearing and reads `question_target`, threaded from
+`contract.question_semantics`, *not* `context.target_variable` — the contract backfills the
+latter from the reference answer's own subject, which would make the guard vacuous. A
+comparison that needed the bridge reports `relation_subject_bridged` in its diagnostics.
+
 ### Which stored surface is trusted
 
 An answer carries up to three surfaces: `canonical_latex` (the raw LaTeX), `canonical_text`

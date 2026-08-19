@@ -533,7 +533,14 @@ def _compare_atomic_surfaces(
                     policy_mode=policy_mode,
                 )
             return sign_convention
-        strict = compare_same_object_kind(pred, ref, context=context)
+        strict = compare_same_object_kind(
+            pred,
+            ref,
+            context=context,
+            # The declared target, not the contract's backfill of it: the
+            # relation-subject bridge is licensed by what the *question* asked for.
+            question_target=contract.question_semantics.target_variable,
+        )
         if strict.equivalent:
             return strict
         fallback = compare_label_family_fallback(pred, ref, context=context)
