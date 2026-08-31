@@ -26,6 +26,8 @@ from prkit.batch import (
     SUBMITTED,
     BatchInputError,
     BatchSubmission,
+    BatchSubmitUnsupportedError,
+    batch_submit_supported,
     submit_batch_physics_reasoning,
 )
 from prkit.core.domain import PhysicsDataset, PhysicsProblem
@@ -429,3 +431,82 @@ class TestNextCommand:
             and "fetch_batch_physics_reasoning" in m
             for m in msgs
         )
+
+
+class TestBatchSubmitCapabilityGate:
+    """A provider with no batch lane must be refused before any disk is touched."""
+
+    @staticmethod
+    def _sync_only_client():
+        """A real client whose provider has no batch surface.
+
+        Deliberately not a MagicMock: a mock answers every call, so it would
+        never reach the NotImplementedError this gate exists to pre-empt, and
+        the regression test would pass even with the gate removed.
+        """
+        with patch(
+            "prkit.core.model_clients.openai_compatible_chat.OpenAI"
+        ) as mock_cls:
+            mock_cls.return_value = MagicMock()
+            from prkit.core.model_clients.xai import XAIModel
+
+            return XAIModel("grok-4.6")
+
+    def test_submit_raises_up_front_for_a_sync_only_provider(self, tmp_path):
+        client = self._sync_only_client()
+
+        with pytest.raises(BatchSubmitUnsupportedError, match="xai"):
+            submit_batch_physics_reasoning(
+                client,
+                _problems(2),
+                output_dir=tmp_path,
+                run_name="run-a",
+            )
+
+    def test_refused_submit_leaves_no_run_folder(self, tmp_path):
+        """The point of the gate: no orphan folder to block a later retry.
+
+        The run folder used to be created before the per-problem build loop
+        raised, leaving an ``inputs/`` directory behind. That made the folder
+        non-empty, so retrying under the same run name hit the overwrite guard
+        and reported a stale-folder error rather than the real cause.
+        """
+        client = self._sync_only_client()
+
+        with pytest.raises(BatchSubmitUnsupportedError):
+            submit_batch_physics_reasoning(
+                client,
+                _problems(2),
+                output_dir=tmp_path,
+                run_name="run-a",
+            )
+
+        assert list(tmp_path.iterdir()) == []
+
+    def test_gate_precedes_input_validation(self, tmp_path):
+        """Capability is checked before the empty-input guard, so the error names the real cause."""
+        client = self._sync_only_client()
+
+        with pytest.raises(BatchSubmitUnsupportedError):
+            submit_batch_physics_reasoning(client, [], output_dir=tmp_path)
+
+    def test_batch_submit_supported_matches_the_capable_providers(self):
+        for provider in ("openai", "anthropic", "google"):
+            client = MagicMock()
+            client.provider = provider
+            assert batch_submit_supported(client) is True
+
+        for provider in ("xai", "moonshot", "deepseek", "dashscope", "ollama", None):
+            client = MagicMock()
+            client.provider = provider
+            assert batch_submit_supported(client) is False
+
+    def test_capable_provider_still_submits(self, tmp_path):
+        client = _openai_client()
+        client.client.batches.create.return_value = MagicMock(id="batch_1")
+
+        run_dir = submit_batch_physics_reasoning(
+            client, _problems(2), output_dir=tmp_path, minibatch_size=2
+        )
+
+        assert BatchSubmission.load(run_dir).minibatch_count == 1

@@ -60,6 +60,7 @@ __all__ = [
     "BatchSubmission",
     "BatchInputError",
     "BatchFetchUnsupportedError",
+    "BatchSubmitUnsupportedError",
     "BatchNotTerminalError",
     "submit_batch_physics_reasoning",
     "fetch_batch",
@@ -67,6 +68,7 @@ __all__ = [
     "consolidate_batch_results",
     "resubmit_failures",
     "batch_fetch_supported",
+    "batch_submit_supported",
     "dumps_batch_jsonl",
     "write_batch_jsonl",
     "validate_batch_requests",
@@ -140,10 +142,11 @@ MAX_ATTEMPTS = 3
 # deliberately absent: an exhausted record is terminal and never re-siphoned.
 _SIPHON_RECORD_STATUSES = frozenset({"errored", "expired", "canceled"})
 
-# Providers with a full batch fetch lifecycle (poll + retrieve). Gemini's
-# provider string is "google" (not "gemini"); xAI / DeepSeek / Dashscope / Ollama
-# have no batch fetch surface and are intentionally absent.
-_FETCH_CAPABLE_PROVIDERS = frozenset({"openai", "anthropic", "google"})
+# Providers with a batch lifecycle at all — submit, poll and retrieve. Gemini's
+# provider string is "google" (not "gemini"); xAI / DeepSeek / Dashscope /
+# Moonshot / Ollama have no batch surface and are intentionally absent. Submit
+# and fetch capability are the same set today, and one set cannot drift.
+_BATCH_CAPABLE_PROVIDERS = frozenset({"openai", "anthropic", "google"})
 
 # Providers whose batch line correlates by ``key`` rather than ``custom_id``.
 _KEY_ID_PROVIDERS = frozenset({"google", "gemini"})
@@ -342,8 +345,17 @@ class BatchFetchUnsupportedError(BatchInputError):
     """The client's provider has no batch fetch lifecycle (poll + retrieve).
 
     Raised **up front** by :func:`fetch_batch` for providers outside
-    :data:`_FETCH_CAPABLE_PROVIDERS` — never a raw ``NotImplementedError`` from
+    :data:`_BATCH_CAPABLE_PROVIDERS` — never a raw ``NotImplementedError`` from
     partway through a sweep.
+    """
+
+
+class BatchSubmitUnsupportedError(BatchInputError):
+    """The client's provider has no batch submit surface.
+
+    Raised **up front** by :func:`submit_batch_physics_reasoning`, before any run
+    folder is created — never a raw ``NotImplementedError`` from inside the
+    per-problem build loop, which would leave an orphan run folder behind.
     """
 
 
@@ -479,10 +491,22 @@ def submit_batch_physics_reasoning(
     Stage 1); the ledger always has one ``minibatches`` entry per minibatch.
 
     Raises:
+        BatchSubmitUnsupportedError: up front, if the client's provider has no
+            batch submit surface (never a raw ``NotImplementedError`` from
+            inside the build loop, which would leave an orphan run folder).
         BatchInputError: empty input, an invalid/duplicate id, a non-positive
             ``minibatch_size``, or a pre-existing non-empty run folder when
             ``overwrite`` is False.
     """
+    if not batch_submit_supported(client):
+        provider = getattr(client, "provider", None) or "unknown"
+        raise BatchSubmitUnsupportedError(
+            f"Provider {provider!r} has no batch submit surface; batch-capable "
+            f"providers are {sorted(_BATCH_CAPABLE_PROVIDERS)}. Use the "
+            "synchronous path for this provider, or check "
+            "batch_submit_supported(client) first when sweeping several models."
+        )
+
     if isinstance(problems, PhysicsDataset):
         dataset_name: str | None = problems.name
         dataset_version: Any = problems.get_info().get("version")
@@ -627,9 +651,18 @@ def submit_batch_physics_reasoning(
 # --------------------------------------------------------------------------- #
 # Fetch half (Stage 2)                                                        #
 # --------------------------------------------------------------------------- #
+def batch_submit_supported(client: Any) -> bool:
+    """True only for providers with a batch submit surface (in the allow-list).
+
+    Callers sweeping a mix of models can branch on this to skip the ones with no
+    batch lane, rather than catching :class:`BatchSubmitUnsupportedError`.
+    """
+    return getattr(client, "provider", None) in _BATCH_CAPABLE_PROVIDERS
+
+
 def batch_fetch_supported(client: Any) -> bool:
     """True only for providers with a full fetch lifecycle (in the allow-list)."""
-    return getattr(client, "provider", None) in _FETCH_CAPABLE_PROVIDERS
+    return getattr(client, "provider", None) in _BATCH_CAPABLE_PROVIDERS
 
 
 def fetch_batch(
@@ -664,7 +697,7 @@ def fetch_batch(
         provider = getattr(client, "provider", None) or "unknown"
         raise BatchFetchUnsupportedError(
             f"Provider {provider!r} has no batch fetch lifecycle; fetch-capable "
-            f"providers are {sorted(_FETCH_CAPABLE_PROVIDERS)}."
+            f"providers are {sorted(_BATCH_CAPABLE_PROVIDERS)}."
         )
 
     sub = (
@@ -1316,7 +1349,7 @@ def resubmit_failures(
         provider = getattr(client, "provider", None) or "unknown"
         raise BatchFetchUnsupportedError(
             f"Provider {provider!r} has no batch lifecycle; batch-capable providers "
-            f"are {sorted(_FETCH_CAPABLE_PROVIDERS)}."
+            f"are {sorted(_BATCH_CAPABLE_PROVIDERS)}."
         )
 
     sub = (
