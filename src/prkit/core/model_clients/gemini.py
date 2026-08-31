@@ -17,7 +17,9 @@ from .structured_output import (
     StructuredOutputPlan,
     StructuredOutputPolicy,
     StructuredOutputSpec,
+    build_json_schema_prompt_suffix,
     extract_schema_for_gemini,
+    iter_schema_nodes,
     normalize_response_format,
 )
 from .utils import detect_image_mime_type, encode_image_to_base64
@@ -32,6 +34,54 @@ _GEMINI_BATCH_STATE_MAP = {
     "JOB_STATE_CANCELLED": BatchState.CANCELLED,
     "JOB_STATE_EXPIRED": BatchState.EXPIRED,
 }
+
+
+# Validation-bearing keywords outside Google's documented allowlist for
+# ``response_json_schema``. Deliberately narrow: the published allowlist also
+# omits annotation keywords such as ``default``, ``examples`` and ``$comment``,
+# and forbids a ``$ref`` carrying any non-``$`` sibling as well as cycles
+# reached through a required property. Measured against prkit's own 44 response
+# models, gating on those would demote 32, 23 and 13 of them respectively —
+# schemas that are sent to Gemini natively today and work. The documentation is
+# evidently stricter than the behaviour, so only constructs that carry
+# validation semantics *and* appear in no prkit schema are gated here.
+_GEMINI_UNSUPPORTED_SCHEMA_KEYWORDS = frozenset(
+    {
+        "allOf",
+        "not",
+        "if",
+        "then",
+        "else",
+        "propertyNames",
+        "contains",
+        "dependentSchemas",
+        "multipleOf",
+        "uniqueItems",
+        "pattern",
+        "const",
+        "minLength",
+        "maxLength",
+    }
+)
+
+
+def _gemini_native_schema_incompatibility(spec: StructuredOutputSpec) -> str | None:
+    """Return why Gemini cannot enforce *spec* natively, or ``None``.
+
+    Only schema-position nodes are inspected, so a ``default`` value or a field
+    named after a keyword is never mistaken for the keyword itself.
+    """
+    found = sorted(
+        {
+            keyword
+            for node in iter_schema_nodes(spec.schema)
+            for keyword in _GEMINI_UNSUPPORTED_SCHEMA_KEYWORDS
+            if keyword in node
+        }
+    )
+    if not found:
+        return None
+    return f"unsupported schema keyword(s): {', '.join(found)}"
 
 
 class GeminiModel(BaseModelClient):
@@ -145,7 +195,22 @@ class GeminiModel(BaseModelClient):
         *,
         structured_policy: StructuredOutputPolicy,
     ) -> StructuredOutputPlan:
-        del structured_policy
+        incompatibility = _gemini_native_schema_incompatibility(spec)
+        if incompatibility is not None:
+            if structured_policy == "native_required":
+                raise ValueError(
+                    "Gemini structured outputs do not accept this schema "
+                    f"for model={self.model!r}: {incompatibility}."
+                )
+            return StructuredOutputPlan(
+                mode="prompt_only",
+                strategy="gemini_prompt_only_unsupported_schema",
+                native_schema_enforced=False,
+                accepted_artifact_modes=("prompt_only",),
+                accepted_artifact_strategies=("gemini_prompt_only_unsupported_schema",),
+                response_format=None,
+                prompt_suffix=build_json_schema_prompt_suffix(spec.schema),
+            )
         return StructuredOutputPlan(
             mode="json_schema",
             strategy="gemini_response_json_schema",

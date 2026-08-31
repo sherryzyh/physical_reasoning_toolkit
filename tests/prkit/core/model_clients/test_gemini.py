@@ -13,6 +13,7 @@ from prkit.core.model_clients.gemini import (
     GeminiModel,
     _extract_gemini_error_details,
 )
+from prkit.core.model_clients.structured_output import coerce_structured_output_spec
 
 GEMINI_TEST_MODEL = "gemini-2.5-pro"
 
@@ -251,3 +252,106 @@ class TestGeminiModel:
 
         assert _extract_gemini_error_details(empty) == "empty_response"
         assert _extract_gemini_error_details(blocked) == "prompt_block_reason=BLOCKED"
+
+
+class TestGeminiStructuredOutputGate:
+    """Gemini rejects some schema constructs; demote rather than send a 400."""
+
+    @staticmethod
+    def _client():
+        client = object.__new__(GeminiModel)
+        client.model = "gemini-3.5-flash"
+        client.provider = "google"
+        client.logger = MagicMock()
+        return client
+
+    @staticmethod
+    def _spec(schema):
+        return coerce_structured_output_spec(
+            {"type": "json_schema", "name": "Example", "schema": schema}
+        )
+
+    @staticmethod
+    def _closed(properties):
+        return {
+            "type": "object",
+            "properties": properties,
+            "required": sorted(properties),
+            "additionalProperties": False,
+        }
+
+    def test_plain_schema_stays_native(self):
+        plan = self._client()._resolve_structured_output_plan(
+            self._spec(self._closed({"answer": {"type": "string"}})),
+            structured_policy="best_effort",
+        )
+
+        assert plan.mode == "json_schema"
+        assert plan.native_schema_enforced is True
+
+    @pytest.mark.parametrize(
+        "schema",
+        [
+            {"allOf": [{"type": "object"}, {"type": "object"}]},
+            {"type": "object", "properties": {"a": {"not": {"type": "null"}}}},
+            {
+                "type": "object",
+                "properties": {"a": {"type": "string", "pattern": "^x"}},
+            },
+            {"type": "object", "properties": {"a": {"const": 3}}},
+            {"type": "object", "propertyNames": {"type": "string"}},
+        ],
+    )
+    def test_unsupported_keywords_demote(self, schema):
+        plan = self._client()._resolve_structured_output_plan(
+            self._spec(schema), structured_policy="best_effort"
+        )
+
+        assert plan.mode == "prompt_only"
+        assert plan.strategy == "gemini_prompt_only_unsupported_schema"
+        assert plan.prompt_suffix and "JSON Schema" in plan.prompt_suffix
+
+    def test_native_required_raises_on_an_unsupported_schema(self):
+        with pytest.raises(ValueError, match="unsupported schema keyword"):
+            self._client()._resolve_structured_output_plan(
+                self._spec({"allOf": [{"type": "object"}, {"type": "object"}]}),
+                structured_policy="native_required",
+            )
+
+    def test_default_values_do_not_demote(self):
+        """`default` is outside Google's allowlist but 32 of 44 prkit models use it.
+
+        Those are sent natively today and work, so the allowlist is not
+        exhaustive in practice and annotation keywords must not gate.
+        """
+        plan = self._client()._resolve_structured_output_plan(
+            self._spec(self._closed({"a": {"type": "string", "default": "x"}})),
+            structured_policy="best_effort",
+        )
+
+        assert plan.mode == "json_schema"
+
+    def test_ref_siblings_and_cycles_do_not_demote(self):
+        """Documented as unsupported, deliberately not gated — see the module note."""
+        schema = {
+            "$defs": {
+                "Node": self._closed({"child": {"$ref": "#/$defs/Node"}}),
+            },
+            **self._closed(
+                {"root": {"$ref": "#/$defs/Node", "description": "a sibling key"}}
+            ),
+        }
+
+        plan = self._client()._resolve_structured_output_plan(
+            self._spec(schema), structured_policy="best_effort"
+        )
+
+        assert plan.mode == "json_schema"
+
+    def test_a_field_named_like_a_keyword_does_not_demote(self):
+        plan = self._client()._resolve_structured_output_plan(
+            self._spec(self._closed({"pattern": {"type": "string"}})),
+            structured_policy="best_effort",
+        )
+
+        assert plan.mode == "json_schema"

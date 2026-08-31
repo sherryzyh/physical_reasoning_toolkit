@@ -4,7 +4,6 @@ xAI API client implementation.
 
 from __future__ import annotations
 
-from collections.abc import Iterator
 from typing import Any
 
 from .openai_compatible_chat import OpenAICompatibleChatModel
@@ -13,6 +12,7 @@ from .structured_output import (
     StructuredOutputPolicy,
     StructuredOutputSpec,
     build_json_schema_prompt_suffix,
+    iter_schema_nodes,
     normalize_response_format,
     schema_has_circular_refs,
     strip_schema_keywords,
@@ -28,61 +28,10 @@ _XAI_SUPPORTED_IMAGE_MEDIA_TYPES = frozenset({"image/jpeg", "image/png"})
 _XAI_UNSUPPORTED_SCHEMA_KEYWORDS = frozenset({"minContains", "maxContains"})
 
 
-# Keywords mapping author-chosen names to subschemas.
-_SCHEMA_MAP_KEYWORDS = ("properties", "patternProperties", "$defs", "definitions")
-# Keywords whose value is a single subschema (or, for ``items``, possibly a list).
-_SUBSCHEMA_KEYWORDS = (
-    "items",
-    "additionalProperties",
-    "contains",
-    "not",
-    "if",
-    "then",
-    "else",
-    "propertyNames",
-)
-# Keywords whose value is a list of subschemas.
-_SUBSCHEMA_LIST_KEYWORDS = ("allOf", "anyOf", "oneOf", "prefixItems")
-
-
-def _iter_schema_nodes(node: Any) -> Iterator[dict[str, Any]]:
-    """Yield every dict occupying a *schema* position within *node*.
-
-    Walking every dict indiscriminately would read instance data as though it
-    were schema: a ``default`` holding ``{"items": [...]}`` is a value, not a
-    tuple-form ``items`` keyword, and a field named ``properties`` is a field.
-    So ``default``, ``const``, ``examples`` and ``enum`` members are never
-    entered, and name-to-subschema maps are entered only by value.
-    """
-    if not isinstance(node, dict):
-        return
-    yield node
-
-    for keyword in _SCHEMA_MAP_KEYWORDS:
-        mapping = node.get(keyword)
-        if isinstance(mapping, dict):
-            for value in mapping.values():
-                yield from _iter_schema_nodes(value)
-
-    for keyword in _SUBSCHEMA_KEYWORDS:
-        value = node.get(keyword)
-        if isinstance(value, dict):
-            yield from _iter_schema_nodes(value)
-        elif isinstance(value, list):
-            for item in value:
-                yield from _iter_schema_nodes(item)
-
-    for keyword in _SUBSCHEMA_LIST_KEYWORDS:
-        values = node.get(keyword)
-        if isinstance(values, list):
-            for item in values:
-                yield from _iter_schema_nodes(item)
-
-
 def _has_array_items(schema: Any) -> bool:
     """Return ``True`` when an ``items`` is a list; xAI wants ``prefixItems`` instead."""
     return any(
-        isinstance(node.get("items"), list) for node in _iter_schema_nodes(schema)
+        isinstance(node.get("items"), list) for node in iter_schema_nodes(schema)
     )
 
 
@@ -90,7 +39,7 @@ def _has_empty_variant_list(schema: Any) -> bool:
     """Return ``True`` when an ``enum``, ``anyOf`` or ``oneOf`` is present but empty."""
     return any(
         isinstance(node.get(key), list) and not node[key]
-        for node in _iter_schema_nodes(schema)
+        for node in iter_schema_nodes(schema)
         for key in ("enum", "anyOf", "oneOf")
     )
 
@@ -102,7 +51,7 @@ def _has_boolean_subschema(schema: Any) -> bool:
     constraint rather than a property schema, and it is what every provider
     transform in this codebase emits.
     """
-    for node in _iter_schema_nodes(schema):
+    for node in iter_schema_nodes(schema):
         properties = node.get("properties")
         if isinstance(properties, dict) and any(
             isinstance(value, bool) for value in properties.values()
