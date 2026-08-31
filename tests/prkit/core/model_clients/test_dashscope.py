@@ -16,6 +16,7 @@ from prkit.core.model_clients.dashscope import (
     resolve_dashscope_max_retries,
     resolve_dashscope_timeout_seconds,
 )
+from prkit.core.model_clients.retry import DEFAULT_MAX_RETRIES
 
 DASHSCOPE_TEST_MODEL = "qwen3.6-plus"
 SYSTEM_MESSAGE = {"role": "system", "content": DEFAULT_INSTRUCTIONS}
@@ -42,7 +43,7 @@ class TestDashscopeModel:
             api_key="test-key",
             base_url="https://dashscope-us.aliyuncs.com/compatible-mode/v1",
             timeout=DEFAULT_DASHSCOPE_TIMEOUT_SECONDS,
-            max_retries=0,
+            max_retries=DEFAULT_MAX_RETRIES,
         )
 
     def test_resolve_dashscope_base_url_respects_region(self):

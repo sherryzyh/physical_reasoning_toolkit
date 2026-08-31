@@ -8,6 +8,7 @@ import os
 from typing import Any
 
 from .openai_compatible_chat import OpenAICompatibleChatModel
+from .retry import resolve_max_retries
 from .structured_output import (
     StructuredOutputPlan,
     StructuredOutputPolicy,
@@ -29,7 +30,6 @@ _DASHSCOPE_BASE_URLS = {
 }
 
 DEFAULT_DASHSCOPE_TIMEOUT_SECONDS = 60.0
-DEFAULT_DASHSCOPE_MAX_RETRIES = 0
 
 
 def _parse_bool_env(name: str) -> bool | None:
@@ -57,11 +57,13 @@ def resolve_dashscope_timeout_seconds() -> float:
 
 
 def resolve_dashscope_max_retries() -> int:
-    """Resolve the retry count for DashScope OpenAI-compatible requests."""
-    raw = os.environ.get("DASHSCOPE_MAX_RETRIES")
-    if raw is None or not raw.strip():
-        return DEFAULT_DASHSCOPE_MAX_RETRIES
-    return int(raw)
+    """Resolve the retry count for DashScope OpenAI-compatible requests.
+
+    Previously defaulted to 0, which arrived incidentally in a bulk rename
+    rather than as a considered choice and left DashScope the one provider that
+    never retried a transient failure.
+    """
+    return resolve_max_retries("DASHSCOPE_MAX_RETRIES")
 
 
 def resolve_dashscope_base_url() -> str:

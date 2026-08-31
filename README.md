@@ -124,6 +124,9 @@ export GEMINI_API_KEY="your-gemini-api-key"
 export DEEPSEEK_API_KEY="your-deepseek-api-key"
 export XAI_API_KEY="your-xai-api-key"
 export MOONSHOT_API_KEY="your-moonshot-api-key"
+
+# Retries (optional; defaults to 2 for every provider)
+export PRKIT_MAX_RETRIES=2            # or per provider: OPENAI_MAX_RETRIES, GEMINI_MAX_RETRIES, ...
 export DASHSCOPE_API_KEY="your-dashscope-api-key"
 
 # For logging configuration (optional)

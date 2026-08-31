@@ -12,6 +12,7 @@ from openai import OpenAI
 
 from .base import BaseModelClient
 from .openai import prepare_image_url_from_image_path
+from .retry import resolve_max_retries
 from .structured_output import normalize_response_format
 
 
@@ -46,8 +47,19 @@ class OpenAICompatibleChatModel(BaseModelClient):
         return os.environ.get(self.base_url_env_var, self.default_base_url)
 
     def get_client_kwargs(self) -> dict[str, Any]:
-        """Return extra keyword arguments forwarded to the OpenAI client constructor."""
-        return {}
+        """Return extra keyword arguments forwarded to the OpenAI client constructor.
+
+        Subclasses that override this should keep ``max_retries`` unless they
+        have a provider-specific reason to differ, so one workload does not see
+        a different failure rate depending on which provider ran it.
+        """
+        return {
+            "max_retries": resolve_max_retries(
+                f"{self.provider_prefix.upper()}_MAX_RETRIES"
+                if self.provider_prefix
+                else None
+            )
+        }
 
     def __init__(self, model: str, logger: logging.Logger | None = None) -> None:
         normalized_model = self.normalize_model_name(model)

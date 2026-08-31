@@ -15,6 +15,7 @@ from prkit.core.model_clients.anthropic import (
     _parse_data_url,
 )
 from prkit.core.model_clients.base import DEFAULT_INSTRUCTIONS
+from prkit.core.model_clients.retry import DEFAULT_MAX_RETRIES
 
 ANTHROPIC_TEST_MODEL = "claude-sonnet-4-6"
 
@@ -34,7 +35,9 @@ class TestAnthropicModel:
 
         assert client.model == ANTHROPIC_TEST_MODEL
         assert client.provider == "anthropic"
-        mock_anthropic_class.assert_called_once_with(api_key="test-key")
+        mock_anthropic_class.assert_called_once_with(
+            api_key="test-key", max_retries=DEFAULT_MAX_RETRIES
+        )
 
     @patch("prkit.core.model_clients.anthropic.Anthropic")
     def test_chat_text_only(self, mock_anthropic_class):

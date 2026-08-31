@@ -11,6 +11,7 @@ from pydantic import BaseModel
 
 from prkit.core.model_clients.base import DEFAULT_INSTRUCTIONS
 from prkit.core.model_clients.moonshot import MoonshotModel
+from prkit.core.model_clients.retry import DEFAULT_MAX_RETRIES
 from prkit.core.model_clients.structured_output import coerce_structured_output_spec
 
 MOONSHOT_TEST_MODEL = "kimi-k3"
@@ -42,7 +43,9 @@ class TestMoonshotInit:
         assert client.provider == "moonshot"
         assert client.base_url == "https://api.moonshot.ai/v1"
         mock_openai_class.assert_called_once_with(
-            api_key="k", base_url="https://api.moonshot.ai/v1"
+            api_key="k",
+            base_url="https://api.moonshot.ai/v1",
+            max_retries=DEFAULT_MAX_RETRIES,
         )
 
     @patch("prkit.core.model_clients.openai_compatible_chat.OpenAI")

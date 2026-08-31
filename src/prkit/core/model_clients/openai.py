@@ -21,6 +21,7 @@ from openai import OpenAI
 from ..project_env import ensure_openai_api_key
 from .base import BaseModelClient
 from .batch_types import BatchItemStatus, BatchResult, BatchState, BatchStatus
+from .retry import resolve_max_retries
 from .structured_output import (
     StructuredOutputPlan,
     StructuredOutputPolicy,
@@ -239,7 +240,10 @@ class OpenAIModel(BaseModelClient):
         else:
             resolved_api_key = ensure_openai_api_key(__file__, required=False)
 
-        client_kwargs: dict[str, Any] = {"api_key": resolved_api_key}
+        client_kwargs: dict[str, Any] = {
+            "api_key": resolved_api_key,
+            "max_retries": resolve_max_retries("OPENAI_MAX_RETRIES"),
+        }
         if base_url is not None:
             client_kwargs["base_url"] = base_url
         self.client = OpenAI(**client_kwargs)

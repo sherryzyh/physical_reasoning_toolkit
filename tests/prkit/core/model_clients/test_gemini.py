@@ -13,9 +13,23 @@ from prkit.core.model_clients.gemini import (
     GeminiModel,
     _extract_gemini_error_details,
 )
+from prkit.core.model_clients.retry import DEFAULT_MAX_RETRIES
 from prkit.core.model_clients.structured_output import coerce_structured_output_spec
 
 GEMINI_TEST_MODEL = "gemini-2.5-pro"
+
+
+def _assert_client_call(mock_genai, *, api_key: str | None) -> None:
+    """Assert how genai.Client was constructed, including the retry options.
+
+    Retry options are asserted by value rather than by comparing an opaque
+    HttpOptions object, so a change to ``attempts`` is legible in the failure.
+    """
+    mock_genai.Client.assert_called_once()
+    kwargs = mock_genai.Client.call_args.kwargs
+    assert kwargs.get("api_key") == api_key
+    retry = kwargs["http_options"].retry_options
+    assert retry.attempts == DEFAULT_MAX_RETRIES + 1
 
 
 class TestGeminiModel:
@@ -33,7 +47,7 @@ class TestGeminiModel:
 
         assert client.model == GEMINI_TEST_MODEL
         assert client.provider == "google"
-        mock_genai.Client.assert_called_once_with(api_key="test-key")
+        _assert_client_call(mock_genai, api_key="test-key")
 
     @patch("prkit.core.model_clients.gemini.genai")
     @patch("prkit.core.model_clients.base.load_project_dotenv")
@@ -47,7 +61,7 @@ class TestGeminiModel:
         with patch.dict("os.environ", {"GOOGLE_API_KEY": "google-key"}, clear=True):
             GeminiModel(GEMINI_TEST_MODEL)
 
-        mock_genai.Client.assert_called_once_with(api_key="google-key")
+        _assert_client_call(mock_genai, api_key="google-key")
 
     @patch("prkit.core.model_clients.gemini.genai")
     @patch("prkit.core.model_clients.base.load_project_dotenv")
@@ -59,7 +73,7 @@ class TestGeminiModel:
         with patch.dict("os.environ", {}, clear=True):
             GeminiModel(GEMINI_TEST_MODEL)
 
-        mock_genai.Client.assert_called_once_with()
+        _assert_client_call(mock_genai, api_key=None)
 
     @patch("prkit.core.model_clients.gemini.genai")
     def test_chat_text_only(self, mock_genai):

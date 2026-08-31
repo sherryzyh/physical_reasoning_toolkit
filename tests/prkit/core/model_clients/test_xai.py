@@ -8,6 +8,7 @@ import pytest
 from pydantic import BaseModel, Field
 
 from prkit.core.model_clients.base import DEFAULT_INSTRUCTIONS
+from prkit.core.model_clients.retry import DEFAULT_MAX_RETRIES
 from prkit.core.model_clients.structured_output import coerce_structured_output_spec
 from prkit.core.model_clients.xai import XAIModel
 
@@ -56,6 +57,7 @@ class TestXAIModel:
         mock_openai_class.assert_called_once_with(
             api_key="test-key",
             base_url="https://api.x.ai/v1",
+            max_retries=DEFAULT_MAX_RETRIES,
         )
 
     @patch("prkit.core.model_clients.openai_compatible_chat.OpenAI")

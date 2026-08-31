@@ -8,6 +8,7 @@ from pydantic import BaseModel
 
 from prkit.core.model_clients.base import DEFAULT_INSTRUCTIONS
 from prkit.core.model_clients.deepseek import DeepseekModel
+from prkit.core.model_clients.retry import DEFAULT_MAX_RETRIES
 
 DEEPSEEK_CHAT_TEST_MODEL = "deepseek-chat"
 DEEPSEEK_REASONER_TEST_MODEL = "deepseek-reasoner"
@@ -33,6 +34,7 @@ class TestDeepseekModel:
         mock_openai_class.assert_called_once_with(
             api_key="test-key",
             base_url="https://api.deepseek.com",
+            max_retries=DEFAULT_MAX_RETRIES,
         )
 
     @patch("prkit.core.model_clients.openai_compatible_chat.OpenAI")

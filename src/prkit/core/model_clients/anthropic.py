@@ -11,6 +11,7 @@ from pydantic import BaseModel
 
 from .base import BaseModelClient
 from .batch_types import BatchItemStatus, BatchResult, BatchState, BatchStatus
+from .retry import resolve_max_retries
 from .structured_output import (
     StructuredOutputPlan,
     StructuredOutputPolicy,
@@ -207,7 +208,10 @@ class AnthropicModel(BaseModelClient):
             raise ImportError(
                 "anthropic package not installed. Install with: pip install anthropic"
             )
-        self.client: Any = Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+        self.client: Any = Anthropic(
+            api_key=os.environ.get("ANTHROPIC_API_KEY"),
+            max_retries=resolve_max_retries("ANTHROPIC_MAX_RETRIES"),
+        )
         self.provider = "anthropic"
 
     def response(

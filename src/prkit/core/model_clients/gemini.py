@@ -13,6 +13,7 @@ from google.genai import types
 
 from .base import BaseModelClient
 from .batch_types import BatchItemStatus, BatchResult, BatchState, BatchStatus
+from .retry import attempts_from_retries, resolve_max_retries
 from .structured_output import (
     StructuredOutputPlan,
     StructuredOutputPolicy,
@@ -107,11 +108,24 @@ class GeminiModel(BaseModelClient):
         super().__init__(model, logger)
         # The new SDK uses GEMINI_API_KEY, but we support GOOGLE_API_KEY for backward compatibility
         api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+        # Without explicit retry options google-genai does not retry at all
+        # (``retry_args`` returns ``stop_after_attempt(1)`` for ``None``), unlike
+        # every other provider SDK here. ``attempts`` counts the first request,
+        # hence the conversion.
+        client_kwargs: dict[str, Any] = {
+            "http_options": types.HttpOptions(
+                retry_options=types.HttpRetryOptions(
+                    attempts=attempts_from_retries(
+                        resolve_max_retries("GEMINI_MAX_RETRIES")
+                    )
+                )
+            )
+        }
         if api_key:
-            self.genai_client = genai.Client(api_key=api_key)
+            self.genai_client = genai.Client(api_key=api_key, **client_kwargs)
         else:
             # Will try to pick up from GEMINI_API_KEY env var automatically
-            self.genai_client = genai.Client()
+            self.genai_client = genai.Client(**client_kwargs)
         self.provider = "google"
 
     def response(
