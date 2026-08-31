@@ -202,7 +202,9 @@ class TestStructuredOutputUtilities:
         # This schema is genuinely recursive and xAI accepts non-circular
         # references only, so native enforcement would be a 400.
         assert resolved["xai"].mode == "prompt_only"
-        assert resolved["dashscope"].mode == "json_schema"
+        # DashScope accepts a json_schema response format and ignores it
+        # (verified live), so prkit does not claim enforcement for it.
+        assert resolved["dashscope"].mode == "json_object"
         assert resolved["ollama"].mode == "json_schema"
         assert resolved["deepseek"].mode == "json_object"
         assert resolved["moonshot"].mode == "json_schema"

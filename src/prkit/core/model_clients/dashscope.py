@@ -13,7 +13,8 @@ from .structured_output import (
     StructuredOutputPlan,
     StructuredOutputPolicy,
     StructuredOutputSpec,
-    normalize_response_format,
+    build_json_schema_prompt_suffix,
+    coerce_structured_output_spec,
 )
 
 _DASHSCOPE_BASE_URLS = {
@@ -82,7 +83,9 @@ def resolve_dashscope_base_url() -> str:
 class DashscopeModel(OpenAICompatibleChatModel):
     """DashScope Qwen client via the OpenAI-compatible Chat Completions API."""
 
-    supports_response_format_json_schema = True
+    # DashScope accepts a json_schema response format but does not enforce it
+    # (verified live), so it is not advertised as a schema-enforcing provider.
+    supports_response_format_json_schema = False
     supports_response_format_json_object = True
     provider_name = "dashscope"
     provider_prefix = "dashscope"
@@ -159,30 +162,67 @@ class DashscopeModel(OpenAICompatibleChatModel):
             **kwargs,
         )
 
+    def _structured_prompt_for_chat(
+        self,
+        user_prompt: str,
+        response_format: dict[str, Any] | type | None,
+    ) -> str:
+        """Append the schema as prose when a caller reaches ``response()`` directly.
+
+        DashScope rejects any ``response_format`` unless the word "json" appears
+        in the messages, and it does not enforce a schema, so the schema has to
+        travel in the prompt either way. :meth:`parse` already appends the plan's
+        suffix and passes ``{"type": "json_object"}`` down, which is why that
+        shape is left alone here rather than being suffixed twice.
+        """
+        if response_format is None:
+            return user_prompt
+        if (
+            isinstance(response_format, dict)
+            and response_format.get("type") == "json_object"
+        ):
+            return user_prompt
+
+        try:
+            spec = coerce_structured_output_spec(response_format)
+        except ValueError:
+            return user_prompt
+        return user_prompt + build_json_schema_prompt_suffix(spec.schema)
+
     def _resolve_structured_output_plan(
         self,
         spec: StructuredOutputSpec,
         *,
         structured_policy: StructuredOutputPolicy,
     ) -> StructuredOutputPlan:
-        del structured_policy
+        """Resolve to ``json_object`` plus a schema prompt; DashScope enforces neither.
+
+        Verified against the live API: a ``json_schema`` response format is
+        accepted and then ignored — the same request returned
+        ``{"meters_in_kilometre": ...}`` and ``{"meters_per_kilometre": ...}``
+        on consecutive attempts for a schema declaring ``number`` and ``unit``.
+        Claiming ``native_schema_enforced`` for that would be exactly the false
+        promise the flag exists to prevent, so the schema travels as prose.
+
+        DashScope additionally rejects any ``response_format`` unless the word
+        "json" appears in the messages, which the prompt suffix satisfies.
+        """
+        if structured_policy == "native_required":
+            raise ValueError(
+                "DashScope accepts a json_schema response format but does not "
+                f"enforce it (model={self.model!r}); pass "
+                "structured_policy='best_effort' to fall back to a "
+                "prompt-enforced schema."
+            )
         return StructuredOutputPlan(
-            mode="json_schema",
-            strategy="dashscope_chat_json_schema",
-            native_schema_enforced=True,
-            accepted_artifact_modes=("json_schema", "json_object"),
+            mode="json_object",
+            strategy="dashscope_json_object",
+            native_schema_enforced=False,
+            accepted_artifact_modes=("json_object", "prompt_only"),
             accepted_artifact_strategies=(
-                "dashscope_chat_json_schema",
                 "dashscope_json_object",
+                "dashscope_chat_json_schema",
             ),
-            response_format=spec.source_model
-            or normalize_response_format(
-                {
-                    "type": "json_schema",
-                    "name": spec.name,
-                    "schema": spec.schema,
-                    "strict": spec.strict,
-                    "description": spec.description,
-                }
-            ),
+            response_format={"type": "json_object"},
+            prompt_suffix=build_json_schema_prompt_suffix(spec.schema),
         )

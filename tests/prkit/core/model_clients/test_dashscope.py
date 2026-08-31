@@ -103,10 +103,17 @@ class TestDashscopeModel:
 
     @patch("prkit.core.model_clients.openai_compatible_chat.OpenAI")
     @patch("prkit.core.model_clients.base.load_project_dotenv")
-    def test_chat_structured_output_uses_json_schema(
+    def test_chat_structured_output_uses_json_object_and_a_schema_prompt(
         self, _mock_load_project_dotenv, mock_openai_class
     ):
-        """DashScope structured output should use native json_schema with thinking disabled."""
+        """DashScope gets json_object plus the schema as prose, with thinking disabled.
+
+        Verified against the live API: a json_schema response format is accepted
+        and then ignored — the same request returned different key names on
+        consecutive attempts for a two-field schema. DashScope also rejects any
+        response_format unless the word "json" appears in the messages, which is
+        why the schema has to reach it through the prompt.
+        """
 
         class ExampleResponse(BaseModel):
             answer: str
@@ -131,16 +138,14 @@ class TestDashscopeModel:
         assert response == '{"answer":"ok"}'
         call_kwargs = mock_client.chat.completions.create.call_args.kwargs
         assert call_kwargs["model"] == DASHSCOPE_TEST_MODEL
-        assert call_kwargs["messages"] == [
-            SYSTEM_MESSAGE,
-            {"role": "user", "content": "Return JSON only."},
-        ]
+        assert call_kwargs["messages"][0] == SYSTEM_MESSAGE
+        user_content = call_kwargs["messages"][1]["content"]
+        assert user_content.startswith("Return JSON only.")
+        assert "JSON Schema" in user_content
+        assert "json" in user_content.lower(), "DashScope 400s without it"
         assert call_kwargs["extra_body"] == {"enable_thinking": False}
         assert "max_tokens" not in call_kwargs
-        assert call_kwargs["response_format"]["type"] == "json_schema"
-        assert (
-            call_kwargs["response_format"]["json_schema"]["name"] == "ExampleResponse"
-        )
+        assert call_kwargs["response_format"] == {"type": "json_object"}
 
     @patch("prkit.core.model_clients.openai_compatible_chat.OpenAI")
     @patch("prkit.core.model_clients.base.load_project_dotenv")
@@ -227,3 +232,33 @@ class TestDashscopeModel:
             messages=[SYSTEM_MESSAGE, {"role": "user", "content": "Hello"}],
             extra_body={"enable_thinking": True},
         )
+
+
+class TestDashscopeStructuredOutputPlan:
+    @staticmethod
+    def _client():
+        client = object.__new__(DashscopeModel)
+        client.model = DASHSCOPE_TEST_MODEL
+        client.provider = "dashscope"
+        client.logger = MagicMock()
+        return client
+
+    def test_plan_does_not_claim_enforcement_dashscope_does_not_provide(self):
+        class ExampleResponse(BaseModel):
+            answer: str
+
+        plan = self._client().resolve_structured_output_plan(ExampleResponse)
+
+        assert plan.mode == "json_object"
+        assert plan.native_schema_enforced is False
+        assert plan.response_format == {"type": "json_object"}
+        assert plan.prompt_suffix and "JSON Schema" in plan.prompt_suffix
+
+    def test_native_required_raises(self):
+        class ExampleResponse(BaseModel):
+            answer: str
+
+        with pytest.raises(ValueError, match="does not.*enforce"):
+            self._client().resolve_structured_output_plan(
+                ExampleResponse, structured_policy="native_required"
+            )
