@@ -16,9 +16,13 @@ Sources (as_of 2026-06):
 - Moonshot: https://platform.kimi.ai/docs/pricing/chat-k3 (input rate is the
   cache-miss rate; the hit rate is the cached rate)
 
-DeepSeek and DashScope are deliberately absent: their token usage is now
-extracted, but no verified current rate was available when this was written, and
-a guessed price is worse than a loud ``KeyError`` from ``PriceTable.cost_of``.
+- DeepSeek: https://api-docs.deepseek.com/quick_start/pricing
+- DashScope: https://www.alibabacloud.com/help/en/model-studio
+
+Two rows carry a caveat the table cannot express. DeepSeek publishes peak and
+off-peak rates a factor of two apart and nothing records call time, so its rows
+are the peak (upper-bound) figure. DashScope prices differ by region and these
+are the US/Global endpoint, matching ``DASHSCOPE_REGION``'s default.
 
 This table is intentionally small and stale-able. A caller can override it by
 constructing ``PriceTable(prices=...)`` or extend it via ``DEFAULT_PRICES``.
@@ -39,11 +43,15 @@ def _price(
     input_per_m: float,
     output_per_m: float,
     cached_per_m: float | None = None,
+    *,
+    as_of: str = _AS_OF,
 ) -> ModelPrice:
     """Build a ModelPrice from published $/1M rates.
 
     Cached input defaults to 0.1× input, the common ratio. Pass *cached_per_m*
-    for providers that publish their cache-read rate explicitly.
+    for providers that publish their cache-read rate explicitly, and *as_of*
+    when a row was checked on a different date than the rest of the table — a
+    row stamped with a date nobody verified it on is worse than no stamp.
     """
     from prkit.cost import ModelPrice
 
@@ -53,7 +61,7 @@ def _price(
         cached_input_per_token=(
             cached_per_m / _M if cached_per_m is not None else (input_per_m * 0.1) / _M
         ),
-        as_of=_AS_OF,
+        as_of=as_of,
     )
 
 
@@ -85,4 +93,17 @@ DEFAULT_PRICES: dict[tuple[str, str], ModelPrice] = {
     # --- Moonshot (platform.kimi.ai/docs/pricing, 2026-06; input = cache miss) ---
     ("moonshot", "kimi-k3"): _price(3.00, 15.00, 0.30),
     ("moonshot", "kimi-k2.6"): _price(0.95, 4.00, 0.16),
+    # --- DeepSeek (api-docs.deepseek.com/quick_start/pricing, 2026-08) ---
+    # PEAK rates. DeepSeek halves them off-peak (peak is 01:00-04:00 and
+    # 06:00-10:00 UTC, Mon-Fri) and this table has one rate per model, so a cost
+    # here is an upper bound. Seeded peak deliberately: overstating is
+    # recoverable, and a batch scheduled to run overnight from the US lands
+    # squarely inside the peak window. Input is the cache-miss rate.
+    ("deepseek", "deepseek-v4-flash"): _price(0.44, 1.32, 0.014, as_of="2026-08"),
+    ("deepseek", "deepseek-v4-pro"): _price(1.32, 3.96, 0.044, as_of="2026-08"),
+    # --- DashScope (alibabacloud.com/help/en/model-studio, 2026-08) ---
+    # US/Global endpoint, which is what DASHSCOPE_REGION defaults to and so what
+    # an unconfigured run actually bills; the Singapore endpoint is ~1.8x these
+    # and prices.py has no region dimension. Input tier 0-256K.
+    ("dashscope", "qwen3.6-plus"): _price(0.276, 1.651, 0.0552, as_of="2026-08"),
 }

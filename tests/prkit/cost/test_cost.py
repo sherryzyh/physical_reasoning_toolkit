@@ -137,12 +137,37 @@ class TestNewProviderPrices:
         assert price.cached_input_per_token == pytest.approx(0.50 / 1_000_000)
         assert price.input_per_token == pytest.approx(2.00 / 1_000_000)
 
-    def test_unpriced_provider_still_raises_rather_than_reporting_zero(self) -> None:
+    def test_unknown_model_still_raises_rather_than_reporting_zero(self) -> None:
         """A guessed price would be worse than a loud miss."""
         with pytest.raises(KeyError):
             PriceTable.default().cost_of(
-                "deepseek", "deepseek-chat", TokenUsage(input_tokens=10)
+                "deepseek", "deepseek-not-a-model", TokenUsage(input_tokens=10)
             )
+
+    def test_deepseek_and_dashscope_are_priced(self) -> None:
+        table = PriceTable.default()
+
+        assert table.price_for("deepseek", "deepseek-v4-flash") is not None
+        assert table.price_for("deepseek", "deepseek-v4-pro") is not None
+        assert table.price_for("dashscope", "qwen3.6-plus") is not None
+
+    def test_retired_deepseek_names_are_not_priced(self) -> None:
+        """deepseek-chat / deepseek-reasoner were discontinued 2026-07-24.
+
+        Pricing a name the provider no longer serves would put a plausible
+        number on a call that cannot succeed.
+        """
+        table = PriceTable.default()
+
+        assert table.price_for("deepseek", "deepseek-chat") is None
+        assert table.price_for("deepseek", "deepseek-reasoner") is None
+
+    def test_rows_checked_later_carry_their_own_date(self) -> None:
+        """A row stamped with a date nobody verified it on is worse than none."""
+        table = PriceTable.default()
+
+        assert table.price_for("deepseek", "deepseek-v4-flash").as_of == "2026-08"
+        assert table.price_for("openai", "gpt-5.1").as_of == "2026-06"
 
 
 class TestExtractTokenUsage:

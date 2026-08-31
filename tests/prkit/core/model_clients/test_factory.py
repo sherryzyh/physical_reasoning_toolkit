@@ -27,8 +27,8 @@ GEMINI_TEST_MODEL = "gemini-2.5-pro"
 ANTHROPIC_TEST_MODEL = "claude-sonnet-4-6"
 OLLAMA_QWEN_TEST_MODEL = "ollama/qwen3.5:397b-cloud"
 OLLAMA_MISTRAL_TEST_MODEL = "ollama/mistral-large-3:675b-cloud"
-DEEPSEEK_CHAT_TEST_MODEL = "deepseek-chat"
-DEEPSEEK_REASONER_TEST_MODEL = "deepseek-reasoner"
+DEEPSEEK_FLASH_TEST_MODEL = "deepseek-v4-flash"
+DEEPSEEK_PRO_TEST_MODEL = "deepseek-v4-pro"
 XAI_TEST_MODEL = "grok-4.6"
 MOONSHOT_TEST_MODEL = "kimi-k3"
 DASHSCOPE_TEST_MODEL = "qwen3.6-plus"
@@ -95,22 +95,22 @@ class TestCreateModelClient:
 
     def test_create_deepseek_model(self):
         """Test creating DeepSeek model."""
-        client = create_model_client(DEEPSEEK_CHAT_TEST_MODEL)
+        client = create_model_client(DEEPSEEK_FLASH_TEST_MODEL)
         assert isinstance(client, DeepseekModel)
-        assert client.model == DEEPSEEK_CHAT_TEST_MODEL
+        assert client.model == DEEPSEEK_FLASH_TEST_MODEL
         assert client.provider == "deepseek"
 
     def test_create_deepseek_model_case_insensitive(self):
         """Test creating DeepSeek model with different case."""
-        client = create_model_client(DEEPSEEK_REASONER_TEST_MODEL.upper())
+        client = create_model_client(DEEPSEEK_PRO_TEST_MODEL.upper())
         assert isinstance(client, DeepseekModel)
-        assert client.model == DEEPSEEK_REASONER_TEST_MODEL.upper()
+        assert client.model == DEEPSEEK_PRO_TEST_MODEL.upper()
 
     def test_create_deepseek_model_with_provider_prefix(self):
         """Test provider-prefixed DeepSeek identifiers normalize to raw model names."""
-        client = create_model_client("deepseek/deepseek-reasoner")
+        client = create_model_client("deepseek/deepseek-v4-pro")
         assert isinstance(client, DeepseekModel)
-        assert client.model == "deepseek-reasoner"
+        assert client.model == "deepseek-v4-pro"
 
     @patch("prkit.core.model_clients.openai_compatible_chat.OpenAI")
     def test_create_xai_model(self, mock_openai_class):
@@ -241,7 +241,7 @@ class TestCreateModelClient:
         clients = [
             create_model_client(OPENAI_TEST_MODEL),
             create_model_client(GEMINI_TEST_MODEL),
-            create_model_client(DEEPSEEK_CHAT_TEST_MODEL),
+            create_model_client(DEEPSEEK_FLASH_TEST_MODEL),
             create_model_client(ANTHROPIC_TEST_MODEL),
         ]
         for client in clients:

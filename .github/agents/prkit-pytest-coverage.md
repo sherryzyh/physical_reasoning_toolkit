@@ -21,7 +21,7 @@ Important repo expectations:
   - Gemini: `gemini-2.5-pro`
   - Anthropic: `claude-sonnet-4-6`
   - Ollama: `ollama/qwen3.5:397b-cloud` and `ollama/mistral-large-3:675b-cloud`
-  - DeepSeek: `deepseek-chat` and `deepseek-reasoner`
+  - DeepSeek: `deepseek-v4-flash` and `deepseek-v4-pro`
   - xAI: `grok-4.6`
   - Moonshot: `kimi-k3`
   - DashScope: `qwen3.6-plus`

@@ -156,7 +156,7 @@ For physics problems specifically, `solve_physics_problem()` builds the prompt a
 | OpenAI | `gpt-4.1-mini`, `gpt-5.1`, `o3-mini` | Responses API only; Text input; Image input | `OPENAI_API_KEY` |
 | Anthropic | `claude-sonnet-4-6`, `claude-opus-4-8` | Messages API; Text input; Image input | `ANTHROPIC_API_KEY` |
 | Google Gemini | `gemini-pro`, `gemini-1.5-pro` | Text input; Image input | `GOOGLE_API_KEY` |
-| DeepSeek | `deepseek-chat`, `deepseek-reasoner` | Text input | `DEEPSEEK_API_KEY` |
+| DeepSeek | `deepseek-v4-flash`, `deepseek-v4-pro` | Text input | `DEEPSEEK_API_KEY` |
 | xAI | `grok-4.6`, `xai/grok-4.6` | OpenAI-compatible Chat Completions API | `XAI_API_KEY` |
 | Moonshot (Kimi) | `kimi-k3`, `kimi-k2.6`, `moonshot-v1-8k`, `moonshot/kimi-k3` | OpenAI-compatible Chat Completions API; `MOONSHOT_REGION` (`global`/`cn`) or `MOONSHOT_BASE_URL` can override region; synchronous only | `MOONSHOT_API_KEY` |
 | DashScope | `qwen3.6-plus`, `dashscope/qwen3.6-plus` | OpenAI-compatible Chat Completions API; `DASHSCOPE_REGION` or `DASHSCOPE_BASE_URL` can override region | `DASHSCOPE_API_KEY` |

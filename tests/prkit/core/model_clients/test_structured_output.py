@@ -176,7 +176,7 @@ class TestStructuredOutputUtilities:
             "ollama": stub_client(OllamaModel, model="gpt-oss", provider="ollama"),
             "deepseek": stub_client(
                 DeepseekModel,
-                model="deepseek-chat",
+                model="deepseek-v4-flash",
                 provider="deepseek",
             ),
             "anthropic": stub_client(

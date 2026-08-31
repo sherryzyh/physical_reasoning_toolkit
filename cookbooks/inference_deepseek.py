@@ -25,7 +25,7 @@ Examples:
     python cookbooks/inference_deepseek.py --prompt "What is quantum mechanics?"
 
     # Text inference with specific model
-    python cookbooks/inference_deepseek.py deepseek-chat --prompt "Explain quantum physics"
+    python cookbooks/inference_deepseek.py deepseek-v4-flash --prompt "Explain quantum physics"
 """
 
 import argparse
@@ -67,8 +67,8 @@ def check_deepseek_status():
 
             logger.info("✅ OpenAI SDK is available (required for DeepSeek)")
             logger.info("\n📋 Supported DeepSeek models:")
-            logger.info("  • deepseek-chat (default, non-thinking mode)")
-            logger.info("  • deepseek-reasoner (thinking mode)")
+            logger.info("  • deepseek-v4-flash (default)")
+            logger.info("  • deepseek-v4-pro (larger, ~3x the price)")
             logger.info("  • (and other deepseek-* models)")
             logger.info("\n⚠️  Note: DeepSeek models do not support vision")
             logger.info("   Images will be ignored with a warning if provided")
@@ -121,7 +121,7 @@ def run_inference(model_name: str, prompt: str, image_path: str = None):
         logger.info(f"✅ Client created successfully (provider: {client.provider})")
     except ValueError as e:
         logger.error(f"❌ Model error: {e}")
-        logger.info("\n💡 Supported models: deepseek-chat, deepseek-reasoner")
+        logger.info("\n💡 Supported models: deepseek-v4-flash, deepseek-v4-pro")
         sys.exit(1)
     except Exception as e:
         logger.error(f"❌ Failed to create client: {e}")
@@ -170,7 +170,7 @@ Examples:
   python cookbooks/inference_deepseek.py --prompt "What is physics?"
 
   # Custom model and prompt
-  python cookbooks/inference_deepseek.py deepseek-chat --prompt "Explain quantum physics"
+  python cookbooks/inference_deepseek.py deepseek-v4-flash --prompt "Explain quantum physics"
 
   # Note: Vision inference is not supported
   # Images will be ignored if provided
@@ -180,8 +180,8 @@ Examples:
     parser.add_argument(
         "model",
         nargs="?",
-        default="deepseek-chat",
-        help="Model name (default: deepseek-chat). Supported: deepseek-chat, deepseek-reasoner",
+        default="deepseek-v4-flash",
+        help="Model name (default: deepseek-v4-flash). Supported: deepseek-v4-flash, deepseek-v4-pro",
     )
     parser.add_argument(
         "--prompt",

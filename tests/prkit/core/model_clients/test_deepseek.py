@@ -10,8 +10,8 @@ from prkit.core.model_clients.base import DEFAULT_INSTRUCTIONS
 from prkit.core.model_clients.deepseek import DeepseekModel
 from prkit.core.model_clients.retry import DEFAULT_MAX_RETRIES
 
-DEEPSEEK_CHAT_TEST_MODEL = "deepseek-chat"
-DEEPSEEK_REASONER_TEST_MODEL = "deepseek-reasoner"
+DEEPSEEK_FLASH_TEST_MODEL = "deepseek-v4-flash"
+DEEPSEEK_PRO_TEST_MODEL = "deepseek-v4-pro"
 SYSTEM_MESSAGE = {"role": "system", "content": DEFAULT_INSTRUCTIONS}
 
 
@@ -26,9 +26,9 @@ class TestDeepseekModel:
         mock_openai_class.return_value = mock_client
 
         with patch.dict("os.environ", {"DEEPSEEK_API_KEY": "test-key"}, clear=True):
-            client = DeepseekModel(DEEPSEEK_CHAT_TEST_MODEL)
+            client = DeepseekModel(DEEPSEEK_FLASH_TEST_MODEL)
 
-        assert client.model == DEEPSEEK_CHAT_TEST_MODEL
+        assert client.model == DEEPSEEK_FLASH_TEST_MODEL
         assert client.provider == "deepseek"
         assert client.supports_native_structured_output is True
         mock_openai_class.assert_called_once_with(
@@ -42,9 +42,9 @@ class TestDeepseekModel:
         """Test provider-prefixed model names are normalized before request use."""
         mock_openai_class.return_value = MagicMock()
 
-        client = DeepseekModel(f"deepseek/{DEEPSEEK_CHAT_TEST_MODEL}")
+        client = DeepseekModel(f"deepseek/{DEEPSEEK_FLASH_TEST_MODEL}")
 
-        assert client.model == DEEPSEEK_CHAT_TEST_MODEL
+        assert client.model == DEEPSEEK_FLASH_TEST_MODEL
 
     @patch("prkit.core.model_clients.openai_compatible_chat.OpenAI")
     def test_chat_text_only(self, mock_openai_class):
@@ -59,12 +59,12 @@ class TestDeepseekModel:
         mock_response.choices = [mock_choice]
         mock_client.chat.completions.create.return_value = mock_response
 
-        client = DeepseekModel(DEEPSEEK_REASONER_TEST_MODEL)
+        client = DeepseekModel(DEEPSEEK_PRO_TEST_MODEL)
         response = client.response("Hello, world!")
 
         assert response == "Test response"
         mock_client.chat.completions.create.assert_called_once_with(
-            model=DEEPSEEK_REASONER_TEST_MODEL,
+            model=DEEPSEEK_PRO_TEST_MODEL,
             messages=[SYSTEM_MESSAGE, {"role": "user", "content": "Hello, world!"}],
         )
 
@@ -81,7 +81,7 @@ class TestDeepseekModel:
         mock_response.choices = [mock_choice]
         mock_client.chat.completions.create.return_value = mock_response
 
-        client = DeepseekModel(DEEPSEEK_CHAT_TEST_MODEL)
+        client = DeepseekModel(DEEPSEEK_FLASH_TEST_MODEL)
         with patch.object(client.logger, "warning") as mock_warning:
             response = client.response("Hello", image_paths=["image.jpg"])
 
@@ -102,7 +102,7 @@ class TestDeepseekModel:
         mock_response.choices = [mock_choice]
         mock_client.chat.completions.create.return_value = mock_response
 
-        client = DeepseekModel(DEEPSEEK_REASONER_TEST_MODEL)
+        client = DeepseekModel(DEEPSEEK_PRO_TEST_MODEL)
         client.response("Hello", image_paths=["image1.jpg", "image2.png"])
 
         call_kwargs = mock_client.chat.completions.create.call_args[1]
@@ -127,7 +127,7 @@ class TestDeepseekModel:
         mock_response.choices = [mock_choice]
         mock_client.chat.completions.create.return_value = mock_response
 
-        client = DeepseekModel(DEEPSEEK_CHAT_TEST_MODEL)
+        client = DeepseekModel(DEEPSEEK_FLASH_TEST_MODEL)
         response = client.response(
             "Return JSON only.",
             response_format=ExampleResponse,
@@ -136,7 +136,7 @@ class TestDeepseekModel:
 
         assert response == '{"answer":"ok"}'
         call_kwargs = mock_client.chat.completions.create.call_args.kwargs
-        assert call_kwargs["model"] == DEEPSEEK_CHAT_TEST_MODEL
+        assert call_kwargs["model"] == DEEPSEEK_FLASH_TEST_MODEL
         assert call_kwargs["response_format"] == {"type": "json_object"}
         assert call_kwargs["max_tokens"] == 512
         assert call_kwargs["messages"][0] == SYSTEM_MESSAGE
