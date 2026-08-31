@@ -309,7 +309,15 @@ class OpenAIModel(BaseModelClient):
         return text
 
     def _omit_temperature(self) -> bool:
-        """o-family reasoning models reject an explicit ``temperature`` parameter."""
+        """o-family reasoning models reject an explicit ``temperature`` parameter.
+
+        Verified live: ``o4-mini`` answers a request carrying ``temperature``
+        with ``400 Unsupported parameter``, while ``gpt-5.4-mini`` accepts it.
+        Consulted from :meth:`_build_responses_body`, so both the synchronous and
+        the batch path are covered — it used to be applied only when building a
+        batch line, which left ``response(temperature=...)`` failing on exactly
+        the models the guard existed for.
+        """
         return self.is_o_family
 
     def _build_responses_body(
@@ -363,6 +371,8 @@ class OpenAIModel(BaseModelClient):
             body["max_output_tokens"] = max_output_tokens
         if extra:
             body.update(extra)
+        if self._omit_temperature():
+            body.pop("temperature", None)
         return body
 
     def _build_batch_request(
@@ -379,7 +389,7 @@ class OpenAIModel(BaseModelClient):
     ) -> dict[str, Any]:
         """Build a Responses batch line (one ``input.jsonl`` row)."""
         extra: dict[str, Any] = dict(kwargs)
-        if temperature is not None and not self._omit_temperature():
+        if temperature is not None:
             extra["temperature"] = temperature
         body = self._build_responses_body(
             input=input,

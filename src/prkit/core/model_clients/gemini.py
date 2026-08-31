@@ -43,6 +43,11 @@ _GEMINI_BATCH_STATE_MAP = {
 # "While the full JSON Schema may be sent, not all features are supported.
 # Specifically, only the following properties are supported".
 #
+# "Not supported" means ignored, not refused — confirmed against the live API,
+# see ``_gemini_native_schema_incompatibility``. ``prefixItems`` is on this list
+# and is genuinely honoured; gating it was a false negative that cost every
+# tuple-typed field its native enforcement.
+#
 # This is deliberately an allowlist, not a denylist, so a keyword nobody
 # anticipated gates by default rather than sailing through unchecked.
 _GEMINI_SUPPORTED_SCHEMA_KEYWORDS = frozenset(
@@ -91,10 +96,16 @@ _GEMINI_IGNORABLE_SCHEMA_KEYWORDS = frozenset(
 def _gemini_native_schema_incompatibility(spec: StructuredOutputSpec) -> str | None:
     """Return why Gemini cannot enforce *spec* natively, or ``None``.
 
-    Any constraint-bearing keyword outside Google's documented allowlist counts,
-    on the grounds that the safer failure is a prompt-only request that still
-    states the constraint in prose, over a natively enforced one from which the
-    backend has quietly dropped it.
+    Off-allowlist keywords are **accepted and then silently ignored**, not
+    rejected. Verified live: ``multipleOf: 7`` returned 10, ``exclusiveMinimum:
+    100`` returned 5, and ``const: "furlongs"`` returned "meter" and "METRE" on
+    consecutive attempts. No request was refused.
+
+    That is why they gate rather than pass through. A demoted request states the
+    constraint in prose, where the model at least reads it; a natively enforced
+    one carries a constraint the backend has quietly dropped, and reports
+    ``native_schema_enforced`` while doing so. Silent loss is the worse failure,
+    and it is the one that would otherwise never surface.
 
     Only schema-position nodes are inspected, so a ``default`` value or a field
     named after a keyword is never mistaken for the keyword itself.

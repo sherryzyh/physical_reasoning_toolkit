@@ -482,3 +482,56 @@ class TestOpenAIModelCustomEndpoint:
         OpenAIModel(OPENAI_TEST_MODEL)
         _, kwargs = mock_openai_class.call_args
         assert "base_url" not in kwargs
+
+
+class TestOmitTemperature:
+    """o-family models 400 on an explicit temperature; both paths must drop it.
+
+    The guard used to live only in the batch builder, so ``response()`` sent the
+    parameter to exactly the models it existed to protect.
+    """
+
+    @staticmethod
+    def _client(model):
+        with patch("prkit.core.model_clients.openai.OpenAI") as mock_cls:
+            mock_cls.return_value = MagicMock()
+            return OpenAIModel(model)
+
+    def test_sync_body_drops_temperature_for_o_family(self):
+        client = self._client("o4-mini")
+
+        body = client._build_responses_body(
+            input="q",
+            instructions=None,
+            image_paths=None,
+            max_output_tokens=64,
+            extra={"temperature": 0.0},
+        )
+
+        assert "temperature" not in body
+
+    def test_batch_body_drops_temperature_for_o_family(self):
+        client = self._client("o4-mini")
+
+        request = client.build_batch_request(
+            request_id="r", input="q", instructions="", temperature=0.0
+        )
+
+        assert "temperature" not in request["body"]
+
+    def test_non_o_family_keeps_temperature_on_both_paths(self):
+        client = self._client("gpt-5.4-mini")
+
+        body = client._build_responses_body(
+            input="q",
+            instructions=None,
+            image_paths=None,
+            max_output_tokens=64,
+            extra={"temperature": 0.3},
+        )
+        request = client.build_batch_request(
+            request_id="r", input="q", instructions="", temperature=0.3
+        )
+
+        assert body["temperature"] == 0.3
+        assert request["body"]["temperature"] == 0.3

@@ -5,10 +5,12 @@ confirms each answer lands under the **correct** ``custom_id`` (identity), not
 merely that some text came back. It is the difference between a working
 file-based correlation and a silent positional misalignment.
 
-Skipped unless a Gemini API key is present, so default ``pytest`` runs ignore
-it. Run explicitly with::
+Opt-in twice over, like ``test_providers_live.py``: ``PRKIT_LIVE_PROVIDER_TESTS``
+must be set *and* the provider's key present. Key presence alone is not a safe
+gate — ``BaseModelClient.__init__`` loads the project ``.env``, so any other test
+constructing a client puts every key into the process environment. Run with::
 
-    GEMINI_API_KEY=... .venv/bin/pytest \
+    PRKIT_LIVE_PROVIDER_TESTS=1 .venv/bin/pytest \
         tests/prkit/core/model_clients/test_batch_live.py -m integration -v -s
 
 Polling timeout is configurable via ``PRKIT_BATCH_TIMEOUT_SECONDS`` (default
@@ -21,12 +23,22 @@ import os
 import time
 
 import pytest
+from pydantic import BaseModel
 
 from prkit.core.model_clients.batch_types import BatchItemStatus
 
 pytestmark = [pytest.mark.integration, pytest.mark.slow]
 
-_HAS_KEY = bool(os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY"))
+_OPT_IN_ENV_VAR = "PRKIT_LIVE_PROVIDER_TESTS"
+
+
+def _requires(*key_vars: str) -> None:
+    """Skip unless live tests are opted into and the provider's key is present."""
+    if not os.environ.get(_OPT_IN_ENV_VAR):
+        pytest.skip(f"{_OPT_IN_ENV_VAR} not set (these make billable requests)")
+    if not any(os.environ.get(var) for var in key_vars):
+        pytest.skip(f"none of {', '.join(key_vars)} set")
+
 
 # request_id -> (prompt, unique expected answer). Distinct arithmetic gives
 # deterministic, non-overlapping answers that any model returns reliably, so the
@@ -40,8 +52,8 @@ _CASES = {
 }
 
 
-@pytest.mark.skipif(not _HAS_KEY, reason="No GEMINI_API_KEY/GOOGLE_API_KEY set")
 def test_gemini_batch_correlates_each_answer_to_its_request():
+    _requires("GEMINI_API_KEY", "GOOGLE_API_KEY")
     from prkit.core.model_clients.gemini import GeminiModel
 
     client = GeminiModel(os.environ.get("PRKIT_BATCH_MODEL", "gemini-3.5-flash"))
@@ -98,3 +110,111 @@ def test_gemini_batch_correlates_each_answer_to_its_request():
                 assert (
                     other_word not in text
                 ), f"{request_id} answer leaked {other_word!r}: {result.text!r}"
+
+
+# --------------------------------------------------------------------------- #
+# Structured-output batch submission                                          #
+# --------------------------------------------------------------------------- #
+# The batch lane can now request a provider-enforced schema, and the risk in
+# that lives entirely at submit time: whether the provider accepts a request
+# body prkit assembled. Gemini's is the sharpest case — it hand-builds
+# snake_case wire keys into a dict prkit serializes itself, so no SDK type
+# checks it and only the backend can refuse it.
+#
+# These submit and then cancel rather than waiting. Acceptance is the assertion;
+# completion would cost minutes and money for nothing extra.
+_BATCH_PROVIDERS = {
+    "openai": ("gpt-5.4-mini", ("OPENAI_API_KEY",)),
+    "anthropic": ("claude-sonnet-4-6", ("ANTHROPIC_API_KEY",)),
+    "gemini": ("gemini-2.5-pro", ("GEMINI_API_KEY", "GOOGLE_API_KEY")),
+}
+
+
+class _BatchAnswer(BaseModel):
+    number: int
+    unit: str
+
+
+def _cancel_quietly(client, batch_id: str) -> None:
+    """Best-effort cancel so an accepted probe does not run to completion."""
+    for attempt in (
+        lambda: client.client.batches.cancel(batch_id),
+        lambda: client.client.messages.batches.cancel(batch_id),
+        lambda: client.genai_client.batches.cancel(name=batch_id),
+    ):
+        try:
+            attempt()
+            return
+        except Exception:  # noqa: BLE001, S110 - cleanup only
+            continue
+
+
+@pytest.mark.parametrize("provider", sorted(_BATCH_PROVIDERS))
+def test_structured_batch_submission_is_accepted(provider: str) -> None:
+    """The provider accepts a batch line carrying a native schema.
+
+    Offline tests prove prkit builds the dict it intends to. Only the provider
+    can say whether that dict is a request — which is the half that has broken
+    before, on the synchronous path, while the suite stayed green.
+    """
+    model, key_vars = _BATCH_PROVIDERS[provider]
+    _requires(*key_vars)
+    from prkit.core.model_clients import create_model_client
+
+    client = create_model_client(
+        os.environ.get(f"PRKIT_LIVE_{provider.upper()}_MODEL", model)
+    )
+    plan = client.resolve_structured_output_plan(_BatchAnswer)
+
+    requests = [
+        client.build_batch_request(
+            request_id=f"structured-{index}",
+            input="How many meters are in one kilometre?",
+            instructions="",
+            max_output_tokens=4096,
+            response_format=_BatchAnswer,
+        )
+        for index in range(2)
+    ]
+
+    batch_id = client.submit_batch(
+        requests, metadata={"display_name": "prkit-live-structured"}
+    )
+    try:
+        assert batch_id, (
+            f"{provider} returned no batch id for a "
+            f"{plan.strategy} request (native={plan.native_schema_enforced})"
+        )
+        status = client.poll_batch(batch_id)
+        assert status.batch_id == batch_id
+        assert status.provider == client.provider
+    finally:
+        _cancel_quietly(client, batch_id)
+
+
+@pytest.mark.parametrize("provider", sorted(_BATCH_PROVIDERS))
+def test_free_text_batch_submission_is_still_accepted(provider: str) -> None:
+    """The default path must stay byte-identical in effect, not just in shape."""
+    model, key_vars = _BATCH_PROVIDERS[provider]
+    _requires(*key_vars)
+    from prkit.core.model_clients import create_model_client
+
+    client = create_model_client(
+        os.environ.get(f"PRKIT_LIVE_{provider.upper()}_MODEL", model)
+    )
+
+    batch_id = client.submit_batch(
+        [
+            client.build_batch_request(
+                request_id="free-text-0",
+                input="What is 40 + 2? Reply with only the number.",
+                instructions="",
+                max_output_tokens=2048,
+            )
+        ],
+        metadata={"display_name": "prkit-live-free-text"},
+    )
+    try:
+        assert batch_id
+    finally:
+        _cancel_quietly(client, batch_id)
