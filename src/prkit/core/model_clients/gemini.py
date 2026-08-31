@@ -173,14 +173,20 @@ class GeminiModel(BaseModelClient):
         image_paths: tuple[str, ...],
         max_output_tokens: int | None,
         temperature: float | None,
+        response_format: dict[str, Any] | type | None = None,
         **kwargs: Any,
     ) -> dict[str, Any]:
-        """Build a free-text Gemini batch request line ({key, request}).
+        """Build a Gemini batch request line ({key, request}).
 
         Mirrors a synchronous ``response(input=..., instructions=...)`` call: the
-        folded prompt becomes the user text, *instructions* (when truthy) becomes
-        the request-level ``system_instruction``, and no ``response_json_schema``
-        is set (free-text output).
+        folded prompt becomes the user text and *instructions* (when truthy)
+        becomes the request-level ``system_instruction``.
+
+        Unlike the other providers this cannot share a builder with
+        ``response()``: that path assembles a typed ``GenerateContentConfig``,
+        while a batch line is serialized straight to JSONL and so needs the
+        snake_case wire keys. The structured-output block below therefore
+        mirrors the sync one by hand and must be kept in step with it.
         """
         parts: list[dict[str, Any]] = [{"text": input}]
         for image_path in image_paths:
@@ -198,6 +204,13 @@ class GeminiModel(BaseModelClient):
             generation_config["max_output_tokens"] = max_output_tokens
         if temperature is not None:
             generation_config["temperature"] = temperature
+        if response_format is not None:
+            # Mirrors the sync branch in ``response()``, in snake_case wire form.
+            normalized = normalize_response_format(response_format)
+            generation_config["response_mime_type"] = "application/json"
+            generation_config["response_json_schema"] = extract_schema_for_gemini(
+                normalized
+            )
         generation_config.update(kwargs)
 
         request: dict[str, Any] = {"contents": [{"parts": parts, "role": "user"}]}

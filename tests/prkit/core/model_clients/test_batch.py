@@ -1,4 +1,4 @@
-"""Tests for free-text batch request builders and the batch job lifecycle.
+"""Tests for batch request builders and the batch job lifecycle.
 
 Provider SDKs are faked with ``MagicMock`` so these run fully offline. The
 lifecycle tests assert the status-enum mapping and per-result text extraction
@@ -12,6 +12,7 @@ import json
 from unittest.mock import MagicMock, patch
 
 import pytest
+from pydantic import BaseModel
 
 from prkit.core.model_clients.base import BaseModelClient
 from prkit.core.model_clients.batch_types import (
@@ -20,6 +21,7 @@ from prkit.core.model_clients.batch_types import (
     BatchState,
     BatchStatus,
 )
+from prkit.semantics.build.strict_models import StrictPredictionSemanticsResponse
 
 
 def _openai_client(model: str = "gpt-5.4-mini"):
@@ -44,6 +46,11 @@ def _gemini_client(model: str = "gemini-3.5-flash"):
         from prkit.core.model_clients.gemini import GeminiModel
 
         return GeminiModel(model)
+
+
+class _Grade(BaseModel):
+    verdict: str
+    quote: str
 
 
 class TestBatchTypes:
@@ -357,6 +364,88 @@ class TestGeminiLifecycle:
         client.genai_client.batches.get.return_value = job
         assert list(client.retrieve_batch_results("batches/xyz")) == []
         client.genai_client.files.download.assert_not_called()
+
+
+class TestStructuredBuilders:
+    """``response_format`` reaches each provider's own native schema field."""
+
+    def test_openai_sets_text_format(self):
+        req = _openai_client().build_batch_request(
+            request_id="r", input="q", instructions="", response_format=_Grade
+        )
+
+        fmt = req["body"]["text"]["format"]
+        assert fmt["type"] == "json_schema"
+        assert fmt["name"] == "_Grade"
+        assert "verdict" in str(fmt["schema"])
+
+    def test_anthropic_sets_output_config_without_a_name_key(self):
+        """Anthropic's output_config.format takes only type and schema.
+
+        A ``name`` key is an OpenAI-ism and makes the API reject the request.
+        """
+        req = _anthropic_client().build_batch_request(
+            request_id="r", input="q", instructions="", response_format=_Grade
+        )
+
+        fmt = req["params"]["output_config"]["format"]
+        assert sorted(fmt) == ["schema", "type"]
+        assert fmt["type"] == "json_schema"
+
+    def test_gemini_sets_response_json_schema_and_mime_type(self):
+        req = _gemini_client().build_batch_request(
+            request_id="r", input="q", instructions="", response_format=_Grade
+        )
+
+        config = req["request"]["generation_config"]
+        assert config["response_mime_type"] == "application/json"
+        assert "verdict" in str(config["response_json_schema"])
+
+    def test_demotion_carries_the_schema_as_prose_instead(self):
+        """A schema the provider cannot enforce must still reach the model.
+
+        On demotion the plan drops the native field and moves the schema into
+        ``prompt_suffix``; routing only the former would send a request with no
+        schema signal at all, and nothing would report it.
+        """
+        client = _anthropic_client()
+        plan = client.resolve_structured_output_plan(StrictPredictionSemanticsResponse)
+        assert plan.mode == "prompt_only", "fixture no longer demotes on Anthropic"
+
+        req = client.build_batch_request(
+            request_id="r",
+            input="q",
+            instructions="",
+            response_format=StrictPredictionSemanticsResponse,
+        )
+
+        params = req["params"]
+        assert "output_config" not in params
+        assert "JSON Schema" in params["messages"][0]["content"][0]["text"]
+
+    def test_native_required_raises_before_a_request_is_built(self):
+        client = _anthropic_client()
+
+        with pytest.raises(ValueError, match="native"):
+            client.build_batch_request(
+                request_id="r",
+                input="q",
+                instructions="",
+                response_format=StrictPredictionSemanticsResponse,
+                structured_policy="native_required",
+            )
+
+    def test_structured_line_survives_the_jsonl_round_trip(self):
+        """Every request is json.dumps'd at submit time, far from the builder."""
+        from prkit.batch import dumps_batch_jsonl
+
+        req = _openai_client().build_batch_request(
+            request_id="r", input="q", instructions="", response_format=_Grade
+        )
+
+        reloaded = json.loads(dumps_batch_jsonl([req]))
+
+        assert reloaded["body"]["text"]["format"]["type"] == "json_schema"
 
 
 class TestSyncBatchParity:

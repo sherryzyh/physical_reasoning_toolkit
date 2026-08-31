@@ -11,9 +11,11 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import pytest
+from pydantic import BaseModel
 
 from prkit.core.domain import PhysicsProblem
 from prkit.core.model_clients import format_problem_context
+from prkit.semantics.build.strict_models import StrictPredictionSemanticsResponse
 
 
 def _openai_client(model: str = "gpt-5.1"):
@@ -38,6 +40,10 @@ def _gemini_client(model: str = "gemini-3.5-flash"):
         from prkit.core.model_clients.gemini import GeminiModel
 
         return GeminiModel(model)
+
+
+class _Grade(BaseModel):
+    verdict: str
 
 
 def _problem() -> PhysicsProblem:
@@ -67,6 +73,50 @@ class TestPromptParity:
         req = _gemini_client().build_problem_batch_request(problem, instructions="")
         text = req["request"]["contents"][0]["parts"][0]["text"]
         assert text == format_problem_context(problem)
+
+
+class TestStructuredForwarding:
+    """The structured parameters must cross build_problem_batch_request."""
+
+    def test_response_format_reaches_the_native_field(self):
+        req = _openai_client().build_problem_batch_request(
+            _problem(), instructions="", response_format=_Grade
+        )
+
+        assert req["body"]["text"]["format"]["type"] == "json_schema"
+
+    def test_free_text_default_leaves_the_prompt_untouched(self):
+        """Requirement one: omitting response_format changes nothing."""
+        problem = _problem()
+
+        req = _openai_client().build_problem_batch_request(problem, instructions="")
+
+        assert req["body"]["input"][0]["content"][0]["text"] == format_problem_context(
+            problem
+        )
+        assert "text" not in req["body"]
+
+    def test_demoted_schema_appends_the_suffix_to_the_problem_prompt(self):
+        problem = _problem()
+
+        req = _anthropic_client().build_problem_batch_request(
+            problem,
+            instructions="",
+            response_format=StrictPredictionSemanticsResponse,
+        )
+
+        text = req["params"]["messages"][0]["content"][0]["text"]
+        assert text.startswith(format_problem_context(problem))
+        assert "JSON Schema" in text
+
+    def test_structured_policy_reaches_the_plan_resolution(self):
+        with pytest.raises(ValueError, match="native"):
+            _anthropic_client().build_problem_batch_request(
+                _problem(),
+                instructions="",
+                response_format=StrictPredictionSemanticsResponse,
+                structured_policy="native_required",
+            )
 
 
 class TestCorrelationAndImages:

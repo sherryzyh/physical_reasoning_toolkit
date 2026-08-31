@@ -370,9 +370,10 @@ class OpenAIModel(BaseModelClient):
         image_paths: tuple[str, ...],
         max_output_tokens: int | None,
         temperature: float | None,
+        response_format: dict[str, Any] | type | None = None,
         **kwargs: Any,
     ) -> dict[str, Any]:
-        """Build a free-text Responses batch line (one ``input.jsonl`` row)."""
+        """Build a Responses batch line (one ``input.jsonl`` row)."""
         extra: dict[str, Any] = dict(kwargs)
         if temperature is not None and not self._omit_temperature():
             extra["temperature"] = temperature
@@ -381,7 +382,7 @@ class OpenAIModel(BaseModelClient):
             instructions=instructions,
             image_paths=image_paths,
             max_output_tokens=max_output_tokens,
-            response_format=None,
+            response_format=response_format,
             extra=extra,
         )
         return {

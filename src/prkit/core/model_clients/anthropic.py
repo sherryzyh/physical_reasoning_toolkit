@@ -355,9 +355,10 @@ class AnthropicModel(BaseModelClient):
         image_paths: tuple[str, ...],
         max_output_tokens: int | None,
         temperature: float | None,
+        response_format: dict[str, Any] | type | None = None,
         **kwargs: Any,
     ) -> dict[str, Any]:
-        """Build a free-text Messages batch request ({custom_id, params})."""
+        """Build a Messages batch request ({custom_id, params})."""
         extra: dict[str, Any] = dict(kwargs)
         if temperature is not None:
             extra["temperature"] = temperature
@@ -368,7 +369,7 @@ class AnthropicModel(BaseModelClient):
             max_output_tokens=(
                 max_output_tokens if max_output_tokens is not None else 1024
             ),
-            response_format=None,
+            response_format=response_format,
             extra=extra,
         )
         return {"custom_id": request_id, "params": params}

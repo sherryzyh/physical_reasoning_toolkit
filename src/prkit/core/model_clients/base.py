@@ -125,7 +125,7 @@ class BaseModelClient(ABC):
 
     def resolve_structured_output_plan(
         self,
-        response_model: type[T],
+        response_model: type[BaseModel] | dict[str, Any],
         *,
         structured_policy: StructuredOutputPolicy = "best_effort",
     ) -> StructuredOutputPlan:
@@ -308,23 +308,53 @@ class BaseModelClient(ABC):
         image_paths: Sequence[str] | None = None,
         max_output_tokens: int | None = None,
         temperature: float | None = None,
+        response_format: type[BaseModel] | dict[str, Any] | None = None,
+        structured_policy: StructuredOutputPolicy = "best_effort",
         **kwargs: Any,
     ) -> dict[str, Any]:
-        """Build a provider-specific FREE-TEXT batch request line (no structured output).
+        """Build a provider-specific batch request line.
 
-        Mirrors :meth:`response`: the same *input* / *instructions* handling and
-        no ``response_format``. Passing ``instructions=""`` suppresses the system
-        prompt on every provider (see :meth:`_resolve_instructions`), so the
-        resulting request matches a synchronous
-        ``response(input=..., instructions="")`` call.
+        Mirrors :meth:`response` for the free-text case: the same *input* /
+        *instructions* handling, and passing ``instructions=""`` suppresses the
+        system prompt on every provider (see :meth:`_resolve_instructions`), so
+        the result matches a synchronous ``response(input=..., instructions="")``
+        call. Omitting *response_format* keeps that behaviour byte for byte.
+
+        Supplying *response_format* mirrors :meth:`parse` instead: the schema is
+        resolved through the same plan machinery the synchronous path uses, so
+        batch inherits both native enforcement and each provider's demotion
+        gate. A schema the provider cannot enforce falls back to a prompt-only
+        request carrying the schema as prose, rather than a request the API
+        would reject.
+
+        Call :meth:`resolve_structured_output_plan` with the same arguments to
+        learn which of those happened — the plan's ``strategy`` and
+        ``native_schema_enforced`` are what distinguish a natively enforced
+        batch from a demoted one, and comparing across providers is only
+        meaningful once that is known.
+
+        Raises:
+            ValueError: If *structured_policy* is ``'native_required'`` and the
+                provider cannot enforce schema-validated output. Raised during
+                plan resolution, before any request is built, so a batch that
+                could never satisfy the policy is never submitted.
         """
+        plan = (
+            None
+            if response_format is None
+            else self.resolve_structured_output_plan(
+                response_format,
+                structured_policy=structured_policy,
+            )
+        )
         return self._build_batch_request(
             request_id=request_id,
-            input=input,
+            input=input if plan is None else input + (plan.prompt_suffix or ""),
             instructions=self._resolve_instructions(instructions),
             image_paths=tuple(image_paths or ()),
             max_output_tokens=max_output_tokens,
             temperature=temperature,
+            response_format=None if plan is None else plan.response_format,
             **kwargs,
         )
 
@@ -336,9 +366,11 @@ class BaseModelClient(ABC):
         instructions: str | None = None,
         max_output_tokens: int | None = None,
         temperature: float | None = None,
+        response_format: type[BaseModel] | dict[str, Any] | None = None,
+        structured_policy: StructuredOutputPolicy = "best_effort",
         **kwargs: Any,
     ) -> dict[str, Any]:
-        """Build a free-text batch request line for *problem*.
+        """Build a batch request line for *problem*.
 
         Batch analogue of :meth:`solve_physics_problem`, dispatching on the
         runtime type of *problem* the same way: a ``str`` is treated as the
@@ -347,8 +379,9 @@ class BaseModelClient(ABC):
         with :func:`build_plain_question_prompt` and its ``image_path`` images,
         defaulting *request_id* to ``problem.problem_id``. Reusing the same prompt
         builder and image path as the synchronous solver guarantees batch ≡ sync
-        prompts. Free-text only, matching the ANSWER_TEXT-only sync path; delegates
-        to :meth:`build_batch_request`.
+        prompts. Free text by default; pass *response_format* for a structured
+        line. Delegates to :meth:`build_batch_request`, which owns the schema
+        resolution and the ``native_required`` raise.
         """
         if isinstance(problem, str):
             if request_id is None:
@@ -375,6 +408,8 @@ class BaseModelClient(ABC):
             image_paths=image_paths,
             max_output_tokens=max_output_tokens,
             temperature=temperature,
+            response_format=response_format,
+            structured_policy=structured_policy,
             **kwargs,
         )
 
@@ -445,6 +480,7 @@ class BaseModelClient(ABC):
         image_paths: tuple[str, ...],
         max_output_tokens: int | None,
         temperature: float | None,
+        response_format: dict[str, Any] | type | None = None,
         **kwargs: Any,
     ) -> dict[str, Any]:
         """Override per provider. Default raises ``NotImplementedError``."""
@@ -455,6 +491,7 @@ class BaseModelClient(ABC):
             image_paths,
             max_output_tokens,
             temperature,
+            response_format,
             kwargs,
         )
         raise NotImplementedError(
