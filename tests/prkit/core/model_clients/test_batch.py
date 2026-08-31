@@ -382,6 +382,47 @@ class TestSyncBatchParity:
         )["body"]
         assert batch_body == sync_body
 
+    def test_gemini_request_shape_is_pinned(self):
+        """Gemini has no shared body builder, so pin the whole emitted dict.
+
+        OpenAI and Anthropic get parity for free by sharing one builder between
+        ``response()`` and the batch path, so a drift shows up as an inequality.
+        Gemini constructs its batch line inline and independently, so the only
+        way to notice an unintended change is to compare the entire structure.
+        """
+        client = _gemini_client()
+
+        request = client.build_batch_request(
+            request_id="r",
+            input="P",
+            instructions="",
+            max_output_tokens=123,
+            temperature=0.0,
+        )
+
+        assert request == {
+            "key": "r",
+            "request": {
+                "contents": [{"parts": [{"text": "P"}], "role": "user"}],
+                "generation_config": {"max_output_tokens": 123, "temperature": 0.0},
+            },
+        }
+
+    def test_gemini_minimal_request_omits_generation_config(self):
+        """No cap and no temperature must leave the key out entirely.
+
+        Pins the ``if generation_config:`` guard, which any change that
+        unconditionally seeds that dict would silently break.
+        """
+        client = _gemini_client()
+
+        request = client.build_batch_request(request_id="r", input="P", instructions="")
+
+        assert request == {
+            "key": "r",
+            "request": {"contents": [{"parts": [{"text": "P"}], "role": "user"}]},
+        }
+
     def test_anthropic_params_parity(self):
         client = _anthropic_client()
         instr = client._resolve_instructions("")
