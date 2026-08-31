@@ -166,7 +166,7 @@ class TestStructuredOutputUtilities:
             "gemini": stub_client(
                 GeminiModel, model="gemini-2.5-pro", provider="google"
             ),
-            "xai": stub_client(XAIModel, model="grok-4.20-reasoning", provider="xai"),
+            "xai": stub_client(XAIModel, model="grok-4.6", provider="xai"),
             "dashscope": stub_client(
                 DashscopeModel,
                 model="qwen3.6-plus",

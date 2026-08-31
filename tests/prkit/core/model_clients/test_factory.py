@@ -28,7 +28,7 @@ OLLAMA_QWEN_TEST_MODEL = "ollama/qwen3.5:397b-cloud"
 OLLAMA_MISTRAL_TEST_MODEL = "ollama/mistral-large-3:675b-cloud"
 DEEPSEEK_CHAT_TEST_MODEL = "deepseek-chat"
 DEEPSEEK_REASONER_TEST_MODEL = "deepseek-reasoner"
-XAI_TEST_MODEL = "grok-4-1-fast-reasoning"
+XAI_TEST_MODEL = "grok-4.6"
 DASHSCOPE_TEST_MODEL = "qwen3.6-plus"
 
 

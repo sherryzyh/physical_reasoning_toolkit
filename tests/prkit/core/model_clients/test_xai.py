@@ -11,7 +11,7 @@ from prkit.core.model_clients.base import DEFAULT_INSTRUCTIONS
 from prkit.core.model_clients.structured_output import coerce_structured_output_spec
 from prkit.core.model_clients.xai import XAIModel
 
-XAI_TEST_MODEL = "grok-4-1-fast-reasoning"
+XAI_TEST_MODEL = "grok-4.6"
 SYSTEM_MESSAGE = {"role": "system", "content": DEFAULT_INSTRUCTIONS}
 
 

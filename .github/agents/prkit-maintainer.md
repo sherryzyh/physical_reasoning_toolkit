@@ -20,7 +20,7 @@ When modifying model clients, preserve these development test targets:
 - Anthropic: `claude-sonnet-4-6`
 - Ollama: `ollama/qwen3.5:397b-cloud` and `ollama/mistral-large-3:675b-cloud`
 - DeepSeek: `deepseek-chat` and `deepseek-reasoner`
-- xAI: `grok-4-1-fast-reasoning`
+- xAI: `grok-4.6`
 - DashScope: `qwen3.6-plus`
 
 Before finishing:
