@@ -149,15 +149,23 @@ prkit.batch.submit_batch_physics_reasoning(
     display_name: str | None = None,         # provider-facing label; defaults to run_name
     metadata: dict[str, str] | None = None,
     overwrite: bool = False,                 # reuse a non-empty run folder (clears stale minibatch_*.jsonl)
+    response_format: type[BaseModel] | dict | None = None,   # None = free text
+    structured_policy: str = "best_effort",  # or "native_required" to refuse a demotion
 ) -> str                                     # returns the run-folder path
 
 # Facade (mirrors solve_physics_problem ergonomics):
 client.submit_batch_physics_reasoning(problems, **kwargs) -> str
 ```
 
-- Builds **one free-text request per problem** via `client.build_problem_batch_request`, which reuses the same
+- Builds **one request per problem** via `client.build_problem_batch_request`, which reuses the same
   prompt builder + images as the synchronous `solve_physics_problem` path — so **batch prompts ≡ sync prompts**.
-  Free-text only today (mirrors the `ANSWER_TEXT`-only sync path).
+- **Structured output.** Pass `response_format` to request a provider-enforced schema. It routes through the
+  same plan machinery as the synchronous `parse()`, so batch inherits each provider's demotion gate: a schema
+  the provider cannot enforce falls back to a prompt-only request carrying the schema as prose, rather than a
+  request the API rejects. `structured_policy="native_required"` refuses to demote and raises **before the run
+  folder is created**. Omitting `response_format` leaves the request byte-identical to the free-text form.
+  The resolved plan is recorded on the ledger (see `structured_output` below) — a run that demoted on one
+  provider and stayed native on another is not comparable with one that did not.
 - Writes all `inputs/minibatch_XXXX.jsonl` first (cheap, local), then submits sequentially. A minibatch whose
   submit raises is recorded with `status=SUBMIT_ERROR`, `error` set, `batch_id=""`, and its input file present —
   so the run is resumable.
@@ -268,7 +276,8 @@ class BatchSubmission:
     minibatch_count: int
     total_problems: int
     dataset: dict | None         # {"name", "version"} or None for a bare problem list
-    request_kind: str            # "free_text"
+    request_kind: str            # "free_text" | "structured"
+    structured_output: dict | None  # {mode, strategy, native_schema_enforced}; None when free text
     prkit_api_version: str
     display_name: str
     run_dir: str

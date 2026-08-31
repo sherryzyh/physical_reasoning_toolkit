@@ -190,7 +190,7 @@ def _anthropic_transformed_response_format(
 class AnthropicModel(BaseModelClient):
     """Anthropic Messages API client implementation."""
 
-    # Anthropic does not use ``response_format`` directly, but its forced tool-use
+    # Anthropic does not use ``response_format`` directly, but its ``output_config``
     # path accepts a JSON Schema input contract that satisfies the same guarantee.
     supports_response_format_json_schema = True
 
