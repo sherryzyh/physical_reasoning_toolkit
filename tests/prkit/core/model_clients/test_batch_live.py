@@ -19,13 +19,14 @@ Polling timeout is configurable via ``PRKIT_BATCH_TIMEOUT_SECONDS`` (default
 
 from __future__ import annotations
 
+import json
 import os
 import time
 
 import pytest
 from pydantic import BaseModel
 
-from prkit.core.model_clients.batch_types import BatchItemStatus
+from prkit.core.model_clients.batch_types import BatchItemStatus, BatchState
 
 pytestmark = [pytest.mark.integration, pytest.mark.slow]
 
@@ -218,3 +219,98 @@ def test_free_text_batch_submission_is_still_accepted(provider: str) -> None:
         assert batch_id
     finally:
         _cancel_quietly(client, batch_id)
+
+
+# --------------------------------------------------------------------------- #
+# Structured-output read-back                                                 #
+# --------------------------------------------------------------------------- #
+# The last unverified half of the batch lane. Submission proves the provider
+# accepts the request; this proves prkit can read a *structured* result back
+# out. Each provider's parser was written against free text and is exercised
+# offline only through mocks that return whatever the test author typed — so a
+# renamed field or a payload arriving in an unexpected block would surface here
+# and nowhere else.
+#
+# Gated separately from the rest: this one waits for real jobs to finish, which
+# is minutes at best, so it should not fire on a routine live run.
+_READBACK_ENV_VAR = "PRKIT_LIVE_BATCH_READBACK"
+
+
+@pytest.mark.parametrize("provider", sorted(_BATCH_PROVIDERS))
+def test_structured_batch_results_read_back_as_valid_objects(provider: str) -> None:
+    """A structured batch round-trips: submitted, completed, parsed, correlated.
+
+    Asserts the payload validates against the schema rather than that some text
+    came back. An empty string tagged SUCCEEDED is the failure this exists to
+    catch, and it is indistinguishable from success by any weaker assertion.
+    """
+    model, key_vars = _BATCH_PROVIDERS[provider]
+    _requires(*key_vars)
+    if not os.environ.get(_READBACK_ENV_VAR):
+        pytest.skip(f"{_READBACK_ENV_VAR} not set (this one waits for real jobs)")
+    from prkit.core.model_clients import create_model_client
+
+    client = create_model_client(
+        os.environ.get(f"PRKIT_LIVE_{provider.upper()}_MODEL", model)
+    )
+    expected = {"rb-alpha": 1000, "rb-bravo": 100}
+    requests = [
+        client.build_batch_request(
+            request_id=request_id,
+            input=(
+                "How many meters are in one kilometre?"
+                if request_id == "rb-alpha"
+                else "How many centimetres are in one metre?"
+            ),
+            instructions="",
+            max_output_tokens=4096,
+            response_format=_BatchAnswer,
+        )
+        for request_id in expected
+    ]
+
+    batch_id = client.submit_batch(
+        requests, metadata={"display_name": "prkit-live-readback"}
+    )
+    assert batch_id
+
+    timeout = float(os.environ.get("PRKIT_BATCH_TIMEOUT_SECONDS", "1800"))
+    deadline = time.monotonic() + timeout
+    status = client.poll_batch(batch_id)
+    while not status.is_terminal:
+        if time.monotonic() > deadline:
+            _cancel_quietly(client, batch_id)
+            pytest.fail(
+                f"{provider} batch {batch_id} not terminal after {timeout}s "
+                f"(last={status.raw_status})"
+            )
+        time.sleep(20)
+        status = client.poll_batch(batch_id)
+
+    assert status.state is BatchState.COMPLETED, (
+        f"{provider} batch {batch_id} ended {status.state} "
+        f"(raw={status.raw_status!r}, counts={status.counts}). "
+        "A batch that never ran says nothing about prkit's read-back path — "
+        "check the provider account before reading this as a code defect."
+    )
+
+    results = {r.custom_id: r for r in client.retrieve_batch_results(batch_id)}
+
+    assert set(results) == set(
+        expected
+    ), f"{provider} returned ids {sorted(results)}, expected {sorted(expected)}"
+    for request_id, want in expected.items():
+        result = results[request_id]
+        assert (
+            result.status is BatchItemStatus.SUCCEEDED
+        ), f"{provider}/{request_id}: {result.status} error={result.error}"
+        assert result.text, (
+            f"{provider}/{request_id} succeeded with empty text — the silent-empty "
+            "failure this assertion exists for"
+        )
+        payload = json.loads(result.text)
+        parsed = _BatchAnswer.model_validate(payload)
+        assert parsed.number == want, (
+            f"{provider}/{request_id} answered {parsed.number}, expected {want} "
+            "— a correlation failure, not a wrong answer"
+        )
