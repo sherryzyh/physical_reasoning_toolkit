@@ -4,6 +4,7 @@ Tests for xAI model client.
 
 from unittest.mock import MagicMock, Mock, patch
 
+import pytest
 from pydantic import BaseModel, Field
 
 from prkit.core.model_clients.base import DEFAULT_INSTRUCTIONS
@@ -16,6 +17,29 @@ SYSTEM_MESSAGE = {"role": "system", "content": DEFAULT_INSTRUCTIONS}
 
 class TestXAIModel:
     """Test cases for XAIModel."""
+
+    @staticmethod
+    def _stub_client():
+        client = object.__new__(XAIModel)
+        client.model = XAI_TEST_MODEL
+        client.provider = "xai"
+        client.logger = MagicMock()
+        return client
+
+    @staticmethod
+    def _closed(properties):
+        return {
+            "type": "object",
+            "properties": properties,
+            "required": sorted(properties),
+            "additionalProperties": False,
+        }
+
+    @staticmethod
+    def _spec(schema):
+        return coerce_structured_output_spec(
+            {"type": "json_schema", "name": "Example", "schema": schema}
+        )
 
     @patch("prkit.core.model_clients.openai_compatible_chat.OpenAI")
     @patch("prkit.core.model_clients.base.load_project_dotenv")
@@ -117,9 +141,11 @@ class TestXAIModel:
 
     @patch("prkit.core.model_clients.openai_compatible_chat.OpenAI")
     @patch("prkit.core.model_clients.base.load_project_dotenv")
-    def test_resolve_structured_output_plan_strips_unsupported_constraint_keywords(
+    def test_length_and_item_constraints_survive(
         self, _mock_load_project_dotenv, mock_openai_class
     ):
+        """xAI enforces these up to documented thresholds, so keep them."""
+
         class ExampleResponse(BaseModel):
             answer: str = Field(min_length=1, max_length=8)
             tags: list[str] = Field(min_length=1, max_length=3)
@@ -132,40 +158,189 @@ class TestXAIModel:
             ExampleResponse,
             structured_policy="native_required",
         )
-        schema = plan.response_format["schema"]
+        schema = str(plan.response_format["schema"])
 
         assert plan.mode == "json_schema"
-        assert "minLength" not in str(schema)
-        assert "maxLength" not in str(schema)
-        assert "minItems" not in str(schema)
-        assert "maxItems" not in str(schema)
+        assert "minLength" in schema
+        assert "maxLength" in schema
+        assert "minItems" in schema
+        assert "maxItems" in schema
 
-    def test_resolve_structured_output_plan_falls_back_when_schema_uses_allof(self):
-        client = object.__new__(XAIModel)
-        client.model = XAI_TEST_MODEL
-        client.provider = "xai"
-        client.logger = MagicMock()
-        spec = coerce_structured_output_spec(
+    def test_contains_bounds_are_stripped(self):
+        client = self._stub_client()
+        spec = self._spec(
             {
-                "type": "json_schema",
-                "name": "AllOfResponse",
-                "schema": {
-                    "allOf": [
-                        {
-                            "type": "object",
-                            "properties": {"answer": {"type": "string"}},
-                            "required": ["answer"],
-                            "additionalProperties": False,
-                        }
-                    ]
+                "type": "object",
+                "properties": {
+                    "tags": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "contains": {"type": "string"},
+                        "minContains": 1,
+                        "maxContains": 3,
+                    }
                 },
+                "required": ["tags"],
+                "additionalProperties": False,
             }
         )
 
         plan = client._resolve_structured_output_plan(
-            spec,
-            structured_policy="best_effort",
+            spec, structured_policy="best_effort"
+        )
+
+        assert plan.mode == "json_schema"
+        assert "minContains" not in str(plan.response_format["schema"])
+        assert "maxContains" not in str(plan.response_format["schema"])
+
+    def test_single_subschema_allof_is_native(self):
+        """xAI supports allOf in its single-subschema form."""
+        client = self._stub_client()
+        spec = self._spec({"allOf": [self._closed({"answer": {"type": "string"}})]})
+
+        plan = client._resolve_structured_output_plan(
+            spec, structured_policy="best_effort"
+        )
+
+        assert plan.mode == "json_schema"
+        assert plan.strategy == "xai_chat_json_schema"
+
+    def test_multi_subschema_allof_falls_back(self):
+        client = self._stub_client()
+        spec = self._spec(
+            {
+                "allOf": [
+                    self._closed({"answer": {"type": "string"}}),
+                    self._closed({"score": {"type": "number"}}),
+                ]
+            }
+        )
+
+        plan = client._resolve_structured_output_plan(
+            spec, structured_policy="best_effort"
         )
 
         assert plan.mode == "prompt_only"
         assert plan.strategy == "xai_prompt_only_unsupported_schema"
+
+    def test_circular_ref_schema_falls_back(self):
+        client = self._stub_client()
+        spec = self._spec(
+            {
+                "$defs": {"Node": self._closed({"child": {"$ref": "#/$defs/Node"}})},
+                **self._closed({"root": {"$ref": "#/$defs/Node"}}),
+            }
+        )
+
+        plan = client._resolve_structured_output_plan(
+            spec, structured_policy="best_effort"
+        )
+
+        assert plan.mode == "prompt_only"
+
+    def test_reused_ref_stays_native(self):
+        """Reuse is not recursion; only a genuine cycle should demote."""
+        client = self._stub_client()
+        spec = self._spec(
+            {
+                "$defs": {"Item": self._closed({"name": {"type": "string"}})},
+                **self._closed(
+                    {
+                        "a": {"$ref": "#/$defs/Item"},
+                        "b": {"$ref": "#/$defs/Item"},
+                    }
+                ),
+            }
+        )
+
+        plan = client._resolve_structured_output_plan(
+            spec, structured_policy="best_effort"
+        )
+
+        assert plan.mode == "json_schema"
+
+    def test_array_items_falls_back(self):
+        client = self._stub_client()
+        spec = self._spec(
+            self._closed(
+                {
+                    "pair": {
+                        "type": "array",
+                        "items": [{"type": "string"}, {"type": "integer"}],
+                    }
+                }
+            )
+        )
+
+        plan = client._resolve_structured_output_plan(
+            spec, structured_policy="best_effort"
+        )
+
+        assert plan.mode == "prompt_only"
+
+    def test_empty_enum_falls_back(self):
+        client = self._stub_client()
+        spec = self._spec(self._closed({"choice": {"enum": []}}))
+
+        plan = client._resolve_structured_output_plan(
+            spec, structured_policy="best_effort"
+        )
+
+        assert plan.mode == "prompt_only"
+
+    def test_boolean_property_schema_falls_back(self):
+        client = self._stub_client()
+        spec = self._spec(
+            {
+                "type": "object",
+                "properties": {"anything": True},
+                "required": ["anything"],
+                "additionalProperties": False,
+            }
+        )
+
+        plan = client._resolve_structured_output_plan(
+            spec, structured_policy="best_effort"
+        )
+
+        assert plan.mode == "prompt_only"
+
+    def test_additional_properties_false_is_not_a_boolean_subschema(self):
+        """Every provider transform emits this; it must not trip the gate."""
+        client = self._stub_client()
+        spec = self._spec(self._closed({"answer": {"type": "string"}}))
+
+        plan = client._resolve_structured_output_plan(
+            spec, structured_policy="best_effort"
+        )
+
+        assert plan.mode == "json_schema"
+
+    def test_native_required_raises_on_circular_schema(self):
+        client = self._stub_client()
+        spec = self._spec(
+            {
+                "$defs": {"Node": self._closed({"child": {"$ref": "#/$defs/Node"}})},
+                **self._closed({"root": {"$ref": "#/$defs/Node"}}),
+            }
+        )
+
+        with pytest.raises(ValueError, match="circular"):
+            client._resolve_structured_output_plan(
+                spec, structured_policy="native_required"
+            )
+
+    def test_reasoning_params_are_dropped_but_temperature_is_kept(self):
+        client = self._stub_client()
+
+        result = client._apply_param_omissions(
+            {
+                "model": XAI_TEST_MODEL,
+                "presence_penalty": 1,
+                "frequency_penalty": 1,
+                "stop": ["x"],
+                "temperature": 0.2,
+            }
+        )
+
+        assert result == {"model": XAI_TEST_MODEL, "temperature": 0.2}

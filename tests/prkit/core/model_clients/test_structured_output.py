@@ -195,7 +195,9 @@ class TestStructuredOutputUtilities:
 
         assert resolved["openai"].mode == "json_schema"
         assert resolved["gemini"].mode == "json_schema"
-        assert resolved["xai"].mode == "json_schema"
+        # This schema is genuinely recursive and xAI accepts non-circular
+        # references only, so native enforcement would be a 400.
+        assert resolved["xai"].mode == "prompt_only"
         assert resolved["dashscope"].mode == "json_schema"
         assert resolved["ollama"].mode == "json_schema"
         assert resolved["deepseek"].mode == "json_object"
