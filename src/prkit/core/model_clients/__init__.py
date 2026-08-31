@@ -41,6 +41,7 @@ __all__ = [
     "DashscopeModel",
     "DeepseekModel",
     "GeminiModel",
+    "MoonshotModel",
     "OllamaModel",
     "OpenAIModel",
     "XAIModel",
@@ -64,6 +65,10 @@ def __getattr__(name: str) -> Any:
         from .gemini import GeminiModel
 
         return GeminiModel
+    if name == "MoonshotModel":
+        from .moonshot import MoonshotModel
+
+        return MoonshotModel
     if name == "OllamaModel":
         from .ollama import OllamaModel
 

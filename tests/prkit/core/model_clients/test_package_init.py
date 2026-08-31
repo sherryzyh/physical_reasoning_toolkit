@@ -25,6 +25,7 @@ def test_model_clients_getattr_returns_lazy_classes():
     assert model_clients.__getattr__("AnthropicModel").__name__ == "AnthropicModel"
     assert model_clients.__getattr__("OllamaModel").__name__ == "OllamaModel"
     assert model_clients.__getattr__("XAIModel").__name__ == "XAIModel"
+    assert model_clients.__getattr__("MoonshotModel").__name__ == "MoonshotModel"
     assert model_clients.__getattr__("DashscopeModel").__name__ == "DashscopeModel"
     assert model_clients.__getattr__("DeepseekModel").__name__ == "DeepseekModel"
 

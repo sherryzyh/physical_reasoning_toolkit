@@ -17,6 +17,7 @@ from prkit.core.model_clients.dashscope import DashscopeModel
 from prkit.core.model_clients.deepseek import DeepseekModel
 from prkit.core.model_clients.factory import _PROVIDER_RULES
 from prkit.core.model_clients.gemini import GeminiModel
+from prkit.core.model_clients.moonshot import MoonshotModel
 from prkit.core.model_clients.ollama import OllamaModel
 from prkit.core.model_clients.openai import OpenAIModel
 from prkit.core.model_clients.xai import XAIModel
@@ -29,6 +30,7 @@ OLLAMA_MISTRAL_TEST_MODEL = "ollama/mistral-large-3:675b-cloud"
 DEEPSEEK_CHAT_TEST_MODEL = "deepseek-chat"
 DEEPSEEK_REASONER_TEST_MODEL = "deepseek-reasoner"
 XAI_TEST_MODEL = "grok-4.6"
+MOONSHOT_TEST_MODEL = "kimi-k3"
 DASHSCOPE_TEST_MODEL = "qwen3.6-plus"
 
 
@@ -119,6 +121,33 @@ class TestCreateModelClient:
         assert isinstance(client, XAIModel)
         assert client.model == XAI_TEST_MODEL
         assert client.provider == "xai"
+
+    @patch("prkit.core.model_clients.openai_compatible_chat.OpenAI")
+    def test_create_moonshot_model(self, mock_openai_class):
+        """Test creating a Moonshot Kimi model."""
+        mock_openai_class.return_value = MagicMock()
+
+        client = create_model_client(MOONSHOT_TEST_MODEL)
+        assert isinstance(client, MoonshotModel)
+        assert client.model == MOONSHOT_TEST_MODEL
+        assert client.provider == "moonshot"
+
+    @patch("prkit.core.model_clients.openai_compatible_chat.OpenAI")
+    def test_create_moonshot_model_with_provider_prefix(self, mock_openai_class):
+        mock_openai_class.return_value = MagicMock()
+
+        client = create_model_client(f"moonshot/{MOONSHOT_TEST_MODEL}")
+        assert isinstance(client, MoonshotModel)
+        assert client.model == MOONSHOT_TEST_MODEL
+
+    @patch("prkit.core.model_clients.openai_compatible_chat.OpenAI")
+    def test_create_moonshot_v1_model(self, mock_openai_class):
+        """moonshot-v1-* has no slash, so the name must survive unchanged."""
+        mock_openai_class.return_value = MagicMock()
+
+        client = create_model_client("moonshot-v1-8k")
+        assert isinstance(client, MoonshotModel)
+        assert client.model == "moonshot-v1-8k"
 
     @patch("prkit.core.model_clients.openai_compatible_chat.OpenAI")
     def test_create_dashscope_model(self, mock_openai_class):

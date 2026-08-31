@@ -30,6 +30,10 @@ class OpenAICompatibleChatModel(BaseModelClient):
     #: that sending them is an error. Empty by default: nothing is dropped.
     omitted_request_params: frozenset[str] = frozenset()
 
+    #: Body key carrying the output-token cap. Newer OpenAI-compatible APIs
+    #: deprecate ``max_tokens`` in favour of ``max_completion_tokens``.
+    max_output_tokens_param: str = "max_tokens"
+
     @classmethod
     def normalize_model_name(cls, model: str) -> str:
         """Strip the provider prefix from *model* (e.g. ``'deepseek/foo'`` → ``'foo'``)."""
@@ -211,8 +215,9 @@ class OpenAICompatibleChatModel(BaseModelClient):
             request_params["response_format"] = request_response_format
 
         max_output_tokens = kwargs.pop("max_output_tokens", None)
-        if max_output_tokens is not None and "max_tokens" not in kwargs:
-            request_params["max_tokens"] = max_output_tokens
+        token_param = self.max_output_tokens_param
+        if max_output_tokens is not None and token_param not in kwargs:
+            request_params[token_param] = max_output_tokens
 
         if kwargs:
             request_params.update(kwargs)

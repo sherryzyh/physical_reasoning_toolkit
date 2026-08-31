@@ -58,6 +58,13 @@ def _load_deepseek(model: str, logger: logging.Logger | None) -> BaseModelClient
     return DeepseekModel(model, logger)
 
 
+def _load_moonshot(model: str, logger: logging.Logger | None) -> BaseModelClient:
+    """Lazily import and return a ``MoonshotModel`` instance."""
+    from .moonshot import MoonshotModel
+
+    return MoonshotModel(model, logger)
+
+
 def _load_anthropic(model: str, logger: logging.Logger | None) -> BaseModelClient:
     """Lazily import and return an ``AnthropicModel`` instance."""
     from .anthropic import AnthropicModel
@@ -108,6 +115,11 @@ _PROVIDER_RULES: list[ProviderRule] = [
         _load_dashscope,
     ),
     ProviderRule("deepseek", lambda m: "deepseek" in m, _load_deepseek),
+    ProviderRule(
+        "moonshot",
+        lambda m: m.startswith(("moonshot/", "kimi-", "moonshot-v1")),
+        _load_moonshot,
+    ),
     ProviderRule("anthropic", lambda m: "claude" in m, _load_anthropic),
     ProviderRule(
         "ollama",
@@ -158,7 +170,8 @@ def create_model_client(
         f"Unknown model: {model}. "
         "Supported models: OpenAI (gpt-4.1, gpt-5xxxx, o-family), "
         "Anthropic (claude-*), Google (gemini-*), DeepSeek (deepseek-*), "
-        "xAI (grok-*), DashScope (dashscope/*, qwen3.6-plus), "
+        "xAI (grok-*), Moonshot (kimi-*, moonshot-v1-*, moonshot/*), "
+        "DashScope (dashscope/*, qwen3.6-plus), "
         "Ollama (ollama/<model_name>, qwen*)"
     )
 

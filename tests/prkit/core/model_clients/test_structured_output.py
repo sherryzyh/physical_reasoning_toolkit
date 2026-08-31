@@ -7,6 +7,7 @@ from prkit.core.model_clients.anthropic import AnthropicModel
 from prkit.core.model_clients.dashscope import DashscopeModel
 from prkit.core.model_clients.deepseek import DeepseekModel
 from prkit.core.model_clients.gemini import GeminiModel
+from prkit.core.model_clients.moonshot import MoonshotModel
 from prkit.core.model_clients.ollama import OllamaModel
 from prkit.core.model_clients.openai import (
     OpenAIModel,
@@ -183,6 +184,9 @@ class TestStructuredOutputUtilities:
                 model="claude-sonnet-4-6",
                 provider="anthropic",
             ),
+            "moonshot": stub_client(
+                MoonshotModel, model="kimi-k3", provider="moonshot"
+            ),
         }
 
         resolved = {
@@ -201,6 +205,7 @@ class TestStructuredOutputUtilities:
         assert resolved["dashscope"].mode == "json_schema"
         assert resolved["ollama"].mode == "json_schema"
         assert resolved["deepseek"].mode == "json_object"
+        assert resolved["moonshot"].mode == "json_schema"
         assert resolved["anthropic"].mode == "prompt_only"
 
         anthropic_compact = plans["anthropic"].resolve_structured_output_plan(
