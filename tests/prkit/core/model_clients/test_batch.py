@@ -14,6 +14,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from pydantic import BaseModel
 
+from prkit.core.model_clients.anthropic import DEFAULT_MAX_OUTPUT_TOKENS
 from prkit.core.model_clients.base import BaseModelClient
 from prkit.core.model_clients.batch_types import (
     TERMINAL_STATES,
@@ -145,7 +146,7 @@ class TestFreeTextBuilders:
         params = client.build_batch_request(request_id="r", input="x", instructions="")[
             "params"
         ]
-        assert params["max_tokens"] == 1024
+        assert params["max_tokens"] == DEFAULT_MAX_OUTPUT_TOKENS
 
     def test_gemini_shape(self):
         client = _gemini_client()

@@ -89,6 +89,14 @@ def _block_attr(block: Any, name: str) -> Any:
     return getattr(block, name, None)
 
 
+# Anthropic's max_tokens is a required parameter and a hard stop, so there is no
+# "let the server decide" option the way there is on OpenAI. 16000 is Anthropic's
+# recommended default for non-streaming requests: high enough that a structured
+# response is not truncated mid-JSON, low enough to stay inside the SDK's request
+# timeout, and under the output cap of every current model.
+DEFAULT_MAX_OUTPUT_TOKENS = 16000
+
+
 def _extract_tool_use_json(content_blocks: list[Any]) -> str:
     """Return the emitted Anthropic tool input as a JSON string."""
     tool_blocks = [
@@ -207,7 +215,7 @@ class AnthropicModel(BaseModelClient):
         input: str,
         image_paths: list[str] | None = None,
         response_format: dict[str, Any] | type | None = None,
-        max_output_tokens: int = 1024,
+        max_output_tokens: int = DEFAULT_MAX_OUTPUT_TOKENS,
         *args: Any,
         instructions: str | None = None,
         **kwargs: Any,
@@ -367,7 +375,9 @@ class AnthropicModel(BaseModelClient):
             instructions=instructions,
             image_paths=image_paths,
             max_output_tokens=(
-                max_output_tokens if max_output_tokens is not None else 1024
+                max_output_tokens
+                if max_output_tokens is not None
+                else DEFAULT_MAX_OUTPUT_TOKENS
             ),
             response_format=response_format,
             extra=extra,

@@ -8,6 +8,7 @@ import pytest
 from pydantic import BaseModel
 
 from prkit.core.model_clients.anthropic import (
+    DEFAULT_MAX_OUTPUT_TOKENS,
     AnthropicModel,
     _detect_image_media_type,
     _extract_tool_use_json,
@@ -55,7 +56,7 @@ class TestAnthropicModel:
         mock_client.messages.create.assert_called_once()
         call_kwargs = mock_client.messages.create.call_args[1]
         assert call_kwargs["model"] == ANTHROPIC_TEST_MODEL
-        assert call_kwargs["max_tokens"] == 1024
+        assert call_kwargs["max_tokens"] == DEFAULT_MAX_OUTPUT_TOKENS
         # Default system prompt is sent as Anthropic's top-level `system` param.
         assert call_kwargs["system"] == DEFAULT_INSTRUCTIONS
         assert call_kwargs["messages"] == [
