@@ -139,6 +139,29 @@ def _int(value: Any) -> int:
         return 0
 
 
+def _chat_completions_usage(raw_response: Any) -> TokenUsage:
+    """Read token counts off an OpenAI **Chat Completions** shaped response.
+
+    Distinct from the Responses API shape: the counts are ``prompt_tokens`` /
+    ``completion_tokens``, not ``input_tokens`` / ``output_tokens``. Cache reads
+    are reported two ways in this family — a nested
+    ``prompt_tokens_details.cached_tokens`` and DeepSeek's flat
+    ``prompt_cache_hit_tokens`` — so both are consulted.
+    """
+    usage = _attr(raw_response, "usage")
+    prompt_details = _attr(usage, "prompt_tokens_details")
+    completion_details = _attr(usage, "completion_tokens_details")
+    return TokenUsage(
+        input_tokens=_int(_attr(usage, "prompt_tokens")),
+        output_tokens=_int(_attr(usage, "completion_tokens")),
+        cached_input_tokens=(
+            _int(_attr(prompt_details, "cached_tokens"))
+            or _int(_attr(usage, "prompt_cache_hit_tokens"))
+        ),
+        reasoning_tokens=_int(_attr(completion_details, "reasoning_tokens")),
+    )
+
+
 def extract_token_usage(provider: str, raw_response: Any) -> TokenUsage:
     """Read token counts off a raw provider response (object or dict). Missing → 0."""
     p = (provider or "").lower()
@@ -169,7 +192,12 @@ def extract_token_usage(provider: str, raw_response: Any) -> TokenUsage:
             cached_input_tokens=_int(_attr(usage, "cached_content_token_count")),
             reasoning_tokens=thoughts,
         )
-    return TokenUsage()  # unknown provider → zeros, never raises
+    # Everything else: xAI, Moonshot, DeepSeek and DashScope all speak the
+    # OpenAI Chat Completions shape, and so will any client registered through
+    # ``register_model_client``. Reading it is strictly better than returning
+    # zeros for a response that plainly carries the counts; a response that does
+    # not carry them still yields zeros, as documented.
+    return _chat_completions_usage(raw_response)
 
 
 class CostMeter:

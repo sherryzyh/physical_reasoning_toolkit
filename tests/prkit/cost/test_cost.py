@@ -41,6 +41,18 @@ def _anthropic_response(
     )
 
 
+def _chat_completions_response() -> dict:
+    """The OpenAI Chat Completions usage shape every compatible provider emits."""
+    return {
+        "usage": {
+            "prompt_tokens": 120,
+            "completion_tokens": 40,
+            "prompt_tokens_details": {"cached_tokens": 100},
+            "completion_tokens_details": {"reasoning_tokens": 25},
+        }
+    }
+
+
 def _gemini_response(
     prompt: int, candidates: int, cached: int = 0, thoughts: int = 0
 ) -> SimpleNamespace:
@@ -110,6 +122,29 @@ class TestPriceTable:
         assert table.price_for("OpenAI", "gpt-5.1") is not None
 
 
+class TestNewProviderPrices:
+    def test_xai_and_moonshot_are_priced(self) -> None:
+        table = PriceTable.default()
+
+        assert table.price_for("xai", "grok-4.6") is not None
+        assert table.price_for("moonshot", "kimi-k3") is not None
+
+    def test_published_cache_rates_are_not_assumed_to_be_a_tenth(self) -> None:
+        """xAI publishes its cache rate; it is a quarter of input, not a tenth."""
+        price = PriceTable.default().price_for("xai", "grok-4.6")
+
+        assert price is not None
+        assert price.cached_input_per_token == pytest.approx(0.50 / 1_000_000)
+        assert price.input_per_token == pytest.approx(2.00 / 1_000_000)
+
+    def test_unpriced_provider_still_raises_rather_than_reporting_zero(self) -> None:
+        """A guessed price would be worse than a loud miss."""
+        with pytest.raises(KeyError):
+            PriceTable.default().cost_of(
+                "deepseek", "deepseek-chat", TokenUsage(input_tokens=10)
+            )
+
+
 class TestExtractTokenUsage:
     def test_openai_object_and_dict(self) -> None:
         usage = extract_token_usage(
@@ -149,8 +184,38 @@ class TestExtractTokenUsage:
         assert usage.reasoning_tokens == 25
         assert usage.cached_input_tokens == 40
 
-    def test_unknown_provider_returns_zeros(self) -> None:
+    def test_unrecognizable_response_returns_zeros(self) -> None:
         assert extract_token_usage("mystery", object()) == TokenUsage()
+
+    @pytest.mark.parametrize(
+        "provider", ["xai", "moonshot", "deepseek", "dashscope", "some-custom-client"]
+    )
+    def test_chat_completions_providers_report_real_counts(self, provider: str) -> None:
+        """These returned zeros silently before, which read as a free call."""
+        usage = extract_token_usage(provider, _chat_completions_response())
+
+        assert usage.input_tokens == 120
+        assert usage.output_tokens == 40
+        assert usage.cached_input_tokens == 100
+        assert usage.reasoning_tokens == 25
+
+    def test_deepseek_flat_cache_hit_field_is_read(self) -> None:
+        """DeepSeek reports cache reads flat, not under prompt_tokens_details."""
+        response = {
+            "usage": {
+                "prompt_tokens": 90,
+                "completion_tokens": 10,
+                "prompt_cache_hit_tokens": 64,
+            }
+        }
+
+        assert extract_token_usage("deepseek", response).cached_input_tokens == 64
+
+    def test_chat_completions_shape_does_not_disturb_the_named_providers(self) -> None:
+        """A Chat Completions body must not be read for a Responses-API provider."""
+        assert (
+            extract_token_usage("openai", _chat_completions_response()) == TokenUsage()
+        )
 
     def test_missing_fields_never_raise(self) -> None:
         assert extract_token_usage("openai", SimpleNamespace()) == TokenUsage()

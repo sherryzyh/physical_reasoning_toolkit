@@ -3,12 +3,22 @@
 Kept separate from the cost logic so price drift is a one-file data edit. Each
 entry is stamped ``as_of`` (rates change — re-verify before relying on a cost
 number). Per-token = published $/1M ÷ 1e6. ``cached_input_per_token`` is the
-prompt-cache read rate (~0.1× input for all three providers).
+prompt-cache read rate, ~0.1× input for most providers but published explicitly
+by xAI and Moonshot, so those pass it directly.
 
 Sources (as_of 2026-06):
 - Anthropic: the ``claude-api`` skill model/pricing table.
 - OpenAI: https://developers.openai.com/api/docs/pricing
 - Google Gemini: https://ai.google.dev/gemini-api/docs/pricing
+- xAI: https://docs.x.ai/developers/pricing (standard tier; xAI bills every
+  token in a request at a higher rate once the prompt reaches 200k tokens, and
+  this table carries the standard rate only)
+- Moonshot: https://platform.kimi.ai/docs/pricing/chat-k3 (input rate is the
+  cache-miss rate; the hit rate is the cached rate)
+
+DeepSeek and DashScope are deliberately absent: their token usage is now
+extracted, but no verified current rate was available when this was written, and
+a guessed price is worse than a loud ``KeyError`` from ``PriceTable.cost_of``.
 
 This table is intentionally small and stale-able. A caller can override it by
 constructing ``PriceTable(prices=...)`` or extend it via ``DEFAULT_PRICES``.
@@ -25,14 +35,24 @@ _M = 1_000_000.0
 _AS_OF = "2026-06"
 
 
-def _price(input_per_m: float, output_per_m: float) -> ModelPrice:
-    """Build a ModelPrice from published $/1M rates; cached input = 0.1× input."""
+def _price(
+    input_per_m: float,
+    output_per_m: float,
+    cached_per_m: float | None = None,
+) -> ModelPrice:
+    """Build a ModelPrice from published $/1M rates.
+
+    Cached input defaults to 0.1× input, the common ratio. Pass *cached_per_m*
+    for providers that publish their cache-read rate explicitly.
+    """
     from prkit.cost import ModelPrice
 
     return ModelPrice(
         input_per_token=input_per_m / _M,
         output_per_token=output_per_m / _M,
-        cached_input_per_token=(input_per_m * 0.1) / _M,
+        cached_input_per_token=(
+            cached_per_m / _M if cached_per_m is not None else (input_per_m * 0.1) / _M
+        ),
         as_of=_AS_OF,
     )
 
@@ -58,4 +78,11 @@ DEFAULT_PRICES: dict[tuple[str, str], ModelPrice] = {
     ("google", "gemini-3-pro"): _price(2.00, 12.00),
     ("google", "gemini-3-flash"): _price(0.50, 3.00),
     ("google", "gemini-3.1-flash-lite"): _price(0.25, 1.50),
+    # --- xAI (docs.x.ai/developers/pricing, 2026-06; standard tier) ---
+    ("xai", "grok-4.6"): _price(2.00, 6.00, 0.50),
+    ("xai", "grok-4.5"): _price(2.00, 6.00, 0.30),
+    ("xai", "grok-4.3"): _price(1.25, 2.50, 0.20),
+    # --- Moonshot (platform.kimi.ai/docs/pricing, 2026-06; input = cache miss) ---
+    ("moonshot", "kimi-k3"): _price(3.00, 15.00, 0.30),
+    ("moonshot", "kimi-k2.6"): _price(0.95, 4.00, 0.16),
 }
