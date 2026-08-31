@@ -26,6 +26,10 @@ class OpenAICompatibleChatModel(BaseModelClient):
     base_url_env_var: str = ""
     default_base_url: str = ""
 
+    #: Chat-completions body keys this provider rejects, or pins server-side so
+    #: that sending them is an error. Empty by default: nothing is dropped.
+    omitted_request_params: frozenset[str] = frozenset()
+
     @classmethod
     def normalize_model_name(cls, model: str) -> str:
         """Strip the provider prefix from *model* (e.g. ``'deepseek/foo'`` → ``'foo'``)."""
@@ -126,6 +130,36 @@ class OpenAICompatibleChatModel(BaseModelClient):
         del response_format
         return user_prompt
 
+    def _omitted_request_params(self) -> frozenset[str]:
+        """Return the request params to drop for *this* model.
+
+        Override when the rule is model-dependent rather than provider-wide.
+        """
+        return self.omitted_request_params
+
+    def _apply_param_omissions(self, request_params: dict[str, Any]) -> dict[str, Any]:
+        """Drop params this provider rejects from *request_params*, warning on each.
+
+        Applied last, after caller keyword arguments have been merged, because
+        those are exactly what this guards against: an unknown keyword otherwise
+        travels straight to the wire.
+        """
+        omitted = self._omitted_request_params()
+        if not omitted:
+            return request_params
+
+        dropped = sorted(key for key in request_params if key in omitted)
+        for key in dropped:
+            request_params.pop(key)
+        if dropped:
+            self.logger.warning(
+                "%s model %s does not accept %s; dropping from the request.",
+                self.provider_name or self.provider or "unknown",
+                self.model,
+                ", ".join(dropped),
+            )
+        return request_params
+
     def _extract_text_from_chat_completion(self, response: Any) -> str:
         """Extract the plain text content from a chat-completions response object."""
         message = response.choices[0].message
@@ -182,6 +216,8 @@ class OpenAICompatibleChatModel(BaseModelClient):
 
         if kwargs:
             request_params.update(kwargs)
+
+        request_params = self._apply_param_omissions(request_params)
 
         response = self.client.chat.completions.create(**request_params)
         text = self._extract_text_from_chat_completion(response)

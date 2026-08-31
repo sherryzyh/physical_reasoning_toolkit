@@ -21,6 +21,76 @@ class DummyChatProvider(OpenAICompatibleChatModel):
         return {"timeout": 10}
 
 
+class OmittingChatProvider(DummyChatProvider):
+    omitted_request_params = frozenset({"stop", "presence_penalty"})
+
+
+class TestParamOmissions:
+    @staticmethod
+    def _client(cls):
+        client = object.__new__(cls)
+        client.model = "model-a"
+        client.provider = cls.provider_name
+        client.logger = MagicMock()
+        return client
+
+    def test_no_omissions_by_default(self):
+        client = self._client(DummyChatProvider)
+        params = {"model": "model-a", "stop": ["x"], "temperature": 0.2}
+
+        assert client._apply_param_omissions(dict(params)) == params
+        client.logger.warning.assert_not_called()
+
+    def test_declared_params_are_dropped_and_warned(self):
+        client = self._client(OmittingChatProvider)
+
+        result = client._apply_param_omissions(
+            {
+                "model": "model-a",
+                "stop": ["x"],
+                "presence_penalty": 1,
+                "temperature": 0.2,
+            }
+        )
+
+        assert result == {"model": "model-a", "temperature": 0.2}
+        client.logger.warning.assert_called_once()
+        assert "presence_penalty, stop" in client.logger.warning.call_args[0]
+
+    def test_no_warning_when_nothing_matched(self):
+        client = self._client(OmittingChatProvider)
+
+        result = client._apply_param_omissions({"model": "model-a", "temperature": 0.2})
+
+        assert result == {"model": "model-a", "temperature": 0.2}
+        client.logger.warning.assert_not_called()
+
+    @patch("prkit.core.model_clients.base.load_project_dotenv")
+    @patch("prkit.core.model_clients.openai_compatible_chat.OpenAI")
+    def test_omission_applies_to_caller_supplied_kwargs(
+        self, mock_openai_class, _mock_load_project_dotenv
+    ):
+        """The seam runs after **kwargs merge, which is what it exists to guard."""
+        mock_client = MagicMock()
+        mock_openai_class.return_value = mock_client
+        mock_message = Mock()
+        mock_message.content = "ok"
+        mock_choice = Mock()
+        mock_choice.message = mock_message
+        mock_response = Mock()
+        mock_response.choices = [mock_choice]
+        mock_client.chat.completions.create.return_value = mock_response
+
+        with patch.dict("os.environ", {"DUMMY_API_KEY": "k"}, clear=True):
+            client = OmittingChatProvider("model-a")
+
+        client.response("hi", stop=["x"], temperature=0.2)
+
+        call_kwargs = mock_client.chat.completions.create.call_args[1]
+        assert "stop" not in call_kwargs
+        assert call_kwargs["temperature"] == 0.2
+
+
 class TestOpenAICompatibleChatModel:
     @patch("prkit.core.model_clients.base.load_project_dotenv")
     @patch("prkit.core.model_clients.openai_compatible_chat.OpenAI")
