@@ -54,7 +54,10 @@ from typing import TYPE_CHECKING, Any
 from prkit.core.domain import PhysicsDataset, PhysicsProblem
 
 if TYPE_CHECKING:
+    from pydantic import BaseModel
+
     from prkit.core.model_clients.batch_types import BatchResult, BatchState
+    from prkit.core.model_clients.structured_output import StructuredOutputPolicy
 
 __all__ = [
     "BatchSubmission",
@@ -224,6 +227,12 @@ class BatchSubmission:
     display_name: str
     run_dir: str  # "<output_dir>/<run_name>"
     metadata: dict[str, str] = field(default_factory=dict)
+    # Resolved structured-output plan for the run: {mode, strategy,
+    # native_schema_enforced}, or None for a free-text run. Recorded because a
+    # run that demoted to prompt-only on one provider and stayed native on
+    # another is not comparable with one that did not, and nothing else on disk
+    # would say which happened.
+    structured_output: dict[str, Any] | None = None
     # ---- per-minibatch ledger (the mutable, fetch-updated part) ----
     minibatches: list[dict[str, Any]] = field(default_factory=list)
 
@@ -279,6 +288,7 @@ class BatchSubmission:
             "display_name": self.display_name,
             "run_dir": self.run_dir,
             "metadata": dict(self.metadata),
+            "structured_output": self.structured_output,
             "minibatches": [dict(mb) for mb in self.minibatches],
         }
 
@@ -310,6 +320,7 @@ class BatchSubmission:
             display_name=data.get("display_name", data["run_name"]),
             run_dir=data["run_dir"],
             metadata=dict(data.get("metadata") or {}),
+            structured_output=data.get("structured_output"),
             minibatches=[dict(mb) for mb in data.get("minibatches", [])],
         )
 
@@ -470,6 +481,8 @@ def submit_batch_physics_reasoning(
     display_name: str | None = None,
     metadata: dict[str, str] | None = None,
     overwrite: bool = False,
+    response_format: type[BaseModel] | dict[str, Any] | None = None,
+    structured_policy: StructuredOutputPolicy = "best_effort",
 ) -> str:
     """Preprocess, split, write, and submit *problems* as provider batch jobs.
 
@@ -490,10 +503,16 @@ def submit_batch_physics_reasoning(
     ``error`` set, and ``batch_id=""`` (its input file remains for re-submission via
     Stage 1); the ledger always has one ``minibatches`` entry per minibatch.
 
+    Pass *response_format* to request native structured output; the resolved
+    plan is recorded on the ledger as ``structured_output`` so a demoted run is
+    distinguishable from a natively enforced one after the fact.
+
     Raises:
         BatchSubmitUnsupportedError: up front, if the client's provider has no
             batch submit surface (never a raw ``NotImplementedError`` from
             inside the build loop, which would leave an orphan run folder).
+        ValueError: up front, if *structured_policy* is ``'native_required'``
+            and the provider cannot enforce the schema.
         BatchInputError: empty input, an invalid/duplicate id, a non-positive
             ``minibatch_size``, or a pre-existing non-empty run folder when
             ``overwrite`` is False.
@@ -506,6 +525,17 @@ def submit_batch_physics_reasoning(
             "synchronous path for this provider, or check "
             "batch_submit_supported(client) first when sweeping several models."
         )
+
+    # Resolve the plan once, before the run folder exists: it fixes what gets
+    # recorded on the ledger, and makes a native_required policy the provider
+    # cannot satisfy fail with nothing written to disk.
+    structured_plan = (
+        None
+        if response_format is None
+        else client.resolve_structured_output_plan(
+            response_format, structured_policy=structured_policy
+        )
+    )
 
     if isinstance(problems, PhysicsDataset):
         dataset_name: str | None = problems.name
@@ -570,6 +600,8 @@ def submit_batch_physics_reasoning(
                 instructions=instructions,
                 max_output_tokens=max_output_tokens,
                 temperature=temperature,
+                response_format=response_format,
+                structured_policy=structured_policy,
             )
         )
         request_ids.append(request_id)
@@ -635,11 +667,20 @@ def submit_batch_physics_reasoning(
         minibatch_count=len(request_chunks),
         total_problems=len(problem_list),
         dataset=dataset_field,
-        request_kind="free_text",
+        request_kind="free_text" if structured_plan is None else "structured",
         prkit_api_version=_prkit_api_version(),
         display_name=display_name,
         run_dir=str(run_dir),
         metadata=dict(metadata or {}),
+        structured_output=(
+            None
+            if structured_plan is None
+            else {
+                "mode": structured_plan.mode,
+                "strategy": structured_plan.strategy,
+                "native_schema_enforced": structured_plan.native_schema_enforced,
+            }
+        ),
         minibatches=minibatches,
     )
     submission.save()

@@ -145,3 +145,20 @@ class TestSerialization:
         rebuilt = BatchSubmission.from_dict(data)
         # fromisoformat yields timezone(timedelta(0)) which == utc but is not it.
         assert rebuilt.created_at.tzinfo == UTC
+
+
+def test_structured_output_round_trips_and_defaults_for_old_ledgers():
+    """Older metadata.json files predate the field and must still load."""
+    ledger = _ledger([SUBMITTED])
+    ledger.structured_output = {
+        "mode": "json_schema",
+        "strategy": "openai_responses_json_schema",
+        "native_schema_enforced": True,
+    }
+
+    restored = BatchSubmission.from_dict(ledger.to_dict())
+    assert restored.structured_output == ledger.structured_output
+
+    legacy = ledger.to_dict()
+    del legacy["structured_output"]
+    assert BatchSubmission.from_dict(legacy).structured_output is None

@@ -20,6 +20,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+from pydantic import BaseModel
 
 from prkit.batch import (
     SUBMIT_ERROR,
@@ -31,6 +32,7 @@ from prkit.batch import (
     submit_batch_physics_reasoning,
 )
 from prkit.core.domain import PhysicsDataset, PhysicsProblem
+from prkit.semantics.build.strict_models import StrictPredictionSemanticsResponse
 
 
 # --------------------------------------------------------------------------- #
@@ -510,3 +512,93 @@ class TestBatchSubmitCapabilityGate:
         )
 
         assert BatchSubmission.load(run_dir).minibatch_count == 1
+
+
+class TestStructuredSubmit:
+    """response_format reaches the wire and the resolved plan reaches the ledger."""
+
+    class _Grade(BaseModel):
+        verdict: str
+
+    def test_free_text_run_is_unchanged(self, tmp_path):
+        client = _openai_client()
+        client.client.batches.create.return_value = MagicMock(id="b1")
+
+        run_dir = submit_batch_physics_reasoning(
+            client, _problems(2), output_dir=tmp_path, minibatch_size=2
+        )
+
+        ledger = BatchSubmission.load(run_dir)
+        assert ledger.request_kind == "free_text"
+        assert ledger.structured_output is None
+
+    def test_structured_run_records_the_plan(self, tmp_path):
+        client = _openai_client()
+        client.client.batches.create.return_value = MagicMock(id="b1")
+
+        run_dir = submit_batch_physics_reasoning(
+            client,
+            _problems(2),
+            output_dir=tmp_path,
+            minibatch_size=2,
+            response_format=self._Grade,
+        )
+
+        ledger = BatchSubmission.load(run_dir)
+        assert ledger.request_kind == "structured"
+        assert ledger.structured_output == {
+            "mode": "json_schema",
+            "strategy": "openai_responses_json_schema",
+            "native_schema_enforced": True,
+        }
+
+    def test_schema_reaches_the_written_jsonl(self, tmp_path):
+        client = _openai_client()
+        client.client.batches.create.return_value = MagicMock(id="b1")
+
+        run_dir = submit_batch_physics_reasoning(
+            client,
+            _problems(1),
+            output_dir=tmp_path,
+            minibatch_size=1,
+            response_format=self._Grade,
+        )
+
+        line = json.loads(
+            (Path(run_dir) / "inputs" / "minibatch_0000.jsonl")
+            .read_text()
+            .splitlines()[0]
+        )
+        assert line["body"]["text"]["format"]["type"] == "json_schema"
+
+    def test_native_required_fails_before_the_run_folder_exists(self, tmp_path):
+        """The plan resolves up front, so an impossible policy writes nothing."""
+        client = _anthropic_client()
+
+        with pytest.raises(ValueError, match="native"):
+            submit_batch_physics_reasoning(
+                client,
+                _problems(2),
+                output_dir=tmp_path,
+                run_name="run-a",
+                response_format=StrictPredictionSemanticsResponse,
+                structured_policy="native_required",
+            )
+
+        assert list(tmp_path.iterdir()) == []
+
+    def test_demoted_run_is_recorded_as_demoted(self, tmp_path):
+        client = _anthropic_client()
+        client.client.messages.batches.create.return_value = MagicMock(id="b1")
+
+        run_dir = submit_batch_physics_reasoning(
+            client,
+            _problems(1),
+            output_dir=tmp_path,
+            minibatch_size=1,
+            response_format=StrictPredictionSemanticsResponse,
+        )
+
+        recorded = BatchSubmission.load(run_dir).structured_output
+        assert recorded["mode"] == "prompt_only"
+        assert recorded["native_schema_enforced"] is False
