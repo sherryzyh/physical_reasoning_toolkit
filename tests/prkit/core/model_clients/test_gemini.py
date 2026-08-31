@@ -294,12 +294,13 @@ class TestGeminiStructuredOutputGate:
         [
             {"allOf": [{"type": "object"}, {"type": "object"}]},
             {"type": "object", "properties": {"a": {"not": {"type": "null"}}}},
-            {
-                "type": "object",
-                "properties": {"a": {"type": "string", "pattern": "^x"}},
-            },
             {"type": "object", "properties": {"a": {"const": 3}}},
             {"type": "object", "propertyNames": {"type": "string"}},
+            {
+                "type": "object",
+                "properties": {"a": {"type": "number", "multipleOf": 2}},
+            },
+            {"type": "object", "properties": {"a": {"exclusiveMinimum": 0}}},
         ],
     )
     def test_unsupported_keywords_demote(self, schema):

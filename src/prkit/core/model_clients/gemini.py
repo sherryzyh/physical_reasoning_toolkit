@@ -36,15 +36,23 @@ _GEMINI_BATCH_STATE_MAP = {
 }
 
 
-# Validation-bearing keywords outside Google's documented allowlist for
-# ``response_json_schema``. Deliberately narrow: the published allowlist also
-# omits annotation keywords such as ``default``, ``examples`` and ``$comment``,
-# and forbids a ``$ref`` carrying any non-``$`` sibling as well as cycles
-# reached through a required property. Measured against prkit's own 44 response
-# models, gating on those would demote 32, 23 and 13 of them respectively —
-# schemas that are sent to Gemini natively today and work. The documentation is
-# evidently stricter than the behaviour, so only constructs that carry
-# validation semantics *and* appear in no prkit schema are gated here.
+# Validation keywords absent from ``google.genai.types.JSONSchema``, the pinned
+# SDK's own model of the schema subset Gemini accepts for ``response_json_schema``.
+# That field set is the vendor's machine-readable statement of what the backend
+# understands, and it is the evidence this gate rests on — a keyword it declares
+# is not gated even when Google's prose allowlist omits it, and ``default`` is the
+# clearest example: 32 of prkit's 44 response models use it, they are enforced
+# natively today, and the SDK declares it.
+#
+# Deliberately NOT gated, despite being documented as unsupported: a ``$ref``
+# carrying a non-``$`` sibling, and cycles reached through a required property.
+# Pydantic emits a ``description`` beside a ``$ref`` as a matter of course, and
+# gating those two rules would demote 23 and 13 of prkit's own models — schemas
+# that work against the live API today. The prose is stricter than the behaviour.
+#
+# ``test_denylist_matches_the_pinned_sdk_schema_subset`` fails if this list and
+# the SDK's field set ever disagree, so an SDK upgrade cannot silently widen or
+# narrow the gate.
 _GEMINI_UNSUPPORTED_SCHEMA_KEYWORDS = frozenset(
     {
         "allOf",
@@ -55,12 +63,11 @@ _GEMINI_UNSUPPORTED_SCHEMA_KEYWORDS = frozenset(
         "propertyNames",
         "contains",
         "dependentSchemas",
+        "prefixItems",
         "multipleOf",
-        "uniqueItems",
-        "pattern",
         "const",
-        "minLength",
-        "maxLength",
+        "exclusiveMinimum",
+        "exclusiveMaximum",
     }
 )
 
