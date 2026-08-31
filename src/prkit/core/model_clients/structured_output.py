@@ -21,20 +21,32 @@ StructuredOutputPolicy = Literal["native_required", "best_effort"]
 
 _JSON_FENCE_RE = re.compile(r"```(?:json)?\s*(.*?)\s*```", re.DOTALL)
 
+# Keys whose values hold reusable subschemas rather than schema of their own.
+# ``$defs`` is the 2020-12 spelling; ``definitions`` is the draft-07 one.
+_DEF_CONTAINER_KEYS = ("$defs", "definitions")
+
 
 @dataclass(frozen=True)
 class SchemaFeatures:
-    """Structural features of a JSON Schema that affect provider compatibility."""
+    """Structural features of a JSON Schema that affect provider compatibility.
+
+    ``has_circular_refs`` and ``has_repeated_refs`` are different questions and
+    must not be conflated. A schema whose ``$ref`` graph contains a cycle is
+    genuinely recursive, and providers that reject recursion reject it. A schema
+    that uses one definition from two places merely reuses it, which is common
+    in generated schemas and rejected by nobody.
+    """
 
     has_root_anyof: bool = False
     has_allof: bool = False
     has_prefix_items: bool = False
-    has_recursive_refs: bool = False
+    has_circular_refs: bool = False
     optional_field_count: int = 0
     union_field_count: int = 0
     has_numeric_bounds: bool = False
     has_string_constraints: bool = False
     has_open_objects: bool = False
+    has_repeated_refs: bool = False
 
 
 @dataclass(frozen=True)
@@ -265,7 +277,7 @@ def inspect_schema_features(schema: dict[str, Any]) -> SchemaFeatures:
     union_field_count = 0
     has_allof = False
     has_prefix_items = False
-    has_recursive_refs = False
+    has_repeated_refs = False
     has_numeric_bounds = False
     has_string_constraints = False
     has_open_objects = False
@@ -277,7 +289,7 @@ def inspect_schema_features(schema: dict[str, Any]) -> SchemaFeatures:
         nonlocal union_field_count
         nonlocal has_allof
         nonlocal has_prefix_items
-        nonlocal has_recursive_refs
+        nonlocal has_repeated_refs
         nonlocal has_numeric_bounds
         nonlocal has_string_constraints
         nonlocal has_open_objects
@@ -286,7 +298,7 @@ def inspect_schema_features(schema: dict[str, Any]) -> SchemaFeatures:
             ref = node.get("$ref")
             if isinstance(ref, str):
                 if ref in seen_refs:
-                    has_recursive_refs = True
+                    has_repeated_refs = True
                 seen_refs.add(ref)
 
             if node.get("allOf"):
@@ -344,13 +356,133 @@ def inspect_schema_features(schema: dict[str, Any]) -> SchemaFeatures:
         and isinstance(schema.get("anyOf"), list),
         has_allof=has_allof,
         has_prefix_items=has_prefix_items,
-        has_recursive_refs=has_recursive_refs,
+        has_circular_refs=schema_has_circular_refs(schema),
         optional_field_count=optional_field_count,
         union_field_count=union_field_count,
         has_numeric_bounds=has_numeric_bounds,
         has_string_constraints=has_string_constraints,
         has_open_objects=has_open_objects,
+        has_repeated_refs=has_repeated_refs,
     )
+
+
+def _escape_pointer_token(token: str) -> str:
+    """Escape one JSON-pointer token per RFC 6901 (``~`` first, then ``/``)."""
+    return token.replace("~", "~0").replace("/", "~1")
+
+
+def _resolve_json_pointer(root: dict[str, Any], pointer: str) -> Any | None:
+    """Resolve a local ``#/...`` JSON pointer against *root*.
+
+    Returns ``None`` for external references and for pointers that do not
+    resolve. prkit cannot follow those, so it must not describe their structure.
+    """
+    if pointer in ("#", "#/"):
+        return root
+    if not pointer.startswith("#/"):
+        return None
+
+    node: Any = root
+    for raw_token in pointer[2:].split("/"):
+        token = raw_token.replace("~1", "/").replace("~0", "~")
+        if isinstance(node, dict):
+            if token not in node:
+                return None
+            node = node[token]
+        elif isinstance(node, list):
+            try:
+                index = int(token)
+            except ValueError:
+                return None
+            if not 0 <= index < len(node):
+                return None
+            node = node[index]
+        else:
+            return None
+    return node
+
+
+def _iter_ref_targets(node: Any) -> Iterator[str]:
+    """Yield every ``$ref`` string in *node*, without descending into definitions.
+
+    Definition containers are skipped so a definition carrying its own ``$defs``
+    does not lend those inner edges to whatever holds it. Each definition is
+    walked separately, as its own node in the reference graph.
+    """
+    if isinstance(node, dict):
+        ref = node.get("$ref")
+        if isinstance(ref, str):
+            yield ref
+        for key, value in node.items():
+            if key == "$ref" or key in _DEF_CONTAINER_KEYS:
+                continue
+            yield from _iter_ref_targets(value)
+    elif isinstance(node, list):
+        for item in node:
+            yield from _iter_ref_targets(item)
+
+
+def schema_has_circular_refs(schema: Any) -> bool:
+    """Return ``True`` when *schema*'s ``$ref`` graph contains a cycle.
+
+    A cycle means a genuinely recursive type: following ``$ref`` edges from some
+    definition leads back to that same definition. Using one definition from two
+    places is reuse, not recursion, and is not a cycle.
+
+    The search starts at the root *and* at every definition, because providers
+    validate the whole document — a cycle inside a definition nothing references
+    still makes the schema recursive. External references and pointers that do
+    not resolve are treated as leaves.
+    """
+    if not isinstance(schema, dict):
+        return False
+
+    def normalize(pointer: str) -> str:
+        return "#" if pointer in ("#", "#/") else pointer
+
+    def body_of(pointer: str) -> Any:
+        if pointer == "#":
+            # The root's own edges exclude the definitions it merely carries.
+            return {k: v for k, v in schema.items() if k not in _DEF_CONTAINER_KEYS}
+        return _resolve_json_pointer(schema, pointer)
+
+    edges: dict[str, set[str]] = {}
+
+    def edges_from(pointer: str) -> set[str]:
+        if pointer not in edges:
+            body = body_of(pointer)
+            edges[pointer] = (
+                set()
+                if body is None
+                else {normalize(ref) for ref in _iter_ref_targets(body)}
+            )
+        return edges[pointer]
+
+    _WHITE, _GREY, _BLACK = 0, 1, 2
+    color: dict[str, int] = {}
+
+    def reaches_a_cycle(pointer: str) -> bool:
+        state = color.get(pointer, _WHITE)
+        if state == _GREY:
+            return True
+        if state == _BLACK:
+            return False
+        color[pointer] = _GREY
+        for target in edges_from(pointer):
+            if reaches_a_cycle(target):
+                return True
+        color[pointer] = _BLACK
+        return False
+
+    seeds = ["#"]
+    for container in _DEF_CONTAINER_KEYS:
+        entries = schema.get(container)
+        if isinstance(entries, dict):
+            seeds.extend(
+                f"#/{container}/{_escape_pointer_token(name)}" for name in entries
+            )
+
+    return any(reaches_a_cycle(seed) for seed in seeds)
 
 
 def schema_has_open_objects(schema: Any) -> bool:
@@ -443,6 +575,7 @@ __all__ = [
     "normalize_response_format",
     "sanitize_schema_name",
     "schema_contains_keyword",
+    "schema_has_circular_refs",
     "schema_has_open_objects",
     "strip_schema_keywords",
     "structured_output_spec_to_response_format",

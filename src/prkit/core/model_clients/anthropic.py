@@ -139,7 +139,7 @@ def _anthropic_native_schema_incompatibility(spec: StructuredOutputSpec) -> str 
         return None
 
     issues: list[str] = []
-    if features.has_recursive_refs:
+    if features.has_circular_refs:
         issues.append("recursive definitions are not supported")
     if features.optional_field_count > ANTHROPIC_OPTIONAL_PARAMETER_LIMIT:
         issues.append(
