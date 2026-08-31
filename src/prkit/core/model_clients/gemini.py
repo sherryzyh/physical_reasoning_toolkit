@@ -37,44 +37,64 @@ _GEMINI_BATCH_STATE_MAP = {
 }
 
 
-# Validation keywords absent from ``google.genai.types.JSONSchema``, the pinned
-# SDK's own model of the schema subset Gemini accepts for ``response_json_schema``.
-# That field set is the vendor's machine-readable statement of what the backend
-# understands, and it is the evidence this gate rests on — a keyword it declares
-# is not gated even when Google's prose allowlist omits it, and ``default`` is the
-# clearest example: 32 of prkit's 44 response models use it, they are enforced
-# natively today, and the SDK declares it.
+# Google's documented allowlist for ``response_json_schema``, taken from the
+# live REST discovery document (``$discovery/rest?version=v1beta``, revision
+# 20260830) and the ``generative_service.proto`` comment it is generated from:
+# "While the full JSON Schema may be sent, not all features are supported.
+# Specifically, only the following properties are supported".
 #
-# Deliberately NOT gated, despite being documented as unsupported: a ``$ref``
-# carrying a non-``$`` sibling, and cycles reached through a required property.
-# Pydantic emits a ``description`` beside a ``$ref`` as a matter of course, and
-# gating those two rules would demote 23 and 13 of prkit's own models — schemas
-# that work against the live API today. The prose is stricter than the behaviour.
-#
-# ``test_denylist_matches_the_pinned_sdk_schema_subset`` fails if this list and
-# the SDK's field set ever disagree, so an SDK upgrade cannot silently widen or
-# narrow the gate.
-_GEMINI_UNSUPPORTED_SCHEMA_KEYWORDS = frozenset(
+# This is deliberately an allowlist, not a denylist, so a keyword nobody
+# anticipated gates by default rather than sailing through unchecked.
+_GEMINI_SUPPORTED_SCHEMA_KEYWORDS = frozenset(
     {
-        "allOf",
-        "not",
-        "if",
-        "then",
-        "else",
-        "propertyNames",
-        "contains",
-        "dependentSchemas",
+        "$id",
+        "$defs",
+        "$ref",
+        "$anchor",
+        "type",
+        "format",
+        "title",
+        "description",
+        "enum",
+        "items",
         "prefixItems",
-        "multipleOf",
-        "const",
-        "exclusiveMinimum",
-        "exclusiveMaximum",
+        "minItems",
+        "maxItems",
+        "minimum",
+        "maximum",
+        "anyOf",
+        "oneOf",
+        "properties",
+        "additionalProperties",
+        "required",
+        "propertyOrdering",
+    }
+)
+
+# Absent from that allowlist, but annotations rather than constraints: nothing
+# is validated by them, so the backend ignoring them loses nothing. ``default``
+# is the case that proves the allowlist is not a rejection list — 32 of prkit's
+# 44 response models carry it and are enforced natively today.
+_GEMINI_IGNORABLE_SCHEMA_KEYWORDS = frozenset(
+    {
+        "default",
+        "examples",
+        "$comment",
+        "$schema",
+        "readOnly",
+        "writeOnly",
+        "deprecated",
     }
 )
 
 
 def _gemini_native_schema_incompatibility(spec: StructuredOutputSpec) -> str | None:
     """Return why Gemini cannot enforce *spec* natively, or ``None``.
+
+    Any constraint-bearing keyword outside Google's documented allowlist counts,
+    on the grounds that the safer failure is a prompt-only request that still
+    states the constraint in prose, over a natively enforced one from which the
+    backend has quietly dropped it.
 
     Only schema-position nodes are inspected, so a ``default`` value or a field
     named after a keyword is never mistaken for the keyword itself.
@@ -83,8 +103,9 @@ def _gemini_native_schema_incompatibility(spec: StructuredOutputSpec) -> str | N
         {
             keyword
             for node in iter_schema_nodes(spec.schema)
-            for keyword in _GEMINI_UNSUPPORTED_SCHEMA_KEYWORDS
-            if keyword in node
+            for keyword in node
+            if keyword not in _GEMINI_SUPPORTED_SCHEMA_KEYWORDS
+            and keyword not in _GEMINI_IGNORABLE_SCHEMA_KEYWORDS
         }
     )
     if not found:

@@ -10,6 +10,8 @@ from pydantic import BaseModel
 
 from prkit.core.model_clients.base import DEFAULT_INSTRUCTIONS
 from prkit.core.model_clients.gemini import (
+    _GEMINI_IGNORABLE_SCHEMA_KEYWORDS,
+    _GEMINI_SUPPORTED_SCHEMA_KEYWORDS,
     GeminiModel,
     _extract_gemini_error_details,
 )
@@ -315,6 +317,15 @@ class TestGeminiStructuredOutputGate:
                 "properties": {"a": {"type": "number", "multipleOf": 2}},
             },
             {"type": "object", "properties": {"a": {"exclusiveMinimum": 0}}},
+            {
+                "type": "object",
+                "properties": {"a": {"type": "string", "pattern": "^x"}},
+            },
+            {
+                "type": "object",
+                "properties": {"a": {"type": "string", "minLength": 1}},
+            },
+            {"type": "object", "properties": {"a": {"uniqueItems": True}}},
         ],
     )
     def test_unsupported_keywords_demote(self, schema):
@@ -332,6 +343,71 @@ class TestGeminiStructuredOutputGate:
                 self._spec({"allOf": [{"type": "object"}, {"type": "object"}]}),
                 structured_policy="native_required",
             )
+
+    def test_prefix_items_stays_native(self):
+        """``prefixItems`` is on Google's allowlist; gating it was a false negative."""
+        plan = self._client()._resolve_structured_output_plan(
+            self._spec(
+                {
+                    "type": "object",
+                    "properties": {
+                        "pair": {
+                            "type": "array",
+                            "prefixItems": [{"type": "string"}, {"type": "integer"}],
+                        }
+                    },
+                }
+            ),
+            structured_policy="best_effort",
+        )
+
+        assert plan.mode == "json_schema"
+
+    def test_the_allowlist_is_the_documented_one(self):
+        """Pins the allowlist against Google's published set, verbatim.
+
+        Transcribed from the v1beta REST discovery document, revision 20260830,
+        and the ``generative_service.proto`` comment it is generated from. If
+        someone widens or trims this set, they should have re-read the source.
+        """
+        assert _GEMINI_SUPPORTED_SCHEMA_KEYWORDS == {
+            "$id",
+            "$defs",
+            "$ref",
+            "$anchor",
+            "type",
+            "format",
+            "title",
+            "description",
+            "enum",
+            "items",
+            "prefixItems",
+            "minItems",
+            "maxItems",
+            "minimum",
+            "maximum",
+            "anyOf",
+            "oneOf",
+            "properties",
+            "additionalProperties",
+            "required",
+            "propertyOrdering",
+        }
+
+    def test_annotations_are_never_treated_as_constraints(self):
+        """These are off the allowlist but validate nothing, so losing them is free."""
+        for keyword in _GEMINI_IGNORABLE_SCHEMA_KEYWORDS:
+            plan = self._client()._resolve_structured_output_plan(
+                self._spec(
+                    {
+                        "type": "object",
+                        "properties": {"a": {"type": "string"}},
+                        keyword: 1,
+                    }
+                ),
+                structured_policy="best_effort",
+            )
+            assert plan.mode == "json_schema", keyword
 
     def test_default_values_do_not_demote(self):
         """`default` is outside Google's allowlist but 32 of 44 prkit models use it.
