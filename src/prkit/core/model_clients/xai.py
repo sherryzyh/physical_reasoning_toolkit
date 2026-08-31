@@ -16,6 +16,10 @@ from .structured_output import (
     schema_contains_keyword,
     strip_schema_keywords,
 )
+from .utils import parse_data_url
+
+# xAI accepts only JPEG and PNG image payloads.
+_XAI_SUPPORTED_IMAGE_MEDIA_TYPES = frozenset({"image/jpeg", "image/png"})
 
 _XAI_UNSUPPORTED_SCHEMA_KEYWORDS = frozenset(
     {
@@ -61,6 +65,37 @@ class XAIModel(OpenAICompatibleChatModel):
     api_key_env_var = "XAI_API_KEY"
     base_url_env_var = "XAI_BASE_URL"
     default_base_url = "https://api.x.ai/v1"
+
+    def _build_image_content_block(self, image_url: str) -> dict[str, Any]:
+        """Build xAI's ``input_image`` block, whose ``image_url`` is a bare string.
+
+        xAI documents ``{"type": "input_image", "image_url": "<url>"}`` rather
+        than OpenAI's ``{"type": "image_url", "image_url": {"url": ...}}``.
+        """
+        self._warn_on_unsupported_image_media_type(image_url)
+        return {"type": "input_image", "image_url": image_url}
+
+    def _warn_on_unsupported_image_media_type(self, image_url: str) -> None:
+        """Warn when an inline image carries a media type xAI rejects.
+
+        Only data URLs are checked; the media type behind an ``http(s)`` URL is
+        not knowable here. Warns rather than raises, so a request prkit has
+        misjudged still reaches the API and fails there with the real reason.
+        """
+        if not image_url.startswith("data:"):
+            return
+        try:
+            media_type = parse_data_url(image_url)["media_type"]
+        except ValueError:
+            return
+        if media_type not in _XAI_SUPPORTED_IMAGE_MEDIA_TYPES:
+            self.logger.warning(
+                "xAI accepts only %s images; model %s was given %s, which the "
+                "API is expected to reject.",
+                ", ".join(sorted(_XAI_SUPPORTED_IMAGE_MEDIA_TYPES)),
+                self.model,
+                media_type,
+            )
 
     def _resolve_structured_output_plan(
         self,

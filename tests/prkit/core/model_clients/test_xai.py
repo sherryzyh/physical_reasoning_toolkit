@@ -57,6 +57,64 @@ class TestXAIModel:
             messages=[SYSTEM_MESSAGE, {"role": "user", "content": "Hello, world!"}],
         )
 
+    @patch(
+        "prkit.core.model_clients.openai_compatible_chat.prepare_image_url_from_image_path"
+    )
+    def test_images_use_xai_input_image_blocks(self, mock_prepare):
+        """xAI takes a bare image_url string, not OpenAI's nested {"url": ...}."""
+        mock_prepare.side_effect = ["data:image/png;base64,abc"]
+        client = object.__new__(XAIModel)
+        client.model = XAI_TEST_MODEL
+        client.provider = "xai"
+        client.logger = MagicMock()
+
+        content = client._build_message_content("describe", ["a.png"])
+
+        assert content == [
+            {"type": "text", "text": "describe"},
+            {"type": "input_image", "image_url": "data:image/png;base64,abc"},
+        ]
+
+    def test_unsupported_image_media_type_logs_a_warning(self):
+        client = object.__new__(XAIModel)
+        client.model = XAI_TEST_MODEL
+        client.provider = "xai"
+        client.logger = MagicMock()
+
+        block = client._build_image_content_block("data:image/gif;base64,abc")
+
+        assert block == {
+            "type": "input_image",
+            "image_url": "data:image/gif;base64,abc",
+        }
+        client.logger.warning.assert_called_once()
+        assert "image/gif" in client.logger.warning.call_args[0]
+
+    def test_supported_image_media_type_does_not_warn(self):
+        client = object.__new__(XAIModel)
+        client.model = XAI_TEST_MODEL
+        client.provider = "xai"
+        client.logger = MagicMock()
+
+        client._build_image_content_block("data:image/jpeg;base64,abc")
+
+        client.logger.warning.assert_not_called()
+
+    def test_remote_image_url_is_not_media_type_checked(self):
+        """The media type behind an http(s) URL is unknowable, so do not guess."""
+        client = object.__new__(XAIModel)
+        client.model = XAI_TEST_MODEL
+        client.provider = "xai"
+        client.logger = MagicMock()
+
+        block = client._build_image_content_block("https://example.com/a.gif")
+
+        assert block == {
+            "type": "input_image",
+            "image_url": "https://example.com/a.gif",
+        }
+        client.logger.warning.assert_not_called()
+
     @patch("prkit.core.model_clients.openai_compatible_chat.OpenAI")
     @patch("prkit.core.model_clients.base.load_project_dotenv")
     def test_resolve_structured_output_plan_strips_unsupported_constraint_keywords(
