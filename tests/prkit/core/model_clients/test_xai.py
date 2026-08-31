@@ -84,8 +84,8 @@ class TestXAIModel:
     @patch(
         "prkit.core.model_clients.openai_compatible_chat.prepare_image_url_from_image_path"
     )
-    def test_images_use_xai_input_image_blocks(self, mock_prepare):
-        """xAI takes a bare image_url string, not OpenAI's nested {"url": ...}."""
+    def test_images_use_the_chat_completions_block_shape(self, mock_prepare):
+        """xAI's input_image block is Responses-API only; chat completions 422s on it."""
         mock_prepare.side_effect = ["data:image/png;base64,abc"]
         client = object.__new__(XAIModel)
         client.model = XAI_TEST_MODEL
@@ -96,7 +96,7 @@ class TestXAIModel:
 
         assert content == [
             {"type": "text", "text": "describe"},
-            {"type": "input_image", "image_url": "data:image/png;base64,abc"},
+            {"type": "image_url", "image_url": {"url": "data:image/png;base64,abc"}},
         ]
 
     def test_unsupported_image_media_type_logs_a_warning(self):
@@ -108,8 +108,8 @@ class TestXAIModel:
         block = client._build_image_content_block("data:image/gif;base64,abc")
 
         assert block == {
-            "type": "input_image",
-            "image_url": "data:image/gif;base64,abc",
+            "type": "image_url",
+            "image_url": {"url": "data:image/gif;base64,abc"},
         }
         client.logger.warning.assert_called_once()
         assert "image/gif" in client.logger.warning.call_args[0]
@@ -134,8 +134,8 @@ class TestXAIModel:
         block = client._build_image_content_block("https://example.com/a.gif")
 
         assert block == {
-            "type": "input_image",
-            "image_url": "https://example.com/a.gif",
+            "type": "image_url",
+            "image_url": {"url": "https://example.com/a.gif"},
         }
         client.logger.warning.assert_not_called()
 
@@ -205,7 +205,12 @@ class TestXAIModel:
         assert plan.mode == "json_schema"
         assert plan.strategy == "xai_chat_json_schema"
 
-    def test_multi_subschema_allof_falls_back(self):
+    def test_multi_subschema_allof_stays_native(self):
+        """xAI enforces this best-effort rather than rejecting it.
+
+        Demoting would forfeit native enforcement of the whole schema to avoid
+        a construct that does not actually fail.
+        """
         client = self._stub_client()
         spec = self._spec(
             {
@@ -220,8 +225,30 @@ class TestXAIModel:
             spec, structured_policy="best_effort"
         )
 
-        assert plan.mode == "prompt_only"
-        assert plan.strategy == "xai_prompt_only_unsupported_schema"
+        assert plan.mode == "json_schema"
+
+    def test_instance_data_is_not_read_as_schema(self):
+        """A ``default`` holding a key named ``items`` is a value, not a keyword."""
+        client = self._stub_client()
+        spec = self._spec(
+            self._closed({"cfg": {"type": "object", "default": {"items": ["a", "b"]}}})
+        )
+
+        plan = client._resolve_structured_output_plan(
+            spec, structured_policy="best_effort"
+        )
+
+        assert plan.mode == "json_schema"
+
+    def test_enum_members_are_not_walked_as_schema(self):
+        client = self._stub_client()
+        spec = self._spec(self._closed({"k": {"enum": [{"enum": []}]}}))
+
+        plan = client._resolve_structured_output_plan(
+            spec, structured_policy="best_effort"
+        )
+
+        assert plan.mode == "json_schema"
 
     def test_circular_ref_schema_falls_back(self):
         client = self._stub_client()

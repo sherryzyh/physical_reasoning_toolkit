@@ -25,6 +25,12 @@ _JSON_FENCE_RE = re.compile(r"```(?:json)?\s*(.*?)\s*```", re.DOTALL)
 # ``$defs`` is the 2020-12 spelling; ``definitions`` is the draft-07 one.
 _DEF_CONTAINER_KEYS = ("$defs", "definitions")
 
+# Keywords whose value maps author-chosen *names* to subschemas. Keys inside
+# these are field names, never schema keywords.
+_SCHEMA_MAP_KEYWORDS = frozenset(
+    {"properties", "patternProperties", "dependentSchemas"}
+)
+
 
 @dataclass(frozen=True)
 class SchemaFeatures:
@@ -402,24 +408,34 @@ def _resolve_json_pointer(root: dict[str, Any], pointer: str) -> Any | None:
     return node
 
 
-def _iter_ref_targets(node: Any) -> Iterator[str]:
+def _iter_ref_targets(node: Any, *, in_schema: bool = True) -> Iterator[str]:
     """Yield every ``$ref`` string in *node*, without descending into definitions.
 
     Definition containers are skipped so a definition carrying its own ``$defs``
     does not lend those inner edges to whatever holds it. Each definition is
     walked separately, as its own node in the reference graph.
+
+    The skip is *positional*. Inside a map of names to subschemas the keys are
+    author-chosen field names, so a property named ``definitions`` is an
+    ordinary field and its edges must still be collected.
     """
     if isinstance(node, dict):
+        if not in_schema:
+            for value in node.values():
+                yield from _iter_ref_targets(value)
+            return
         ref = node.get("$ref")
         if isinstance(ref, str):
             yield ref
         for key, value in node.items():
             if key == "$ref" or key in _DEF_CONTAINER_KEYS:
                 continue
-            yield from _iter_ref_targets(value)
+            yield from _iter_ref_targets(
+                value, in_schema=key not in _SCHEMA_MAP_KEYWORDS
+            )
     elif isinstance(node, list):
         for item in node:
-            yield from _iter_ref_targets(item)
+            yield from _iter_ref_targets(item, in_schema=in_schema)
 
 
 def schema_has_circular_refs(schema: Any) -> bool:

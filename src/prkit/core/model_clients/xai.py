@@ -28,26 +28,55 @@ _XAI_SUPPORTED_IMAGE_MEDIA_TYPES = frozenset({"image/jpeg", "image/png"})
 _XAI_UNSUPPORTED_SCHEMA_KEYWORDS = frozenset({"minContains", "maxContains"})
 
 
+# Keywords mapping author-chosen names to subschemas.
+_SCHEMA_MAP_KEYWORDS = ("properties", "patternProperties", "$defs", "definitions")
+# Keywords whose value is a single subschema (or, for ``items``, possibly a list).
+_SUBSCHEMA_KEYWORDS = (
+    "items",
+    "additionalProperties",
+    "contains",
+    "not",
+    "if",
+    "then",
+    "else",
+    "propertyNames",
+)
+# Keywords whose value is a list of subschemas.
+_SUBSCHEMA_LIST_KEYWORDS = ("allOf", "anyOf", "oneOf", "prefixItems")
+
+
 def _iter_schema_nodes(node: Any) -> Iterator[dict[str, Any]]:
-    """Yield every dict node reachable in *node*, depth first."""
-    if isinstance(node, dict):
-        yield node
-        for value in node.values():
-            yield from _iter_schema_nodes(value)
-    elif isinstance(node, list):
-        for item in node:
-            yield from _iter_schema_nodes(item)
+    """Yield every dict occupying a *schema* position within *node*.
 
-
-def _has_multi_subschema_allof(schema: Any) -> bool:
-    """Return ``True`` when an ``allOf`` holds other than exactly one subschema.
-
-    xAI supports ``allOf`` only in its single-subschema form.
+    Walking every dict indiscriminately would read instance data as though it
+    were schema: a ``default`` holding ``{"items": [...]}`` is a value, not a
+    tuple-form ``items`` keyword, and a field named ``properties`` is a field.
+    So ``default``, ``const``, ``examples`` and ``enum`` members are never
+    entered, and name-to-subschema maps are entered only by value.
     """
-    return any(
-        isinstance(node.get("allOf"), list) and len(node["allOf"]) != 1
-        for node in _iter_schema_nodes(schema)
-    )
+    if not isinstance(node, dict):
+        return
+    yield node
+
+    for keyword in _SCHEMA_MAP_KEYWORDS:
+        mapping = node.get(keyword)
+        if isinstance(mapping, dict):
+            for value in mapping.values():
+                yield from _iter_schema_nodes(value)
+
+    for keyword in _SUBSCHEMA_KEYWORDS:
+        value = node.get(keyword)
+        if isinstance(value, dict):
+            yield from _iter_schema_nodes(value)
+        elif isinstance(value, list):
+            for item in value:
+                yield from _iter_schema_nodes(item)
+
+    for keyword in _SUBSCHEMA_LIST_KEYWORDS:
+        values = node.get(keyword)
+        if isinstance(values, list):
+            for item in values:
+                yield from _iter_schema_nodes(item)
 
 
 def _has_array_items(schema: Any) -> bool:
@@ -92,7 +121,11 @@ def _xai_native_schema_incompatibility(spec: StructuredOutputSpec) -> str | None
     """Return the xAI-documented reason native structured output is incompatible, or ``None``.
 
     Each branch mirrors a rule xAI publishes as a hard 400, so that a schema it
-    would reject is demoted here instead of failing at the API.
+    would reject is demoted here instead of failing at the API. Constructs xAI
+    accepts but enforces only best-effort — multi-subschema ``allOf``, ``not``,
+    ``if``/``then``/``else``, and bounds past its documented thresholds — are
+    deliberately not listed: demoting those would forfeit native enforcement of
+    the rest of the schema for no gain.
     """
     features = spec.schema_features
     has_circular = (
@@ -102,8 +135,6 @@ def _xai_native_schema_incompatibility(spec: StructuredOutputSpec) -> str | None
     )
     if has_circular:
         return "circular $ref definitions are not supported"
-    if _has_multi_subschema_allof(spec.schema):
-        return "allOf is supported only with a single subschema"
     if _has_array_items(spec.schema):
         return "'items' as an array is not supported (use prefixItems)"
     if _has_empty_variant_list(spec.schema):
@@ -148,13 +179,16 @@ class XAIModel(OpenAICompatibleChatModel):
     )
 
     def _build_image_content_block(self, image_url: str) -> dict[str, Any]:
-        """Build xAI's ``input_image`` block, whose ``image_url`` is a bare string.
+        """Warn about media types xAI rejects, then use the chat-completions shape.
 
-        xAI documents ``{"type": "input_image", "image_url": "<url>"}`` rather
-        than OpenAI's ``{"type": "image_url", "image_url": {"url": ...}}``.
+        xAI's documented ``{"type": "input_image", "image_url": "<url>"}`` block
+        belongs to its Responses API. This client posts to
+        ``/v1/chat/completions``, which takes OpenAI's nested form; sending the
+        ``input_image`` block there fails to deserialize with a 422 before the
+        request ever reaches a model.
         """
         self._warn_on_unsupported_image_media_type(image_url)
-        return {"type": "input_image", "image_url": image_url}
+        return super()._build_image_content_block(image_url)
 
     def _warn_on_unsupported_image_media_type(self, image_url: str) -> None:
         """Warn when an inline image carries a media type xAI rejects.

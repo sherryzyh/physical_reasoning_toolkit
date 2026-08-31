@@ -267,6 +267,30 @@ class TestCircularRefDetection:
 
         assert schema_has_circular_refs(schema) is True
 
+    def test_property_named_definitions_still_yields_its_edges(self):
+        """The definition-container skip is positional, not by key name.
+
+        A field called ``definitions`` is an ordinary property; skipping it
+        would hide any cycle that runs through it.
+        """
+        schema = {
+            "$defs": {
+                "Definition": _closed_object(
+                    {
+                        "name": {"type": "string"},
+                        "definitions": {
+                            "type": "array",
+                            "items": {"$ref": "#/$defs/Definition"},
+                        },
+                    },
+                    ["name", "definitions"],
+                )
+            },
+            **_closed_object({"root": {"$ref": "#/$defs/Definition"}}, ["root"]),
+        }
+
+        assert schema_has_circular_refs(schema) is True
+
     def test_non_dict_schema_is_not_circular(self):
         assert schema_has_circular_refs("not a schema") is False
 
