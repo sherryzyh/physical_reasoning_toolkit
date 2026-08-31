@@ -53,6 +53,13 @@ class OpenAICompatibleChatModel(BaseModelClient):
         self.provider = self.provider_name
         self.base_url = base_url
 
+    def _build_image_content_block(self, image_url: str) -> dict[str, Any]:
+        """Build one image content block from an already-resolved *image_url*.
+
+        Override in providers whose image block deviates from the OpenAI shape.
+        """
+        return {"type": "image_url", "image_url": {"url": image_url}}
+
     def _build_message_content(
         self,
         user_prompt: str,
@@ -65,12 +72,9 @@ class OpenAICompatibleChatModel(BaseModelClient):
         content: list[dict[str, Any]] = [{"type": "text", "text": user_prompt}]
         for image_path in image_paths:
             content.append(
-                {
-                    "type": "image_url",
-                    "image_url": {
-                        "url": prepare_image_url_from_image_path(image_path),
-                    },
-                }
+                self._build_image_content_block(
+                    prepare_image_url_from_image_path(image_path)
+                )
             )
         return content
 

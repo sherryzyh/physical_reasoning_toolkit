@@ -45,6 +45,14 @@ class TestOpenAICompatibleChatModel:
             timeout=10,
         )
 
+    def test_build_image_content_block_defaults_to_openai_shape(self):
+        client = object.__new__(DummyChatProvider)
+
+        assert client._build_image_content_block("data:image/png;base64,abc") == {
+            "type": "image_url",
+            "image_url": {"url": "data:image/png;base64,abc"},
+        }
+
     def test_build_message_content_without_images_returns_plain_prompt(self):
         client = object.__new__(DummyChatProvider)
         assert client._build_message_content("hello") == "hello"
