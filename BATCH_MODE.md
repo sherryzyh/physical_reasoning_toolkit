@@ -70,12 +70,17 @@ It deliberately does **not** own:
 | OpenAI | `"openai"` | JSONL **file** upload | ✅ poll + retrieve (output **and** error file) |
 | Anthropic | `"anthropic"` | **inline list** (no file upload) | ✅ poll + retrieve (`.results()` stream) |
 | Gemini | **`"google"`** | keyed JSONL **file** upload (`key` → `custom_id`) | ✅ poll + retrieve |
-| xAI / DeepSeek / Dashscope / Ollama | — | — | ❌ no batch surface |
+| xAI / Moonshot / DeepSeek / Dashscope / Ollama | — | — | ❌ no batch surface |
 
 - Gemini's provider string is **`"google"`**, not `"gemini"` — relevant if you key off `client.provider`.
-- Fetch capability is gated by `batch_fetch_supported(client)` against `{"openai", "anthropic", "google"}`;
-  `fetch_batch` raises `BatchFetchUnsupportedError` **up front** for anything else (never a raw
-  `NotImplementedError` mid-sweep).
+- Batch capability is gated by `batch_submit_supported(client)` / `batch_fetch_supported(client)` against
+  `{"openai", "anthropic", "google"}`. `submit_batch_physics_reasoning` raises `BatchSubmitUnsupportedError`
+  and `fetch_batch` raises `BatchFetchUnsupportedError`, both **up front** — never a raw
+  `NotImplementedError` mid-sweep, and for submit, before any run folder is created. Sweeping a mix of
+  models? Branch on the predicate rather than catching the error.
+- **Batch capability is per model at some providers, not just per provider.** xAI excludes `grok-4.6` from
+  its batch API, and Moonshot excludes `kimi-k3`; both are why those clients are synchronous only here. If
+  a batch lane is ever added for them, the model-level check belongs in `batch_submit_supported`.
 - A local `.jsonl` artifact is written under `inputs/` for **all three** providers (reproducibility / inspection
   / resume), even Anthropic, whose `submit_batch` actually sends an inline list.
 

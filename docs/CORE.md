@@ -154,13 +154,17 @@ For physics problems specifically, `solve_physics_problem()` builds the prompt a
 | Provider | Example model names | Notes | Environment variables |
 |----------|---------------------|-------|----------------------|
 | OpenAI | `gpt-4.1-mini`, `gpt-5.1`, `o3-mini` | Responses API only; Text input; Image input | `OPENAI_API_KEY` |
+| Anthropic | `claude-sonnet-4-6`, `claude-opus-4-8` | Messages API; Text input; Image input | `ANTHROPIC_API_KEY` |
 | Google Gemini | `gemini-pro`, `gemini-1.5-pro` | Text input; Image input | `GOOGLE_API_KEY` |
 | DeepSeek | `deepseek-chat`, `deepseek-reasoner` | Text input | `DEEPSEEK_API_KEY` |
 | xAI | `grok-4.6`, `xai/grok-4.6` | OpenAI-compatible Chat Completions API | `XAI_API_KEY` |
+| Moonshot (Kimi) | `kimi-k3`, `kimi-k2.6`, `moonshot-v1-8k`, `moonshot/kimi-k3` | OpenAI-compatible Chat Completions API; `MOONSHOT_REGION` (`global`/`cn`) or `MOONSHOT_BASE_URL` can override region; synchronous only | `MOONSHOT_API_KEY` |
 | DashScope | `qwen3.6-plus`, `dashscope/qwen3.6-plus` | OpenAI-compatible Chat Completions API; `DASHSCOPE_REGION` or `DASHSCOPE_BASE_URL` can override region | `DASHSCOPE_API_KEY` |
 | Ollama | `qwen3-vl`, `qwen3-vl:8b-instruct` | Local runtime; vision depends on model | (none) |
 
-**Notes:** Provider selection is model-driven—you specify a model string, not a provider. For image inputs, pass absolute file paths, HTTP(S) URLs, or `data:image/...;base64,...` strings. See `src/prkit/core/model_clients/ARCHITECTURE.md` for implementation details.
+**Notes:** Provider selection is model-driven—you specify a model string, not a provider. For image inputs, pass absolute file paths, HTTP(S) URLs, or `data:image/...;base64,...` strings.
+
+**Structured output** is resolved per provider by `client.resolve_structured_output_plan(response_model)`, which returns the mode (`json_schema` / `json_object` / `prompt_only`), the strategy string, and whether the provider will enforce the schema server-side. Providers demote to a prompt-only plan when a schema uses a construct they reject rather than letting the request fail at the API — xAI, for instance, accepts non-circular `$ref` only. Pass `structured_policy="native_required"` to raise instead of demoting.
 
 ```python
 from prkit.core.model_clients import create_model_client
@@ -302,7 +306,7 @@ def _load_my_provider(model: str, logger):
 
 register_model_client(ProviderRule(
     name="my_provider",
-    match=lambda model: model.startswith("my-"),
+    matches=lambda model: model.startswith("my-"),
     load=_load_my_provider,
 ))
 ```
