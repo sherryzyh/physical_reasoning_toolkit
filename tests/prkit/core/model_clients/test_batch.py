@@ -9,12 +9,16 @@ the synchronous ``response()`` path would build from the same inputs.
 from __future__ import annotations
 
 import json
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
 from pydantic import BaseModel
 
-from prkit.core.model_clients.anthropic import DEFAULT_MAX_OUTPUT_TOKENS
+from prkit.core.model_clients.anthropic import (
+    DEFAULT_MAX_OUTPUT_TOKENS,
+    _parse_anthropic_result_entry,
+)
 from prkit.core.model_clients.base import BaseModelClient
 from prkit.core.model_clients.batch_types import (
     TERMINAL_STATES,
@@ -296,6 +300,59 @@ class TestAnthropicLifecycle:
         client.client.messages.batches.results.return_value = iter([entry])
         results = list(client.retrieve_batch_results("msgbatch_1"))
         assert results[0].status == BatchItemStatus.ERRORED
+
+
+class TestAnthropicEmptyResult:
+    """A succeeded message with no text is not a successful empty answer."""
+
+    @staticmethod
+    def _entry(blocks, *, stop_reason="end_turn", stop_details=None):
+        message = SimpleNamespace(
+            content=blocks, stop_reason=stop_reason, stop_details=stop_details
+        )
+        return SimpleNamespace(
+            custom_id="r",
+            result=SimpleNamespace(type="succeeded", message=message),
+        )
+
+    def test_text_block_still_succeeds(self):
+        entry = self._entry([{"type": "text", "text": "hello"}])
+
+        result = _parse_anthropic_result_entry(entry)
+
+        assert result.status is BatchItemStatus.SUCCEEDED
+        assert result.text == "hello"
+
+    def test_refusal_is_reported_as_an_error(self):
+        entry = self._entry(
+            [],
+            stop_reason="refusal",
+            stop_details=SimpleNamespace(category="cyber"),
+        )
+
+        result = _parse_anthropic_result_entry(entry)
+
+        assert result.status is BatchItemStatus.ERRORED
+        assert "refusal" in result.error
+        assert "cyber" in result.error
+
+    def test_thinking_only_response_is_reported_as_an_error(self):
+        """Truncated at the token cap: 200 OK, thinking block, no answer."""
+        entry = self._entry(
+            [{"type": "thinking", "thinking": "..."}], stop_reason="max_tokens"
+        )
+
+        result = _parse_anthropic_result_entry(entry)
+
+        assert result.status is BatchItemStatus.ERRORED
+        assert "max_tokens" in result.error
+        assert "thinking" in result.error
+
+    def test_no_blocks_at_all_is_reported_as_an_error(self):
+        result = _parse_anthropic_result_entry(self._entry([]))
+
+        assert result.status is BatchItemStatus.ERRORED
+        assert "none" in result.error
 
 
 class TestGeminiLifecycle:

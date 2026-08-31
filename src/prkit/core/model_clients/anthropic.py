@@ -456,6 +456,35 @@ class AnthropicModel(BaseModelClient):
         )
 
 
+def _empty_message_reason(message: Any, blocks: list[Any]) -> str:
+    """Explain why a succeeded Anthropic message carried no text.
+
+    The batch API returns HTTP 200 for outcomes that produced no answer: a
+    safety refusal arrives with ``stop_reason="refusal"`` and a populated
+    ``stop_details``, and a thinking-only response cut off at the token cap
+    arrives with ``stop_reason="max_tokens"``. Reporting either as a successful
+    empty string is indistinguishable from a genuine empty answer, and becomes
+    actively misleading once the payload is supposed to be JSON.
+    """
+    stop_reason = _block_attr(message, "stop_reason") or "unknown"
+    detail = f"Anthropic returned no text (stop_reason={stop_reason!r}"
+
+    stop_details = _block_attr(message, "stop_details")
+    category = _block_attr(stop_details, "category") if stop_details else None
+    if category:
+        detail += f", category={category!r}"
+
+    kinds = sorted(
+        {
+            str(_block_attr(block, "type"))
+            for block in blocks
+            if _block_attr(block, "type")
+        }
+    )
+    detail += f", blocks={kinds or 'none'})"
+    return detail
+
+
 def _parse_anthropic_result_entry(entry: Any) -> BatchResult:
     """Parse one streamed Message Batch result entry into a ``BatchResult``."""
     custom_id = str(getattr(entry, "custom_id", "") or "")
@@ -469,6 +498,12 @@ def _parse_anthropic_result_entry(entry: Any) -> BatchResult:
             for block in blocks
             if _block_attr(block, "type") == "text" and _block_attr(block, "text")
         ).strip()
+        if not text:
+            return BatchResult(
+                custom_id,
+                BatchItemStatus.ERRORED,
+                error=_empty_message_reason(message, blocks),
+            )
         return BatchResult(custom_id, BatchItemStatus.SUCCEEDED, text=text)
     status = _ANTHROPIC_ITEM_STATUS_MAP.get(result_type, BatchItemStatus.ERRORED)
     error = getattr(result, "error", None)
